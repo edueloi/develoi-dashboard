@@ -24,6 +24,9 @@
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "completed", "on-hold"] },
         "clientName": { "type": "string" },
+        "category": { "type": "string" },
+        "progress": { "type": "number" },
+        "deadline": { "type": "string", "format": "date" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "status"]
@@ -38,6 +41,9 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "status": { "type": "string", "enum": ["todo", "in-progress", "testing", "done"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "category": { "type": "string" },
+        "deadline": { "type": "string", "format": "date" },
         "testScenarios": { "type": "string" },
         "businessRules": { "type": "string" },
         "assignedTo": { "type": "string" },

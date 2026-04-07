@@ -4,6 +4,7 @@ import WaveEffect from './WaveEffect';
 import { Link } from 'react-router-dom';
 
 export default function Hero() {
+  console.log("Hero component rendering");
   return (
     <section id="home" className="relative min-h-screen flex flex-col items-center justify-center pt-32 pb-20 overflow-hidden">
       {/* Aurora Background Effects */}

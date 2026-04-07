@@ -67,13 +67,15 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.token.email == "edueloi.EE@gmail.com");
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          request.auth.token.email == "edueloi.EE@gmail.com"
+        );
     }
 
     function isTeamMember() {
       return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) || request.auth.token.email == "edueloi.EE@gmail.com");
     }
 
     function hasOnlyAllowedFields(fields) {
@@ -88,12 +90,33 @@ service cloud.firestore {
 
     function isValidProject(data) {
       return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.status in ['active', 'completed', 'on-hold'];
+             data.status in ['active', 'completed', 'on-hold'] &&
+             (!('progress' in data) || (data.progress is number && data.progress >= 0 && data.progress <= 100)) &&
+             (!('category' in data) || (data.category is string && data.category.size() < 50)) &&
+             (!('clientName' in data) || (data.clientName is string && data.clientName.size() < 100)) &&
+             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             (!('deadline' in data) || (data.deadline is string)) &&
+             (!('visibility' in data) || (data.visibility in ['public', 'private'])) &&
+             (!('allowedUsers' in data) || (data.allowedUsers is list)) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp));
+    }
+
+    function canAccessProject(projectData) {
+      return isAdmin() || 
+             (isTeamMember() && 
+               (
+                 !('visibility' in projectData) || 
+                 projectData.visibility == 'public' || 
+                 (projectData.visibility == 'private' && request.auth.uid in projectData.allowedUsers)
+               )
+             );
     }
 
     function isValidFeature(data) {
       return data.projectId is string && data.title is string && data.title.size() > 0 &&
-             data.status in ['todo', 'in-progress', 'testing', 'done'];
+             data.status in ['todo', 'in-progress', 'testing', 'done'] &&
+             (!('priority' in data) || (data.priority in ['low', 'medium', 'high', 'critical'])) &&
+             (!('category' in data) || (data.category is string && data.category.size() < 50));
     }
 
     function isValidMessage(data) {
@@ -113,21 +136,21 @@ service cloud.firestore {
     }
 
     match /projects/{projectId} {
-      allow read: if isTeamMember();
+      allow read: if canAccessProject(resource.data);
       allow create: if isAdmin() && isValidProject(request.resource.data);
-      allow update: if isTeamMember() && isValidProject(request.resource.data);
+      allow update: if (isAdmin() || (canAccessProject(resource.data) && canAccessProject(request.resource.data))) && isValidProject(request.resource.data);
       allow delete: if isAdmin();
 
       match /features/{featureId} {
-        allow read: if isTeamMember();
-        allow create: if isTeamMember() && isValidFeature(request.resource.data);
-        allow update: if isTeamMember() && isValidFeature(request.resource.data);
+        allow read: if canAccessProject(get(/databases/$(database)/documents/projects/$(projectId)).data);
+        allow create: if canAccessProject(get(/databases/$(database)/documents/projects/$(projectId)).data) && isValidFeature(request.resource.data);
+        allow update: if canAccessProject(get(/databases/$(database)/documents/projects/$(projectId)).data) && isValidFeature(request.resource.data);
         allow delete: if isAdmin();
       }
 
       match /messages/{messageId} {
-        allow read: if isTeamMember();
-        allow create: if isTeamMember() && isValidMessage(request.resource.data);
+        allow read: if canAccessProject(get(/databases/$(database)/documents/projects/$(projectId)).data);
+        allow create: if canAccessProject(get(/databases/$(database)/documents/projects/$(projectId)).data) && isValidMessage(request.resource.data);
         allow update: if false; // Messages are immutable
         allow delete: if isAdmin();
       }

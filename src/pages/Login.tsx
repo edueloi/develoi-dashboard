@@ -10,39 +10,39 @@ export default function Login() {
   if (user) return <Navigate to="/dashboard" />;
 
   return (
-    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-aurora-blue/10 blur-[150px] -z-10 rounded-full" />
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 relative overflow-hidden font-sans">
+      {/* Background Elements */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_0%,rgba(79,70,229,0.05)_0%,transparent_50%)]" />
       
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="w-full max-w-md glass p-12 rounded-[3rem] border-white/5 text-center relative"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-white p-12 rounded-[2.5rem] border border-slate-200 text-center relative shadow-2xl shadow-indigo-100/50"
       >
-        <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-10 shadow-2xl shadow-white/10">
-          <span className="text-black font-black text-4xl">D</span>
+        <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg shadow-indigo-200">
+          <span className="text-white font-bold text-3xl">D</span>
         </div>
 
-        <h1 className="text-4xl font-black tracking-tighter mb-4">DEVELOI <span className="text-gradient">HUB</span></h1>
-        <p className="text-neutral-500 mb-12 font-medium">Acesso restrito para membros da elite Develoi.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 mb-2">DEVELOI <span className="text-indigo-600">HUB</span></h1>
+        <p className="text-slate-500 mb-10 text-sm font-medium">Acesso exclusivo para o time de elite.</p>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           <button 
             onClick={signIn}
-            className="w-full py-6 bg-white text-black font-black rounded-2xl hover:scale-105 transition-transform flex items-center justify-center gap-4 shadow-xl shadow-white/5"
+            className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-100"
           >
-            <LogIn className="w-6 h-6" /> ENTRAR COM GOOGLE
+            <LogIn className="w-5 h-5" /> ENTRAR COM GOOGLE
           </button>
           
-          <div className="pt-8 grid grid-cols-3 gap-4">
+          <div className="pt-8 grid grid-cols-3 gap-4 border-t border-slate-50">
             <FeatureIcon icon={ShieldCheck} label="Seguro" />
             <FeatureIcon icon={Rocket} label="Rápido" />
             <FeatureIcon icon={Zap} label="Elite" />
           </div>
         </div>
 
-        <p className="mt-12 text-[10px] font-black uppercase tracking-[0.3em] text-neutral-700">
-          Powered by Aurora AI
+        <p className="mt-10 text-[9px] font-bold uppercase tracking-[0.2em] text-slate-300">
+          DEVELOI INTERNAL SYSTEMS v2.0
         </p>
       </motion.div>
     </div>
@@ -52,10 +52,10 @@ export default function Login() {
 function FeatureIcon({ icon: Icon, label }: any) {
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-neutral-500">
-        <Icon className="w-5 h-5" />
+      <div className="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
+        <Icon className="w-4 h-4" />
       </div>
-      <span className="text-[10px] font-black uppercase tracking-widest text-neutral-600">{label}</span>
+      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{label}</span>
     </div>
   );
 }

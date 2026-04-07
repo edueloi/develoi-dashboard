@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
   { name: 'Início', path: '/' },
@@ -13,6 +14,7 @@ const navItems = [
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-4 md:py-8">
@@ -44,6 +46,15 @@ export default function Navbar() {
                 }`} />
               </Link>
             ))}
+            
+            <Link
+              to={user ? "/dashboard" : "/login"}
+              className="flex items-center gap-2 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] text-aurora-blue hover:text-white transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              {user ? 'Dashboard' : 'Membros'}
+            </Link>
+
             <Link
               to="/#contato"
               className="px-6 md:px-8 py-2 md:py-3 bg-white text-black font-black rounded-lg md:rounded-xl text-[10px] md:text-xs hover:scale-105 transition-transform shadow-lg shadow-white/5"
@@ -80,6 +91,15 @@ export default function Navbar() {
                   {item.name}
                 </Link>
               ))}
+              
+              <Link
+                to={user ? "/dashboard" : "/login"}
+                className="text-2xl font-black tracking-tighter text-aurora-blue"
+                onClick={() => setIsOpen(false)}
+              >
+                {user ? 'Dashboard' : 'Área de Membros'}
+              </Link>
+
               <div className="h-[1px] bg-white/5 my-2" />
               <Link
                 to="/#contato"

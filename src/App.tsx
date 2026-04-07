@@ -62,6 +62,7 @@ function AnimatedRoutes() {
 }
 
 function AppContent() {
+  console.log("AppContent component rendering");
   const location = useLocation();
   const isDashboard = location.pathname.startsWith('/dashboard') || location.pathname === '/login';
   
@@ -105,6 +106,7 @@ function AppContent() {
 }
 
 export default function App() {
+  console.log("App component rendering");
   return (
     <AuthProvider>
       <Router>
