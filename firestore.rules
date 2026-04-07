@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string
+    //   - email: string (required)
+    //   - photoURL: string
+    //   - role: string (admin, developer, tester, designer)
+    //   - specialty: string
+    //
+    // Collection: projects
+    // Document ID: projectId
+    // Fields:
+    //   - id: string
+    //   - name: string (required)
+    //   - description: string
+    //   - status: string (active, completed, on-hold)
+    //   - clientName: string
+    //   - createdAt: timestamp
+    //
+    // Sub-collection: projects/{projectId}/features
+    // Document ID: featureId
+    // Fields:
+    //   - id: string
+    //   - projectId: string (required)
+    //   - title: string (required)
+    //   - description: string
+    //   - status: string (todo, in-progress, testing, done)
+    //   - testScenarios: string
+    //   - businessRules: string
+    //   - assignedTo: string (userId)
+    //   - validatedBy: string (userId)
+    //   - isValidated: bool
+    //   - validationDate: timestamp
+    //
+    // Sub-collection: projects/{projectId}/messages
+    // Document ID: messageId
+    // Fields:
+    //   - id: string
+    //   - projectId: string (required)
+    //   - senderId: string (required)
+    //   - senderName: string
+    //   - text: string (required)
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.token.email == "edueloi.EE@gmail.com");
+    }
+
+    function isTeamMember() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() > 0 &&
+             data.email is string && data.email.size() > 0 &&
+             data.role in ['admin', 'developer', 'tester', 'designer'];
+    }
+
+    function isValidProject(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.status in ['active', 'completed', 'on-hold'];
+    }
+
+    function isValidFeature(data) {
+      return data.projectId is string && data.title is string && data.title.size() > 0 &&
+             data.status in ['todo', 'in-progress', 'testing', 'done'];
+    }
+
+    function isValidMessage(data) {
+      return data.projectId is string && data.senderId is string && 
+             data.text is string && data.text.size() > 0 && data.text.size() < 2000;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if isTeamMember();
+      allow create: if isAdmin() && isValidProject(request.resource.data);
+      allow update: if isTeamMember() && isValidProject(request.resource.data);
+      allow delete: if isAdmin();
+
+      match /features/{featureId} {
+        allow read: if isTeamMember();
+        allow create: if isTeamMember() && isValidFeature(request.resource.data);
+        allow update: if isTeamMember() && isValidFeature(request.resource.data);
+        allow delete: if isAdmin();
+      }
+
+      match /messages/{messageId} {
+        allow read: if isTeamMember();
+        allow create: if isTeamMember() && isValidMessage(request.resource.data);
+        allow update: if false; // Messages are immutable
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}

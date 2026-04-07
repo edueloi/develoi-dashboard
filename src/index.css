@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-aurora-blue: #00d2ff;
+  --color-aurora-purple: #9d50bb;
+  --color-aurora-pink: #ff00cc;
+  --color-aurora-green: #00ff87;
+  
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-aurora: aurora 20s linear infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes aurora {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    @apply antialiased;
+  }
+  body {
+    @apply bg-[#030303] text-neutral-100 font-sans selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tighter;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink;
+  }
+  
+  .text-gradient-green {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-aurora-green to-aurora-blue;
+  }
+
+  .glass {
+    @apply bg-white/[0.02] backdrop-blur-2xl border border-white/[0.05] shadow-[0_8px_32px_0_rgba(0,0,0,0.8)];
+  }
+  
+  .glass-card {
+    @apply bg-white/[0.01] backdrop-blur-md border border-white/[0.03] hover:border-white/[0.1] transition-all duration-700;
+  }
+
+  .aurora-blur {
+    @apply absolute blur-[150px] rounded-full mix-blend-screen opacity-30 animate-aurora;
+  }
+
+  .logo-container {
+    @apply bg-white p-2 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-white/5;
+  }
+}
