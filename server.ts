@@ -55,7 +55,7 @@ async function writeDB(db: DB) {
 
 async function startServer() {
   try {
-    const isDev = true; // Force dev mode for debugging
+    const isDev = process.env.NODE_ENV !== "production";
     console.log("Starting server in mode:", isDev ? "development" : "production");
     
     const app = express();
