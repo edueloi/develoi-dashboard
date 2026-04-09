@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
+import nodeCrypto from "node:crypto";
 
 console.log("SERVER SCRIPT LOADING...");
 
@@ -16,6 +17,14 @@ interface DB {
   projects: any[];
   features: any[];
   messages: any[];
+}
+
+function hashPassword(password: string): string {
+  return nodeCrypto.createHash("sha256").update(password).digest("hex");
+}
+
+function generateToken(uid: string): string {
+  return nodeCrypto.createHash("sha256").update(uid + Date.now().toString()).digest("hex");
 }
 
 async function readDB(): Promise<DB> {
@@ -63,8 +72,132 @@ async function startServer() {
       res.send("SERVER IS ALIVE");
     });
 
+    // ─── Auth: Login with email + password ───────────────────────────────────
+    app.post("/api/auth/login", async (req, res) => {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email e senha obrigatórios." });
+      }
+      const db = await readDB();
+      const user = db.users.find(
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+      if (!user || !user.active) {
+        return res.status(401).json({ error: "Usuário não encontrado ou inativo." });
+      }
+      const hash = hashPassword(password);
+      if (user.passwordHash !== hash) {
+        return res.status(401).json({ error: "Senha incorreta." });
+      }
+      const token = generateToken(user.uid);
+      // Store token in user (simple session)
+      const idx = db.users.findIndex((u: any) => u.uid === user.uid);
+      db.users[idx].token = token;
+      await writeDB(db);
+      const { passwordHash: _h, ...safeUser } = db.users[idx];
+      return res.json({ success: true, user: safeUser, token });
+    });
+
+    // ─── Auth: Validate token ─────────────────────────────────────────────────
+    app.get("/api/auth/me", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Não autenticado." });
+      }
+      const token = auth.slice(7);
+      const db = await readDB();
+      const user = db.users.find((u: any) => u.token === token);
+      if (!user || !user.active) {
+        return res.status(401).json({ error: "Token inválido." });
+      }
+      const { passwordHash: _h, token: _t, ...safeUser } = user;
+      return res.json(safeUser);
+    });
+
+    // ─── Auth: Create user (admin only) ──────────────────────────────────────
+    app.post("/api/auth/users", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Não autenticado." });
+      }
+      const token = auth.slice(7);
+      const db = await readDB();
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") {
+        return res.status(403).json({ error: "Apenas admins podem criar usuários." });
+      }
+      const { email, password, displayName, role } = req.body;
+      if (!email || !password || !displayName) {
+        return res.status(400).json({ error: "Email, senha e nome são obrigatórios." });
+      }
+      const exists = db.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+      if (exists) {
+        return res.status(409).json({ error: "Email já cadastrado." });
+      }
+      const newUser = {
+        uid: `user-${Date.now()}`,
+        displayName,
+        email,
+        photoURL: null,
+        role: role || "developer",
+        passwordHash: hashPassword(password),
+        createdAt: new Date().toISOString(),
+        active: true,
+      };
+      db.users.push(newUser);
+      await writeDB(db);
+      const { passwordHash: _h, ...safeUser } = newUser;
+      return res.json({ success: true, user: safeUser });
+    });
+
+    // ─── Auth: List users (admin only) ────────────────────────────────────────
+    app.get("/api/auth/users", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Não autenticado." });
+      const token = auth.slice(7);
+      const db = await readDB();
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") {
+        return res.status(403).json({ error: "Apenas admins podem listar usuários." });
+      }
+      const safeUsers = db.users.map(({ passwordHash: _h, token: _t, ...u }: any) => u);
+      return res.json(safeUsers);
+    });
+
+    // ─── Auth: Toggle user active (admin only) ────────────────────────────────
+    app.patch("/api/auth/users/:uid", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Não autenticado." });
+      const token = auth.slice(7);
+      const db = await readDB();
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") {
+        return res.status(403).json({ error: "Apenas admins podem editar usuários." });
+      }
+      const { uid } = req.params;
+      const idx = db.users.findIndex((u: any) => u.uid === uid);
+      if (idx === -1) return res.status(404).json({ error: "Usuário não encontrado." });
+      db.users[idx] = { ...db.users[idx], ...req.body };
+      await writeDB(db);
+      const { passwordHash: _h, token: _t, ...safeUser } = db.users[idx];
+      return res.json({ success: true, user: safeUser });
+    });
+
     app.get("/api/health", (req, res) => {
       res.json({ status: "ok" });
+    });
+
+    // ─── Contact form ─────────────────────────────────────────────────────────
+    app.post("/api/contact", async (req, res) => {
+      const { name, email, message } = req.body;
+      if (!name || !email || !message) {
+        return res.status(400).json({ error: "Todos os campos são obrigatórios." });
+      }
+      const db = await readDB();
+      if (!(db as any).contacts) (db as any).contacts = [];
+      (db as any).contacts.push({ name, email, message, createdAt: new Date().toISOString() });
+      await writeDB(db as any);
+      return res.json({ success: true });
     });
 
     // Users
