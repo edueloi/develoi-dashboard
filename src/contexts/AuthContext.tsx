@@ -1,93 +1,98 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { auth } from '../firebase';
+
+interface UserProfile {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string | null;
+  role: 'admin' | 'developer' | string;
+  active: boolean;
+  createdAt?: string;
+}
 
 interface AuthContextType {
-  user: User | null;
-  profile: any | null;
+  user: UserProfile | null;
+  profile: UserProfile | null;
   loading: boolean;
-  signIn: () => Promise<void>;
-  logout: () => Promise<void>;
+  signIn: (email: string, password: string, remember?: boolean) => Promise<void>;
+  logout: () => void;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const TOKEN_KEY = 'develoi_token';
+const REMEMBER_KEY = 'develoi_remember';
+
+function getStorage(): Storage {
+  // Use localStorage if "remember me" was checked, otherwise sessionStorage
+  const remembered = localStorage.getItem(REMEMBER_KEY);
+  return remembered === '1' ? localStorage : sessionStorage;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // On mount, validate stored token (check both storages)
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (loading) {
-        console.warn("Auth check timed out, forcing loading to false");
-        setLoading(false);
-      }
-    }, 5000);
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      clearTimeout(timeout);
-      setUser(user);
-      if (user) {
-        try {
-          // Sync with SQLite API
-          const profileData = {
-            uid: user.uid,
-            displayName: user.displayName,
-            email: user.email,
-            photoURL: user.photoURL,
-            role: (user.email?.toLowerCase() === 'edueloi.ee@gmail.com') ? 'admin' : 'developer'
-          };
-
-          await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(profileData)
-          });
-
-          // Fetch all users to find current profile (or just use the one we sent)
-          const response = await fetch('/api/users');
-          if (response.ok) {
-            const users = await response.json();
-            if (Array.isArray(users)) {
-              const currentProfile = users.find((u: any) => u.uid === user.uid);
-              setProfile(currentProfile || profileData);
-            } else {
-              setProfile(profileData);
-            }
-          } else {
-            setProfile(profileData);
-          }
-        } catch (error) {
-          console.error("Profile sync error:", error);
-          setProfile({
-            uid: user.uid,
-            displayName: user.displayName,
-            email: user.email,
-            photoURL: user.photoURL,
-            role: (user.email?.toLowerCase() === 'edueloi.ee@gmail.com') ? 'admin' : 'developer'
-          });
-        }
-      } else {
-        setProfile(null);
-      }
+    const token =
+      localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+    if (!token) {
       setLoading(false);
-    });
-
-    return () => unsubscribe();
+      return;
+    }
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+          sessionStorage.removeItem(TOKEN_KEY);
+          localStorage.removeItem(REMEMBER_KEY);
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const signIn = async () => {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+  const signIn = async (email: string, password: string, remember = false) => {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Erro ao fazer login.');
+    }
+    if (remember) {
+      localStorage.setItem(REMEMBER_KEY, '1');
+      localStorage.setItem(TOKEN_KEY, data.token);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+      sessionStorage.setItem(TOKEN_KEY, data.token);
+    }
+    setUser(data.user);
   };
 
-  const logout = async () => {
-    await signOut(auth);
+  const logout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REMEMBER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    setUser(null);
   };
+
+  const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, logout }}>
+    <AuthContext.Provider value={{ user, profile: user, loading, signIn, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
@@ -99,4 +104,8 @@ export function useAuth() {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+}
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
 }

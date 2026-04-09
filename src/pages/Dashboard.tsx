@@ -126,7 +126,7 @@ export default function Dashboard() {
 
     const fetchProjects = async () => {
       try {
-        const isAdmin = profile.role === 'admin' || profile.email?.toLowerCase() === 'edueloi.ee@gmail.com';
+        const isAdmin = profile.role === 'admin' || profile.email?.toLowerCase() === 'admin@develoi.com.br' || profile.email?.toLowerCase() === 'edueloi.ee@gmail.com';
         const response = await fetch(`/api/projects?userId=${profile.uid}&isAdmin=${isAdmin}`);
         const data = await response.json();
         setProjects(data);
@@ -227,7 +227,13 @@ export default function Dashboard() {
 
         <div className="mt-auto p-6 border-t border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-3 mb-4">
-            <img src={profile?.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
+            {profile?.photoURL ? (
+              <img src={profile.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-white shadow-sm" />
+            ) : (
+              <div className="w-10 h-10 rounded-full border-2 border-white shadow-sm bg-gradient-to-br from-aurora-blue to-aurora-purple flex items-center justify-center text-white font-black text-sm">
+                {profile?.displayName?.[0]?.toUpperCase() ?? 'D'}
+              </div>
+            )}
             <div className="overflow-hidden">
               <p className="font-semibold text-sm text-slate-900 truncate">{profile?.displayName}</p>
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{profile?.role}</p>
