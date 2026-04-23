@@ -72,14 +72,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!res.ok) {
       throw new Error(data.error || 'Erro ao fazer login.');
     }
+    
+    const { token, ...userData } = data;
+    
     if (remember) {
       localStorage.setItem(REMEMBER_KEY, '1');
-      localStorage.setItem(TOKEN_KEY, data.token);
+      localStorage.setItem(TOKEN_KEY, token);
     } else {
       localStorage.removeItem(REMEMBER_KEY);
-      sessionStorage.setItem(TOKEN_KEY, data.token);
+      sessionStorage.setItem(TOKEN_KEY, token);
     }
-    setUser(data.user);
+    setUser(userData);
   };
 
   const logout = () => {
