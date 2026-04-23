@@ -1,9 +1,17 @@
-import Hero from '../components/Hero';
-import Services from '../components/Services';
-import Projects from '../components/Projects';
-import DreamSection from '../components/DreamSection';
-import Contact from '../components/Contact';
+// @ts-nocheck
+import HeroRedesign from '../components/site/HeroRedesign';
+import MetricsSection from '../components/site/MetricsSection';
+import AboutSection from '../components/site/AboutSection';
+import ProblemsSection from '../components/site/ProblemsSection';
+import SolutionsSection from '../components/site/SolutionsSection';
+import DifferentialsSection from '../components/site/DifferentialsSection';
+import HowItWorksSection from '../components/site/HowItWorksSection';
+import ValuesSection from '../components/site/ValuesSection';
+import EmotionalSection from '../components/site/EmotionalSection';
+import CTASection from '../components/site/CTASection';
 import { motion } from 'framer-motion';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 
 export default function Home() {
   return (
@@ -11,13 +19,24 @@ export default function Home() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="relative"
+      className="relative min-h-screen bg-[#030303] text-white selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden"
     >
-      <Hero />
-      <Services />
-      <Projects />
-      <DreamSection />
-      <Contact />
+      <Navbar />
+      
+      <main>
+        <HeroRedesign />
+        <MetricsSection />
+        <AboutSection />
+        <ProblemsSection />
+        <SolutionsSection />
+        <DifferentialsSection />
+        <HowItWorksSection />
+        <ValuesSection />
+        <EmotionalSection />
+        <CTASection />
+      </main>
+
+      <Footer />
     </motion.div>
   );
 }
