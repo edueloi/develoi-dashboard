@@ -281,7 +281,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   return (
     <div ref={containerRef} className={cn("flex flex-col gap-1.5", variant !== 'ghost' ? className : '')}>
       {label && (
-        <label className="ds-label">
+        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
           {label}
         </label>
       )}
