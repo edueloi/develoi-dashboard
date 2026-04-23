@@ -10,8 +10,6 @@ import ValuesSection from '../components/site/ValuesSection';
 import EmotionalSection from '../components/site/EmotionalSection';
 import CTASection from '../components/site/CTASection';
 import { motion } from 'framer-motion';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 
 export default function Home() {
   return (
@@ -21,8 +19,6 @@ export default function Home() {
       exit={{ opacity: 0 }}
       className="relative min-h-screen bg-[#030303] text-white selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden"
     >
-      <Navbar />
-      
       <main>
         <HeroRedesign />
         <MetricsSection />
@@ -35,8 +31,6 @@ export default function Home() {
         <EmotionalSection />
         <CTASection />
       </main>
-
-      <Footer />
     </motion.div>
   );
 }
