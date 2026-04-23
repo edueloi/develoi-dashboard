@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  uid          String    @id @default(uuid())
+  displayName  String
+  email        String    @unique
+  passwordHash String
+  photoURL     String?
+  role         String    @default("viewer")
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  token        String?   @db.Text
+  messages     Message[]
+}
+
+model Project {
+  id           String    @id @default(uuid())
+  name         String
+  description  String    @db.Text
+  status       String    @default("active")
+  clientName   String
+  category     String?
+  progress     Int       @default(0)
+  deadline     DateTime?
+  visibility   String    @default("public")
+  allowedUsers Json?
+  goals        Json?
+  financials   String?   @db.Text
+  history      String?   @db.Text
+  createdAt    DateTime  @default(now())
+  features     Feature[]
+  messages     Message[]
+}
+
+model Feature {
+  id          String   @id @default(uuid())
+  key         String?
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String   @db.Text
+  status      String   @default("todo")
+  priority    String?  @default("medium")
+  category    String?
+  assignedTo  String?
+  type        String   @default("task")
+  tags        Json?
+  createdAt   DateTime @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [uid], onDelete: Cascade)
+  senderName String
+  text       String   @db.Text
+  createdAt  DateTime @default(now())
+}
+
+model SiteValues {
+  id      Int    @id @default(1)
+  mission String @db.Text
+  vision  String @db.Text
+  values  Json
+}
+
+model TeamMember {
+  id       String  @id @default(uuid())
+  name     String
+  role     String
+  bio      String? @db.Text
+  photoURL String?
+  linkedin String?
+  github   String?
+  order    Int     @default(0)
+}
+
+model PortfolioItem {
+  id          String  @id @default(uuid())
+  title       String
+  description String  @db.Text
+  category    String?
+  imageURL    String?
+  link        String?
+  order       Int     @default(0)
+}
