@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { Heart, Target, TrendingUp, Star, Sparkles, CheckCircle2, Plus, Trash2, Save } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Heart, Target, TrendingUp, Star, Sparkles, CheckCircle2, Plus, Trash2, Save, Rocket, Compass, ShieldCheck } from 'lucide-react';
+import { Button, Input, Textarea, PanelCard, EmptyState, StatGrid, StatCard } from '../ui';
 import type { SiteValues } from './types';
+import { cn } from '../../lib/utils';
 
 export function SiteValuesManager() {
   const [data, setData] = useState<SiteValues>({ mission: '', vision: '', values: [] });
@@ -39,81 +40,122 @@ export function SiteValuesManager() {
     });
   };
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Carregando valores...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center py-24">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center gap-3">
-        <Heart className="w-5 h-5 text-indigo-500 flex-shrink-0" />
-        <p className="text-xs text-indigo-700 font-medium">O conteúdo aqui é exibido na página <strong>Missão &amp; Valores</strong> do site público.</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 bg-indigo-50 rounded-xl flex items-center justify-center">
-              <Target className="w-4 h-4 text-indigo-600" />
-            </div>
-            <h3 className="font-bold text-slate-900">Missão</h3>
-          </div>
-          <p className="text-xs text-slate-400">O propósito central da Develoi — por que existimos.</p>
-          <textarea rows={4} placeholder="Ex: Transformar ideias em soluções digitais de alto impacto..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={data.mission} onChange={e => setData(d => ({ ...d, mission: e.target.value }))} />
+    <div className="space-y-8 pb-12">
+      <div className="bg-indigo-50 border border-indigo-100 rounded-[24px] p-6 flex items-start gap-5">
+        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-5 h-5 text-indigo-600" />
         </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-emerald-600" />
-            </div>
-            <h3 className="font-bold text-slate-900">Visão</h3>
-          </div>
-          <p className="text-xs text-slate-400">Onde a Develoi quer chegar — o futuro que buscamos.</p>
-          <textarea rows={4} placeholder="Ex: Ser referência nacional em inovação e desenvolvimento de software..." className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={data.vision} onChange={e => setData(d => ({ ...d, vision: e.target.value }))} />
+        <div>
+          <p className="text-sm font-black text-indigo-900 uppercase tracking-tight">Cultura & DNA</p>
+          <p className="text-xs text-indigo-600/80 mt-1 font-medium leading-relaxed">
+            Configure as diretrizes estratégicas da Develoi. 
+            Estes pilares são a base do nosso site oficial e transmitem nossa essência ao mercado.
+          </p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-amber-50 rounded-xl flex items-center justify-center">
-              <Star className="w-4 h-4 text-amber-500" />
-            </div>
-            <h3 className="font-bold text-slate-900">Valores</h3>
-          </div>
-          <button onClick={() => setData(d => ({ ...d, values: [...d.values, { title: '', description: '' }] }))} className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-2 rounded-xl transition-all border border-indigo-100">
-            <Plus className="w-3.5 h-3.5" /> Adicionar Valor
-          </button>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <PanelCard 
+          title="Nossa Missão" 
+          description="O propósito central — por que existimos."
+          icon={Target}
+          iconWrapClassName="bg-indigo-50 border-indigo-100"
+          iconClassName="text-indigo-600"
+        >
+          <Textarea 
+            rows={5} 
+            placeholder="Ex: Transformar ideias em soluções digitais de alto impacto..." 
+            value={data.mission} 
+            onChange={e => setData(d => ({ ...d, mission: e.target.value }))} 
+            className="font-medium italic"
+          />
+        </PanelCard>
 
+        <PanelCard 
+          title="Nossa Visão" 
+          description="Onde queremos chegar — o futuro que buscamos."
+          icon={TrendingUp}
+          iconWrapClassName="bg-emerald-50 border-emerald-100"
+          iconClassName="text-emerald-600"
+        >
+          <Textarea 
+            rows={5} 
+            placeholder="Ex: Ser referência nacional em inovação e desenvolvimento de software..." 
+            value={data.vision} 
+            onChange={e => setData(d => ({ ...d, vision: e.target.value }))} 
+            className="font-medium italic"
+          />
+        </PanelCard>
+      </div>
+
+      <PanelCard 
+        title="Valores Inegociáveis" 
+        description="Os princípios que regem cada linha de código e cada decisão."
+        icon={Star}
+        iconWrapClassName="bg-amber-50 border-amber-100"
+        iconClassName="text-amber-600"
+        action={
+          <Button variant="outline" size="sm" onClick={() => setData(d => ({ ...d, values: [...d.values, { title: '', description: '' }] }))} iconLeft={<Plus className="w-3.5 h-3.5" />}>
+            ADICIONAR VALOR
+          </Button>
+        }
+      >
         {data.values.length === 0 ? (
-          <div className="p-10 text-center border-2 border-dashed border-slate-200 rounded-2xl">
-            <Sparkles className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Nenhum valor cadastrado. Adicione o primeiro!</p>
-          </div>
+          <EmptyState 
+            icon={Sparkles}
+            title="Sem valores cadastrados"
+            description="Defina os valores que representam a cultura da Develoi."
+            className="border-none bg-zinc-50/30"
+          />
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {data.values.map((v, i) => (
-              <div key={i} className="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <div className="flex-1 space-y-3">
-                  <input type="text" placeholder="Ex: Excelência, Inovação, Transparência..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={v.title} onChange={e => updateValue(i, 'title', e.target.value)} />
-                  <textarea rows={2} placeholder="Breve descrição deste valor..." className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={v.description} onChange={e => updateValue(i, 'description', e.target.value)} />
-                </div>
-                <button onClick={() => setData(d => ({ ...d, values: d.values.filter((_, idx) => idx !== i) }))} className="self-start p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+              <div key={i} className="group p-6 bg-slate-50/50 rounded-3xl border border-slate-100 hover:border-amber-200 hover:bg-white hover:shadow-xl hover:shadow-amber-100/20 transition-all relative">
+                <button 
+                  onClick={() => setData(d => ({ ...d, values: d.values.filter((_, idx) => idx !== i) }))} 
+                  className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                >
                   <Trash2 className="w-4 h-4" />
                 </button>
+                
+                <div className="space-y-4">
+                  <Input 
+                    placeholder="Título do Valor (Ex: Transparência)" 
+                    value={v.title} 
+                    onChange={e => updateValue(i, 'title', e.target.value)}
+                    className="font-black text-slate-900 border-none bg-transparent focus:bg-white px-0"
+                  />
+                  <Textarea 
+                    rows={2} 
+                    placeholder="Descrição detalhada..." 
+                    value={v.description} 
+                    onChange={e => updateValue(i, 'description', e.target.value)} 
+                    className="text-xs font-medium border-none bg-transparent focus:bg-white px-0"
+                  />
+                </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </PanelCard>
 
-      <div className="flex items-center justify-end gap-4">
+      <div className="flex items-center justify-end gap-6 pt-6 border-t border-slate-100">
         {saved && (
-          <motion.p initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="text-sm font-bold text-emerald-600 flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4" /> Salvo com sucesso!
-          </motion.p>
+          <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+            <CheckCircle2 className="w-4 h-4" />
+            <span className="text-xs font-black uppercase tracking-widest">Atualizado com sucesso</span>
+          </motion.div>
         )}
-        <Button onClick={handleSave} loading={saving}><Save className="w-4 h-4 mr-2" /> SALVAR TUDO</Button>
+        <Button onClick={handleSave} loading={saving} size="lg" className="min-w-[200px]" iconLeft={<Save className="w-5 h-5" />}>
+          SALVAR ALTERAÇÕES
+        </Button>
       </div>
     </div>
   );

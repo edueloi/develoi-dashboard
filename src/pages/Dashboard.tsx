@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Kanban, MessageSquare, Settings, LogOut, Plus,
@@ -8,7 +9,6 @@ import {
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image,
 } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 const DraggableComponent = Draggable as any;
@@ -16,12 +16,29 @@ const DroppableComponent = Droppable as any;
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from '../lib/utils';
 
 // UI components
-import { Button } from '../components/ui/Button';
-import { Modal, ConfirmModal } from '../components/ui/Modal';
-import { Badge } from '../components/ui/Badge';
-import { ProgressBar } from '../components/ui/ProgressBar';
+import { 
+  Button, 
+  Modal, 
+  ConfirmModal, 
+  Badge, 
+  ProgressBar,
+  PageWrapper,
+  SectionTitle,
+  StatGrid,
+  StatCard,
+  PanelCard,
+  ContentCard,
+  Divider,
+  GridTable,
+  Input,
+  Select,
+  Textarea,
+  EmptyState,
+  Column
+} from '../components/ui';
 
 // Dashboard feature components
 import { ChatRoom } from '../components/dashboard/ChatRoom';
@@ -150,159 +167,168 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto relative">
-        <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-bold text-slate-900">{tabTitles[activeTab]}</h1>
-            <p className="text-slate-400 text-xs font-medium">Gerencie a excelência da Develoi.</p>
-          </div>
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
+        {/* Top Header Section */}
+        <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <SectionTitle 
+            title={tabTitles[activeTab]} 
+            description={activeTab === 'overview' ? `Bem-vindo de volta, ${profile?.displayName?.split(' ')[0]}` : "Gerencie a excelência da Develoi."}
+            className="mb-0"
+          />
 
           <div className="flex items-center gap-3">
             {!hideSelectorTabs.includes(activeTab) && projects.length > 0 && (
-              <div className="relative">
-                <select
-                  className="appearance-none bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
-                  value={selectedProject?.id}
-                  onChange={(e) => setSelectedProject(projects.find(p => p.id === e.target.value) || null)}
-                >
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                  <ChevronRight className="w-4 h-4 rotate-90" />
-                </div>
-              </div>
+              <Select
+                value={selectedProject?.id}
+                onChange={(e) => setSelectedProject(projects.find(p => p.id === e.target.value) || null)}
+                wrapperClassName="w-[240px]"
+                className="font-bold text-slate-700"
+              >
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </Select>
             )}
-            <Button onClick={() => setIsNewProjectModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> NOVO PROJETO
-            </Button>
+            
+            {activeTab === 'projects' && (
+              <Button onClick={() => setIsNewProjectModalOpen(true)} iconLeft={<Plus className="w-4 h-4" />}>
+                NOVO PROJETO
+              </Button>
+            )}
           </div>
         </header>
 
-        <div className="p-6 md:p-8 max-w-7xl mx-auto">
-          <AnimatePresence mode="wait">
+        {/* Scrollable Page Body */}
+        <div className="flex-1 overflow-y-auto">
+          <PageWrapper>
+            <AnimatePresence mode="wait">
+              {activeTab === 'overview' && (
+                <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-8">
+                  {/* Global Stats Grid */}
+                  <StatGrid cols={3}>
+                    <StatCard 
+                      title="Projetos Ativos" 
+                      value={projects.filter(p => p.status === 'active').length} 
+                      icon={Rocket} 
+                      color="success"
+                      delay={0.1}
+                    />
+                    <StatCard 
+                      title="Tickets Pendentes" 
+                      value={12} 
+                      icon={AlertCircle} 
+                      color="warning"
+                      trend={{ value: 5, isUp: false }}
+                      delay={0.2}
+                    />
+                    <StatCard 
+                      title="Horas Totais" 
+                      value="164h" 
+                      icon={Clock} 
+                      color="info"
+                      delay={0.3}
+                    />
+                  </StatGrid>
 
-            {activeTab === 'overview' && (
-              <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-                <section className="space-y-5">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-900">Projetos em andamento</h2>
-                    <button onClick={() => setActiveTab('projects')} className="text-sm font-bold text-indigo-600 hover:underline">Ver todos</button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                    {projects.slice(0, 4).map(project => (
-                      <div key={project.id} onClick={() => { setSelectedProject(project); setActiveTab('summary'); }}
-                        className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-pointer group"
-                      >
-                        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:bg-indigo-600 transition-colors">
-                          <Briefcase className="w-5 h-5 text-indigo-600 group-hover:text-white transition-colors" />
-                        </div>
-                        <h3 className="font-bold text-slate-900 mb-1 text-sm">{project.name}</h3>
-                        <p className="text-xs text-slate-400 mb-3">{project.clientName || 'Equipe'}</p>
-                        <ProgressBar progress={project.progress ?? 0} />
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    {/* Activity Feed */}
+                    <PanelCard 
+                      title="Atividade Recente" 
+                      icon={History}
+                      description="Últimas movimentações no seu ecossistema"
+                    >
+                      <div className="divide-y divide-zinc-100">
+                        {[1, 2].map((_, i) => (
+                          <div key={i} className="py-4 first:pt-0 last:pb-0 flex items-center gap-4 hover:bg-slate-50/50 transition-colors rounded-xl px-2 -mx-2">
+                            <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center shrink-0", i === 0 ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600")}>
+                              {i === 0 ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-slate-900 truncate">{i === 0 ? 'Ajuste de layout do dashboard' : 'Implementação de filtros no backlog'}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">DEV-102{4+i}</span>
+                                <div className="w-1 h-1 rounded-full bg-zinc-300" />
+                                <Badge color={i === 0 ? "success" : "info"} size="sm">{i === 0 ? 'Concluído' : 'Em Progresso'}</Badge>
+                              </div>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-slate-300" />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                    {projects.length === 0 && (
-                      <div className="col-span-full p-12 text-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-                        <p className="text-slate-400 text-sm">Nenhum projeto ainda.</p>
+                    </PanelCard>
+
+                    {/* Deliveries Timeline */}
+                    <PanelCard 
+                      title="Próximas Entregas" 
+                      icon={Calendar}
+                      description="Cronograma das próximas 48 horas"
+                    >
+                      <div className="space-y-6">
+                        {[1, 2].map((_, i) => (
+                          <div key={i}>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">{i === 0 ? 'Sprint Agendelle #12' : 'Refatoração MySQL'}</h4>
+                              <span className="text-[10px] font-bold text-indigo-600">{i === 0 ? '85%' : '40%'}</span>
+                            </div>
+                            <ProgressBar progress={i === 0 ? 85 : 40} className="h-2" />
+                          </div>
+                        ))}
                       </div>
-                    )}
+                    </PanelCard>
                   </div>
-                </section>
+                </motion.div>
+              )}
 
-                <section className="bg-white rounded-2xl border border-slate-200 shadow-sm divide-y divide-slate-50 overflow-hidden">
-                  <div className="px-6 py-4 flex items-center gap-6 bg-slate-50/60">
-                    <span className="text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 pb-1">Atividade Recente</span>
-                  </div>
-                  <div className="p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">Ajuste de layout do dashboard</p>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">DEV-1024</p>
-                    </div>
-                    <Badge color="success">Concluído</Badge>
-                  </div>
-                  <div className="p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                      <Clock className="w-4 h-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">Implementação de filtros no backlog</p>
-                      <p className="text-[10px] text-slate-400 uppercase font-bold">DEV-1025</p>
-                    </div>
-                    <Badge color="info">Em Progresso</Badge>
-                  </div>
-                </section>
-              </motion.div>
-            )}
+              {activeTab === 'summary' && selectedProject && (
+                <ProjectSummary project={selectedProject} />
+              )}
 
-            {activeTab === 'summary' && selectedProject && (
-              <ProjectSummary project={selectedProject} />
-            )}
+              {activeTab === 'projects' && (
+                <ProjectsList
+                  projects={projects}
+                  onSelect={(p) => { setSelectedProject(p); setActiveTab('summary'); }}
+                  onEdit={(p) => setEditingProject(p)}
+                />
+              )}
 
-            {activeTab === 'projects' && (
-              <ProjectsList
-                projects={projects}
-                onSelect={(p) => { setSelectedProject(p); setActiveTab('summary'); }}
-                onEdit={(p) => setEditingProject(p)}
-              />
-            )}
+              {activeTab === 'backlog' && (
+                selectedProject
+                  ? <BacklogView projectId={selectedProject.id} />
+                  : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
+              )}
 
-            {activeTab === 'backlog' && (
-              selectedProject
-                ? <BacklogView projectId={selectedProject.id} />
-                : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
-            )}
+              {activeTab === 'board' && (
+                selectedProject
+                  ? <KanbanBoard projectId={selectedProject.id} />
+                  : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
+              )}
 
-            {activeTab === 'board' && (
-              selectedProject
-                ? <KanbanBoard projectId={selectedProject.id} />
-                : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
-            )}
+              {activeTab === 'tests' && (
+                selectedProject
+                  ? <TestModule projectId={selectedProject.id} />
+                  : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
+              )}
 
-            {activeTab === 'tests' && (
-              selectedProject
-                ? <TestModule projectId={selectedProject.id} />
-                : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
-            )}
+              {activeTab === 'members' && <MembersArea />}
 
-            {activeTab === 'members' && <MembersArea />}
+              {activeTab === 'timeline' && (
+                <EmptyState 
+                  icon={Calendar}
+                  title="Cronograma do Projeto"
+                  description="Visualize o cronograma em uma linha do tempo interativa (Em breve)."
+                />
+              )}
 
-            {activeTab === 'timeline' && (
-              <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
-                <Calendar className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Cronograma do Projeto</h3>
-                <p className="text-slate-400 max-w-md mx-auto text-sm">Visualize o cronograma em uma linha do tempo interativa (Em breve).</p>
-              </div>
-            )}
+              {activeTab === 'chat' && (
+                selectedProject
+                  ? <ChatRoom projectId={selectedProject.id} />
+                  : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
+              )}
 
-            {activeTab === 'chat' && (
-              selectedProject
-                ? <ChatRoom projectId={selectedProject.id} />
-                : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
-            )}
-
-            {activeTab === 'portfolio' && (
-              <motion.div key="portfolio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <PortfolioManager projects={projects} />
-              </motion.div>
-            )}
-
-            {activeTab === 'team' && (
-              <motion.div key="team" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <TeamManager />
-              </motion.div>
-            )}
-
-            {activeTab === 'site-values' && (
-              <motion.div key="site-values" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                <SiteValuesManager />
-              </motion.div>
-            )}
-
-          </AnimatePresence>
+              {activeTab === 'portfolio' && <PortfolioManager projects={projects} />}
+              {activeTab === 'team' && <TeamManager />}
+              {activeTab === 'site-values' && <SiteValuesManager />}
+            </AnimatePresence>
+          </PageWrapper>
         </div>
       </main>
 
@@ -377,82 +403,99 @@ function BacklogView({ projectId }: { projectId: string }) {
     f.key?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Carregando backlog...</div>;
+  const columns: Column<Feature>[] = [
+    {
+      header: 'Tipo',
+      render: (f) => (
+        <div className="flex items-center justify-center">
+          {f.type === 'bug' && <AlertCircle className="w-4 h-4 text-red-500" />}
+          {f.type === 'story' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+          {f.type === 'epic' && <Rocket className="w-4 h-4 text-purple-500" />}
+          {(!f.type || f.type === 'task') && <Briefcase className="w-4 h-4 text-blue-500" />}
+        </div>
+      ),
+      className: "w-12 text-center",
+    },
+    {
+      header: 'Chave',
+      render: (f) => <span className="font-black text-indigo-600 uppercase tracking-tighter">{f.key || f.id.slice(0, 4)}</span>,
+      className: "w-24",
+    },
+    {
+      header: 'Título / Resumo',
+      render: (f) => (
+        <div className="flex flex-col min-w-0">
+          <span className="font-bold text-slate-900 truncate">{f.title}</span>
+          {f.tags && f.tags.length > 0 && (
+            <div className="flex gap-1 mt-1">
+              {f.tags.map((tag, i) => (
+                <span key={i} className="text-[8px] font-black px-1 py-0.5 bg-slate-100 text-slate-500 rounded uppercase">{tag}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: 'Status',
+      render: (f) => (
+        <Badge color={f.status === 'done' ? 'success' : f.status === 'testing' ? 'warning' : 'info'}>
+          {f.status === 'todo' ? 'A Fazer' : f.status === 'in-progress' ? 'Em Progresso' : f.status === 'testing' ? 'Em Teste' : 'Concluído'}
+        </Badge>
+      ),
+    },
+    {
+      header: 'Prioridade',
+      render: (f) => (
+        <Badge color={f.priority === 'critical' ? 'danger' : f.priority === 'high' ? 'warning' : 'info'} dot>
+          {f.priority || 'Média'}
+        </Badge>
+      ),
+    },
+    {
+      header: 'Responsável',
+      render: (f) => (
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
+            {f.assignedTo ? f.assignedTo[0].toUpperCase() : 'U'}
+          </div>
+          <span className="font-medium text-slate-600 text-[11px] truncate">{f.assignedTo || 'Não atribuído'}</span>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input type="text" placeholder="Pesquisar no backlog..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
-        <Button onClick={() => setIsNewFeatureModalOpen(true)} size="sm">
-          <Plus className="w-4 h-4 mr-2" /> CRIAR TICKET
-        </Button>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Chave</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Resumo</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Prioridade</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Responsável</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredFeatures.map(feature => (
-                <tr key={feature.id} onClick={() => setFeatureToView(feature)} className="hover:bg-slate-50 transition-colors cursor-pointer group">
-                  <td className="px-6 py-4">
-                    {feature.type === 'bug' && <AlertCircle className="w-4 h-4 text-red-500" />}
-                    {feature.type === 'story' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                    {feature.type === 'epic' && <Rocket className="w-4 h-4 text-purple-500" />}
-                    {(!feature.type || feature.type === 'task') && <Briefcase className="w-4 h-4 text-blue-500" />}
-                  </td>
-                  <td className="px-6 py-4"><span className="text-xs font-bold text-indigo-600 group-hover:underline">{feature.key || feature.id.slice(0, 4).toUpperCase()}</span></td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-900">{feature.title}</span>
-                      {feature.tags && feature.tags.length > 0 && (
-                        <div className="flex gap-1 mt-1">
-                          {feature.tags.map((tag, i) => (
-                            <span key={i} className="text-[8px] font-bold px-1 py-0.5 bg-slate-100 text-slate-500 rounded uppercase">{tag}</span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge color={feature.status === 'done' ? 'success' : feature.status === 'testing' ? 'warning' : 'info'}>
-                      {feature.status === 'todo' ? 'A Fazer' : feature.status === 'in-progress' ? 'Em Progresso' : feature.status === 'testing' ? 'Em Teste' : 'Concluído'}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge color={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'}>
-                      {feature.priority || 'Média'}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[8px] font-bold text-white">
-                        {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
-                      </div>
-                      <span className="text-xs text-slate-600">{feature.assignedTo || 'Não atribuído'}</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredFeatures.length === 0 && (
-                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-400 text-sm italic">Nenhum ticket encontrado.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <PanelCard 
+        title="Backlog do Projeto"
+        description="Gerencie as demandas e bugs desta sprint"
+        icon={Briefcase}
+        action={
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input 
+              iconLeft={<Search className="w-4 h-4" />}
+              placeholder="Pesquisar tickets..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              wrapperClassName="min-w-[240px]"
+            />
+            <Button onClick={() => setIsNewFeatureModalOpen(true)} iconLeft={<Plus className="w-4 h-4" />}>
+              CRIAR TICKET
+            </Button>
+          </div>
+        }
+      >
+        <GridTable 
+          data={filteredFeatures}
+          columns={columns}
+          keyExtractor={(f) => f.id}
+          onRowClick={(f) => setFeatureToView(f)}
+          isLoading={loading}
+          emptyMessage="Nenhum ticket encontrado neste backlog."
+          noDesktopCard
+        />
+      </PanelCard>
 
       {isNewFeatureModalOpen && <NewFeatureModal projectId={projectId} onClose={() => setIsNewFeatureModalOpen(false)} />}
       {featureToView && <FeatureDetailModal feature={featureToView} onClose={() => setFeatureToView(null)} />}
@@ -486,10 +529,10 @@ function KanbanBoard({ projectId }: { projectId: string }) {
   }, [projectId]);
 
   const columns = [
-    { id: 'todo', label: 'A Fazer', dot: 'bg-slate-400' },
-    { id: 'in-progress', label: 'Desenvolvimento', dot: 'bg-blue-500' },
-    { id: 'testing', label: 'Testes', dot: 'bg-amber-500' },
-    { id: 'done', label: 'Concluído', dot: 'bg-emerald-500' },
+    { id: 'todo', label: 'A Fazer', color: 'default' },
+    { id: 'in-progress', label: 'Desenvolvimento', color: 'info' },
+    { id: 'testing', label: 'Testes', color: 'warning' },
+    { id: 'done', label: 'Concluído', color: 'success' },
   ];
 
   const onDragEnd = async (result: any) => {
@@ -520,69 +563,86 @@ function KanbanBoard({ projectId }: { projectId: string }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-slate-900">Fluxo de Trabalho</h2>
-        <Button size="sm" onClick={() => setIsNewFeatureModalOpen(true)}><Plus className="w-3.5 h-3.5 mr-2" /> NOVA FUNCIONALIDADE</Button>
-      </div>
-
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 overflow-x-auto pb-6">
-          {columns.map(col => (
-            <DroppableComponent key={col.id} droppableId={col.id}>
-              {(provided: any) => (
-                <div {...provided.droppableProps} ref={provided.innerRef} className="min-w-[260px] flex flex-col gap-3">
-                  <div className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full ${col.dot}`} />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{col.label}</span>
+      <PanelCard 
+        title="Quadro Kanban"
+        description="Gerencie o progresso visual das suas funcionalidades"
+        icon={Rocket}
+        action={
+          <Button onClick={() => setIsNewFeatureModalOpen(true)} iconLeft={<Plus className="w-4 h-4" />}>
+            NOVA FUNCIONALIDADE
+          </Button>
+        }
+      >
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="flex gap-6 overflow-x-auto pb-6 -mx-2 px-2 custom-scrollbar">
+            {columns.map(col => (
+              <DroppableComponent key={col.id} droppableId={col.id}>
+                {(provided: any) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef} className="min-w-[300px] w-[300px] flex flex-col gap-4">
+                    <div className="flex items-center justify-between px-3 py-2 bg-zinc-50 border border-zinc-100 rounded-2xl">
+                      <div className="flex items-center gap-2">
+                        <Badge color={col.color as any} dot size="sm">
+                          {col.label}
+                        </Badge>
+                      </div>
+                      <span className="text-[10px] font-black bg-white text-zinc-400 border border-zinc-100 w-6 h-6 flex items-center justify-center rounded-full shadow-sm">
+                        {features.filter(f => f.status === col.id).length}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                      {features.filter(f => f.status === col.id).length}
-                    </span>
-                  </div>
-                  <div className="space-y-3 min-h-[500px]">
-                    {features.filter(f => f.status === col.id).map((feature, index) => (
-                      <DraggableComponent key={feature.id} draggableId={feature.id} index={index}>
-                        {(provided: any) => (
-                          <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
-                            onClick={() => setFeatureToView(feature)}
-                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group relative"
-                          >
-                            <div className="flex flex-col gap-3">
-                              <span className="text-sm font-medium text-slate-900 leading-snug line-clamp-2 group-hover:text-indigo-600 transition-colors">{feature.title}</span>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  {feature.type === 'bug' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
-                                  {feature.type === 'story' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-                                  {feature.type === 'epic' && <Rocket className="w-3.5 h-3.5 text-purple-500" />}
-                                  {(!feature.type || feature.type === 'task') && <Briefcase className="w-3.5 h-3.5 text-blue-500" />}
-                                  <span className="text-[10px] font-bold text-slate-400 uppercase">{feature.key || feature.id.slice(0, 4).toUpperCase()}</span>
+
+                    <div className="space-y-4 min-h-[600px]">
+                      {features.filter(f => f.status === col.id).map((feature, index) => (
+                        <DraggableComponent key={feature.id} draggableId={feature.id} index={index}>
+                          {(provided: any) => (
+                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}
+                              onClick={() => setFeatureToView(feature)}
+                              className="bg-white p-5 rounded-[20px] border border-zinc-200 shadow-sm hover:shadow-xl hover:border-amber-300/50 transition-all cursor-pointer group relative overflow-hidden"
+                            >
+                              <div className="flex flex-col gap-4 relative z-10">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{feature.key || feature.id.slice(0, 4)}</span>
+                                  <Badge color={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'} size="xs" pill>
+                                    {feature.priority || 'Média'}
+                                  </Badge>
                                 </div>
-                                <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-[8px] font-bold text-white">
-                                  {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
+
+                                <span className="text-sm font-bold text-zinc-900 leading-tight line-clamp-2 group-hover:text-amber-600 transition-colors">{feature.title}</span>
+                                
+                                <div className="flex items-center justify-between pt-3 border-t border-zinc-50">
+                                  <div className="flex items-center gap-2">
+                                    {feature.type === 'bug' && <AlertCircle className="w-3.5 h-3.5 text-red-500" />}
+                                    {feature.type === 'story' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                                    {feature.type === 'epic' && <Rocket className="w-3.5 h-3.5 text-purple-500" />}
+                                    {(!feature.type || feature.type === 'task') && <Briefcase className="w-3.5 h-3.5 text-blue-500" />}
+                                  </div>
+                                  <div className="w-7 h-7 rounded-xl bg-indigo-600 flex items-center justify-center text-[10px] font-black text-white shadow-md">
+                                    {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* Hover Actions */}
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all flex gap-1 transform translate-y-2 group-hover:translate-y-0">
+                                <button onClick={(e) => { e.stopPropagation(); setFeatureToEdit(feature); }} className="p-1.5 bg-white shadow-lg border border-zinc-100 rounded-lg text-zinc-400 hover:text-indigo-600 transition-all hover:scale-110">
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); setFeatureToDelete(feature); }} className="p-1.5 bg-white shadow-lg border border-zinc-100 rounded-lg text-zinc-400 hover:text-red-600 transition-all hover:scale-110">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                              <button onClick={(e) => { e.stopPropagation(); setFeatureToEdit(feature); }} className="p-1.5 bg-white/90 backdrop-blur shadow-sm border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all">
-                                <Edit2 className="w-3 h-3" />
-                              </button>
-                              <button onClick={(e) => { e.stopPropagation(); setFeatureToDelete(feature); }} className="p-1.5 bg-white/90 backdrop-blur shadow-sm border border-slate-200 rounded-lg text-slate-400 hover:text-red-600 hover:border-red-200 transition-all">
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </DraggableComponent>
-                    ))}
-                    {provided.placeholder}
+                          )}
+                        </DraggableComponent>
+                      ))}
+                      {provided.placeholder}
+                    </div>
                   </div>
-                </div>
-              )}
-            </DroppableComponent>
-          ))}
-        </div>
-      </DragDropContext>
+                )}
+              </DroppableComponent>
+            ))}
+          </div>
+        </DragDropContext>
+      </PanelCard>
 
       {isNewFeatureModalOpen && <NewFeatureModal projectId={projectId} onClose={() => setIsNewFeatureModalOpen(false)} />}
       {featureToEdit && <EditFeatureModal projectId={projectId} feature={featureToEdit} onClose={() => setFeatureToEdit(null)} />}
@@ -599,93 +659,99 @@ function ProjectSummary({ project }: { project: Project }) {
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{project.name}</h2>
-          <p className="text-sm text-slate-400">Espaço de software • Gerenciado por Equipe Develoi</p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-3xl font-black text-zinc-900 tracking-tight">{project.name}</h2>
+            <Badge color={project.status === 'active' ? 'success' : 'warning'} dot>
+              {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Em Espera'}
+            </Badge>
+          </div>
+          <p className="text-sm font-medium text-zinc-400">Espaço de software • Gerenciado por Equipe Develoi</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
-          <Settings className="w-3.5 h-3.5 mr-2" /> CONFIGURAÇÕES
+        <Button variant="outline" iconLeft={<Settings className="w-4 h-4" />} onClick={() => setIsEditModalOpen(true)}>
+          CONFIGURAÇÕES DO PROJETO
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Descrição do Projeto</h3>
-            <p className="text-slate-600 leading-relaxed text-sm">{project.description || 'Nenhuma descrição fornecida.'}</p>
-          </section>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <PanelCard 
+            title="Descrição do Projeto" 
+            icon={Briefcase}
+            className="h-full"
+          >
+            <p className="text-zinc-600 leading-relaxed font-medium">
+              {project.description || 'Nenhuma descrição detalhada fornecida para este projeto.'}
+            </p>
+          </PanelCard>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <Target className="w-3.5 h-3.5 text-indigo-600" /> Metas
-              </h3>
-              <ul className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <PanelCard title="Metas & Objetivos" icon={Target}>
+              <ul className="space-y-3">
                 {project.goals && project.goals.length > 0 ? project.goals.map((goal, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-slate-600">
-                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 flex-shrink-0" />
-                    {goal}
+                  <li key={i} className="flex items-start gap-3 group">
+                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 group-hover:scale-150 transition-transform" />
+                    <span className="text-sm font-bold text-zinc-700 leading-tight">{goal}</span>
                   </li>
-                )) : <li className="text-sm text-slate-400 italic">Nenhuma meta definida.</li>}
+                )) : <li className="text-sm text-zinc-400 italic">Nenhuma meta definida.</li>}
               </ul>
-            </section>
+            </PanelCard>
 
-            <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" /> Financeiro
-              </h3>
-              <div className="text-sm text-slate-600 whitespace-pre-wrap">{project.financials || 'Não disponível.'}</div>
-            </section>
+            <PanelCard title="Financeiro & Orçamento" icon={TrendingUp}>
+              <div className="text-sm font-bold text-zinc-700 whitespace-pre-wrap leading-relaxed bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
+                {project.financials || 'Informações financeiras não disponíveis.'}
+              </div>
+            </PanelCard>
           </div>
 
-          <section className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest flex items-center gap-2">
-              <History className="w-3.5 h-3.5 text-amber-600" /> História & Contexto
-            </h3>
-            <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{project.history || 'Histórico não registrado.'}</div>
-          </section>
+          <PanelCard title="História & Contexto" icon={History}>
+            <div className="text-sm font-medium text-zinc-600 leading-relaxed whitespace-pre-wrap">
+              {project.history || 'O histórico deste projeto ainda não foi registrado.'}
+            </div>
+          </PanelCard>
         </div>
 
-        <div className="space-y-5">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest">Detalhes</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500 font-medium">Status</span>
-                <Badge color={project.status === 'active' ? 'success' : 'warning'}>
-                  {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Em Espera'}
-                </Badge>
+        <div className="space-y-6">
+          <PanelCard title="Detalhes Rápidos" noPadding>
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-zinc-50">
+                <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Cliente</span>
+                <span className="text-sm font-black text-zinc-900">{project.clientName || 'N/A'}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500 font-medium">Cliente</span>
-                <span className="text-xs font-bold text-slate-900">{project.clientName || 'N/A'}</span>
+              <div className="flex justify-between items-center py-2 border-b border-zinc-50">
+                <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Prazo Final</span>
+                <span className="text-sm font-black text-zinc-900">
+                  {project.deadline ? format(new Date(project.deadline), 'dd/MM/yyyy') : 'Não definido'}
+                </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-slate-500 font-medium">Prazo</span>
-                <span className="text-xs font-bold text-slate-900">{project.deadline ? format(new Date(project.deadline), 'dd/MM/yyyy') : 'Não definido'}</span>
-              </div>
-            </div>
-            <div className="pt-4 border-t border-slate-100">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-xs text-slate-500 font-medium">Progresso Geral</span>
-                <span className="text-xs font-black text-indigo-600">{project.progress ?? 0}%</span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-1000" style={{ width: `${project.progress ?? 0}%` }} />
+              
+              <div className="pt-4">
+                <ProgressBar 
+                  progress={project.progress ?? 0} 
+                  color="bg-gradient-to-r from-amber-400 to-amber-600"
+                  size="lg"
+                />
               </div>
             </div>
-          </div>
+          </PanelCard>
 
-          <div className="bg-gradient-to-br from-indigo-600 to-violet-600 p-6 rounded-2xl shadow-lg shadow-indigo-200 text-white space-y-3">
-            <Rocket className="w-7 h-7 text-indigo-200" />
-            <h4 className="font-bold">Pronto para decolar?</h4>
-            <p className="text-indigo-200 text-xs leading-relaxed">Acompanhe as entregas no Quadro Kanban.</p>
+          <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 p-8 rounded-[32px] shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-amber-500/20 transition-colors" />
+            <div className="relative z-10 space-y-4">
+              <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+                <Rocket className="w-6 h-6 text-white" />
+              </div>
+              <h4 className="text-xl font-black text-white leading-tight">Pronto para a próxima fase?</h4>
+              <p className="text-zinc-400 text-sm font-medium leading-relaxed">
+                Acompanhe as entregas e valide as funcionalidades no Quadro Kanban.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
-      {isEditModalOpen && <EditProjectModal project={project} onClose={() => setIsEditModalOpen(false)} />}
+      {isEditModalOpen && <EditProjectModal project={project} onClose={() => setIsEditModalOpen(true)} />}
     </motion.div>
   );
 }
@@ -730,62 +796,67 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Novo Projeto" size="md">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nome do Projeto</label>
-            <input required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: PsiFlux" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cliente</label>
-            <input required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={client} onChange={e => setClient(e.target.value)} placeholder="Ex: João Silva" />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: PsiFlux" />
+          <Input label="Cliente" required value={client} onChange={e => setClient(e.target.value)} placeholder="Ex: João Silva" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Visibilidade</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={visibility} onChange={e => setVisibility(e.target.value as any)}>
-              <option value="public">Público (Todos veem)</option>
-              <option value="private">Privado (Apenas selecionados)</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prazo Final</label>
-            <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={deadline} onChange={e => setDeadline(e.target.value)} />
-          </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Select label="Visibilidade" value={visibility} onChange={e => setVisibility(e.target.value as any)}>
+            <option value="public">Público (Todos veem)</option>
+            <option value="private">Privado (Apenas selecionados)</option>
+          </Select>
+          <Input label="Prazo Final" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
+
         {visibility === 'private' && (
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quem pode ver?</label>
-            <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Quem pode ver?</p>
+            <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50/50 rounded-3xl border border-slate-100 custom-scrollbar">
               {members.map(member => (
-                <button key={member.uid} type="button" onClick={() => toggleUser(member.uid)} className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${allowedUsers.includes(member.uid) ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'}`}>
-                  <div className="w-5 h-5 rounded-full bg-slate-200 overflow-hidden flex-shrink-0">{member.photoURL && <img src={member.photoURL} alt="" className="w-full h-full object-cover" />}</div>
-                  <span className="text-xs font-bold truncate">{member.displayName}</span>
+                <button 
+                  key={member.uid} 
+                  type="button" 
+                  onClick={() => toggleUser(member.uid)} 
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-2xl border transition-all text-left group/user",
+                    allowedUsers.includes(member.uid) 
+                      ? "bg-amber-50 border-amber-200 shadow-sm" 
+                      : "bg-white border-slate-100 hover:border-slate-300"
+                  )}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                    {member.photoURL ? (
+                      <img src={member.photoURL} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400">
+                        {member.displayName?.[0]}
+                      </div>
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-xs font-bold truncate",
+                    allowedUsers.includes(member.uid) ? "text-amber-700" : "text-slate-600"
+                  )}>
+                    {member.displayName}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         )}
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</label>
-          <textarea rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Objetivo do projeto..." />
+
+        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Qual o objetivo principal deste projeto?" rows={2} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Textarea label="Metas (Uma por linha)" value={goals} onChange={e => setGoals(e.target.value)} placeholder="Meta 1&#10;Meta 2" rows={3} />
+          <Textarea label="Financeiro" value={financials} onChange={e => setFinancials(e.target.value)} placeholder="Status de pagamento, orçamento..." rows={3} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Metas (Uma por linha)</label>
-            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={goals} onChange={e => setGoals(e.target.value)} placeholder="Meta 1&#10;Meta 2" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Financeiro</label>
-            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={financials} onChange={e => setFinancials(e.target.value)} placeholder="Status, orçamento..." />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">História & Contexto</label>
-          <textarea rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={history} onChange={e => setHistory(e.target.value)} placeholder="Contexto deste projeto..." />
-        </div>
-        <Button type="submit" loading={loading} className="w-full">CRIAR PROJETO</Button>
+
+        <Textarea label="História & Contexto" value={history} onChange={e => setHistory(e.target.value)} placeholder="Conte um pouco sobre como este projeto surgiu..." rows={2} />
+
+        <Button type="submit" loading={loading} fullWidth size="lg">CRIAR PROJETO</Button>
       </form>
     </Modal>
   );
@@ -831,73 +902,74 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Editar Projeto" size="md">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Nome do Projeto</label>
-            <input required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={name} onChange={e => setName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cliente</label>
-            <input required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={client} onChange={e => setClient(e.target.value)} />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} />
+          <Input label="Cliente" required value={client} onChange={e => setClient(e.target.value)} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={status} onChange={e => setStatus(e.target.value as any)}>
-              <option value="active">Ativo</option>
-              <option value="completed">Concluído</option>
-              <option value="on-hold">Em Espera</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Progresso (%)</label>
-            <input type="number" min="0" max="100" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={progress} onChange={e => setProgress(Number(e.target.value))} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prazo Final</label>
-            <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={deadline} onChange={e => setDeadline(e.target.value)} />
-          </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select label="Status" value={status} onChange={e => setStatus(e.target.value as any)}>
+            <option value="active">Ativo</option>
+            <option value="completed">Concluído</option>
+            <option value="on-hold">Em Espera</option>
+          </Select>
+          <Input label="Progresso (%)" type="number" min="0" max="100" value={progress} onChange={e => setProgress(Number(e.target.value))} />
+          <Input label="Prazo Final" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Visibilidade</label>
-          <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={visibility} onChange={e => setVisibility(e.target.value as any)}>
-            <option value="public">Público</option>
-            <option value="private">Privado</option>
-          </select>
-        </div>
+
+        <Select label="Visibilidade" value={visibility} onChange={e => setVisibility(e.target.value as any)}>
+          <option value="public">Público</option>
+          <option value="private">Privado</option>
+        </Select>
+
         {visibility === 'private' && (
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quem pode ver?</label>
-            <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Quem pode ver?</p>
+            <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50/50 rounded-3xl border border-slate-100 custom-scrollbar">
               {members.map(member => (
-                <button key={member.uid} type="button" onClick={() => toggleUser(member.uid)} className={`flex items-center gap-2 p-2 rounded-lg border transition-all text-left ${allowedUsers.includes(member.uid) ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-100 text-slate-600 hover:border-slate-300'}`}>
-                  <span className="text-xs font-bold truncate">{member.displayName}</span>
+                <button 
+                  key={member.uid} 
+                  type="button" 
+                  onClick={() => toggleUser(member.uid)} 
+                  className={cn(
+                    "flex items-center gap-3 p-2.5 rounded-2xl border transition-all text-left group/user",
+                    allowedUsers.includes(member.uid) 
+                      ? "bg-amber-50 border-amber-200 shadow-sm" 
+                      : "bg-white border-slate-100 hover:border-slate-300"
+                  )}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
+                    {member.photoURL ? (
+                      <img src={member.photoURL} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400">
+                        {member.displayName?.[0]}
+                      </div>
+                    )}
+                  </div>
+                  <span className={cn(
+                    "text-xs font-bold truncate",
+                    allowedUsers.includes(member.uid) ? "text-amber-700" : "text-slate-600"
+                  )}>
+                    {member.displayName}
+                  </span>
                 </button>
               ))}
             </div>
           </div>
         )}
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</label>
-          <textarea rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={desc} onChange={e => setDesc(e.target.value)} />
+
+        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} rows={2} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Textarea label="Metas (Uma por linha)" value={goals} onChange={e => setGoals(e.target.value)} rows={3} />
+          <Textarea label="Financeiro" value={financials} onChange={e => setFinancials(e.target.value)} rows={3} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Metas (Uma por linha)</label>
-            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={goals} onChange={e => setGoals(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Financeiro</label>
-            <textarea rows={3} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={financials} onChange={e => setFinancials(e.target.value)} />
-          </div>
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">História & Contexto</label>
-          <textarea rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={history} onChange={e => setHistory(e.target.value)} />
-        </div>
-        <Button type="submit" loading={loading} className="w-full">SALVAR ALTERAÇÕES</Button>
+
+        <Textarea label="História & Contexto" value={history} onChange={e => setHistory(e.target.value)} rows={2} />
+
+        <Button type="submit" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
       </form>
     </Modal>
   );
@@ -1017,54 +1089,38 @@ function NewFeatureModal({ projectId, onClose }: { projectId: string; onClose: (
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Nova Funcionalidade" size="lg">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Título</label>
-            <input required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Login Social" />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prioridade</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={priority} onChange={e => setPriority(e.target.value as any)}>
-              <option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option><option value="critical">Crítica</option>
-            </select>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Input label="Título do Ticket" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Login Social com Google" />
+          <Select label="Nível de Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
+            <option value="low">Baixa</option>
+            <option value="medium">Média</option>
+            <option value="high">Alta</option>
+            <option value="critical">Crítica (Blocker)</option>
+          </Select>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tipo</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={type} onChange={e => setType(e.target.value as any)}>
-              <option value="task">Tarefa</option><option value="story">História</option><option value="bug">Bug</option><option value="epic">Épico</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pontos</label>
-            <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={points} onChange={e => setPoints(Number(e.target.value))} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prazo</label>
-            <input type="date" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={deadline} onChange={e => setDeadline(e.target.value)} />
-          </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select label="Tipo de Ticket" value={type} onChange={e => setType(e.target.value as any)}>
+            <option value="task">Tarefa</option>
+            <option value="story">História de Usuário</option>
+            <option value="bug">Bug / Defeito</option>
+            <option value="epic">Épico</option>
+          </Select>
+          <Input label="Pontos (Story Points)" type="number" min="1" value={points} onChange={e => setPoints(Number(e.target.value))} />
+          <Input label="Prazo Estimado" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tags (separadas por vírgula)</label>
-          <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={tags} onChange={e => setTags(e.target.value)} placeholder="Ex: frontend, api, urgente" />
+
+        <Input label="Tags (separadas por vírgula)" value={tags} onChange={e => setTags(e.target.value)} placeholder="Ex: frontend, api, urgente" />
+
+        <Textarea label="Descrição do Ticket" value={desc} onChange={e => setDesc(e.target.value)} placeholder="O que deve ser desenvolvido?" rows={2} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Textarea label="Cenários de Teste" value={tests} onChange={e => setTests(e.target.value)} placeholder="1. Dado que o usuário está na tela de login...&#10;2. Quando ele clica no botão..." rows={4} />
+          <Textarea label="Regras de Negócio" value={rules} onChange={e => setRules(e.target.value)} placeholder="O usuário deve ter email verificado antes de permitir o login..." rows={4} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</label>
-          <textarea rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={desc} onChange={e => setDesc(e.target.value)} placeholder="O que deve ser feito?" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cenários de Teste</label>
-            <textarea rows={4} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={tests} onChange={e => setTests(e.target.value)} placeholder="1. Clicar no botão..." />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Regras de Negócio</label>
-            <textarea rows={4} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={rules} onChange={e => setRules(e.target.value)} placeholder="O usuário deve ter email verificado..." />
-          </div>
-        </div>
-        <Button type="submit" loading={loading} className="w-full">LANÇAR FUNCIONALIDADE</Button>
+
+        <Button type="submit" loading={loading} fullWidth size="lg">LANÇAR FUNCIONALIDADE</Button>
       </form>
     </Modal>
   );
@@ -1101,44 +1157,35 @@ function EditFeatureModal({ projectId, feature, onClose }: { projectId: string; 
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Editar Funcionalidade" size="lg">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tipo</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={type} onChange={e => setType(e.target.value as any)}>
-              <option value="task">Tarefa</option><option value="story">História</option><option value="bug">Bug</option><option value="epic">Épico</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Prioridade</label>
-            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={priority} onChange={e => setPriority(e.target.value as any)}>
-              <option value="low">Baixa</option><option value="medium">Média</option><option value="high">Alta</option><option value="critical">Crítica</option>
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pontos</label>
-            <input type="number" min="1" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={points} onChange={e => setPoints(Number(e.target.value))} />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select label="Tipo" value={type} onChange={e => setType(e.target.value as any)}>
+            <option value="task">Tarefa</option>
+            <option value="story">História</option>
+            <option value="bug">Bug</option>
+            <option value="epic">Épico</option>
+          </Select>
+          <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
+            <option value="low">Baixa</option>
+            <option value="medium">Média</option>
+            <option value="high">Alta</option>
+            <option value="critical">Crítica</option>
+          </Select>
+          <Input label="Pontos" type="number" min="1" value={points} onChange={e => setPoints(Number(e.target.value))} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Título</label>
-          <input required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" value={title} onChange={e => setTitle(e.target.value)} />
+
+        <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} />
+
+        <Input label="Tags (separadas por vírgula)" value={tags} onChange={e => setTags(e.target.value)} />
+
+        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Textarea label="Cenários de Teste" value={tests} onChange={e => setTests(e.target.value)} rows={4} />
+          <Textarea label="Regras de Negócio" value={rules} onChange={e => setRules(e.target.value)} rows={4} />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Descrição</label>
-          <textarea rows={2} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={desc} onChange={e => setDesc(e.target.value)} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Cenários de Teste</label>
-            <textarea rows={4} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={tests} onChange={e => setTests(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Regras de Negócio</label>
-            <textarea rows={4} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" value={rules} onChange={e => setRules(e.target.value)} />
-          </div>
-        </div>
-        <Button type="submit" loading={loading} className="w-full">SALVAR ALTERAÇÕES</Button>
+
+        <Button type="submit" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
       </form>
     </Modal>
   );

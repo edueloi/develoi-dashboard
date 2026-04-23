@@ -15,6 +15,7 @@ export { RichTextEditor } from './RichTextEditor';
 export { Toast, ToastProvider, useToast } from './Toast';
 export type { ToastType } from './Toast';
 export { Badge, StatusBadge, PaymentBadge } from './Badge';
+export { ProgressBar } from './ProgressBar';
 
 // ── Layout / Estrutura ─────────────────────────────────────────────────────
 export { PageWrapper, SectionTitle, StatGrid, ContentCard, FormRow, Divider } from './PageWrapper';

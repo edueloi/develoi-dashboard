@@ -10,6 +10,7 @@ interface PanelCardProps extends React.HTMLAttributes<HTMLElement> {
   headerClassName?: string;
   iconWrapClassName?: string;
   iconClassName?: string;
+  noPadding?: boolean;
 }
 
 export function PanelCard({
@@ -23,6 +24,7 @@ export function PanelCard({
   headerClassName,
   iconWrapClassName,
   iconClassName,
+  noPadding = false,
   ...props
 }: PanelCardProps) {
   const hasHeader = !!(title || Icon || action);
@@ -70,7 +72,7 @@ export function PanelCard({
         </div>
       )}
 
-      <div className={cn("p-4 sm:p-6", contentClassName)}>{children}</div>
+      <div className={cn(!noPadding && "p-4 sm:p-6", contentClassName)}>{children}</div>
     </section>
   );
 }

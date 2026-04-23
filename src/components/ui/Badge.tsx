@@ -31,7 +31,7 @@ export type BadgeColor =
 interface BadgeProps {
   children: React.ReactNode;
   color?: BadgeColor;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   dot?: boolean;
   icon?: React.ReactNode;
   className?: string;
@@ -75,7 +75,8 @@ export function Badge({
     <span
       className={cn(
         "inline-flex items-center gap-1 font-black uppercase tracking-wide leading-none shrink-0 whitespace-nowrap",
-        size === "sm" ? "px-2 py-0.5 text-[9px] rounded-md"
+        size === "xs" ? "px-1.5 py-0.5 text-[8px] rounded"
+                      : size === "sm" ? "px-2 py-0.5 text-[9px] rounded-md"
                       : "px-2.5 py-1 text-[10px] rounded-lg",
         pill && "rounded-full",
         colorMap[color],
