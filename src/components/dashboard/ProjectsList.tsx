@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
-import { ConfirmationModal } from '../ui/ConfirmationModal';
+import { Modal, ConfirmModal } from '../ui/Modal';
 import type { Project } from './types';
 
 // EditProjectModal is still in Dashboard.tsx and passed as a prop to avoid circular deps
@@ -28,10 +28,10 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
     }
   };
 
-  const statusMap: Record<string, { label: string; dot: string; badge: string }> = {
-    active:    { label: 'Ativo',     dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    completed: { label: 'Concluído', dot: 'bg-indigo-500',  badge: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    'on-hold': { label: 'Em Espera', dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  const statusMap: Record<string, { label: string; color: any }> = {
+    active:    { label: 'Ativo',     color: 'success' },
+    completed: { label: 'Concluído', color: 'info' },
+    'on-hold': { label: 'Em Espera', color: 'warning' },
   };
 
   return (
@@ -59,10 +59,9 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
                 {/* Status + actions */}
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${s.dot}`} />
-                    <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider border ${s.badge}`}>
+                    <Badge color={s.color} dot>
                       {s.label}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
@@ -123,7 +122,7 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
         )}
       </motion.div>
 
-      <ConfirmationModal
+      <ConfirmModal
         isOpen={!!projectToDelete}
         onClose={() => setProjectToDelete(null)}
         onConfirm={handleDelete}

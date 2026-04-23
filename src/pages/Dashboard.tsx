@@ -19,10 +19,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 // UI components
 import { Button } from '../components/ui/Button';
-import { Modal } from '../components/ui/Modal';
+import { Modal, ConfirmModal } from '../components/ui/Modal';
 import { Badge } from '../components/ui/Badge';
 import { ProgressBar } from '../components/ui/ProgressBar';
-import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 
 // Dashboard feature components
 import { ChatRoom } from '../components/dashboard/ChatRoom';
@@ -223,7 +222,7 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-slate-900">Ajuste de layout do dashboard</p>
                       <p className="text-[10px] text-slate-400 uppercase font-bold">DEV-1024</p>
                     </div>
-                    <Badge variant="success">Concluído</Badge>
+                    <Badge color="success">Concluído</Badge>
                   </div>
                   <div className="p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer">
                     <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -233,7 +232,7 @@ export default function Dashboard() {
                       <p className="text-sm font-medium text-slate-900">Implementação de filtros no backlog</p>
                       <p className="text-[10px] text-slate-400 uppercase font-bold">DEV-1025</p>
                     </div>
-                    <Badge variant="info">Em Progresso</Badge>
+                    <Badge color="info">Em Progresso</Badge>
                   </div>
                 </section>
               </motion.div>
@@ -428,12 +427,12 @@ function BacklogView({ projectId }: { projectId: string }) {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={feature.status === 'done' ? 'success' : feature.status === 'testing' ? 'warning' : 'info'}>
+                    <Badge color={feature.status === 'done' ? 'success' : feature.status === 'testing' ? 'warning' : 'info'}>
                       {feature.status === 'todo' ? 'A Fazer' : feature.status === 'in-progress' ? 'Em Progresso' : feature.status === 'testing' ? 'Em Teste' : 'Concluído'}
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
-                    <Badge variant={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'}>
+                    <Badge color={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'}>
                       {feature.priority || 'Média'}
                     </Badge>
                   </td>
@@ -588,7 +587,7 @@ function KanbanBoard({ projectId }: { projectId: string }) {
       {isNewFeatureModalOpen && <NewFeatureModal projectId={projectId} onClose={() => setIsNewFeatureModalOpen(false)} />}
       {featureToEdit && <EditFeatureModal projectId={projectId} feature={featureToEdit} onClose={() => setFeatureToEdit(null)} />}
       {featureToView && <FeatureDetailModal feature={featureToView} onClose={() => setFeatureToView(null)} />}
-      <ConfirmationModal isOpen={!!featureToDelete} onClose={() => setFeatureToDelete(null)} onConfirm={handleDeleteFeature} title="Excluir Funcionalidade" message={`Tem certeza que deseja excluir "${featureToDelete?.title}"?`} />
+      <ConfirmModal isOpen={!!featureToDelete} onClose={() => setFeatureToDelete(null)} onConfirm={handleDeleteFeature} title="Excluir Funcionalidade" message={`Tem certeza que deseja excluir "${featureToDelete?.title}"?`} />
     </motion.div>
   );
 }
@@ -654,7 +653,7 @@ function ProjectSummary({ project }: { project: Project }) {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-slate-500 font-medium">Status</span>
-                <Badge variant={project.status === 'active' ? 'success' : 'warning'}>
+                <Badge color={project.status === 'active' ? 'success' : 'warning'}>
                   {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Em Espera'}
                 </Badge>
               </div>
@@ -952,7 +951,7 @@ function FeatureDetailModal({ feature, onClose }: { feature: Feature; onClose: (
               <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-5">
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Status</label>
-                  <Badge variant={feature.status === 'done' ? 'success' : feature.status === 'testing' ? 'warning' : 'info'}>
+                  <Badge color={feature.status === 'done' ? 'success' : feature.status === 'testing' ? 'warning' : 'info'}>
                     {feature.status === 'todo' ? 'A FAZER' : feature.status === 'in-progress' ? 'EM PROGRESSO' : feature.status === 'testing' ? 'EM TESTE' : 'CONCLUÍDO'}
                   </Badge>
                 </div>
@@ -965,7 +964,7 @@ function FeatureDetailModal({ feature, onClose }: { feature: Feature; onClose: (
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Prioridade</label>
-                  <Badge variant={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'}>{feature.priority || 'Média'}</Badge>
+                  <Badge color={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'}>{feature.priority || 'Média'}</Badge>
                 </div>
                 {feature.tags && feature.tags.length > 0 && (
                   <div>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Briefcase, CheckCircle2, Mail, ShieldCheck, Plus, Trash2, UserPlus, X, Shield, User } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { Badge, BadgeColor } from '../ui/Badge';
 
 export function MembersArea() {
   const [members, setMembers] = useState<any[]>([]);
@@ -67,17 +68,13 @@ export function MembersArea() {
     }
   };
 
-  const roleColors: Record<string, string> = {
-    admin: 'bg-violet-100 text-violet-700 border-violet-200',
-    dev: 'bg-blue-100 text-blue-700 border-blue-200',
-    designer: 'bg-pink-100 text-pink-700 border-pink-200',
-    qa: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    viewer: 'bg-slate-100 text-slate-700 border-slate-200',
-  };
-
-  const getRoleColor = (role: string) => {
-    const key = role?.toLowerCase().split(' ')[0] ?? 'viewer';
-    return roleColors[key] ?? 'bg-indigo-100 text-indigo-700 border-indigo-200';
+  const getRoleConfig = (role: string): { label: string; color: BadgeColor } => {
+    const r = role?.toLowerCase() || 'viewer';
+    if (r.includes('admin')) return { label: 'ADMIN', color: 'purple' };
+    if (r.includes('dev')) return { label: 'DEV', color: 'info' };
+    if (r.includes('designer')) return { label: 'DESIGN', color: 'primary' };
+    if (r.includes('qa')) return { label: 'QA', color: 'success' };
+    return { label: 'CLIENTE', color: 'default' };
   };
 
   return (
@@ -143,9 +140,9 @@ export function MembersArea() {
 
               <div className="text-center mb-4">
                 <h3 className="font-bold text-slate-900 mb-1 group-hover:text-indigo-600 transition-colors truncate">{member.displayName}</h3>
-                <span className={`text-[9px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider border ${getRoleColor(member.role)}`}>
-                  {member.role || 'Membro'}
-                </span>
+                <Badge color={getRoleConfig(member.role).color} dot>
+                  {getRoleConfig(member.role).label}
+                </Badge>
               </div>
 
               <div className="pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-slate-400">
