@@ -14,5 +14,12 @@
   ],
   "projects": [],
   "features": [],
-  "messages": []
+  "messages": [],
+  "siteValues": {
+    "mission": "",
+    "vision": "",
+    "values": []
+  },
+  "team": [],
+  "portfolio": []
 }

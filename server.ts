@@ -405,6 +405,80 @@ async function startServer() {
       res.json({ success: true });
     });
 
+    // Site Values
+    app.get("/api/site/values", async (req, res) => {
+      const db = await readDB();
+      res.json(db.siteValues || { mission: '', vision: '', values: [] });
+    });
+
+    app.put("/api/site/values", async (req, res) => {
+      const db = await readDB();
+      db.siteValues = req.body;
+      await writeDB(db);
+      res.json({ success: true });
+    });
+
+    // Team
+    app.get("/api/team", async (req, res) => {
+      const db = await readDB();
+      res.json(db.team || []);
+    });
+
+    app.post("/api/team", async (req, res) => {
+      const db = await readDB();
+      const member = { ...req.body, id: req.body.id || uuidv4() };
+      db.team.push(member);
+      await writeDB(db);
+      res.json(member);
+    });
+
+    app.put("/api/team/:id", async (req, res) => {
+      const { id } = req.params;
+      const db = await readDB();
+      const index = db.team.findIndex(m => m.id === id);
+      if (index > -1) {
+        db.team[index] = { ...db.team[index], ...req.body };
+        await writeDB(db);
+      }
+      res.json({ success: true });
+    });
+
+    app.delete("/api/team/:id", async (req, res) => {
+      const { id } = req.params;
+      const db = await readDB();
+      db.team = db.team.filter(m => m.id !== id);
+      await writeDB(db);
+      res.json({ success: true });
+    });
+
+    // Portfolio
+    app.get("/api/portfolio", async (req, res) => {
+      const db = await readDB();
+      res.json(db.portfolio || []);
+    });
+
+    app.post("/api/portfolio", async (req, res) => {
+      const db = await readDB();
+      const item = { ...req.body, id: req.body.id || uuidv4() };
+      db.portfolio.push(item);
+      await writeDB(db);
+      res.json(item);
+    });
+
+    app.delete("/api/portfolio/:id", async (req, res) => {
+      const { id } = req.params;
+      const db = await readDB();
+      db.portfolio = db.portfolio.filter(p => p.id !== id);
+      await writeDB(db);
+      res.json({ success: true });
+    });
+
+    // Users List (for member selection)
+    app.get("/api/users", async (req, res) => {
+      const db = await readDB();
+      res.json(db.users.map(({ passwordHash, token, ...u }) => u));
+    });
+
     if (isDev) {
       console.log("Initializing Vite dev server...");
       const vite = await createViteServer({
