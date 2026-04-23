@@ -200,6 +200,91 @@ async function startServer() {
       return res.json({ success: true });
     });
 
+    // ─── Team members (public site) ──────────────────────────────────────────
+    app.get("/api/site/team", async (_req, res) => {
+      const db = await readDB() as any;
+      res.json(db.team || []);
+    });
+
+    app.post("/api/site/team", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Não autenticado." });
+      const token = auth.slice(7);
+      const db = await readDB() as any;
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") return res.status(403).json({ error: "Apenas admins." });
+      const member = { id: `team-${Date.now()}`, ...req.body, createdAt: new Date().toISOString() };
+      if (!db.team) db.team = [];
+      db.team.push(member);
+      await writeDB(db);
+      return res.json({ success: true, member });
+    });
+
+    app.patch("/api/site/team/:id", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Não autenticado." });
+      const token = auth.slice(7);
+      const db = await readDB() as any;
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") return res.status(403).json({ error: "Apenas admins." });
+      if (!db.team) db.team = [];
+      const idx = db.team.findIndex((m: any) => m.id === req.params.id);
+      if (idx === -1) return res.status(404).json({ error: "Membro não encontrado." });
+      db.team[idx] = { ...db.team[idx], ...req.body };
+      await writeDB(db);
+      return res.json({ success: true, member: db.team[idx] });
+    });
+
+    app.delete("/api/site/team/:id", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Não autenticado." });
+      const token = auth.slice(7);
+      const db = await readDB() as any;
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") return res.status(403).json({ error: "Apenas admins." });
+      if (!db.team) db.team = [];
+      db.team = db.team.filter((m: any) => m.id !== req.params.id);
+      await writeDB(db);
+      return res.json({ success: true });
+    });
+
+    // ─── Values / Mission / Vision (public site) ─────────────────────────────
+    app.get("/api/site/values", async (_req, res) => {
+      const db = await readDB() as any;
+      if (!db.siteValues) {
+        return res.json({
+          mission: "Ser a maior plataforma de inovação digital do Brasil, transformando sonhos complexos em realidades extraordinárias.",
+          vision: "Impactar positivamente 1 milhão de vidas através de nossos ecossistemas digitais e soluções de elite nos próximos 5 anos.",
+          values: "Excelência absoluta, transparência total, inovação constante e compromisso inabalável com o sucesso do cliente.",
+          cards: [
+            { title: "Idealizações", subtitle: "Onde tudo começa", description: "Nossa visão é ser a maior plataforma de inovação digital do Brasil, transformando sonhos complexos em realidades extraordinárias." },
+            { title: "Metas", subtitle: "Onde queremos chegar", description: "Impactar positivamente 1 milhão de vidas através de nossos ecossistemas digitais e soluções de elite nos próximos 5 anos." },
+            { title: "Valores", subtitle: "O que nos guia", description: "Excelência absoluta, transparência total, inovação constante e compromisso inabalável com o sucesso do cliente." }
+          ]
+        });
+      }
+      return res.json(db.siteValues);
+    });
+
+    app.put("/api/site/values", async (req, res) => {
+      const auth = req.headers.authorization;
+      if (!auth?.startsWith("Bearer ")) return res.status(401).json({ error: "Não autenticado." });
+      const token = auth.slice(7);
+      const db = await readDB() as any;
+      const requester = db.users.find((u: any) => u.token === token);
+      if (!requester || requester.role !== "admin") return res.status(403).json({ error: "Apenas admins." });
+      db.siteValues = { ...req.body, updatedAt: new Date().toISOString() };
+      await writeDB(db);
+      return res.json({ success: true });
+    });
+
+    // ─── Portfolio (public projects) ──────────────────────────────────────────
+    app.get("/api/site/portfolio", async (_req, res) => {
+      const db = await readDB() as any;
+      const publicProjects = (db.projects || []).filter((p: any) => p.visibility === "public");
+      return res.json(publicProjects);
+    });
+
     // Users
     app.get("/api/users", async (req, res) => {
       const db = await readDB();

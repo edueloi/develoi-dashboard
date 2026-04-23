@@ -6,9 +6,10 @@
       "email": "admin@develoi.com.br",
       "photoURL": null,
       "role": "admin",
-      "passwordHash": "7e4c1a08b166d6f2bc4c7aa006217c1d27286259ab96740d9cbf65f0232353b1",
+      "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
       "createdAt": "2026-04-08T00:00:00.000Z",
-      "active": true
+      "active": true,
+      "token": "52821e987761231121faf881f8435fd5f04b88fe2ade56f560b0acae842aa2e7"
     }
   ],
   "projects": [],
