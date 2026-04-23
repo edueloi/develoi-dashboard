@@ -25,7 +25,6 @@ import {
   ConfirmModal, 
   Badge, 
   ProgressBar,
-  PageWrapper,
   SectionTitle,
   StatGrid,
   StatCard,
@@ -199,7 +198,7 @@ export default function Dashboard() {
 
         {/* Scrollable Page Body */}
         <div className="flex-1 overflow-y-auto">
-          <PageWrapper>
+          <div className="DASHBOARD_CONTAINER_FULL_WIDTH w-full min-w-0 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && (
                 <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-8">
@@ -328,7 +327,7 @@ export default function Dashboard() {
               {activeTab === 'team' && <TeamManager />}
               {activeTab === 'site-values' && <SiteValuesManager />}
             </AnimatePresence>
-          </PageWrapper>
+          </div>
         </div>
       </main>
 

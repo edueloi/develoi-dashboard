@@ -25,7 +25,7 @@ export function PageWrapper({
     <div
       className={cn(
         // Ocupa toda a largura útil do painel
-        "w-full max-w-none min-w-0",
+        "w-full !max-w-none min-w-0",
         // Padding horizontal mais equilibrado para admin
         "px-4 sm:px-5 lg:px-6 xl:px-8",
         // Padding vertical menor para reduzir o "vazio" no topo
