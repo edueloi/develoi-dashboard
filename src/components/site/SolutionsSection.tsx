@@ -21,8 +21,8 @@ const products = [
   {
     icon: Calendar,
     name: 'Agendelle',
-    tag: 'Para Salões',
-    desc: 'Agenda inteligente, lembretes automáticos e gestão de profissionais.',
+    tag: 'Salões · Barbearias · Estéticas · Nails',
+    desc: 'Agendamento online, lembretes automáticos, controle de profissionais e caixa — tudo em um só lugar para beleza e estética.',
     color: 'from-emerald-400 to-teal-500'
   },
   {
