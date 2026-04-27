@@ -1,8 +1,9 @@
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
-import { Menu, X, LayoutDashboard, ArrowRight } from 'lucide-react';
+import { Menu, X, LayoutDashboard, ArrowRight, Sun, Moon } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import develoiLogo from '../images/develoi-logo.png';
 
 const navItems = [
@@ -17,6 +18,7 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const { scrollY } = useScroll();
 
   useMotionValueEvent(scrollY, 'change', (latest) => {
@@ -30,10 +32,10 @@ export default function Navbar() {
           initial={{ y: -30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className={`rounded-2xl sm:rounded-[1.5rem] md:rounded-[2rem] px-4 sm:px-5 md:px-8 py-2.5 sm:py-3 md:py-4 flex items-center justify-between transition-all duration-500 ${
+          className={`rounded-2xl sm:rounded-[1.5rem] md:rounded-[2rem] px-4 sm:px-5 md:px-8 py-2.5 sm:py-3 md:py-4 flex items-center justify-between transition-all duration-500 border ${
             scrolled
-              ? 'bg-black/70 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.8)]'
-              : 'glass border-white/5'
+              ? 'dash-surface-2/80 backdrop-blur-2xl dash-border shadow-xl'
+              : 'dash-surface/40 backdrop-blur-sm dash-border'
           }`}
         >
           {/* Logo */}
@@ -49,7 +51,7 @@ export default function Navbar() {
                 className="w-full h-full object-contain p-0.5"
               />
             </motion.div>
-            <span className="text-lg sm:text-xl md:text-2xl font-black tracking-tighter group-hover:text-aurora-blue transition-colors duration-300">
+            <span className="text-lg sm:text-xl md:text-2xl font-black tracking-tighter dash-text group-hover:text-indigo-600 transition-colors duration-300">
               DEVELOI
             </span>
           </Link>
@@ -62,13 +64,13 @@ export default function Navbar() {
                 to={item.path}
                 className={`text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] xl:tracking-[0.2em] transition-all duration-300 relative group whitespace-nowrap ${
                   location.pathname === item.path
-                    ? 'text-white'
-                    : 'text-neutral-400 hover:text-white'
+                    ? 'dash-text'
+                    : 'dash-text-2 hover:dash-text'
                 }`}
               >
                 {item.name}
                 <span
-                  className={`absolute -bottom-1 left-0 h-[2px] bg-gradient-to-r from-aurora-blue to-aurora-purple transition-all duration-300 ${
+                  className={`absolute -bottom-1 left-0 h-[2px] bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300 ${
                     location.pathname === item.path ? 'w-full' : 'w-0 group-hover:w-full'
                   }`}
                 />
@@ -77,37 +79,50 @@ export default function Navbar() {
 
             <Link
               to={user ? '/dashboard' : '/login'}
-              className="flex items-center gap-1.5 xl:gap-2 text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] xl:tracking-[0.2em] text-aurora-blue hover:text-white transition-colors duration-300 group whitespace-nowrap"
+              className="flex items-center gap-1.5 xl:gap-2 text-[10px] xl:text-xs font-black uppercase tracking-[0.15em] xl:tracking-[0.2em] text-indigo-600 hover:text-indigo-700 transition-colors duration-300 group whitespace-nowrap"
             >
               <LayoutDashboard className="w-3.5 h-3.5 xl:w-4 xl:h-4 group-hover:rotate-12 transition-transform duration-300" />
               {user ? 'Dashboard' : 'Membros'}
             </Link>
 
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleTheme}
+              className="w-10 h-10 rounded-xl flex items-center justify-center dash-surface border dash-border dash-text hover:dash-surface-2 transition-all shadow-sm"
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </motion.button>
+
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="flex-shrink-0">
               <Link
                 to="/#contato"
-                className="relative px-5 xl:px-6 2xl:px-8 py-2 xl:py-2.5 md:py-3 bg-white text-black font-black rounded-xl xl:rounded-2xl text-[10px] xl:text-xs overflow-hidden group flex items-center gap-1.5 xl:gap-2 shadow-lg shadow-white/10 whitespace-nowrap"
+                className="relative px-5 xl:px-6 2xl:px-8 py-2 xl:py-2.5 md:py-3 bg-indigo-600 text-white font-black rounded-xl xl:rounded-2xl text-[10px] xl:text-xs overflow-hidden group flex items-center gap-1.5 xl:gap-2 shadow-lg shadow-indigo-200 transition-all"
               >
                 <span className="relative z-10 flex items-center gap-1.5 xl:gap-2">
                   CONTRATAR
                   <ArrowRight className="w-3 h-3 xl:w-3.5 xl:h-3.5 group-hover:translate-x-1 transition-transform duration-300" />
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="absolute inset-0 z-10 flex items-center justify-center gap-1.5 xl:gap-2 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 font-black text-[10px] xl:text-xs">
-                  CONTRATAR
-                  <ArrowRight className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
-                </span>
               </Link>
             </motion.div>
           </div>
 
-          {/* Mobile Toggle */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            className="lg:hidden w-9 h-9 sm:w-10 sm:h-10 rounded-xl glass flex items-center justify-center text-white flex-shrink-0"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
-          >
+          {/* Mobile Actions */}
+          <div className="lg:hidden flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleTheme}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl dash-surface border dash-border flex items-center justify-center dash-text shadow-sm"
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl dash-surface border dash-border flex items-center justify-center dash-text flex-shrink-0 shadow-sm"
+              onClick={() => setIsOpen(!isOpen)}
+              aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'}
+            >
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={isOpen ? 'close' : 'open'}
@@ -131,14 +146,14 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -15, scale: 0.97 }}
             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:hidden absolute top-full left-3 right-3 sm:left-4 sm:right-4 mt-2 sm:mt-3 bg-black/95 backdrop-blur-3xl rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.9)]"
+            className="lg:hidden absolute top-full left-3 right-3 sm:left-4 sm:right-4 mt-2 sm:mt-3 dash-surface/95 backdrop-blur-3xl rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 border dash-border shadow-2xl"
           >
             {/* Logo in mobile menu */}
-            <div className="flex items-center gap-2.5 sm:gap-3 mb-5 sm:mb-8 pb-4 sm:pb-6 border-b border-white/5">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-5 sm:mb-8 pb-4 sm:pb-6 border-b dash-border">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
                 <img src={develoiLogo} alt="Develoi" className="w-full h-full object-contain p-0.5" />
               </div>
-              <span className="text-lg sm:text-xl font-black tracking-tighter">DEVELOI</span>
+              <span className="text-lg sm:text-xl font-black tracking-tighter dash-text">DEVELOI</span>
             </div>
 
             <div className="flex flex-col gap-1 sm:gap-2">
@@ -153,8 +168,8 @@ export default function Navbar() {
                     to={item.path}
                     className={`flex items-center justify-between py-3 sm:py-4 px-3 sm:px-4 rounded-xl sm:rounded-2xl transition-all duration-300 group ${
                       location.pathname === item.path
-                        ? 'bg-white/5 text-aurora-blue'
-                        : 'text-white hover:bg-white/5 hover:text-aurora-blue'
+                        ? 'bg-indigo-500/10 text-indigo-600'
+                        : 'dash-text hover:bg-indigo-500/5 hover:text-indigo-600'
                     }`}
                     onClick={() => setIsOpen(false)}
                   >
@@ -171,7 +186,7 @@ export default function Navbar() {
               >
                 <Link
                   to={user ? '/dashboard' : '/login'}
-                  className="flex items-center gap-2.5 sm:gap-3 py-3 sm:py-4 px-3 sm:px-4 rounded-xl sm:rounded-2xl text-aurora-blue hover:bg-aurora-blue/10 transition-all duration-300"
+                  className="flex items-center gap-2.5 sm:gap-3 py-3 sm:py-4 px-3 sm:px-4 rounded-xl sm:rounded-2xl text-indigo-600 hover:bg-indigo-500/10 transition-all duration-300"
                   onClick={() => setIsOpen(false)}
                 >
                   <LayoutDashboard className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -182,7 +197,7 @@ export default function Navbar() {
               </motion.div>
             </div>
 
-            <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-4 sm:my-6" />
+            <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent my-4 sm:my-6" />
 
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -191,7 +206,7 @@ export default function Navbar() {
             >
               <Link
                 to="/#contato"
-                className="block w-full py-4 sm:py-5 bg-white text-black font-black rounded-xl sm:rounded-2xl text-center text-base sm:text-lg shadow-xl shadow-white/10 hover:shadow-aurora-blue/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                className="block w-full py-4 sm:py-5 bg-indigo-600 text-white font-black rounded-xl sm:rounded-2xl text-center text-base sm:text-lg shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                 onClick={() => setIsOpen(false)}
               >
                 CONTRATAR AGORA

@@ -11,11 +11,11 @@ const steps = [
 
 export default function HowItWorksSection() {
   return (
-    <section className="relative py-24 bg-[#030303]">
+    <section className="relative py-24 dash-bg transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-aurora-blue font-black uppercase tracking-widest text-sm mb-4">Processo</h2>
-          <h3 className="text-3xl md:text-5xl font-black text-white tracking-tighter">Como funciona</h3>
+          <h2 className="text-indigo-600 font-black uppercase tracking-widest text-sm mb-4">Processo</h2>
+          <h3 className="text-3xl md:text-5xl font-black dash-text tracking-tighter">Como funciona</h3>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -28,12 +28,12 @@ export default function HowItWorksSection() {
               transition={{ delay: idx * 0.1 }}
               className="relative"
             >
-              <div className="text-6xl md:text-8xl font-black text-white/[0.03] absolute -top-8 -left-4 select-none pointer-events-none">
+              <div className="text-6xl md:text-8xl font-black dash-text opacity-[0.05] absolute -top-8 -left-4 select-none pointer-events-none">
                 {step.num}
               </div>
-              <div className="glass p-8 rounded-[2rem] relative z-10 h-full flex flex-col border-white/5 hover:border-aurora-blue/30 transition-colors duration-500">
-                <h4 className="text-xl font-bold text-white mb-4">{step.title}</h4>
-                <p className="text-neutral-400 leading-relaxed">{step.desc}</p>
+              <div className="dash-surface p-8 rounded-[2rem] relative z-10 h-full flex flex-col border dash-border hover:border-indigo-500/30 transition-all duration-500 shadow-sm">
+                <h4 className="text-xl font-bold dash-text mb-4">{step.title}</h4>
+                <p className="dash-text-2 leading-relaxed">{step.desc}</p>
               </div>
             </motion.div>
           ))}

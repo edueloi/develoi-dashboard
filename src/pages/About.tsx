@@ -30,7 +30,7 @@ export default function About() {
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-6xl md:text-8xl font-black mb-8 tracking-tighter"
+            className="text-6xl md:text-8xl font-black mb-8 tracking-tighter dash-text"
           >
             QUEM <span className="text-gradient">SOMOS</span>
           </motion.h1>
@@ -38,7 +38,7 @@ export default function About() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-xl md:text-2xl text-neutral-400 leading-relaxed"
+            className="text-xl md:text-2xl dash-text-2 leading-relaxed"
           >
             A Develoi nasceu da necessidade de elevar o padrão do desenvolvimento digital. Não somos apenas uma agência; somos o motor de inovação que impulsiona negócios para o futuro.
           </motion.p>
@@ -47,20 +47,20 @@ export default function About() {
         {/* Nossa História/Equipe */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-32">
           <div className="space-y-8">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tighter">Nossa <span className="text-gradient">Equipe</span></h2>
-            <p className="text-neutral-400 text-lg leading-relaxed">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tighter dash-text">Nossa <span className="text-gradient">Equipe</span></h2>
+            <p className="dash-text-2 text-lg leading-relaxed">
               Contamos com um time de elite, selecionado a dedo para garantir que cada pixel e cada linha de código entreguem o máximo de valor. Nossa cultura é baseada em excelência, transparência e resultados extraordinários.
             </p>
             <div className="grid grid-cols-2 gap-6">
-              <div className="glass p-6 rounded-2xl border-white/5">
-                <Users className="w-8 h-8 text-aurora-blue mb-4" />
-                <h4 className="font-black text-xl mb-2">Colaboração</h4>
-                <p className="text-sm text-neutral-500">Trabalhamos como uma extensão do seu time.</p>
+              <div className="dash-surface border dash-border p-6 rounded-2xl shadow-sm">
+                <Users className="w-8 h-8 text-indigo-500 mb-4" />
+                <h4 className="font-black text-xl mb-2 dash-text">Colaboração</h4>
+                <p className="text-sm dash-text-2">Trabalhamos como uma extensão do seu time.</p>
               </div>
-              <div className="glass p-6 rounded-2xl border-white/5">
-                <Code className="w-8 h-8 text-aurora-purple mb-4" />
-                <h4 className="font-black text-xl mb-2">Tecnologia</h4>
-                <p className="text-sm text-neutral-500">Stack moderna para performance absoluta.</p>
+              <div className="dash-surface border dash-border p-6 rounded-2xl shadow-sm">
+                <Code className="w-8 h-8 text-violet-500 mb-4" />
+                <h4 className="font-black text-xl mb-2 dash-text">Tecnologia</h4>
+                <p className="text-sm dash-text-2">Stack moderna para performance absoluta.</p>
               </div>
             </div>
           </div>
@@ -72,14 +72,14 @@ export default function About() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1 }}
-                className="glass-card p-6 rounded-[2.5rem] text-center group"
+                className="dash-surface border dash-border p-6 rounded-[2.5rem] text-center group shadow-sm hover:shadow-xl transition-all"
               >
-                <div className="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-aurora-blue transition-all">
+                <div className="w-32 h-32 mx-auto mb-6 rounded-full overflow-hidden border-2 dash-border group-hover:border-indigo-500 transition-all">
                   <img src={member.image} alt={member.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
-                <h3 className="text-xl font-black mb-1">{member.name}</h3>
-                <p className="text-aurora-blue text-sm font-bold uppercase tracking-widest mb-4">{member.role}</p>
-                <p className="text-neutral-500 text-sm">{member.bio}</p>
+                <h3 className="text-xl font-black mb-1 dash-text">{member.name}</h3>
+                <p className="text-indigo-600 text-sm font-bold uppercase tracking-widest mb-4">{member.role}</p>
+                <p className="dash-text-2 text-sm">{member.bio}</p>
               </motion.div>
             ))}
           </div>
@@ -90,23 +90,23 @@ export default function About() {
           initial={{ opacity: 0, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="glass-card p-12 rounded-[3rem] border-white/5 relative overflow-hidden"
+          className="dash-surface border dash-border p-12 rounded-[3rem] shadow-2xl relative overflow-hidden"
         >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-aurora-blue/10 blur-[100px]" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px]" />
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <span className="text-aurora-blue font-black uppercase tracking-[0.3em] text-sm mb-4 block">Case de Sucesso</span>
-              <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-6">Receitas <span className="text-gradient">Milionárias</span></h2>
-              <p className="text-neutral-400 text-lg leading-relaxed mb-8">
-                Construímos para o nosso cliente <span className="text-white font-bold">Jefferson Pereira</span> um ecossistema digital completo que transformou sua visão em um negócio de alta escala. O projeto Receitas Milionárias é um exemplo de como a Develoi entrega soluções que geram impacto real.
+              <span className="text-indigo-600 font-black uppercase tracking-[0.3em] text-sm mb-4 block">Case de Sucesso</span>
+              <h2 className="text-4xl md:text-5xl font-black tracking-tighter mb-6 dash-text">Receitas <span className="text-gradient">Milionárias</span></h2>
+              <p className="dash-text-2 text-lg leading-relaxed mb-8">
+                Construímos para o nosso cliente <span className="dash-text font-bold">Jefferson Pereira</span> um ecossistema digital completo que transformou sua visão em um negócio de alta escala. O projeto Receitas Milionárias é um exemplo de como a Develoi entrega soluções que geram impacto real.
               </p>
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-aurora-blue">
+                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-indigo-500">
                   <img src="https://receitasmilionarias.com.br/static/images/jefferson-pereira.png" alt="Jefferson Pereira" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                 </div>
                 <div>
-                  <h4 className="font-black text-white">Jefferson Pereira</h4>
-                  <p className="text-neutral-500 text-sm">Cliente Develoi</p>
+                  <h4 className="font-black dash-text">Jefferson Pereira</h4>
+                  <p className="dash-text-2 text-sm">Cliente Develoi</p>
                 </div>
               </div>
             </div>

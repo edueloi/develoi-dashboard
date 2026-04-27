@@ -80,9 +80,9 @@ export default function Values() {
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-white/5 text-xs font-black uppercase tracking-widest text-neutral-400 mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border dash-border dash-surface dash-text-2 text-xs font-black uppercase tracking-widest mb-8 shadow-sm"
           >
-            <Sparkles className="w-3.5 h-3.5 text-aurora-blue" />
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
             DNA Develoi
           </motion.div>
 
@@ -90,7 +90,7 @@ export default function Values() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-[1.05]"
+            className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-[1.05] dash-text"
           >
             IDEALIZAÇÕES,{" "}
             <span className="text-gradient">METAS</span>{" "}
@@ -101,7 +101,7 @@ export default function Values() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-base sm:text-xl text-neutral-400 leading-relaxed max-w-2xl mx-auto"
+            className="text-base sm:text-xl dash-text-2 leading-relaxed max-w-2xl mx-auto"
           >
             A bússola que guia cada decisão na Develoi. Nossa essência é baseada em propósito e excelência.
           </motion.p>
@@ -120,21 +120,21 @@ export default function Values() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group relative p-8 sm:p-10 rounded-[2rem] glass-card overflow-hidden text-center"
+              className="group relative p-8 sm:p-10 rounded-[2rem] dash-surface border dash-border overflow-hidden text-center shadow-sm hover:shadow-xl transition-all"
             >
-              <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${card.color} opacity-40 group-hover:opacity-100 transition-opacity duration-500`} />
+              <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${card.color} opacity-20 group-hover:opacity-100 transition-opacity duration-500`} />
 
               <div className="relative z-10">
-                <div className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-7 shadow-lg shadow-black/20 group-hover:scale-110 transition-transform duration-500`}>
+                <div className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-7 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
                   <card.icon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
                 </div>
-                <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] text-neutral-500 mb-3">
+                <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] dash-text-2 mb-3">
                   {card.subtitle}
                 </p>
-                <h3 className="text-2xl sm:text-3xl font-black mb-4 tracking-tighter leading-tight">
+                <h3 className="text-2xl sm:text-3xl font-black mb-4 tracking-tighter leading-tight dash-text">
                   {card.title}
                 </h3>
-                <p className="text-neutral-400 leading-relaxed text-sm sm:text-base">
+                <p className="dash-text-2 leading-relaxed text-sm sm:text-base">
                   {card.description}
                 </p>
               </div>
@@ -158,7 +158,7 @@ export default function Values() {
                 initial={{ opacity: 0 }}
                 whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
-                className="text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] text-neutral-500 mb-4"
+                className="text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] dash-text-2 mb-4"
               >
                 O que nos move
               </motion.p>
@@ -167,7 +167,7 @@ export default function Values() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.05 }}
-                className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mb-4"
+                className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mb-4 dash-text"
               >
                 Nossos <span className="text-gradient">Princípios</span>
               </motion.h2>
@@ -176,7 +176,7 @@ export default function Values() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 }}
-                className="text-sm sm:text-base text-neutral-500 max-w-xl mx-auto leading-relaxed"
+                className="text-sm sm:text-base dash-text-2 max-w-xl mx-auto leading-relaxed"
               >
                 Cada linha de código que escrevemos carrega o peso destes princípios. Eles não são regras — são quem somos.
               </motion.p>
@@ -195,7 +195,7 @@ export default function Values() {
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}
                     whileHover={{ y: -4 }}
-                    className="group relative p-6 sm:p-7 rounded-[1.75rem] glass-card overflow-hidden cursor-default"
+                    className="group relative p-6 sm:p-7 rounded-[1.75rem] dash-surface border dash-border overflow-hidden cursor-default shadow-sm hover:shadow-xl transition-all"
                   >
                     {/* Top gradient line */}
                     <div className={`absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r ${grad} opacity-25 group-hover:opacity-100 transition-all duration-500`} />
@@ -215,17 +215,17 @@ export default function Values() {
                       </span>
 
                       {/* Title */}
-                      <h4 className="text-lg sm:text-xl font-black tracking-tight text-white mb-2 leading-tight group-hover:text-gradient transition-colors duration-300">
+                      <h4 className="text-lg sm:text-xl font-black tracking-tight dash-text mb-2 leading-tight group-hover:text-gradient transition-colors duration-300">
                         {v.title}
                       </h4>
 
                       {/* Description or impact phrase */}
                       {v.description ? (
-                        <p className="text-xs sm:text-sm text-neutral-500 leading-relaxed group-hover:text-neutral-400 transition-colors duration-300">
+                        <p className="text-xs sm:text-sm dash-text-2 leading-relaxed group-hover:dash-text transition-colors duration-300">
                           {v.description}
                         </p>
                       ) : (
-                        <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed italic group-hover:text-neutral-500 transition-colors duration-300">
+                        <p className="text-xs sm:text-sm dash-text-2 opacity-50 leading-relaxed italic group-hover:opacity-100 transition-colors duration-300">
                           Um dos pilares que definem nossa cultura e forma de trabalhar.
                         </p>
                       )}
@@ -243,7 +243,7 @@ export default function Values() {
               transition={{ delay: 0.3 }}
               className="mt-12 sm:mt-16 text-center"
             >
-              <p className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight text-neutral-300 max-w-3xl mx-auto leading-snug">
+              <p className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight dash-text max-w-3xl mx-auto leading-snug">
                 "Não entregamos apenas software.{" "}
                 <span className="text-gradient-animated">
                   Entregamos propósito com precisão.
@@ -267,13 +267,13 @@ export default function Values() {
           <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-aurora-blue to-transparent opacity-50" />
           <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-72 h-72 bg-aurora-blue/10 rounded-full blur-[80px] pointer-events-none" />
 
-          <h2 className="text-3xl sm:text-4xl md:text-6xl font-black mb-5 sm:mb-8 tracking-tighter relative z-10">
+          <h2 className="text-3xl sm:text-4xl md:text-6xl font-black mb-5 sm:mb-8 tracking-tighter relative z-10 dash-text">
             Pronto para <span className="text-gradient">Elevar</span> seu Negócio?
           </h2>
-          <p className="text-base sm:text-xl text-neutral-300 mb-8 sm:mb-12 max-w-2xl mx-auto relative z-10">
+          <p className="text-base sm:text-xl dash-text-2 mb-8 sm:mb-12 max-w-2xl mx-auto relative z-10">
             Nossas metas são ambiciosas porque acreditamos no potencial ilimitado de cada projeto que abraçamos.
           </p>
-          <button className="relative z-10 px-8 sm:px-12 py-4 sm:py-6 bg-white text-black font-black rounded-2xl text-base sm:text-lg hover:scale-105 active:scale-95 transition-transform shadow-xl shadow-white/10">
+          <button className="relative z-10 px-8 sm:px-12 py-4 sm:py-6 bg-indigo-600 text-white font-black rounded-2xl text-base sm:text-lg hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-indigo-500/20">
             FALAR COM UM ESPECIALISTA
           </button>
         </motion.div>

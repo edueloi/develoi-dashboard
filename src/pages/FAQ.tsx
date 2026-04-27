@@ -38,10 +38,10 @@ function FAQItem({ question, answer, index }: { question: string, answer: string
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full text-left p-8 rounded-[2rem] glass-card border-white/5 flex items-center justify-between transition-all ${isOpen ? 'border-aurora-blue/30 bg-white/[0.03]' : ''}`}
+        className={`w-full text-left p-8 rounded-[2rem] dash-surface border dash-border flex items-center justify-between transition-all shadow-sm ${isOpen ? 'border-indigo-500/30 dash-surface-2' : ''}`}
       >
-        <span className="text-xl md:text-2xl font-black tracking-tighter">{question}</span>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isOpen ? 'bg-aurora-blue text-white rotate-180' : 'bg-white/5 text-neutral-400'}`}>
+        <span className="text-xl md:text-2xl font-black tracking-tighter dash-text">{question}</span>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isOpen ? 'bg-indigo-600 text-white rotate-180 shadow-lg' : 'dash-surface-2 dash-text opacity-50'}`}>
           {isOpen ? <Minus className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
         </div>
       </button>
@@ -53,7 +53,7 @@ function FAQItem({ question, answer, index }: { question: string, answer: string
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="p-8 text-lg text-neutral-400 leading-relaxed">
+            <div className="p-8 text-lg dash-text-2 leading-relaxed">
               {answer}
             </div>
           </motion.div>
@@ -76,7 +76,7 @@ export default function FAQ() {
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-6xl md:text-8xl font-black mb-8 tracking-tighter"
+            className="text-6xl md:text-8xl font-black mb-8 tracking-tighter dash-text"
           >
             DÚVIDAS <span className="text-gradient">FREQUENTES</span>
           </motion.h1>
@@ -84,7 +84,7 @@ export default function FAQ() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-xl md:text-2xl text-neutral-400 leading-relaxed"
+            className="text-xl md:text-2xl dash-text-2 leading-relaxed"
           >
             Tudo o que você precisa saber sobre como a Develoi pode transformar seu negócio.
           </motion.p>
@@ -100,15 +100,15 @@ export default function FAQ() {
 
         {/* Still have questions? */}
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-aurora-blue/10 border border-aurora-blue/20 text-xs font-black uppercase tracking-widest text-aurora-blue mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 mb-8">
             <HelpCircle className="w-4 h-4" />
             <span>Ainda tem dúvidas?</span>
           </div>
-          <h2 className="text-4xl font-black mb-8 tracking-tighter">Não encontrou o que procurava?</h2>
-          <p className="text-xl text-neutral-400 mb-12">
+          <h2 className="text-4xl font-black mb-8 tracking-tighter dash-text">Não encontrou o que procurava?</h2>
+          <p className="text-xl dash-text-2 mb-12">
             Nossa equipe está pronta para responder qualquer pergunta e desenhar a melhor estratégia para você.
           </p>
-          <button className="px-12 py-6 bg-white text-black font-black rounded-2xl text-lg hover:scale-105 transition-transform shadow-xl shadow-white/10">
+          <button className="px-12 py-6 bg-indigo-600 text-white font-black rounded-2xl text-lg hover:scale-105 transition-transform shadow-lg shadow-indigo-500/20">
             FALAR COM O SUPORTE
           </button>
         </div>

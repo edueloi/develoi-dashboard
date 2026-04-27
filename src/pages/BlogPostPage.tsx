@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Carousel } from "../components/ui";
+import { useTheme } from "../contexts/ThemeContext";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 interface BlogPost {
@@ -46,9 +47,9 @@ function BlogNavbar() {
   return (
     <nav style={{
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-      background: scrolled ? "rgba(3,3,3,0.97)" : "rgba(3,3,3,0.85)",
+      background: scrolled ? "var(--bg-secondary)" : "transparent",
       backdropFilter: "blur(20px)",
-      borderBottom: `1px solid ${scrolled ? "rgba(99,102,241,0.25)" : "rgba(255,255,255,0.05)"}`,
+      borderBottom: `1px solid ${scrolled ? "var(--border-color)" : "transparent"}`,
       transition: "all 0.3s ease",
     }}>
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -57,7 +58,7 @@ function BlogNavbar() {
             <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ color: "#fff", fontWeight: 900, fontSize: 14 }}>D</span>
             </div>
-            <span style={{ fontWeight: 900, fontSize: 15, color: "#fff", letterSpacing: "-0.02em" }}>DEVELOI</span>
+            <span style={{ fontWeight: 900, fontSize: 15, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>DEVELOI</span>
           </button>
           <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 18 }}>|</span>
           <button onClick={() => navigate("/blog")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#6366f1" }}>
@@ -104,7 +105,7 @@ function RelatedCard({ post }: { post: any }) {
             {post.category.name}
           </span>
         )}
-        <h4 style={{ fontSize: 13, fontWeight: 800, color: "#fff", margin: "6px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+        <h4 style={{ fontSize: 13, fontWeight: 800, color: "var(--text-primary)", margin: "6px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
           {post.title}
         </h4>
       </div>
@@ -156,6 +157,7 @@ export default function BlogPostPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [progress, setProgress] = useState(0);
+  const { theme, isDark } = useTheme();
 
   useEffect(() => {
     const fn = () => {
@@ -253,9 +255,9 @@ export default function BlogPostPage() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#030303", fontFamily: "'Inter', sans-serif", color: "#fff" }}>
+    <div className={`min-h-screen dash-bg dash-text transition-colors duration-500 ${isDark ? 'dark' : ''}`} style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Fixed bg */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.07) 0%, transparent 60%)" }} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: isDark ? "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.07) 0%, transparent 60%)" : "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.03) 0%, transparent 60%)" }} />
 
       {/* Reading progress bar */}
       <div style={{ position: "fixed", top: 68, left: 0, right: 0, height: 3, zIndex: 99, background: "rgba(255,255,255,0.05)" }}>
@@ -304,13 +306,13 @@ export default function BlogPostPage() {
               )}
 
               {/* Title */}
-              <h1 style={{ fontSize: "clamp(24px, 3.5vw, 44px)", fontWeight: 900, color: "#fff", lineHeight: 1.2, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
+              <h1 style={{ fontSize: "clamp(24px, 3.5vw, 44px)", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1.2, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
                 {post.title}
               </h1>
 
               {/* Excerpt */}
               {post.excerpt && (
-                <p style={{ fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.65, margin: "0 0 28px", fontWeight: 400, borderLeft: "3px solid #6366f1", paddingLeft: 18 }}>
+                <p style={{ fontSize: 18, color: "var(--text-secondary)", lineHeight: 1.65, margin: "0 0 28px", fontWeight: 400, borderLeft: "3px solid #6366f1", paddingLeft: 18 }}>
                   {post.excerpt}
                 </p>
               )}
@@ -327,8 +329,8 @@ export default function BlogPostPage() {
                       </div>
                     )}
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>{post.author.name}</div>
-                      {post.author.role && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 1 }}>{post.author.role}</div>}
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text-primary)" }}>{post.author.name}</div>
+                      {post.author.role && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{post.author.role}</div>}
                     </div>
                   </div>
                 )}
@@ -341,7 +343,7 @@ export default function BlogPostPage() {
               {/* Content */}
               <div
                 className="blog-content"
-                style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(255,255,255,0.8)" }}
+                style={{ fontSize: 16, lineHeight: 1.8, color: "var(--text-secondary)" }}
               >
                 {post.content.split(/<div class="develoi-carousel" data-images="([^"]+)"[^>]*>.*?<\/div>/gs).map((part, i) => {
                   if (i % 2 === 1) {
@@ -382,8 +384,8 @@ export default function BlogPostPage() {
                   )}
                   <div>
                     <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6366f1", margin: "0 0 6px" }}>Sobre o autor</p>
-                    <p style={{ fontSize: 15, fontWeight: 800, color: "#fff", margin: "0 0 10px" }}>{post.author.name}</p>
-                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, margin: 0 }}>{post.author.bio}</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)", margin: "0 0 10px" }}>{post.author.name}</p>
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{post.author.bio}</p>
                     {post.author.linkedin && (
                       <a href={post.author.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, marginTop: 10, display: "inline-block" }}>
                         Ver perfil no LinkedIn →
@@ -497,7 +499,7 @@ export default function BlogPostPage() {
         }
 
         .blog-content h1, .blog-content h2, .blog-content h3, .blog-content h4 {
-          color: #fff; font-weight: 900; line-height: 1.3; margin-top: 2em; margin-bottom: 0.6em;
+          color: var(--text-primary); font-weight: 900; line-height: 1.3; margin-top: 2em; margin-bottom: 0.6em;
         }
         .blog-content h2 { font-size: 1.5em; }
         .blog-content h3 { font-size: 1.25em; }
@@ -506,8 +508,8 @@ export default function BlogPostPage() {
         .blog-content li { margin-bottom: 0.4em; }
         .blog-content blockquote {
           border-left: 3px solid #6366f1; padding: 14px 22px;
-          background: rgba(99,102,241,0.08); margin: 1.5em 0; border-radius: 0 12px 12px 0;
-          font-style: italic; color: rgba(255,255,255,0.7);
+          background: var(--bg-tertiary); margin: 1.5em 0; border-radius: 0 12px 12px 0;
+          font-style: italic; color: var(--text-secondary);
         }
         .blog-content img { max-width: 100%; border-radius: 16px; margin: 1.5em 0; }
         .blog-content a { color: #818cf8; font-weight: 700; }
@@ -522,7 +524,7 @@ export default function BlogPostPage() {
           border: 1px solid rgba(255,255,255,0.08);
         }
         .blog-content pre code { background: none; color: inherit; padding: 0; }
-        .blog-content strong { color: #fff; font-weight: 800; }
+        .blog-content strong { color: var(--text-primary); font-weight: 800; }
         .blog-content hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 2.5em 0; }
         .blog-content table { width: 100%; border-collapse: collapse; margin: 1.5em 0; }
         .blog-content td, .blog-content th { border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; font-size: 14px; }

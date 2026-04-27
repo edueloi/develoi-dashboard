@@ -19,6 +19,7 @@ import BlogPostPage from './pages/BlogPostPage';
 import CasesPage from './pages/CasesPage';
 import CasePostPage from './pages/CasePostPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
 import { motion, useScroll, useSpring } from 'framer-motion';
 
 function ScrollToTop() {
@@ -81,15 +82,17 @@ function AppContent() {
     restDelta: 0.001
   });
 
+  const { isDark } = useTheme();
+
   return (
-    <div className="relative min-h-screen selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden">
+    <div className={`relative min-h-screen selection:bg-indigo-500/30 selection:text-white overflow-x-hidden ${isDark ? 'dark' : ''}`}>
       {/* Background Layer */}
-      <div className="fixed inset-0 bg-[#030303] -z-30" />
+      <div className="fixed inset-0 dash-bg -z-30" />
       
       {/* Decorative Background Elements */}
       {!isDashboard && (
         <div className="fixed inset-0 pointer-events-none -z-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(17,17,17,0)_0%,rgba(3,3,3,1)_100%)]" />
+          <div className="absolute top-0 left-0 w-full h-full dash-bg opacity-50" />
           <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
         </div>
       )}

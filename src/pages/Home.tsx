@@ -10,14 +10,17 @@ import ValuesSection from '../components/site/ValuesSection';
 import EmotionalSection from '../components/site/EmotionalSection';
 import CTASection from '../components/site/CTASection';
 import { motion } from 'framer-motion';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Home() {
+  const { isDark } = useTheme();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="relative min-h-screen bg-[#030303] text-white selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden"
+      className={`relative min-h-screen dash-bg dash-text selection:bg-indigo-500/30 selection:text-white overflow-x-hidden ${isDark ? 'dark' : ''}`}
     >
       <main>
         <HeroRedesign />

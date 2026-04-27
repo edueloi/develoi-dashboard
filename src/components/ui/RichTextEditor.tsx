@@ -136,7 +136,7 @@ function ImageDialog({ onConfirm, onClose }: {
   const [width, setWidth] = useState("100%");
   const [float, setFloat] = useState<ImageFloat>("none");
   const [uploading, setUploading] = useState(false);
-  const [tab, setTab] = useState<"url" | "file">("url");
+  const [tab, setTab] = useState<"url" | "file">("file");
 
   const handleFile = (file: File) => {
     setUploading(true);
@@ -261,12 +261,31 @@ function ImageDialog({ onConfirm, onClose }: {
   );
 }
 
-/* ─── Carousel Dialog ────────────────────────────────────────────────────── */
 function CarouselDialog({ onConfirm, onClose }: {
   onConfirm: (urls: string[]) => void;
   onClose: () => void;
 }) {
-  const [urls, setUrls] = useState<string[]>([""]);
+  const [urls, setUrls] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = (files: FileList) => {
+    setUploading(true);
+    const newUrls: string[] = [];
+    let count = 0;
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        newUrls.push(e.target?.result as string);
+        count++;
+        if (count === files.length) {
+          setUrls([...urls, ...newUrls]);
+          setUploading(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
   const addField = () => setUrls([...urls, ""]);
   const updateField = (idx: number, val: string) => {
@@ -282,14 +301,36 @@ function CarouselDialog({ onConfirm, onClose }: {
     >
       <div style={{ background: "#fff", borderRadius: 18, padding: 24, width: 460, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }} onMouseDown={e => e.stopPropagation()}>
         <p style={{ fontSize: 15, fontWeight: 800, margin: "0 0 16px", color: "#111" }}>Inserir Carrossel de Imagens</p>
+        
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple style={{ display: "none" }}
+            onChange={e => { if (e.target.files) handleFiles(e.target.files); }} />
+          
+          <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            style={{ padding: "20px 0", border: "2px dashed #e5e7eb", borderRadius: 12, background: "#fafafa",
+              cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#6b7280", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#f59e0b"; (e.currentTarget as HTMLElement).style.color = "#f59e0b"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLElement).style.color = "#6b7280"; }}
+          >
+            <span style={{ fontSize: 24 }}>📁</span>
+            {uploading ? "Carregando..." : "Carregar fotos do dispositivo (múltiplas)"}
+          </button>
+
+          <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0" }} />
+          
           {urls.map((url, i) => (
-            <div key={i} style={{ display: "flex", gap: 8 }}>
-              <input value={url} onChange={e => updateField(i, e.target.value)} placeholder="URL da imagem..." style={{ flex: 1, padding: "9px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13, outline: "none" }} />
-              <button type="button" onClick={() => removeField(i)} style={{ padding: "0 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", color: "#ef4444", cursor: "pointer" }}>×</button>
+            <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 6, background: "#f1f5f9", overflow: "hidden", flexShrink: 0 }}>
+                {url.startsWith("data:") || url.startsWith("http") ? (
+                  <img src={url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10 }}>?</div>}
+              </div>
+              <input value={url} onChange={e => updateField(i, e.target.value)} placeholder="Ou cole a URL da imagem..." style={{ flex: 1, padding: "9px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12, outline: "none" }} />
+              <button type="button" onClick={() => removeField(i)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", color: "#ef4444", cursor: "pointer", fontSize: 16 }}>×</button>
             </div>
           ))}
-          <button type="button" onClick={addField} style={{ padding: "8px", borderRadius: 8, border: "1px dashed #e5e7eb", background: "#fafafa", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#6b7280" }}>+ Adicionar Imagem</button>
+          
+          <button type="button" onClick={addField} style={{ padding: "8px", borderRadius: 8, border: "1px dashed #e5e7eb", background: "#fafafa", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#6b7280" }}>+ Adicionar campo de URL</button>
         </div>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button type="button" onClick={onClose} style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>Cancelar</button>
@@ -929,3 +970,5 @@ export function RichTextEditor({ value, onChange, placeholder = "Comece a escrev
     </div>
   );
 }
+
+export default RichTextEditor;

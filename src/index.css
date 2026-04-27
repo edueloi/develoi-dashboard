@@ -93,7 +93,7 @@
 }
 
 @layer base {
-  /* Dark mode variables */
+  /* Theme variables */
   :root {
     --bg-primary: #f8fafc;
     --bg-secondary: #ffffff;
@@ -119,9 +119,9 @@
     @apply antialiased;
   }
   body {
-    @apply font-sans selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden;
-    background: #030303;
-    color: #f1f5f9;
+    @apply font-sans selection:bg-indigo-500/30 selection:text-white overflow-x-hidden transition-colors duration-300;
+    background: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -133,20 +133,24 @@
   }
 
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #030303;
+    background: var(--bg-primary);
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(0, 210, 255, 0.3);
-    border-radius: 2px;
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 210, 255, 0.6);
+    background: #94a3b8;
   }
 }
 

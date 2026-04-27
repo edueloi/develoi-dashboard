@@ -9,7 +9,7 @@ import {
   PanelCard, Button, Input, Select, Textarea, Badge, Modal,
   StatGrid, StatCard, EmptyState,
 } from "../ui";
-import { RichTextEditor } from "../ui/RichTextEditor";
+import RichTextEditor from "../ui/RichTextEditor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
