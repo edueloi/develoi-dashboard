@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Carousel } from '../components/ui';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -292,10 +293,15 @@ export default function CasePostPage() {
             )}
 
             {/* Article Content */}
-            <article
-              className="case-content prose prose-invert max-w-none"
-              dangerouslySetInnerHTML={{ __html: caseItem.content }}
-            />
+            <article className="case-content prose prose-invert max-w-none">
+              {caseItem.content.split(/<div class="develoi-carousel" data-images="([^"]+)"[^>]*>.*?<\/div>/gs).map((part, i) => {
+                if (i % 2 === 1) {
+                  const images = part.split(',').filter(u => u.trim());
+                  return <Carousel key={i} images={images} />;
+                }
+                return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />;
+              })}
+            </article>
 
             {/* Services */}
             {servicesList.length > 0 && (

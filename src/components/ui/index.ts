@@ -21,6 +21,7 @@ export { ProgressBar } from './ProgressBar';
 export { PageWrapper, SectionTitle, StatGrid, ContentCard, FormRow, Divider } from './PageWrapper';
 export { PanelCard } from './PanelCard';
 export { EmptyState } from './EmptyState';
+export { Carousel } from './Carousel';
 
 // ── Dados ──────────────────────────────────────────────────────────────────
 export { StatCard } from './StatCard';

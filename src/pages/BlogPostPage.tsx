@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
+import { Carousel } from "../components/ui";
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 interface BlogPost {
@@ -341,8 +342,15 @@ export default function BlogPostPage() {
               <div
                 className="blog-content"
                 style={{ fontSize: 16, lineHeight: 1.8, color: "rgba(255,255,255,0.8)" }}
-                dangerouslySetInnerHTML={{ __html: post.content }}
-              />
+              >
+                {post.content.split(/<div class="develoi-carousel" data-images="([^"]+)"[^>]*>.*?<\/div>/gs).map((part, i) => {
+                  if (i % 2 === 1) {
+                    const images = part.split(',').filter(u => u.trim());
+                    return <Carousel key={i} images={images} />;
+                  }
+                  return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />;
+                })}
+              </div>
 
               {/* Tags */}
               {tags.length > 0 && (

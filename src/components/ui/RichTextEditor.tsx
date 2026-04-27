@@ -261,6 +261,45 @@ function ImageDialog({ onConfirm, onClose }: {
   );
 }
 
+/* ─── Carousel Dialog ────────────────────────────────────────────────────── */
+function CarouselDialog({ onConfirm, onClose }: {
+  onConfirm: (urls: string[]) => void;
+  onClose: () => void;
+}) {
+  const [urls, setUrls] = useState<string[]>([""]);
+
+  const addField = () => setUrls([...urls, ""]);
+  const updateField = (idx: number, val: string) => {
+    const newUrls = [...urls];
+    newUrls[idx] = val;
+    setUrls(newUrls);
+  };
+  const removeField = (idx: number) => setUrls(urls.filter((_, i) => i !== idx));
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)" }}
+      onMouseDown={onClose}
+    >
+      <div style={{ background: "#fff", borderRadius: 18, padding: 24, width: 460, maxWidth: "95vw", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }} onMouseDown={e => e.stopPropagation()}>
+        <p style={{ fontSize: 15, fontWeight: 800, margin: "0 0 16px", color: "#111" }}>Inserir Carrossel de Imagens</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          {urls.map((url, i) => (
+            <div key={i} style={{ display: "flex", gap: 8 }}>
+              <input value={url} onChange={e => updateField(i, e.target.value)} placeholder="URL da imagem..." style={{ flex: 1, padding: "9px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 13, outline: "none" }} />
+              <button type="button" onClick={() => removeField(i)} style={{ padding: "0 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fff", color: "#ef4444", cursor: "pointer" }}>×</button>
+            </div>
+          ))}
+          <button type="button" onClick={addField} style={{ padding: "8px", borderRadius: 8, border: "1px dashed #e5e7eb", background: "#fafafa", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#6b7280" }}>+ Adicionar Imagem</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose} style={{ padding: "9px 18px", borderRadius: 9, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>Cancelar</button>
+          <button type="button" onClick={() => { const filtered = urls.filter(u => u.trim()); if (filtered.length) { onConfirm(filtered); onClose(); } }} disabled={!urls.some(u => u.trim())} style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "#f59e0b", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>Inserir Carrossel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Image Resize Overlay ───────────────────────────────────────────────── */
 // Rendered as a portal-like overlay on top of the selected image
 interface ResizeState {
@@ -278,6 +317,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Comece a escrev
   const [showHighlightColors, setShowHighlightColors] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState(false);
+  const [showCarouselDialog, setShowCarouselDialog] = useState(false);
 
   // ── Image resize state
   const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
@@ -484,6 +524,21 @@ export function RichTextEditor({ value, onChange, placeholder = "Comece a escrev
     handleInput();
   };
 
+  const insertCarousel = (urls: string[]) => {
+    const urlsStr = urls.join(",");
+    const html = `<div class="develoi-carousel" data-images="${urlsStr}" style="background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:24px;padding:40px;text-align:center;margin:20px 0;cursor:pointer;position:relative;" contenteditable="false">
+      <div style="font-size:24px;margin-bottom:8px;">🎡</div>
+      <div style="font-weight:900;color:#1e293b;font-size:14px;text-transform:uppercase;letter-spacing:0.05em;">Carrossel de Imagens</div>
+      <div style="font-size:11px;color:#64748b;margin-top:4px;">${urls.length} imagens selecionadas</div>
+      <div style="display:flex;gap:4px;justify-content:center;margin-top:12px;">
+        ${urls.slice(0, 5).map(u => `<img src="${u}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.1);" />`).join("")}
+        ${urls.length > 5 ? `<div style="width:32px;height:32px;border-radius:6px;background:#fff;display:flex;items-center;justify-content:center;font-size:10px;font-weight:800;color:#64748b;border:2px solid #fff;">+${urls.length - 5}</div>` : ""}
+      </div>
+    </div><p>&nbsp;</p>`;
+    exec("insertHTML", html);
+    handleInput();
+  };
+
   // ── Delete selected image
   const deleteSelectedImg = () => {
     if (!selectedImg) return;
@@ -670,7 +725,11 @@ export function RichTextEditor({ value, onChange, placeholder = "Comece a escrev
         {/* Shapes / Blocks */}
         <select
           onMouseDown={e => e.stopPropagation()}
-          onChange={e => { const v = e.target.value; if (v) { insertShape(v); e.target.value = ""; } }}
+          onChange={e => { 
+            const v = e.target.value; 
+            if (v === "carousel") { setShowCarouselDialog(true); e.target.value = ""; return; }
+            if (v) { insertShape(v); e.target.value = ""; } 
+          }}
           defaultValue=""
           style={{ height: 28, padding: "0 6px", borderRadius: 6, border: "1px solid #e5e7eb", fontSize: 11, cursor: "pointer", background: "#fff", color: "#374151", flexShrink: 0, maxWidth: 110 }}
         >
@@ -683,6 +742,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Comece a escrev
           <option value="quote">❝ Citação</option>
           <option value="code">{ } Código</option>
           <option value="table">⊞ Tabela</option>
+          <option value="carousel">🎡 Carrossel</option>
         </select>
 
         <TDivider />
@@ -828,6 +888,7 @@ export function RichTextEditor({ value, onChange, placeholder = "Comece a escrev
       {/* Dialogs */}
       {showLinkDialog && <LinkDialog onConfirm={insertLink} onClose={() => setShowLinkDialog(false)} />}
       {showImageDialog && <ImageDialog onConfirm={(url, alt, width, float) => insertImage(url, alt, width, float)} onClose={() => setShowImageDialog(false)} />}
+      {showCarouselDialog && <CarouselDialog onConfirm={insertCarousel} onClose={() => setShowCarouselDialog(false)} />}
 
       <style>{`
         .rich-editor-content:empty::before {
