@@ -3,7 +3,7 @@ import HeroRedesign from '../components/site/HeroRedesign';
 import MetricsSection from '../components/site/MetricsSection';
 import AboutSection from '../components/site/AboutSection';
 import ProblemsSection from '../components/site/ProblemsSection';
-import SolutionsSection from '../components/site/SolutionsSection';
+import CasesPreviewSection from '../components/site/CasesPreviewSection';
 import DifferentialsSection from '../components/site/DifferentialsSection';
 import HowItWorksSection from '../components/site/HowItWorksSection';
 import ValuesSection from '../components/site/ValuesSection';
@@ -27,7 +27,7 @@ export default function Home() {
         <MetricsSection />
         <AboutSection />
         <ProblemsSection />
-        <SolutionsSection />
+        <CasesPreviewSection />
         <DifferentialsSection />
         <HowItWorksSection />
         <ValuesSection />

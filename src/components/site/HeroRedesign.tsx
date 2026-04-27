@@ -65,21 +65,21 @@ export default function HeroRedesign() {
               <motion.a
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                href="#solucoes"
+                href="/cases"
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl dash-surface border dash-border dash-text font-bold text-lg hover:dash-surface-2 transition-all duration-300 shadow-sm"
               >
-                Ver soluções
+                Ver cases de sucesso
               </motion.a>
             </div>
             
-            <div className="mt-12 flex items-center gap-6 text-neutral-500 text-sm font-medium">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-aurora-green" />
-                <span>Resultados reais</span>
+            <div className="mt-12 flex flex-wrap items-center gap-6 text-neutral-500 text-sm font-medium">
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl dash-surface-2/50 border dash-border">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span className="dash-text-2">Resultados reais</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-aurora-blue" />
-                <span>Alta performance</span>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl dash-surface-2/50 border dash-border">
+                <Zap className="w-4 h-4 text-amber-500" />
+                <span className="dash-text-2">Alta performance</span>
               </div>
             </div>
           </motion.div>
