@@ -126,7 +126,7 @@ export const Modal: React.FC<ModalProps> = ({
             transition={{ duration: 0.22 }}
             onClick={onClose}
             className={cn(
-              "fixed inset-0 z-[100] bg-zinc-900/45",
+              "fixed inset-0 z-[100] bg-zinc-900/45 dark:bg-black/70",
               backdropConfigs[backdropBlur]
             )}
           />
@@ -147,7 +147,7 @@ export const Modal: React.FC<ModalProps> = ({
               animate="visible"
               exit="exit"
               className={cn(
-                "w-full bg-white relative flex flex-col pointer-events-auto overflow-hidden",
+                "w-full bg-white dark:bg-[#111118] relative flex flex-col pointer-events-auto overflow-hidden",
                 // Mobile styles
                 isBottomSheet && [
                   "rounded-t-[2rem] sm:rounded-3xl",
@@ -162,7 +162,7 @@ export const Modal: React.FC<ModalProps> = ({
                   "rounded-3xl",
                   "max-h-[90dvh] sm:max-h-[88vh]",
                 ],
-                "sm:rounded-3xl sm:shadow-[0_25px_60px_rgba(0,0,0,0.15)] sm:border sm:border-zinc-200/60",
+                "sm:rounded-3xl sm:shadow-[0_25px_60px_rgba(0,0,0,0.15)] sm:border sm:border-zinc-200/60 dark:sm:border-white/10",
                 sizeClasses[size],
                 className
               )}
@@ -170,7 +170,7 @@ export const Modal: React.FC<ModalProps> = ({
               {/* iOS Grab Handle */}
               {isBottomSheet && (
                 <div className="w-full flex justify-center pt-3 pb-0 shrink-0 sm:hidden">
-                  <div className="w-10 h-[5px] rounded-full bg-zinc-200" />
+                  <div className="w-10 h-[5px] rounded-full bg-zinc-200 dark:bg-white/20" />
                 </div>
               )}
 
@@ -180,18 +180,18 @@ export const Modal: React.FC<ModalProps> = ({
                   className={cn(
                     "flex items-center justify-between shrink-0",
                     "px-5 sm:px-7",
-                    "border-b border-zinc-100",
+                    "border-b border-zinc-100 dark:border-white/10",
                     isBottomSheet ? "pt-5 pb-4 sm:py-5" : "py-4 sm:py-5"
                   )}
                 >
-                  <div className="text-sm sm:text-[15px] font-black text-zinc-900 uppercase tracking-wide truncate pr-4 font-display">
+                  <div className="text-sm sm:text-[15px] font-black text-zinc-900 dark:text-white uppercase tracking-wide truncate pr-4 font-display">
                     {title}
                   </div>
                   {!hideCloseButton && (
                     <button
                       onClick={onClose}
                       aria-label="Fechar"
-                      className="p-2 -mr-1 rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all active:scale-90 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shrink-0"
+                      className="p-2 -mr-1 rounded-xl text-zinc-400 dark:text-white/40 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 transition-all active:scale-90 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shrink-0"
                     >
                       <X size={18} />
                     </button>
@@ -206,7 +206,7 @@ export const Modal: React.FC<ModalProps> = ({
                   <button
                     onClick={onClose}
                     aria-label="Fechar"
-                    className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/90 shadow-sm border border-zinc-200/60 text-zinc-500 hover:text-zinc-900 transition-all active:scale-90"
+                    className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/90 dark:bg-white/10 shadow-sm border border-zinc-200/60 dark:border-white/10 text-zinc-500 dark:text-white/50 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"
                   >
                     <X size={17} strokeWidth={2.5} />
                   </button>
@@ -218,7 +218,7 @@ export const Modal: React.FC<ModalProps> = ({
               {footer && (
                 <div
                   className={cn(
-                    "shrink-0 border-t border-zinc-100",
+                    "shrink-0 border-t border-zinc-100 dark:border-white/10",
                     "px-5 py-4 sm:px-7 sm:py-5",
                     // Safe area para dispositivos com home bar
                     "pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-5"
@@ -313,7 +313,7 @@ export function ConfirmModal({
         <ModalFooter>
           <button
             onClick={onClose}
-            className="h-10 px-4 rounded-[10px] border border-zinc-200 bg-white text-sm font-bold text-zinc-700 hover:bg-zinc-50 transition-all w-full sm:w-auto"
+            className="h-10 px-4 rounded-[10px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm font-bold text-zinc-700 dark:text-white/70 hover:bg-zinc-50 dark:hover:bg-white/10 transition-all w-full sm:w-auto"
           >
             {cancelLabel}
           </button>

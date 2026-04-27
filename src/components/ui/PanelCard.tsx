@@ -32,7 +32,7 @@ export function PanelCard({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm",
+        "overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm",
         className
       )}
       {...props}
@@ -40,7 +40,7 @@ export function PanelCard({
       {hasHeader && (
         <div
           className={cn(
-            "flex flex-col gap-4 border-b border-zinc-100 px-4 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-center lg:justify-between",
+            "flex flex-col gap-4 border-b border-zinc-100 dark:border-white/10 px-4 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-center lg:justify-between",
             headerClassName
           )}
         >
@@ -48,21 +48,21 @@ export function PanelCard({
             {Icon && (
               <div
                 className={cn(
-                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50",
+                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10",
                   iconWrapClassName
                 )}
               >
-                <Icon size={20} className={cn("text-amber-600", iconClassName)} />
+                <Icon size={20} className={cn("text-amber-600 dark:text-amber-400", iconClassName)} />
               </div>
             )}
 
             {(title || description) && (
               <div className="min-w-0">
                 {title && (
-                  <h3 className="text-base font-black tracking-tight text-zinc-900">{title}</h3>
+                  <h3 className="text-base font-black tracking-tight text-zinc-900 dark:text-white">{title}</h3>
                 )}
                 {description && (
-                  <p className="mt-1 text-sm leading-relaxed text-zinc-500">{description}</p>
+                  <p className="mt-1 text-sm leading-relaxed text-zinc-500 dark:text-white/40">{description}</p>
                 )}
               </div>
             )}

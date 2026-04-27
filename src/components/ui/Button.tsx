@@ -29,17 +29,17 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants: Record<string, string> = {
       primary:
-        "bg-[#2a74ac] border-[#295b85] text-white hover:bg-[#295b85] hover:border-[#264a6c]",
+        "bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700 shadow-sm shadow-indigo-500/20",
       secondary:
-        "bg-[#295b85] border-[#143a59] text-white hover:bg-[#143a59] hover:border-[#0b2942]",
+        "bg-violet-600 border-violet-600 text-white hover:bg-violet-700 hover:border-violet-700",
       success:
-        "bg-[#4f8d67] border-[#3d6c50] text-white hover:bg-[#3d6c50] hover:border-[#325641]",
+        "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700",
       danger:
-        "bg-[#aa403d] border-[#7f3431] text-white hover:bg-[#7f3431] hover:border-[#642d2a]",
+        "bg-red-600 border-red-600 text-white hover:bg-red-700 hover:border-red-700",
       outline:
-        "bg-white border-[#2a74ac] text-[#2a74ac] hover:bg-[#e6e7e8] hover:border-[#487295] hover:text-[#487295]",
+        "bg-white dark:bg-transparent border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-white/70 hover:bg-zinc-50 dark:hover:bg-white/5 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-indigo-400",
       ghost:
-        "bg-transparent border-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-700",
+        "bg-transparent border-transparent text-zinc-600 dark:text-white/50 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white",
     };
 
     const sizes: Record<string, string> = {
@@ -121,17 +121,17 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
   ) => {
     const variants: Record<string, string> = {
       primary:
-        "bg-[#2a74ac] border-[#295b85] text-white hover:bg-[#295b85] hover:border-[#264a6c]",
+        "bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700 shadow-sm shadow-indigo-500/20",
       secondary:
-        "bg-[#295b85] border-[#143a59] text-white hover:bg-[#143a59] hover:border-[#0b2942]",
+        "bg-violet-600 border-violet-600 text-white hover:bg-violet-700 hover:border-violet-700",
       success:
-        "bg-[#4f8d67] border-[#3d6c50] text-white hover:bg-[#3d6c50] hover:border-[#325641]",
+        "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700",
       danger:
-        "bg-[#aa403d] border-[#7f3431] text-white hover:bg-[#7f3431] hover:border-[#642d2a]",
+        "bg-red-600 border-red-600 text-white hover:bg-red-700 hover:border-red-700",
       outline:
-        "bg-white border-[#2a74ac] text-[#2a74ac] hover:bg-[#e6e7e8] hover:border-[#487295] hover:text-[#487295]",
+        "bg-white dark:bg-transparent border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-white/70 hover:bg-zinc-50 dark:hover:bg-white/5 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-indigo-400",
       ghost:
-        "bg-transparent border-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-700",
+        "bg-transparent border-transparent text-zinc-600 dark:text-white/50 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white",
     };
 
     const sizes: Record<string, string> = {

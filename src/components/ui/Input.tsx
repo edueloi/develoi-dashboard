@@ -61,20 +61,20 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div
           className={cn(
             "group relative flex items-stretch overflow-hidden transition-all duration-200",
-            "rounded-[10px] bg-zinc-50 border border-zinc-200 shadow-sm",
-            "focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white",
-            error && "border-red-400 focus-within:border-red-500 focus-within:ring-red-500/10 bg-red-50/30"
+            "rounded-[10px] bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 shadow-sm",
+            "focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:bg-white dark:focus-within:bg-white/8 dark:focus-within:border-indigo-500/50",
+            error && "border-red-400 focus-within:border-red-500 focus-within:ring-red-500/10 bg-red-50/30 dark:bg-red-500/5"
           )}
         >
           {addonLeft && (
-            <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-r border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
+            <div className="flex items-center justify-center bg-zinc-100 dark:bg-white/5 px-3.5 border-r border-zinc-200 dark:border-white/10 text-xs font-black text-zinc-500 dark:text-white/40 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
               {addonLeft}
             </div>
           )}
 
           <div className="relative flex flex-1 items-center">
             {iconLeft && (
-              <span className="pointer-events-none absolute left-3 text-zinc-400 shrink-0 z-10">
+              <span className="pointer-events-none absolute left-3 text-zinc-400 dark:text-white/30 shrink-0 z-10">
                 {iconLeft}
               </span>
             )}
@@ -86,7 +86,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               value={value}
               className={cn(
                 "w-full bg-transparent px-3 py-2.5 outline-none",
-                "text-sm text-zinc-800 placeholder:text-zinc-400 font-bold tracking-tight",
+                "text-sm text-zinc-800 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-white/25 font-bold tracking-tight",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 iconLeft && "pl-9",
                 iconRight && "pr-9",
@@ -96,14 +96,14 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             />
 
             {iconRight && (
-              <span className="absolute right-3 text-zinc-400 shrink-0 z-10 flex items-center">
+              <span className="absolute right-3 text-zinc-400 dark:text-white/30 shrink-0 z-10 flex items-center">
                 {iconRight}
               </span>
             )}
           </div>
 
           {addonRight && (
-            <div className="flex items-center justify-center bg-zinc-100 px-3.5 border-l border-zinc-200 text-xs font-black text-zinc-500 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
+            <div className="flex items-center justify-center bg-zinc-100 dark:bg-white/5 px-3.5 border-l border-zinc-200 dark:border-white/10 text-xs font-black text-zinc-500 dark:text-white/40 whitespace-nowrap select-none shrink-0 group-focus-within:bg-zinc-50/50 transition-colors">
               {addonRight}
             </div>
           )}
@@ -160,13 +160,13 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           maxLength={maxLength}
           value={value}
           className={cn(
-            "w-full rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 py-2.5",
-            "text-sm text-zinc-800 placeholder:text-zinc-400 font-medium",
+            "w-full rounded-[10px] border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 px-3 py-2.5",
+            "text-sm text-zinc-800 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-white/25 font-medium",
             "outline-none resize-none transition-all duration-150",
-            "focus:border-amber-400 focus:ring-2 focus:ring-amber-500/10 focus:bg-white",
+            "focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 focus:bg-white dark:focus:bg-white/8 dark:focus:border-indigo-500/50",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "min-h-[80px]",
-            error && "border-red-400 focus:border-red-500 focus:ring-red-500/10 bg-red-50/30",
+            error && "border-red-400 focus:border-red-500 focus:ring-red-500/10 bg-red-50/30 dark:bg-red-500/5",
             className
           )}
           {...props}

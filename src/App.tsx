@@ -16,6 +16,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
+import CasesPage from './pages/CasesPage';
+import CasePostPage from './pages/CasePostPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { motion, useScroll, useSpring } from 'framer-motion';
 
@@ -52,6 +54,8 @@ function AnimatedRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
+        <Route path="/cases" element={<CasesPage />} />
+        <Route path="/cases/:slug" element={<CasePostPage />} />
         <Route
           path="/dashboard/*"
           element={
@@ -68,7 +72,7 @@ function AnimatedRoutes() {
 function AppContent() {
   console.log("AppContent component rendering");
   const location = useLocation();
-  const isDashboard = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/blog');
+  const isDashboard = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/blog') || location.pathname.startsWith('/cases');
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {

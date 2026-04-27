@@ -17,33 +17,33 @@ type StatCardColor = "default" | "success" | "info" | "danger" | "purple" | "war
 
 const colorMap: Record<StatCardColor, { wrap: string; icon: string; glow: string }> = {
   default: {
-    wrap: "bg-amber-50 border-amber-100 group-hover:bg-amber-500 group-hover:border-amber-500",
-    icon: "text-amber-600 group-hover:text-white",
+    wrap: "bg-amber-50 dark:bg-amber-500/10 border-amber-100 dark:border-amber-500/20 group-hover:bg-amber-500 group-hover:border-amber-500",
+    icon: "text-amber-600 dark:text-amber-400 group-hover:text-white",
     glow: "bg-amber-500/5",
   },
   success: {
-    wrap: "bg-emerald-50 border-emerald-100 group-hover:bg-emerald-500 group-hover:border-emerald-500",
-    icon: "text-emerald-600 group-hover:text-white",
+    wrap: "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-100 dark:border-emerald-500/20 group-hover:bg-emerald-500 group-hover:border-emerald-500",
+    icon: "text-emerald-600 dark:text-emerald-400 group-hover:text-white",
     glow: "bg-emerald-500/5",
   },
   info: {
-    wrap: "bg-blue-50 border-blue-100 group-hover:bg-blue-500 group-hover:border-blue-500",
-    icon: "text-blue-600 group-hover:text-white",
+    wrap: "bg-blue-50 dark:bg-blue-500/10 border-blue-100 dark:border-blue-500/20 group-hover:bg-blue-500 group-hover:border-blue-500",
+    icon: "text-blue-600 dark:text-blue-400 group-hover:text-white",
     glow: "bg-blue-500/5",
   },
   danger: {
-    wrap: "bg-red-50 border-red-100 group-hover:bg-red-500 group-hover:border-red-500",
-    icon: "text-red-600 group-hover:text-white",
+    wrap: "bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20 group-hover:bg-red-500 group-hover:border-red-500",
+    icon: "text-red-600 dark:text-red-400 group-hover:text-white",
     glow: "bg-red-500/5",
   },
   purple: {
-    wrap: "bg-violet-50 border-violet-100 group-hover:bg-violet-500 group-hover:border-violet-500",
-    icon: "text-violet-600 group-hover:text-white",
+    wrap: "bg-violet-50 dark:bg-violet-500/10 border-violet-100 dark:border-violet-500/20 group-hover:bg-violet-500 group-hover:border-violet-500",
+    icon: "text-violet-600 dark:text-violet-400 group-hover:text-white",
     glow: "bg-violet-500/5",
   },
   warning: {
-    wrap: "bg-yellow-50 border-yellow-100 group-hover:bg-yellow-500 group-hover:border-yellow-500",
-    icon: "text-yellow-600 group-hover:text-white",
+    wrap: "bg-yellow-50 dark:bg-yellow-500/10 border-yellow-100 dark:border-yellow-500/20 group-hover:bg-yellow-500 group-hover:border-yellow-500",
+    icon: "text-yellow-600 dark:text-yellow-400 group-hover:text-white",
     glow: "bg-yellow-500/5",
   },
 };
@@ -78,7 +78,7 @@ export function StatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.3, ease: "easeOut" }}
       className={cn(
-        "bg-white rounded-2xl border border-zinc-200 shadow-sm",
+        "bg-white dark:bg-white/5 rounded-2xl border border-zinc-200 dark:border-white/10 shadow-sm",
         "hover:shadow-md transition-all duration-300 group",
         "relative overflow-hidden",
         // Padding responsivo: menor no mobile
@@ -131,15 +131,15 @@ export function StatCard({
 
       {/* Conteúdo */}
       <div className="relative z-10">
-        <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-0.5 sm:mb-1 truncate">
+        <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 dark:text-white/40 uppercase tracking-widest mb-0.5 sm:mb-1 truncate">
           {title}
         </p>
-        <h3 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight leading-none">
+        <h3 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tight leading-none">
           {value}
         </h3>
         {description && (
-          <p className="text-[9px] sm:text-[10px] text-zinc-400 mt-1 sm:mt-1.5 font-medium flex items-center gap-1">
-            <span className="w-1 h-1 rounded-full bg-zinc-300 shrink-0" />
+          <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-white/40 mt-1 sm:mt-1.5 font-medium flex items-center gap-1">
+            <span className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-white/20 shrink-0" />
             <span className="truncate">{description}</span>
           </p>
         )}

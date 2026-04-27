@@ -39,15 +39,15 @@ interface BadgeProps {
 }
 
 const colorMap: Record<BadgeColor, string> = {
-  default:  "bg-zinc-100  text-zinc-700  border border-zinc-200",
-  primary:  "bg-amber-50  text-amber-700 border border-amber-200",
-  success:  "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  warning:  "bg-yellow-50 text-yellow-700 border border-yellow-200",
-  danger:   "bg-red-50    text-red-700   border border-red-200",
-  info:     "bg-blue-50   text-blue-700  border border-blue-200",
-  purple:   "bg-violet-50 text-violet-700 border border-violet-200",
-  orange:   "bg-orange-50 text-orange-700 border border-orange-200",
-  teal:     "bg-teal-50   text-teal-700  border border-teal-200",
+  default:  "bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-white/60 border border-zinc-200 dark:border-white/10",
+  primary:  "bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20",
+  success:  "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20",
+  warning:  "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/20",
+  danger:   "bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20",
+  info:     "bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20",
+  purple:   "bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400 border border-violet-200 dark:border-violet-500/20",
+  orange:   "bg-orange-50 dark:bg-orange-500/10 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20",
+  teal:     "bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-200 dark:border-teal-500/20",
 };
 
 const dotColorMap: Record<BadgeColor, string> = {

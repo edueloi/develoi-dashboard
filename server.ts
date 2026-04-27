@@ -9,6 +9,7 @@ import { PrismaClient } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import { blogController } from "./src/backend/blogController.js";
+import { casesController } from "./src/backend/casesController.js";
 
 dotenv.config();
 
@@ -311,6 +312,28 @@ async function startServer() {
     app.delete("/api/admin/blog/subscribers/:id", blogController.deleteSubscriber);
     app.get("/api/admin/blog/stats", blogController.getStats);
     app.get("/api/admin/blog/analytics", blogController.getAnalytics);
+
+    // ─── Cases Público ──────────────────────────────────────────────────────────
+    app.get("/api/cases", casesController.listPublicCases);
+    app.get("/api/cases/featured", casesController.getFeaturedCases);
+    app.get("/api/cases-categories", casesController.listPublicCategories);
+    app.get("/api/cases/:slug", casesController.getPublicCase);
+    app.post("/api/cases/:id/view", casesController.registerView);
+    app.post("/api/cases/:id/like", casesController.registerLike);
+
+    // ─── Cases Admin ────────────────────────────────────────────────────────────
+    app.get("/api/admin/cases", casesController.listAdminCases);
+    app.post("/api/admin/cases", casesController.createCase);
+    app.get("/api/admin/cases/stats", casesController.getStats);
+    app.get("/api/admin/cases/:id", casesController.getAdminCase);
+    app.put("/api/admin/cases/:id", casesController.updateCase);
+    app.delete("/api/admin/cases/:id", casesController.deleteCase);
+    app.patch("/api/admin/cases/:id/publish", casesController.publishCase);
+    app.patch("/api/admin/cases/:id/archive", casesController.archiveCase);
+    app.get("/api/admin/cases-categories", casesController.listAdminCategories);
+    app.post("/api/admin/cases-categories", casesController.createCategory);
+    app.put("/api/admin/cases-categories/:id", casesController.updateCategory);
+    app.delete("/api/admin/cases-categories/:id", casesController.deleteCategory);
 
     // ─── Serving ────────────────────────────────────────────────────────────────
     if (isDev) {

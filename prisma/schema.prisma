@@ -157,3 +157,42 @@ model BlogSubscriber {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+model Case {
+  id              String    @id @default(uuid())
+  title           String
+  slug            String    @unique
+  client          String
+  excerpt         String?   @db.Text
+  content         String    @db.LongText
+  coverImage      String?   @db.LongText
+  status          String    @default("draft")
+  featured        Boolean   @default(false)
+  tags            String?   @db.Text
+  views           Int       @default(0)
+  likes           Int       @default(0)
+  readTimeMinutes Int       @default(1)
+  publishedAt     DateTime?
+  seoTitle        String?
+  seoDescription  String?   @db.Text
+  seoKeywords     String?
+  segment         String?
+  services        String?   @db.Text
+  results         String?   @db.Text
+  challenge       String?   @db.Text
+  solution        String?   @db.Text
+  categoryId      String?
+  category        CaseCategory? @relation(fields: [categoryId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model CaseCategory {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  color       String  @default("#6366f1")
+  sortOrder   Int     @default(0)
+  isActive    Boolean @default(true)
+  cases       Case[]
+}

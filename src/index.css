@@ -93,12 +93,35 @@
 }
 
 @layer base {
+  /* Dark mode variables */
+  :root {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f1f5f9;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+  }
+
+  .dark {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #111118;
+    --bg-tertiary: #1a1a24;
+    --border-color: rgba(255,255,255,0.08);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #475569;
+  }
+
   html {
     scroll-behavior: smooth;
     @apply antialiased;
   }
   body {
-    @apply bg-[#030303] text-neutral-100 font-sans selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden;
+    @apply font-sans selection:bg-aurora-blue/30 selection:text-white overflow-x-hidden;
+    background: #030303;
+    color: #f1f5f9;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -128,6 +151,32 @@
 }
 
 @layer utilities {
+  /* Dashboard theme utility classes */
+  .dash-bg { background: var(--bg-primary); }
+  .dash-surface { background: var(--bg-secondary); }
+  .dash-surface-2 { background: var(--bg-tertiary); }
+  .dash-border { border-color: var(--border-color); }
+  .dash-text { color: var(--text-primary); }
+  .dash-text-2 { color: var(--text-secondary); }
+  .dash-text-muted { color: var(--text-muted); }
+
+  /* Design system inputs */
+  .ds-label {
+    @apply text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500;
+  }
+  .dark .ds-label {
+    @apply text-white/40;
+  }
+  .ds-input {
+    @apply w-full h-10 sm:h-11 rounded-[10px] border border-zinc-200 bg-zinc-50 px-3;
+    @apply text-sm text-zinc-800 font-medium outline-none transition-all duration-150;
+    @apply focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 focus:bg-white;
+  }
+  .dark .ds-input {
+    @apply border-white/10 bg-white/5 text-white;
+    @apply focus:border-indigo-500/50 focus:bg-white/8;
+  }
+
   .text-gradient {
     @apply bg-clip-text text-transparent bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink;
   }
@@ -225,3 +274,14 @@
     @apply transition-transform duration-200 will-change-transform;
   }
 }
+
+/* Dark scrollbar */
+.dark ::-webkit-scrollbar-track { background: #0a0a0f; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.3); }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.5); }
+
+/* Custom scrollbar utility */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 4px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }

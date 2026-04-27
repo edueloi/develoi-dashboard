@@ -7,9 +7,10 @@ import {
   ArrowRight, Briefcase, ChevronUp, ChevronDown, Edit2, Target,
   TrendingUp, Share2, MoreHorizontal, Link2, History,
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
-  Sparkles, Image, BookOpen,
+  Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 const DraggableComponent = Draggable as any;
 const DroppableComponent = Droppable as any;
@@ -48,6 +49,7 @@ import { PortfolioManager } from '../components/dashboard/PortfolioManager';
 import { TeamManager } from '../components/dashboard/TeamManager';
 import { SiteValuesManager } from '../components/dashboard/SiteValuesManager';
 import { BlogManager } from '../components/dashboard/BlogManager';
+import { CasesManager } from '../components/dashboard/CasesManager';
 
 // Types
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
@@ -64,11 +66,13 @@ function handleApiError(error: unknown, op: OperationType, path: string | null) 
 
 export default function Dashboard() {
   const { profile, logout } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -106,126 +110,183 @@ export default function Dashboard() {
     team: 'Nossa Equipe',
     'site-values': 'Missão & Valores',
     blog: 'Blog da Develoi',
+    cases: 'Cases de Sucesso',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases'];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col lg:flex-row overflow-hidden font-sans">
+    <div className={`min-h-screen flex dash-bg font-sans ${isDark ? 'dark' : ''}`}>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-full lg:w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-              <span className="text-white font-bold text-base">D</span>
+      <aside className={`
+        fixed lg:sticky top-0 left-0 h-screen z-40 lg:z-auto
+        w-72 flex flex-col
+        dash-surface border-r dash-border
+        transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Logo */}
+        <div className="flex items-center justify-between p-5 border-b dash-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <span className="text-white font-black text-base">D</span>
             </div>
-            <span className="text-lg font-bold tracking-tight text-slate-900">DEVELOI <span className="text-indigo-600">HUB</span></span>
+            <div>
+              <p className="font-black text-sm dash-text tracking-tight">DEVELOI</p>
+              <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">Hub</p>
+            </div>
           </div>
-
-          <nav className="space-y-0.5">
-            <SidebarItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-            {selectedProject && <SidebarItem icon={CheckCircle2} label="Resumo Projeto" active={activeTab === 'summary'} onClick={() => setActiveTab('summary')} />}
-            <SidebarItem icon={Briefcase} label="Projetos" active={activeTab === 'projects'} onClick={() => setActiveTab('projects')} />
-
-            {selectedProject && (
-              <>
-                <SidebarDivider label={selectedProject.name} />
-                <SidebarItem icon={LayoutDashboard} label="Backlog" active={activeTab === 'backlog'} onClick={() => setActiveTab('backlog')} />
-                <SidebarItem icon={Kanban} label="Quadro" active={activeTab === 'board'} onClick={() => setActiveTab('board')} />
-                <SidebarItem icon={Calendar} label="Cronograma" active={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} />
-              </>
-            )}
-
-            <SidebarDivider label="Equipe" />
-            <SidebarItem icon={ShieldCheck} label="Qualidade" active={activeTab === 'tests'} onClick={() => setActiveTab('tests')} />
-            <SidebarItem icon={Users} label="Membros" active={activeTab === 'members'} onClick={() => setActiveTab('members')} />
-            <SidebarItem icon={MessageSquare} label="Chat" active={activeTab === 'chat'} onClick={() => setActiveTab('chat')} />
-
-            <SidebarDivider label="Site Público" />
-            <SidebarItem icon={Globe} label="Portfólio" active={activeTab === 'portfolio'} onClick={() => setActiveTab('portfolio')} />
-            <SidebarItem icon={Users} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => setActiveTab('team')} />
-            <SidebarItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => setActiveTab('site-values')} />
-            <SidebarItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => setActiveTab('blog')} />
-          </nav>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1.5 rounded-lg dash-text-2 hover:dash-surface-2 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="mt-auto p-5 border-t border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-3 mb-4">
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
+          {/* Geral */}
+          <NavSection label="Geral">
+            <NavItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'overview'} onClick={() => { setActiveTab('overview'); setSidebarOpen(false); }} />
+            {selectedProject && <NavItem icon={Briefcase} label="Resumo Projeto" active={activeTab === 'summary'} onClick={() => { setActiveTab('summary'); setSidebarOpen(false); }} />}
+            <NavItem icon={FolderOpen} label="Projetos" active={activeTab === 'projects'} onClick={() => { setActiveTab('projects'); setSidebarOpen(false); }} />
+          </NavSection>
+
+          {/* Projeto selecionado */}
+          {selectedProject && (
+            <NavSection label={selectedProject.name}>
+              <NavItem icon={ListTodo} label="Backlog" active={activeTab === 'backlog'} onClick={() => { setActiveTab('backlog'); setSidebarOpen(false); }} />
+              <NavItem icon={Kanban} label="Quadro" active={activeTab === 'board'} onClick={() => { setActiveTab('board'); setSidebarOpen(false); }} />
+              <NavItem icon={Calendar} label="Cronograma" active={activeTab === 'timeline'} onClick={() => { setActiveTab('timeline'); setSidebarOpen(false); }} />
+            </NavSection>
+          )}
+
+          {/* Equipe */}
+          <NavSection label="Equipe">
+            <NavItem icon={ShieldCheck} label="Qualidade" active={activeTab === 'tests'} onClick={() => { setActiveTab('tests'); setSidebarOpen(false); }} />
+            <NavItem icon={Users} label="Membros" active={activeTab === 'members'} onClick={() => { setActiveTab('members'); setSidebarOpen(false); }} />
+            <NavItem icon={MessageSquare} label="Chat" active={activeTab === 'chat'} onClick={() => { setActiveTab('chat'); setSidebarOpen(false); }} />
+          </NavSection>
+
+          {/* Site Público */}
+          <NavSection label="Site Público">
+            <NavItem icon={Globe} label="Portfólio" active={activeTab === 'portfolio'} onClick={() => { setActiveTab('portfolio'); setSidebarOpen(false); }} />
+            <NavItem icon={Users2} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => { setActiveTab('team'); setSidebarOpen(false); }} />
+            <NavItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => { setActiveTab('site-values'); setSidebarOpen(false); }} />
+            <NavItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => { setActiveTab('blog'); setSidebarOpen(false); }} />
+            <NavItem icon={Star} label="Cases de Sucesso" active={activeTab === 'cases'} onClick={() => { setActiveTab('cases'); setSidebarOpen(false); }} />
+          </NavSection>
+        </nav>
+
+        {/* User footer */}
+        <div className="p-4 border-t dash-border">
+          <div className="flex items-center gap-3 mb-3">
             {profile?.photoURL ? (
-              <img src={profile.photoURL} alt="" className="w-9 h-9 rounded-full border-2 border-white shadow-sm" />
+              <img src={profile.photoURL} alt="" className="w-9 h-9 rounded-xl object-cover" />
             ) : (
-              <div className="w-9 h-9 rounded-full border-2 border-white shadow-sm bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-sm">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
                 {profile?.displayName?.[0]?.toUpperCase() ?? 'D'}
               </div>
             )}
-            <div className="overflow-hidden">
-              <p className="font-semibold text-sm text-slate-900 truncate">{profile?.displayName}</p>
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{profile?.role}</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold dash-text truncate">{profile?.displayName}</p>
+              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{profile?.role}</p>
             </div>
           </div>
-          <button onClick={logout} className="w-full flex items-center justify-center gap-2 py-2.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all text-xs font-bold border border-slate-200">
-            <LogOut className="w-3.5 h-3.5" /> SAIR DA CONTA
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={toggleTheme}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border dash-border dash-text-2 hover:border-indigo-400 hover:text-indigo-500 transition-all text-xs font-bold dash-surface-2"
+            >
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+              {isDark ? 'Modo Claro' : 'Modo Escuro'}
+            </button>
+            <button
+              onClick={logout}
+              className="p-2 rounded-xl border dash-border dash-text-2 hover:border-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden bg-[#F8FAFC]">
-        {/* Top Header Section */}
-        <header className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <SectionTitle 
-            title={tabTitles[activeTab]} 
-            description={activeTab === 'overview' ? `Bem-vindo de volta, ${profile?.displayName?.split(' ')[0]}` : "Gerencie a excelência da Develoi."}
-            className="mb-0"
-          />
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Top header */}
+        <header className="dash-surface border-b dash-border px-4 lg:px-6 py-3.5 flex items-center gap-4 flex-shrink-0">
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-xl border dash-border dash-text-2 hover:text-indigo-600 transition-colors"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-black dash-text truncate">{tabTitles[activeTab]}</h1>
+            <p className="text-xs dash-text-muted hidden sm:block">
+              {activeTab === 'overview' ? `Bem-vindo de volta, ${profile?.displayName?.split(' ')[0]}` : 'Develoi Hub'}
+            </p>
+          </div>
 
           <div className="flex items-center gap-3">
             {!hideSelectorTabs.includes(activeTab) && projects.length > 0 && (
-              <Select
+              <select
                 value={selectedProject?.id}
                 onChange={(e) => setSelectedProject(projects.find(p => p.id === e.target.value) || null)}
-                wrapperClassName="w-[240px]"
-                className="font-bold text-slate-700"
+                className="text-xs font-bold dash-surface border dash-border dash-text rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors max-w-[200px]"
               >
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </Select>
+              </select>
             )}
-            
             {activeTab === 'projects' && (
-              <Button onClick={() => setIsNewProjectModalOpen(true)} iconLeft={<Plus className="w-4 h-4" />}>
-                NOVO PROJETO
-              </Button>
+              <button
+                onClick={() => setIsNewProjectModalOpen(true)}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" /> Novo Projeto
+              </button>
             )}
           </div>
         </header>
 
-        {/* Scrollable Page Body */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="DASHBOARD_CONTAINER_FULL_WIDTH w-full min-w-0 px-4 sm:px-6 lg:px-8 pt-6 pb-12">
+        {/* Content */}
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="p-4 lg:p-6 pb-12">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && (
                 <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-8">
                   {/* Global Stats Grid */}
                   <StatGrid cols={3}>
-                    <StatCard 
-                      title="Projetos Ativos" 
-                      value={projects.filter(p => p.status === 'active').length} 
-                      icon={Rocket} 
+                    <StatCard
+                      title="Projetos Ativos"
+                      value={projects.filter(p => p.status === 'active').length}
+                      icon={Rocket}
                       color="success"
                       delay={0.1}
                     />
-                    <StatCard 
-                      title="Tickets Pendentes" 
-                      value={12} 
-                      icon={AlertCircle} 
+                    <StatCard
+                      title="Tickets Pendentes"
+                      value={12}
+                      icon={AlertCircle}
                       color="warning"
                       trend={{ value: 5, isUp: false }}
                       delay={0.2}
                     />
-                    <StatCard 
-                      title="Horas Totais" 
-                      value="164h" 
-                      icon={Clock} 
+                    <StatCard
+                      title="Horas Totais"
+                      value="164h"
+                      icon={Clock}
                       color="info"
                       delay={0.3}
                     />
@@ -233,34 +294,34 @@ export default function Dashboard() {
 
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
                     {/* Activity Feed */}
-                    <PanelCard 
-                      title="Atividade Recente" 
+                    <PanelCard
+                      title="Atividade Recente"
                       icon={History}
                       description="Últimas movimentações no seu ecossistema"
                     >
-                      <div className="divide-y divide-zinc-100">
+                      <div className="divide-y divide-zinc-100 dark:divide-white/5">
                         {[1, 2].map((_, i) => (
-                          <div key={i} className="py-4 first:pt-0 last:pb-0 flex items-center gap-4 hover:bg-slate-50/50 transition-colors rounded-xl px-2 -mx-2">
-                            <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center shrink-0", i === 0 ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600")}>
+                          <div key={i} className="py-4 first:pt-0 last:pb-0 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors rounded-xl px-2 -mx-2">
+                            <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center shrink-0", i === 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600" : "bg-blue-50 dark:bg-blue-500/10 text-blue-600")}>
                               {i === 0 ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold text-slate-900 truncate">{i === 0 ? 'Ajuste de layout do dashboard' : 'Implementação de filtros no backlog'}</p>
+                              <p className="text-sm font-bold dash-text truncate">{i === 0 ? 'Ajuste de layout do dashboard' : 'Implementação de filtros no backlog'}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">DEV-102{4+i}</span>
-                                <div className="w-1 h-1 rounded-full bg-zinc-300" />
+                                <span className="text-[10px] dash-text-muted uppercase font-black tracking-widest">DEV-102{4+i}</span>
+                                <div className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-white/20" />
                                 <Badge color={i === 0 ? "success" : "info"} size="sm">{i === 0 ? 'Concluído' : 'Em Progresso'}</Badge>
                               </div>
                             </div>
-                            <ArrowRight className="w-4 h-4 text-slate-300" />
+                            <ArrowRight className="w-4 h-4 dash-text-muted" />
                           </div>
                         ))}
                       </div>
                     </PanelCard>
 
                     {/* Deliveries Timeline */}
-                    <PanelCard 
-                      title="Próximas Entregas" 
+                    <PanelCard
+                      title="Próximas Entregas"
                       icon={Calendar}
                       description="Cronograma das próximas 48 horas"
                     >
@@ -268,7 +329,7 @@ export default function Dashboard() {
                         {[1, 2].map((_, i) => (
                           <div key={i}>
                             <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wide">{i === 0 ? 'Sprint Agendelle #12' : 'Refatoração MySQL'}</h4>
+                              <h4 className="text-xs font-black dash-text uppercase tracking-wide">{i === 0 ? 'Sprint Agendelle #12' : 'Refatoração MySQL'}</h4>
                               <span className="text-[10px] font-bold text-indigo-600">{i === 0 ? '85%' : '40%'}</span>
                             </div>
                             <ProgressBar progress={i === 0 ? 85 : 40} className="h-2" />
@@ -313,7 +374,7 @@ export default function Dashboard() {
               {activeTab === 'members' && <MembersArea />}
 
               {activeTab === 'timeline' && (
-                <EmptyState 
+                <EmptyState
                   icon={Calendar}
                   title="Cronograma do Projeto"
                   description="Visualize o cronograma em uma linha do tempo interativa (Em breve)."
@@ -330,11 +391,13 @@ export default function Dashboard() {
               {activeTab === 'team' && <TeamManager />}
               {activeTab === 'site-values' && <SiteValuesManager />}
               {activeTab === 'blog' && <BlogManager />}
+              {activeTab === 'cases' && <CasesManager />}
             </AnimatePresence>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
 
+      {/* Modals */}
       {isNewProjectModalOpen && <NewProjectModal onClose={() => setIsNewProjectModalOpen(false)} />}
       {editingProject && <EditProjectModal project={editingProject} onClose={() => setEditingProject(null)} />}
     </div>
@@ -343,21 +406,34 @@ export default function Dashboard() {
 
 // ─── Shared UI sub-components ────────────────────────────────────────────────
 
-function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any; label: string; active: boolean; onClick: () => void }) {
+function NavSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${active ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}>
-      <Icon className={`w-4 h-4 transition-colors ${active ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
-      <span className="text-sm tracking-tight">{label}</span>
-      {active && <div className="ml-auto w-1 h-4 bg-indigo-600 rounded-full" />}
-    </button>
+    <div className="mb-2">
+      <p className="text-[9px] font-black uppercase tracking-[0.18em] dash-text-muted px-3 mb-1 mt-3">{label}</p>
+      <div className="space-y-0.5">{children}</div>
+    </div>
   );
 }
 
-function SidebarDivider({ label }: { label: string }) {
+function NavItem({ icon: Icon, label, active, onClick, badge }: {
+  icon: any; label: string; active: boolean; onClick: () => void; badge?: number;
+}) {
   return (
-    <div className="pt-4 pb-1">
-      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 px-3 truncate">{label}</p>
-    </div>
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group text-left ${
+        active
+          ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold'
+          : 'dash-text-2 hover:dash-surface-2 hover:dash-text font-medium'
+      }`}
+    >
+      <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${active ? 'text-indigo-600 dark:text-indigo-400' : 'dash-text-muted group-hover:dash-text-2'}`} />
+      <span className="text-sm flex-1 truncate">{label}</span>
+      {badge && (
+        <span className="w-5 h-5 bg-indigo-600 text-white text-[9px] font-black rounded-full flex items-center justify-center flex-shrink-0">{badge > 9 ? '9+' : badge}</span>
+      )}
+      {active && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />}
+    </button>
   );
 }
 

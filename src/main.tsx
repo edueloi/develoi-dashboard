@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 console.log("App starting...");
 
@@ -28,7 +29,9 @@ try {
   
   createRoot(rootElement).render(
     <StrictMode>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </StrictMode>,
   );
   console.log("App rendered");

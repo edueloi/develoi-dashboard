@@ -76,4 +76,5 @@ export type ActiveTab =
   | 'portfolio'
   | 'team'
   | 'site-values'
-  | 'blog';
+  | 'blog'
+  | 'cases';
