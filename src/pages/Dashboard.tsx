@@ -7,7 +7,7 @@ import {
   ArrowRight, Briefcase, ChevronUp, ChevronDown, Edit2, Target,
   TrendingUp, Share2, MoreHorizontal, Link2, History,
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
-  Sparkles, Image,
+  Sparkles, Image, BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -47,6 +47,7 @@ import { ProjectsList } from '../components/dashboard/ProjectsList';
 import { PortfolioManager } from '../components/dashboard/PortfolioManager';
 import { TeamManager } from '../components/dashboard/TeamManager';
 import { SiteValuesManager } from '../components/dashboard/SiteValuesManager';
+import { BlogManager } from '../components/dashboard/BlogManager';
 
 // Types
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
@@ -104,9 +105,10 @@ export default function Dashboard() {
     portfolio: 'Portfólio Público',
     team: 'Nossa Equipe',
     'site-values': 'Missão & Valores',
+    blog: 'Blog da Develoi',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog'];
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col lg:flex-row overflow-hidden font-sans">
@@ -143,6 +145,7 @@ export default function Dashboard() {
             <SidebarItem icon={Globe} label="Portfólio" active={activeTab === 'portfolio'} onClick={() => setActiveTab('portfolio')} />
             <SidebarItem icon={Users} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => setActiveTab('team')} />
             <SidebarItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => setActiveTab('site-values')} />
+            <SidebarItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => setActiveTab('blog')} />
           </nav>
         </div>
 
@@ -326,6 +329,7 @@ export default function Dashboard() {
               {activeTab === 'portfolio' && <PortfolioManager projects={projects} />}
               {activeTab === 'team' && <TeamManager />}
               {activeTab === 'site-values' && <SiteValuesManager />}
+              {activeTab === 'blog' && <BlogManager />}
             </AnimatePresence>
           </div>
         </div>

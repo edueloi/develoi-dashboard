@@ -8,6 +8,7 @@ import { createServer as createViteServer } from "vite";
 import { PrismaClient } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
+import { blogController } from "./src/backend/blogController.js";
 
 dotenv.config();
 
@@ -281,6 +282,35 @@ async function startServer() {
       await prisma.teamMember.delete({ where: { id: req.params.id } });
       res.json({ success: true });
     });
+
+    // ─── Blog Público ───────────────────────────────────────────────────────────
+    app.get("/api/blog/posts", blogController.listPublicPosts);
+    app.get("/api/blog/posts/featured", blogController.getFeaturedPosts);
+    app.get("/api/blog/posts/:slug", blogController.getPublicPost);
+    app.post("/api/blog/posts/:id/view", blogController.registerView);
+    app.get("/api/blog/categories", blogController.listPublicCategories);
+    app.post("/api/blog/subscribe", blogController.subscribe);
+
+    // ─── Blog Admin ─────────────────────────────────────────────────────────────
+    app.get("/api/admin/blog/posts", blogController.listAdminPosts);
+    app.post("/api/admin/blog/posts", blogController.createPost);
+    app.get("/api/admin/blog/posts/:id", blogController.getAdminPost);
+    app.put("/api/admin/blog/posts/:id", blogController.updatePost);
+    app.delete("/api/admin/blog/posts/:id", blogController.deletePost);
+    app.patch("/api/admin/blog/posts/:id/publish", blogController.publishPost);
+    app.patch("/api/admin/blog/posts/:id/archive", blogController.archivePost);
+    app.get("/api/admin/blog/categories", blogController.listAdminCategories);
+    app.post("/api/admin/blog/categories", blogController.createCategory);
+    app.put("/api/admin/blog/categories/:id", blogController.updateCategory);
+    app.delete("/api/admin/blog/categories/:id", blogController.deleteCategory);
+    app.get("/api/admin/blog/authors", blogController.listAuthors);
+    app.post("/api/admin/blog/authors", blogController.createAuthor);
+    app.put("/api/admin/blog/authors/:id", blogController.updateAuthor);
+    app.delete("/api/admin/blog/authors/:id", blogController.deleteAuthor);
+    app.get("/api/admin/blog/subscribers", blogController.listSubscribers);
+    app.delete("/api/admin/blog/subscribers/:id", blogController.deleteSubscriber);
+    app.get("/api/admin/blog/stats", blogController.getStats);
+    app.get("/api/admin/blog/analytics", blogController.getAnalytics);
 
     // ─── Serving ────────────────────────────────────────────────────────────────
     if (isDev) {

@@ -75,4 +75,5 @@ export type ActiveTab =
   | 'members'
   | 'portfolio'
   | 'team'
-  | 'site-values';
+  | 'site-values'
+  | 'blog';

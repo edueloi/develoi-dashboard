@@ -93,3 +93,67 @@ model PortfolioItem {
   link        String?
   order       Int     @default(0)
 }
+
+model BlogPost {
+  id              String         @id @default(uuid())
+  title           String
+  slug            String         @unique
+  excerpt         String?        @db.Text
+  content         String         @db.LongText
+  coverImage      String?        @db.LongText
+  status          String         @default("draft")
+  featured        Boolean        @default(false)
+  tags            String?        @db.Text
+  views           Int            @default(0)
+  readTimeMinutes Int            @default(1)
+  publishedAt     DateTime?
+  seoTitle        String?
+  seoDescription  String?        @db.Text
+  seoKeywords     String?
+  categoryId      String?
+  authorId        String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  category        BlogCategory?  @relation(fields: [categoryId], references: [id])
+  author          BlogAuthor?    @relation(fields: [authorId], references: [id])
+  analytics       BlogAnalytics[]
+}
+
+model BlogCategory {
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
+  description String?    @db.Text
+  color       String     @default("#6366f1")
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  posts       BlogPost[]
+}
+
+model BlogAuthor {
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  bio       String?    @db.Text
+  photo     String?    @db.LongText
+  role      String?
+  linkedin  String?
+  isActive  Boolean    @default(true)
+  posts     BlogPost[]
+}
+
+model BlogAnalytics {
+  id     String   @id @default(uuid())
+  postId String
+  post   BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  date   DateTime
+  views  Int      @default(1)
+}
+
+model BlogSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
