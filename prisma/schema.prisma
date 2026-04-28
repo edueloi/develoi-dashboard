@@ -36,6 +36,7 @@ model Project {
   history      String?   @db.Text
   createdAt    DateTime  @default(now())
   features     Feature[]
+  sprints      Sprint[]
   messages     Message[]
 }
 
@@ -44,6 +45,8 @@ model Feature {
   key         String?
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprintId    String?
+  sprint      Sprint?  @relation(fields: [sprintId], references: [id])
   title       String
   description String   @db.Text
   status      String   @default("todo")
@@ -52,7 +55,21 @@ model Feature {
   assignedTo  String?
   type        String   @default("task")
   tags        Json?
+  points      Int      @default(1)
   createdAt   DateTime @default(now())
+}
+
+model Sprint {
+  id          String    @id @default(uuid())
+  name        String
+  goal        String?   @db.Text
+  startDate   DateTime?
+  endDate     DateTime?
+  status      String    @default("planned")
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  features    Feature[]
+  createdAt   DateTime  @default(now())
 }
 
 model Message {

@@ -254,6 +254,52 @@ async function startServer() {
       res.json({ success: true });
     });
 
+    // ─── Sprints ────────────────────────────────────────────────────────────────
+    app.get("/api/projects/:projectId/sprints", async (req, res) => {
+      const sprints = await prisma.sprint.findMany({ 
+        where: { projectId: req.params.projectId },
+        orderBy: { createdAt: 'desc' }
+      });
+      res.json(sprints);
+    });
+
+    app.post("/api/projects/:projectId/sprints", async (req, res) => {
+      const sprint = await prisma.sprint.create({ 
+        data: { 
+          ...req.body, 
+          projectId: req.params.projectId,
+          startDate: req.body.startDate ? new Date(req.body.startDate) : null,
+          endDate: req.body.endDate ? new Date(req.body.endDate) : null
+        } 
+      });
+      res.json(sprint);
+    });
+
+    app.post("/api/projects/:projectId/sprints/:id/start", async (req, res) => {
+      await prisma.sprint.updateMany({
+        where: { projectId: req.params.projectId, status: 'active' },
+        data: { status: 'completed' }
+      });
+      const sprint = await prisma.sprint.update({
+        where: { id: req.params.id },
+        data: { status: 'active', startDate: new Date() }
+      });
+      res.json(sprint);
+    });
+
+    app.post("/api/projects/:projectId/sprints/:id/finish", async (req, res) => {
+      const sprint = await prisma.sprint.update({
+        where: { id: req.params.id },
+        data: { status: 'completed', endDate: new Date() }
+      });
+      // Move incomplete tasks to backlog
+      await prisma.feature.updateMany({
+        where: { sprintId: req.params.id, NOT: { status: 'done' } },
+        data: { sprintId: null }
+      });
+      res.json(sprint);
+    });
+
     // ─── Site Management ────────────────────────────────────────────────────────
     app.get("/api/site/values", async (req, res) => {
       const values = await prisma.siteValues.findFirst({ where: { id: 1 } });

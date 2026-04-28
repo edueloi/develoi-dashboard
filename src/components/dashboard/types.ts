@@ -19,9 +19,10 @@ export interface Feature {
   id: string;
   key: string;
   projectId: string;
+  sprintId?: string;
   title: string;
   description: string;
-  status: 'todo' | 'in-progress' | 'testing' | 'done';
+  status: 'todo' | 'in-progress' | 'review' | 'testing' | 'done';
   priority?: 'low' | 'medium' | 'high' | 'critical';
   category?: string;
   deadline?: string;
@@ -35,6 +36,24 @@ export interface Feature {
   points?: number;
   type?: 'story' | 'task' | 'bug' | 'epic';
   parentId?: string;
+}
+
+export interface Sprint {
+  id: string;
+  projectId: string;
+  name: string;
+  goal?: string;
+  startDate?: string;
+  endDate?: string;
+  status: 'planned' | 'active' | 'completed';
+  createdAt: string;
+}
+
+export interface SprintReport {
+  sprintId: string;
+  totalPoints: number;
+  completedPoints: number;
+  dailyPointsRemaining: { date: string; points: number }[];
 }
 
 export interface Message {
