@@ -36,6 +36,7 @@ export interface Feature {
   points?: number;
   type?: 'story' | 'task' | 'bug' | 'epic';
   parentId?: string;
+  activities?: string;
 }
 
 export interface Sprint {

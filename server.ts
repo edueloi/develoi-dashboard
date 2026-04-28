@@ -276,6 +276,27 @@ async function startServer() {
       res.json(sprint);
     });
 
+    app.patch("/api/projects/:projectId/sprints/:id", async (req, res) => {
+      const sprint = await prisma.sprint.update({
+        where: { id: req.params.id },
+        data: {
+          ...req.body,
+          startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+          endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
+        }
+      });
+      res.json(sprint);
+    });
+
+    app.delete("/api/projects/:projectId/sprints/:id", async (req, res) => {
+      await prisma.feature.updateMany({
+        where: { sprintId: req.params.id },
+        data: { sprintId: null }
+      });
+      await prisma.sprint.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    });
+
     app.post("/api/projects/:projectId/sprints/:id/start", async (req, res) => {
       await prisma.sprint.updateMany({
         where: { projectId: req.params.projectId, status: 'active' },

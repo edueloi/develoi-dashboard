@@ -113,6 +113,8 @@ export default function Dashboard() {
   const searchParams = new URLSearchParams(location.search);
   const projetoParam = searchParams.get('projeto');
 
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+
   useEffect(() => {
     if (!profile) return;
     const fetchProjects = async () => {
@@ -121,7 +123,8 @@ export default function Dashboard() {
         const response = await fetch(`/api/projects?userId=${profile.uid}&isAdmin=${isAdmin}`);
         const data = await response.json();
         setProjects(data);
-        if (data.length > 0 && !selectedProject) {
+        if (data.length > 0 && !projectsLoaded) {
+          setProjectsLoaded(true);
           const fromUrl = projetoParam ? data.find((p: Project) => p.id === projetoParam) : null;
           setSelectedProject(fromUrl || data[0]);
         }
@@ -601,7 +604,7 @@ function ProjectSummary({ project }: { project: Project }) {
         </div>
       </div>
 
-      {isEditModalOpen && <EditProjectModal project={project} onClose={() => setIsEditModalOpen(true)} />}
+      {isEditModalOpen && <EditProjectModal project={project} onClose={() => setIsEditModalOpen(false)} />}
     </motion.div>
   );
 }
