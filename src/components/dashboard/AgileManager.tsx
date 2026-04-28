@@ -331,9 +331,11 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
   sprint: Sprint; features: Feature[]; onRefresh: () => void;
   onStart: () => void; onFinish: () => void; onDelete: () => void; onAddTicket: () => void;
 }) {
-  const [expanded, setExpanded]   = useState(sprint.status !== 'completed');
-  const [menuOpen, setMenuOpen]   = useState(false);
-  const [editing, setEditing]     = useState(false);
+  const [expanded, setExpanded]         = useState(sprint.status !== 'completed');
+  const [menuOpen, setMenuOpen]         = useState(false);
+  const [editing, setEditing]           = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmFinish, setConfirmFinish] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on outside click
@@ -381,45 +383,42 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
                     <Badge color={cfg.color} size="sm" pill>{cfg.label}</Badge>
                   </div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                    {features.length} tickets · {features.reduce((a, f) => a + (f.points || 0), 0)} pts
+                    {features.length} {features.length === 1 ? 'ticket' : 'tickets'} · {features.reduce((a, f) => a + (f.points || 0), 0)} pts
                     {sprint.startDate && sprint.endDate && ` · ${format(new Date(sprint.startDate), 'dd/MM')} – ${format(new Date(sprint.endDate), 'dd/MM')}`}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                {sprint.status === 'planned'   && <Button size="sm" onClick={onStart}  iconLeft={<Play className="w-3.5 h-3.5" />}>INICIAR</Button>}
-                {sprint.status === 'active'    && <Button size="sm" color="success" onClick={onFinish} iconLeft={<CheckCircle2 className="w-3.5 h-3.5" />}>CONCLUIR</Button>}
-                <button
-                  onClick={() => onAddTicket()}
-                  className="p-2 hover:bg-indigo-50 rounded-xl text-indigo-400 hover:text-indigo-600 transition-colors"
-                  title="Adicionar ticket nesta sprint"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-
-                {/* 3-dot menu */}
+              <div className="flex items-center gap-1 shrink-0">
+                {/* 3-dot menu — todas as ações ficam aqui */}
                 <div className="relative" ref={menuRef}>
                   <button
                     onClick={() => setMenuOpen(!menuOpen)}
-                    className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-slate-600 transition-colors"
+                    className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
                   >
                     <MoreVertical className="w-4 h-4" />
                   </button>
                   {menuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-1 overflow-hidden">
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-1.5 overflow-hidden">
+                      {/* Editar */}
                       <button
                         onClick={() => { setEditing(true); setMenuOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                       >
                         <Pencil className="w-4 h-4 text-slate-400" /> Editar Sprint
                       </button>
+
+                      {/* Adicionar ticket */}
                       <button
                         onClick={() => { onAddTicket(); setMenuOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                       >
                         <Plus className="w-4 h-4 text-slate-400" /> Adicionar Ticket
                       </button>
+
+                      <div className="h-px bg-slate-100 my-1" />
+
+                      {/* Iniciar / Concluir */}
                       {sprint.status === 'planned' && (
                         <button
                           onClick={() => { onStart(); setMenuOpen(false); }}
@@ -430,15 +429,18 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
                       )}
                       {sprint.status === 'active' && (
                         <button
-                          onClick={() => { onFinish(); setMenuOpen(false); }}
+                          onClick={() => { setConfirmFinish(true); setMenuOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
                         >
                           <CheckCircle2 className="w-4 h-4" /> Concluir Sprint
                         </button>
                       )}
+
                       <div className="h-px bg-slate-100 my-1" />
+
+                      {/* Excluir */}
                       <button
-                        onClick={() => { onDelete(); setMenuOpen(false); }}
+                        onClick={() => { setConfirmDelete(true); setMenuOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" /> Excluir Sprint
@@ -483,12 +485,28 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
       </DroppableComponent>
 
       {editing && (
-        <EditSprintModal
-          sprint={sprint}
-          onClose={() => setEditing(false)}
-          onSuccess={onRefresh}
-        />
+        <EditSprintModal sprint={sprint} onClose={() => setEditing(false)} onSuccess={onRefresh} />
       )}
+
+      <ConfirmModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => { setConfirmDelete(false); onDelete(); }}
+        title="Excluir Sprint"
+        message={`Excluir "${sprint.name}"? Os tickets voltam ao backlog. Esta ação não pode ser desfeita.`}
+        confirmLabel="EXCLUIR"
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={confirmFinish}
+        onClose={() => setConfirmFinish(false)}
+        onConfirm={() => { setConfirmFinish(false); onFinish(); }}
+        title="Concluir Sprint"
+        message={`Concluir "${sprint.name}"? Tarefas não finalizadas voltam ao backlog.`}
+        confirmLabel="CONCLUIR"
+        variant="primary"
+      />
     </>
   );
 }
@@ -498,7 +516,13 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
 function FeatureRow({ feature, provided, isDragging, onRefresh }: {
   feature: Feature; provided: any; isDragging: boolean; onRefresh: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing]           = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDelete = async () => {
+    await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, { method: 'DELETE' });
+    onRefresh();
+  };
 
   return (
     <>
@@ -507,7 +531,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
         {...provided.draggableProps}
         className={cn(
           'group flex items-center gap-3 px-3 py-2.5 bg-white border rounded-2xl transition-all cursor-default',
-          isDragging ? 'shadow-2xl border-indigo-400 rotate-1 scale-105' : 'border-transparent hover:border-indigo-100 hover:bg-indigo-50/30'
+          isDragging ? 'shadow-2xl border-indigo-400 rotate-1 scale-105' : 'border-transparent hover:border-slate-200 hover:bg-slate-50/60'
         )}
       >
         {/* drag handle */}
@@ -519,7 +543,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
         <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0">{feature.key || '—'}</span>
         <span className="text-sm font-bold text-slate-700 truncate flex-1 group-hover:text-indigo-900">{feature.title}</span>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Badge color={PRIORITY_COLORS[feature.priority || 'medium']} size="xs" pill>
             {PRIORITY_LABELS[feature.priority || 'medium']}
           </Badge>
@@ -529,11 +553,21 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black">
             {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
           </div>
+          {/* Edit */}
           <button
             onClick={() => setEditing(true)}
-            className="p-1 opacity-0 group-hover:opacity-100 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm transition-all"
+            className="p-1.5 opacity-0 group-hover:opacity-100 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+            title="Editar"
           >
             <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          {/* Delete */}
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="p-1.5 opacity-0 group-hover:opacity-100 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+            title="Excluir"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -545,6 +579,16 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           onSuccess={() => { setEditing(false); onRefresh(); }}
         />
       )}
+
+      <ConfirmModal
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => { setConfirmDelete(false); handleDelete(); }}
+        title="Excluir Ticket"
+        message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="EXCLUIR"
+        variant="danger"
+      />
     </>
   );
 }
