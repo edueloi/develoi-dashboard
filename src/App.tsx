@@ -58,14 +58,32 @@ function AnimatedRoutes() {
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/cases" element={<CasesPage />} />
         <Route path="/cases/:slug" element={<CasePostPage />} />
-        <Route
-          path="/dashboard/*"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
+        {[
+          '/dashboard',
+          '/dashboard/resumo',
+          '/dashboard/projetos',
+          '/dashboard/backlog',
+          '/dashboard/quadro',
+          '/dashboard/cronograma',
+          '/dashboard/qualidade',
+          '/dashboard/membros',
+          '/dashboard/chat',
+          '/dashboard/portfolio',
+          '/dashboard/equipe',
+          '/dashboard/valores',
+          '/dashboard/blog',
+          '/dashboard/cases',
+        ].map(path => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+        ))}
       </Routes>
     </AnimatePresence>
   );

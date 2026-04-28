@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Kanban, MessageSquare, Settings, LogOut, Plus,
   Search, CheckCircle2, Clock, AlertCircle, Send, ChevronRight,
@@ -65,15 +66,52 @@ function handleApiError(error: unknown, op: OperationType, path: string | null) 
 
 // ─── Dashboard shell ──────────────────────────────────────────────────────────
 
+// ─── URL ↔ Tab mapping ────────────────────────────────────────────────────────
+
+const TAB_TO_PATH: Record<ActiveTab, string> = {
+  overview:      '/dashboard',
+  summary:       '/dashboard/resumo',
+  projects:      '/dashboard/projetos',
+  backlog:       '/dashboard/backlog',
+  board:         '/dashboard/quadro',
+  timeline:      '/dashboard/cronograma',
+  tests:         '/dashboard/qualidade',
+  members:       '/dashboard/membros',
+  chat:          '/dashboard/chat',
+  portfolio:     '/dashboard/portfolio',
+  team:          '/dashboard/equipe',
+  'site-values': '/dashboard/valores',
+  blog:          '/dashboard/blog',
+  cases:         '/dashboard/cases',
+};
+
+const PATH_TO_TAB: Record<string, ActiveTab> = Object.fromEntries(
+  Object.entries(TAB_TO_PATH).map(([tab, path]) => [path, tab as ActiveTab])
+);
+
+function pathToTab(pathname: string): ActiveTab {
+  return PATH_TO_TAB[pathname] ?? 'overview';
+}
+
+// ─── Dashboard shell ──────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const { profile, logout } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const activeTab = pathToTab(location.pathname);
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Restore selected project from URL param ?projeto=ID
+  const searchParams = new URLSearchParams(location.search);
+  const projetoParam = searchParams.get('projeto');
 
   useEffect(() => {
     if (!profile) return;
@@ -83,7 +121,10 @@ export default function Dashboard() {
         const response = await fetch(`/api/projects?userId=${profile.uid}&isAdmin=${isAdmin}`);
         const data = await response.json();
         setProjects(data);
-        if (data.length > 0 && !selectedProject) setSelectedProject(data[0]);
+        if (data.length > 0 && !selectedProject) {
+          const fromUrl = projetoParam ? data.find((p: Project) => p.id === projetoParam) : null;
+          setSelectedProject(fromUrl || data[0]);
+        }
       } catch (error) {
         handleApiError(error, OperationType.LIST, 'projects');
       }
@@ -93,9 +134,14 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [profile]);
 
-  useEffect(() => {
-    if (selectedProject && activeTab === 'overview') setActiveTab('summary');
-  }, [selectedProject]);
+  const goTo = (tab: ActiveTab, project?: Project | null) => {
+    const proj = project !== undefined ? project : selectedProject;
+    const path = TAB_TO_PATH[tab];
+    const needsProject: ActiveTab[] = ['backlog', 'board', 'timeline', 'tests', 'chat', 'summary'];
+    const qs = needsProject.includes(tab) && proj ? `?projeto=${proj.id}` : '';
+    navigate(path + qs);
+    setSidebarOpen(false);
+  };
 
   const tabTitles: Record<ActiveTab, string> = {
     overview: 'Para você',
@@ -157,34 +203,34 @@ export default function Dashboard() {
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
           {/* Geral */}
           <NavSection label="Geral">
-            <NavItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'overview'} onClick={() => { setActiveTab('overview'); setSidebarOpen(false); }} />
-            {selectedProject && <NavItem icon={Briefcase} label="Resumo Projeto" active={activeTab === 'summary'} onClick={() => { setActiveTab('summary'); setSidebarOpen(false); }} />}
-            <NavItem icon={FolderOpen} label="Projetos" active={activeTab === 'projects'} onClick={() => { setActiveTab('projects'); setSidebarOpen(false); }} />
+            <NavItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'overview'} onClick={() => goTo('overview')} />
+            {selectedProject && <NavItem icon={Briefcase} label="Resumo Projeto" active={activeTab === 'summary'} onClick={() => goTo('summary')} />}
+            <NavItem icon={FolderOpen} label="Projetos" active={activeTab === 'projects'} onClick={() => goTo('projects')} />
           </NavSection>
 
           {/* Projeto selecionado */}
           {selectedProject && (
             <NavSection label={selectedProject.name}>
-              <NavItem icon={ListTodo} label="Backlog" active={activeTab === 'backlog'} onClick={() => { setActiveTab('backlog'); setSidebarOpen(false); }} />
-              <NavItem icon={Kanban} label="Quadro" active={activeTab === 'board'} onClick={() => { setActiveTab('board'); setSidebarOpen(false); }} />
-              <NavItem icon={Calendar} label="Cronograma" active={activeTab === 'timeline'} onClick={() => { setActiveTab('timeline'); setSidebarOpen(false); }} />
+              <NavItem icon={ListTodo} label="Backlog" active={activeTab === 'backlog'} onClick={() => goTo('backlog')} />
+              <NavItem icon={Kanban} label="Quadro" active={activeTab === 'board'} onClick={() => goTo('board')} />
+              <NavItem icon={Calendar} label="Cronograma" active={activeTab === 'timeline'} onClick={() => goTo('timeline')} />
             </NavSection>
           )}
 
           {/* Equipe */}
           <NavSection label="Equipe">
-            <NavItem icon={ShieldCheck} label="Qualidade" active={activeTab === 'tests'} onClick={() => { setActiveTab('tests'); setSidebarOpen(false); }} />
-            <NavItem icon={Users} label="Membros" active={activeTab === 'members'} onClick={() => { setActiveTab('members'); setSidebarOpen(false); }} />
-            <NavItem icon={MessageSquare} label="Chat" active={activeTab === 'chat'} onClick={() => { setActiveTab('chat'); setSidebarOpen(false); }} />
+            <NavItem icon={ShieldCheck} label="Qualidade" active={activeTab === 'tests'} onClick={() => goTo('tests')} />
+            <NavItem icon={Users} label="Membros" active={activeTab === 'members'} onClick={() => goTo('members')} />
+            <NavItem icon={MessageSquare} label="Chat" active={activeTab === 'chat'} onClick={() => goTo('chat')} />
           </NavSection>
 
           {/* Site Público */}
           <NavSection label="Site Público">
-            <NavItem icon={Globe} label="Portfólio" active={activeTab === 'portfolio'} onClick={() => { setActiveTab('portfolio'); setSidebarOpen(false); }} />
-            <NavItem icon={Users2} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => { setActiveTab('team'); setSidebarOpen(false); }} />
-            <NavItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => { setActiveTab('site-values'); setSidebarOpen(false); }} />
-            <NavItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => { setActiveTab('blog'); setSidebarOpen(false); }} />
-            <NavItem icon={Star} label="Cases de Sucesso" active={activeTab === 'cases'} onClick={() => { setActiveTab('cases'); setSidebarOpen(false); }} />
+            <NavItem icon={Globe} label="Portfólio" active={activeTab === 'portfolio'} onClick={() => goTo('portfolio')} />
+            <NavItem icon={Users2} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => goTo('team')} />
+            <NavItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => goTo('site-values')} />
+            <NavItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => goTo('blog')} />
+            <NavItem icon={Star} label="Cases de Sucesso" active={activeTab === 'cases'} onClick={() => goTo('cases')} />
           </NavSection>
         </nav>
 
@@ -244,7 +290,11 @@ export default function Dashboard() {
             {!hideSelectorTabs.includes(activeTab) && projects.length > 0 && (
               <select
                 value={selectedProject?.id}
-                onChange={(e) => setSelectedProject(projects.find(p => p.id === e.target.value) || null)}
+                onChange={(e) => {
+                  const proj = projects.find(p => p.id === e.target.value) || null;
+                  setSelectedProject(proj);
+                  goTo(activeTab, proj);
+                }}
                 className="text-xs font-bold dash-surface border dash-border dash-text rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors max-w-[200px]"
               >
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -349,7 +399,7 @@ export default function Dashboard() {
               {activeTab === 'projects' && (
                 <ProjectsList
                   projects={projects}
-                  onSelect={(p) => { setSelectedProject(p); setActiveTab('summary'); }}
+                  onSelect={(p) => { setSelectedProject(p); goTo('summary', p); }}
                   onEdit={(p) => setEditingProject(p)}
                 />
               )}
