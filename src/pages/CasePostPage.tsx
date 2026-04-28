@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Eye, Heart, Clock, Calendar, Tag, Share2,
   Linkedin, Twitter, CheckCircle, Star,
@@ -94,7 +94,8 @@ export default function CasePostPage() {
   const [liked, setLiked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
-  const { isDark } = useTheme();
+  const { theme } = useTheme();
+  console.log('Current theme:', theme);
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
