@@ -52,6 +52,7 @@ import { SiteValuesManager } from '../components/dashboard/SiteValuesManager';
 import { BlogManager } from '../components/dashboard/BlogManager';
 import { CasesManager } from '../components/dashboard/CasesManager';
 import { AgileManager } from '../components/dashboard/AgileManager';
+import { TimelineView } from '../components/dashboard/TimelineView';
 
 // Types
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
@@ -428,11 +429,9 @@ export default function Dashboard() {
               {activeTab === 'members' && <MembersArea />}
 
               {activeTab === 'timeline' && (
-                <EmptyState
-                  icon={Calendar}
-                  title="Cronograma do Projeto"
-                  description="Visualize o cronograma em uma linha do tempo interativa (Em breve)."
-                />
+                selectedProject
+                  ? <TimelineView projectId={selectedProject.id} />
+                  : <EmptyProjectState onAction={() => setIsNewProjectModalOpen(true)} />
               )}
 
               {activeTab === 'chat' && (
