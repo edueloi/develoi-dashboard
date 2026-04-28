@@ -100,7 +100,7 @@ model TeamMember {
   name     String
   role     String
   bio      String? @db.Text
-  photoURL String?
+  photoURL String? @db.LongText
   linkedin String?
   github   String?
   order    Int     @default(0)

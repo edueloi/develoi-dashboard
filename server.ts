@@ -347,6 +347,11 @@ async function startServer() {
       res.json(member);
     });
 
+    app.patch("/api/site/team/:id", async (req, res) => {
+      const member = await prisma.teamMember.update({ where: { id: req.params.id }, data: req.body });
+      res.json(member);
+    });
+
     app.delete("/api/site/team/:id", async (req, res) => {
       await prisma.teamMember.delete({ where: { id: req.params.id } });
       res.json({ success: true });
