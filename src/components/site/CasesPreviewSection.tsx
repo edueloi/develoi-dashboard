@@ -1,32 +1,53 @@
-import { motion } from 'framer-motion';
-import { ArrowRight, Star, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowRight, Star, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const featuredCases = [
-  {
-    title: "MecaERP",
-    category: "Gestão Automotiva",
-    impact: "+40% de eficiência operacional",
-    image: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=800",
-    color: "from-blue-600 to-indigo-600"
-  },
-  {
-    title: "PsiFlux",
-    category: "Saúde Digital",
-    impact: "Redução de 60% em faltas",
-    image: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&q=80&w=800",
-    color: "from-indigo-600 to-violet-600"
-  },
-  {
-    title: "Agendelle",
-    category: "Beleza & Bem-estar",
-    impact: "10k+ agendamentos mensais",
-    image: "https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&q=80&w=800",
-    color: "from-violet-600 to-purple-600"
-  }
-];
+interface Case {
+  id: string;
+  title: string;
+  slug: string;
+  client: string;
+  excerpt?: string;
+  coverImage?: string;
+  featured: boolean;
+  results?: string;
+  category?: { id: string; name: string; slug: string; color: string };
+}
 
 export default function CasesPreviewSection() {
+  const [cases, setCases] = useState<Case[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const res = await fetch('/api/cases/featured');
+        if (res.ok) {
+          const data = await res.json();
+          setCases(Array.isArray(data) ? data.slice(0, 3) : []);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar cases:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCases();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="relative py-24 sm:py-32 dash-bg overflow-hidden flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Carregando histórias de elite...</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative py-24 sm:py-32 dash-bg overflow-hidden">
       {/* Decorative Blur */}
@@ -42,7 +63,7 @@ export default function CasesPreviewSection() {
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-6"
             >
               <Star className="w-3 h-3 fill-indigo-600" />
-              Histórias de Sucesso
+              Portfólio de Elite
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -53,66 +74,98 @@ export default function CasesPreviewSection() {
               Resultados que falam por <span className="text-gradient">si mesmos.</span>
             </motion.h2>
           </div>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-          >
-            <Link 
-              to="/cases" 
-              className="group flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+          
+          {cases.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
             >
-              VER TODOS OS CASES
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </motion.div>
+              <Link 
+                to="/cases" 
+                className="group flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+              >
+                VER TODOS OS CASES
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </motion.div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {featuredCases.map((item, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1 }}
-              className="group relative h-[450px] sm:h-[500px] rounded-[2.5rem] overflow-hidden border dash-border shadow-sm hover:shadow-2xl transition-all duration-700"
-            >
-              {/* Image */}
-              <img 
-                src={item.image} 
-                alt={item.title} 
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-              />
-              
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-              
-              {/* Content */}
-              <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-end text-white">
-                <div className="mb-4">
-                  <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">
-                    {item.category}
-                  </span>
-                </div>
-                <h3 className="text-3xl sm:text-4xl font-black mb-2 tracking-tighter">
-                  {item.title}
-                </h3>
-                <p className="text-indigo-400 font-bold mb-6 flex items-center gap-2">
-                  <ExternalLink className="w-4 h-4" />
-                  {item.impact}
-                </p>
-                <Link 
-                  to="/cases" 
-                  className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-widest group-hover:gap-4 transition-all"
+        {cases.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="p-16 rounded-[3rem] dash-surface border dash-border text-center relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl" />
+            <Sparkles className="w-12 h-12 text-indigo-500/20 mx-auto mb-6" />
+            <h3 className="text-2xl font-black text-white/40 mb-4 tracking-tight uppercase">Em breve: Novas histórias de sucesso.</h3>
+            <p className="text-sm text-white/20 max-w-lg mx-auto font-medium">Estamos finalizando projetos incríveis que em breve estarão expostos aqui em nosso hall da fama.</p>
+          </motion.div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <AnimatePresence>
+              {cases.map((item, idx) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="group relative h-[450px] sm:h-[500px] rounded-[2.5rem] overflow-hidden border dash-border shadow-sm hover:shadow-2xl transition-all duration-700"
                 >
-                  CONHECER CASE
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                  {/* Image */}
+                  {item.coverImage ? (
+                    <img 
+                      src={item.coverImage} 
+                      alt={item.title} 
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 to-violet-900/50 flex items-center justify-center">
+                      <Star className="w-16 h-16 text-indigo-500/20" />
+                    </div>
+                  )}
+                  
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                  
+                  {/* Content */}
+                  <div className="absolute inset-0 p-8 sm:p-10 flex flex-col justify-end text-white">
+                    <div className="mb-4">
+                      {item.category && (
+                        <span 
+                          className="px-3 py-1 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-xl"
+                          style={{ backgroundColor: item.category.color + '40', borderColor: item.category.color + '60' }}
+                        >
+                          {item.category.name}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-3xl sm:text-4xl font-black mb-2 tracking-tighter">
+                      {item.title}
+                    </h3>
+                    {item.results && (
+                      <p className="text-indigo-400 font-bold mb-6 flex items-center gap-2 line-clamp-1">
+                        <ExternalLink className="w-4 h-4" />
+                        {item.results.split('\n')[0]}
+                      </p>
+                    )}
+                    <Link 
+                      to={`/cases/${item.slug}`} 
+                      className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-widest group-hover:gap-4 transition-all"
+                    >
+                      CONHECER CASE
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </section>
   );
