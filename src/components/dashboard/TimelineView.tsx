@@ -43,8 +43,160 @@ const TYPE_COLORS: Record<string, string> = {
 
 const ROW_H    = 48;
 const LABEL_W  = 256;
-const HDR_H    = 56;
-const COL_W    = { day: 40, week: 84, month: 110 };
+const HDR_H    = 72;  // double-row header
+const COL_W    = { day: 36, week: 90, month: 100 };
+
+// ─── GanttHeader ─────────────────────────────────────────────────────────────
+// Double-row header: top row groups (month / quarter / year), bottom row units
+
+function GanttHeader({ zoom, columns, colW }: { zoom: ZoomLevel; columns: Date[]; colW: number }) {
+  const today = new Date();
+
+  if (zoom === 'day') {
+    // Top row: month groups  |  Bottom row: day number + weekday letter
+    // Build month groups
+    const groups: { label: string; count: number }[] = [];
+    for (const col of columns) {
+      const label = format(col, 'MMM yyyy', { locale: ptBR });
+      if (!groups.length || groups[groups.length - 1].label !== label) {
+        groups.push({ label, count: 1 });
+      } else {
+        groups[groups.length - 1].count++;
+      }
+    }
+    return (
+      <div className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 select-none"
+        style={{ height: HDR_H }}>
+        {/* Top: months */}
+        <div className="flex border-b border-slate-200" style={{ height: HDR_H / 2 }}>
+          {groups.map((g, i) => (
+            <div key={i} style={{ width: g.count * colW, minWidth: g.count * colW }}
+              className="flex-shrink-0 flex items-center px-2 border-r border-slate-200">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 capitalize truncate">
+                {g.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        {/* Bottom: days */}
+        <div className="flex" style={{ height: HDR_H / 2 }}>
+          {columns.map((col, i) => {
+            const active = isToday(col);
+            return (
+              <div key={i} style={{ width: colW, minWidth: colW }}
+                className={cn(
+                  'flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-100',
+                  active ? 'bg-indigo-50' : ''
+                )}>
+                <span className={cn('text-[8px] font-bold uppercase leading-none',
+                  active ? 'text-indigo-400' : 'text-slate-400')}>
+                  {format(col, 'EEEEE', { locale: ptBR })}
+                </span>
+                <span className={cn('text-[11px] font-black leading-none mt-0.5',
+                  active
+                    ? 'w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center'
+                    : 'text-slate-700')}>
+                  {format(col, 'd')}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (zoom === 'week') {
+    // Top: month groups  |  Bottom: "Sem N · dd/MM"
+    const groups: { label: string; count: number }[] = [];
+    for (const col of columns) {
+      const label = format(col, 'MMM yyyy', { locale: ptBR });
+      if (!groups.length || groups[groups.length - 1].label !== label) {
+        groups.push({ label, count: 1 });
+      } else {
+        groups[groups.length - 1].count++;
+      }
+    }
+    return (
+      <div className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 select-none"
+        style={{ height: HDR_H }}>
+        <div className="flex border-b border-slate-200" style={{ height: HDR_H / 2 }}>
+          {groups.map((g, i) => (
+            <div key={i} style={{ width: g.count * colW, minWidth: g.count * colW }}
+              className="flex-shrink-0 flex items-center px-2 border-r border-slate-200">
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 capitalize truncate">
+                {g.label}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="flex" style={{ height: HDR_H / 2 }}>
+          {columns.map((col, i) => {
+            const active = isWithinInterval(today, { start: col, end: endOfWeek(col, { weekStartsOn: 1 }) });
+            return (
+              <div key={i} style={{ width: colW, minWidth: colW }}
+                className={cn(
+                  'flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-100',
+                  active ? 'bg-indigo-50' : ''
+                )}>
+                <span className={cn('text-[9px] font-black uppercase tracking-widest leading-none',
+                  active ? 'text-indigo-500' : 'text-slate-400')}>
+                  S{format(col, 'w')}
+                </span>
+                <span className={cn('text-[11px] font-black leading-none mt-0.5',
+                  active ? 'text-indigo-700' : 'text-slate-600')}>
+                  {format(col, 'dd/MM')}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // zoom === 'month'
+  // Top: year groups  |  Bottom: month abbreviation
+  const groups: { label: string; count: number }[] = [];
+  for (const col of columns) {
+    const label = format(col, 'yyyy');
+    if (!groups.length || groups[groups.length - 1].label !== label) {
+      groups.push({ label, count: 1 });
+    } else {
+      groups[groups.length - 1].count++;
+    }
+  }
+  return (
+    <div className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 select-none"
+      style={{ height: HDR_H }}>
+      <div className="flex border-b border-slate-200" style={{ height: HDR_H / 2 }}>
+        {groups.map((g, i) => (
+          <div key={i} style={{ width: g.count * colW, minWidth: g.count * colW }}
+            className="flex-shrink-0 flex items-center px-3 border-r border-slate-200">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{g.label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex" style={{ height: HDR_H / 2 }}>
+        {columns.map((col, i) => {
+          const active = isSameDay(startOfMonth(col), startOfMonth(today));
+          return (
+            <div key={i} style={{ width: colW, minWidth: colW }}
+              className={cn(
+                'flex-shrink-0 flex items-center justify-center border-r border-slate-100',
+                active ? 'bg-indigo-50' : ''
+              )}>
+              <span className={cn('text-xs font-black capitalize',
+                active ? 'text-indigo-700' : 'text-slate-600')}>
+                {format(col, 'MMM', { locale: ptBR })}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -336,51 +488,8 @@ export function TimelineView({ projectId }: { projectId: string }) {
             onScroll={onRightScroll}>
             <div style={{ width: Math.max(totalW, 600), position: 'relative' }}>
 
-              {/* Column headers */}
-              <div className="flex bg-slate-50 border-b border-slate-200 sticky top-0 z-10"
-                style={{ height: HDR_H }}>
-                {columns.map((col, i) => {
-                  const isCurrDay   = zoom === 'day'   && isToday(col);
-                  const isCurrWeek  = zoom === 'week'  && isWithinInterval(new Date(), { start: col, end: endOfWeek(col, { weekStartsOn: 1 }) });
-                  const isCurrMonth = zoom === 'month' && isSameDay(startOfMonth(col), startOfMonth(new Date()));
-                  const active = isCurrDay || isCurrWeek || isCurrMonth;
-                  return (
-                    <div key={i} style={{ width: colW, minWidth: colW }}
-                      className={cn('flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-100 gap-0.5',
-                        active ? 'bg-indigo-50' : ''
-                      )}>
-                      {zoom === 'day' && <>
-                        <span className={cn('text-[9px] font-black uppercase tracking-widest',
-                          active ? 'text-indigo-500' : 'text-slate-400')}>
-                          {format(col, 'EEE', { locale: ptBR })}
-                        </span>
-                        <span className={cn('text-sm font-black leading-none',
-                          active ? 'w-7 h-7 bg-indigo-600 text-white rounded-full flex items-center justify-center' : 'text-slate-700')}>
-                          {format(col, 'd')}
-                        </span>
-                      </>}
-                      {zoom === 'week' && <>
-                        <span className={cn('text-[9px] font-black uppercase tracking-widest',
-                          active ? 'text-indigo-500' : 'text-slate-400')}>
-                          Sem {format(col, 'w')}
-                        </span>
-                        <span className={cn('text-xs font-black', active ? 'text-indigo-700' : 'text-slate-600')}>
-                          {format(col, 'dd/MM')}
-                        </span>
-                      </>}
-                      {zoom === 'month' && <>
-                        <span className={cn('text-[9px] font-black uppercase tracking-widest',
-                          active ? 'text-indigo-500' : 'text-slate-400')}>
-                          {format(col, 'yyyy')}
-                        </span>
-                        <span className={cn('text-sm font-black capitalize', active ? 'text-indigo-700' : 'text-slate-700')}>
-                          {format(col, 'MMM', { locale: ptBR })}
-                        </span>
-                      </>}
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Column headers — double row */}
+              <GanttHeader zoom={zoom} columns={columns} colW={colW} />
 
               {/* Body: rows + bars */}
               <div style={{ position: 'relative', height: bodyH }}>
