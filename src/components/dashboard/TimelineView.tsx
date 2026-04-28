@@ -82,20 +82,22 @@ function GanttHeader({ zoom, columns, colW }: { zoom: ZoomLevel; columns: Date[]
         <div className="flex" style={{ height: HDR_H / 2 }}>
           {columns.map((col, i) => {
             const active = isToday(col);
+            const dow = col.getDay(); // 0=Sun,1=Mon,...,6=Sat
+            const isWeekend = dow === 0 || dow === 6;
             return (
               <div key={i} style={{ width: colW, minWidth: colW }}
                 className={cn(
                   'flex-shrink-0 flex flex-col items-center justify-center border-r border-slate-100',
-                  active ? 'bg-indigo-50' : ''
+                  active ? 'bg-indigo-50' : isWeekend ? 'bg-slate-50' : ''
                 )}>
-                <span className={cn('text-[8px] font-bold uppercase leading-none',
-                  active ? 'text-indigo-400' : 'text-slate-400')}>
-                  {format(col, 'EEEEE', { locale: ptBR })}
+                <span className={cn('text-[8px] font-bold leading-none',
+                  active ? 'text-indigo-400' : isWeekend ? 'text-slate-300' : 'text-slate-400')}>
+                  {['D','S','T','Q','Q','S','S'][dow]}
                 </span>
                 <span className={cn('text-[11px] font-black leading-none mt-0.5',
                   active
-                    ? 'w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center'
-                    : 'text-slate-700')}>
+                    ? 'w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center text-[10px]'
+                    : isWeekend ? 'text-slate-400' : 'text-slate-700')}>
                   {format(col, 'd')}
                 </span>
               </div>
@@ -246,9 +248,9 @@ export function TimelineView({ projectId }: { projectId: string }) {
 
   const colW   = COL_W[zoom];
   const viewEnd = useMemo(() => {
-    if (zoom === 'day')   return addDays(viewStart, 28);
-    if (zoom === 'week')  return addWeeks(viewStart, 14);
-    return addMonths(viewStart, 8);
+    if (zoom === 'day')   return addDays(viewStart, 60);
+    if (zoom === 'week')  return addWeeks(viewStart, 20);
+    return addMonths(viewStart, 12);
   }, [viewStart, zoom]);
 
   const columns = useMemo(() => {
