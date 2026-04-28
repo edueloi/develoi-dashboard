@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Carousel } from "../components/ui";
 import { useTheme } from "../contexts/ThemeContext";
 import { ArrowRight } from "lucide-react";
+
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 interface BlogPost {
   id: string;
@@ -108,7 +109,7 @@ export default function BlogPostPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [progress, setProgress] = useState(0);
-  const { isDark } = useTheme();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const fn = () => {
@@ -167,7 +168,7 @@ export default function BlogPostPage() {
       .catch(() => { setLoading(false); setNotFound(true); });
 
     return () => { document.title = "Blog Develoi"; };
-  }, [slug]);
+  }, [slug, navigate]);
 
   const tags = parseTags(post?.tags || "[]");
 
