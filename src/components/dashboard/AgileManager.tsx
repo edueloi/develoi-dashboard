@@ -298,7 +298,7 @@ function BacklogView({
                 <Briefcase className="w-4 h-4 text-slate-500" />
               </div>
               <h3 className="font-black text-slate-600 uppercase tracking-widest text-xs">Backlog do Produto</h3>
-              <Badge color="default" size="sm">{backlogFeatures.length} tickets</Badge>
+              <Badge color="default" size="sm">{backlogFeatures.length} {backlogFeatures.length === 1 ? 'ticket' : 'tickets'}</Badge>
             </div>
           </div>
           <div className="p-2 space-y-1">
@@ -526,42 +526,62 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish }: {
   );
 }
 
+const PRIORITY_LABELS: Record<string, string> = {
+  low: 'Baixa', medium: 'Média', high: 'Alta', critical: 'Crítica'
+};
+const PRIORITY_COLORS: Record<string, 'danger' | 'warning' | 'info' | 'default'> = {
+  critical: 'danger', high: 'warning', medium: 'info', low: 'default'
+};
+
 function FeatureRow({ feature, onRefresh }: { feature: Feature; onRefresh: () => void }) {
+  const [isEditing, setIsEditing] = useState(false);
+
   return (
-    <div className="group flex items-center gap-4 px-4 py-3 bg-white hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 rounded-2xl transition-all">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="shrink-0">
-          {feature.type === 'bug' && <AlertCircle className="w-4 h-4 text-rose-500" />}
-          {feature.type === 'story' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-          {feature.type === 'epic' && <Rocket className="w-4 h-4 text-purple-500" />}
-          {(!feature.type || feature.type === 'task') && <Briefcase className="w-4 h-4 text-blue-500" />}
+    <>
+      <div className="group flex items-center gap-4 px-4 py-3 bg-white hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 rounded-2xl transition-all">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="shrink-0">
+            {feature.type === 'bug' && <AlertCircle className="w-4 h-4 text-rose-500" />}
+            {feature.type === 'story' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+            {feature.type === 'epic' && <Rocket className="w-4 h-4 text-purple-500" />}
+            {(!feature.type || feature.type === 'task') && <Briefcase className="w-4 h-4 text-blue-500" />}
+          </div>
+
+          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0">{feature.key || 'TASK'}</span>
+
+          <span className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-900">{feature.title}</span>
         </div>
-        
-        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0">{feature.key || 'TASK'}</span>
-        
-        <span className="text-sm font-bold text-slate-700 truncate group-hover:text-indigo-900">{feature.title}</span>
-      </div>
 
-      <div className="flex items-center gap-6 shrink-0">
-        <Badge color={feature.priority === 'critical' ? 'danger' : feature.priority === 'high' ? 'warning' : 'info'} size="xs" pill>
-          {feature.priority || 'Média'}
-        </Badge>
+        <div className="flex items-center gap-4 shrink-0">
+          <Badge color={PRIORITY_COLORS[feature.priority || 'medium'] || 'info'} size="xs" pill>
+            {PRIORITY_LABELS[feature.priority || 'medium']}
+          </Badge>
 
-        <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500">
             {feature.points || 0}
           </div>
-        </div>
 
-        <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-sm">
-          {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
-        </div>
+          <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-sm">
+            {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
+          </div>
 
-        <button className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-indigo-600 transition-all">
-          <Edit2 className="w-3.5 h-3.5" />
-        </button>
+          <button
+            onClick={() => setIsEditing(true)}
+            className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
-    </div>
+
+      {isEditing && (
+        <EditFeatureModal
+          feature={feature}
+          onClose={() => setIsEditing(false)}
+          onSuccess={() => { setIsEditing(false); onRefresh(); }}
+        />
+      )}
+    </>
   );
 }
 
@@ -586,7 +606,7 @@ function BoardCard({ provided, feature }: { provided: any; feature: Feature }) {
              <div className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center text-[9px] font-black text-slate-500 border border-slate-200">
                 {feature.points || 0}
              </div>
-             <Badge color={feature.priority === 'critical' ? 'danger' : 'info'} size="xs" pill>{feature.priority || 'Média'}</Badge>
+             <Badge color={PRIORITY_COLORS[feature.priority || 'medium'] || 'info'} size="xs" pill>{PRIORITY_LABELS[feature.priority || 'medium']}</Badge>
           </div>
         </div>
 
@@ -611,6 +631,102 @@ function BoardCard({ provided, feature }: { provided: any; feature: Feature }) {
 }
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
+
+function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; onClose: () => void; onSuccess: () => void }) {
+  const [title, setTitle] = useState(feature.title);
+  const [desc, setDesc] = useState(feature.description || '');
+  const [type, setType] = useState(feature.type || 'task');
+  const [priority, setPriority] = useState(feature.priority || 'medium');
+  const [points, setPoints] = useState(feature.points || 0);
+  const [status, setStatus] = useState(feature.status || 'todo');
+  const [loading, setLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description: desc, type, priority, points, status }),
+      });
+      onSuccess();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setLoading(true);
+    try {
+      await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, { method: 'DELETE' });
+      onSuccess();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title={`Editar Ticket — ${feature.key || 'TASK'}`} size="lg">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select label="Tipo" value={type} onChange={e => setType(e.target.value as any)}>
+            <option value="task">Tarefa</option>
+            <option value="story">História</option>
+            <option value="bug">Bug</option>
+            <option value="epic">Épico</option>
+          </Select>
+          <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
+            <option value="low">Baixa</option>
+            <option value="medium">Média</option>
+            <option value="high">Alta</option>
+            <option value="critical">Crítica</option>
+          </Select>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select label="Status" value={status} onChange={e => setStatus(e.target.value as any)}>
+            <option value="todo">A Fazer</option>
+            <option value="in-progress">Em Desenvolvimento</option>
+            <option value="review">Em Revisão</option>
+            <option value="testing">Em Teste</option>
+            <option value="done">Concluído</option>
+          </Select>
+          <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
+        </div>
+        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
+
+        <div className="flex gap-3 pt-2">
+          <Button type="submit" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="px-5 py-3 rounded-2xl border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all font-black text-xs uppercase tracking-widest shrink-0"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </form>
+
+      {confirmDelete && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={handleDelete}
+          title="Excluir Ticket"
+          message={`Tem certeza que deseja excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
+          confirmText="EXCLUIR"
+          variant="danger"
+        />
+      )}
+    </Modal>
+  );
+}
 
 function NewSprintModal({ projectId, onClose, onSuccess }: { projectId: string; onClose: () => void; onSuccess: () => void }) {
   const [name, setName] = useState(`Sprint ${new Date().toLocaleDateString('pt-BR', { month: 'short' })} #1`);
@@ -689,7 +805,7 @@ function NewFeatureModal({ projectId, onClose, onSuccess, sprints }: {
           <Input label="Título do Ticket" required value={title} onChange={e => setTitle(e.target.value)} />
           <Select label="Sprint" value={sprintId} onChange={e => setSprintId(e.target.value)}>
             <option value="">Mover para Backlog</option>
-            {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status})</option>)}
+            {sprints.map(s => <option key={s.id} value={s.id}>{s.name} ({s.status === 'active' ? 'Ativa' : s.status === 'planned' ? 'Planejada' : 'Concluída'})</option>)}
           </Select>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
