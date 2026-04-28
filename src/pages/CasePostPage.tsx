@@ -247,9 +247,9 @@ export default function CasePostPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 1 }}
-                className="relative rounded-[3rem] md:rounded-[4rem] overflow-hidden shadow-4xl border dash-border group aspect-[21/9]"
+                className="relative rounded-[3rem] md:rounded-[4rem] overflow-hidden shadow-4xl border dash-border group bg-black/40"
               >
-                <img src={caseItem.coverImage} alt={caseItem.title} className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-1000" />
+                <img src={caseItem.coverImage} alt={caseItem.title} className="w-full h-auto max-h-[85vh] object-contain mx-auto transition-all duration-1000" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
                 
                 {/* Stats Overlay */}

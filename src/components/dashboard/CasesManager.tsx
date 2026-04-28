@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BarChart2, FileText, Plus, Search, Edit2, Trash2, Eye, CheckCircle,
-  Archive, Star, Tag, Image, Globe, X, Save, ChevronDown, Clock,
+  Archive, Star, Tag, Image as ImageIcon, Globe, X, Save, ChevronDown, Clock,
   TrendingUp, Heart, Layers, AlertCircle, Upload,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -314,7 +314,7 @@ function CasesList({ onEdit }: { onEdit: (c: Case) => void }) {
                 <img src={c.coverImage} alt="" className="w-14 h-10 object-cover rounded-lg border border-slate-100 flex-shrink-0" />
               ) : (
                 <div className="w-14 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Image className="w-4 h-4 text-slate-300" />
+                  <ImageIcon className="w-4 h-4 text-slate-300" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -447,8 +447,34 @@ function CaseEditor({ caseItem, onSaved }: { caseItem: Case | null; onSaved: () 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Redimensionar e comprimir antes de salvar
     const reader = new FileReader();
-    reader.onload = () => setCoverImage(reader.result as string);
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Limite de 1920px de largura mantendo a proporção
+        const MAX_WIDTH = 1920;
+        if (width > MAX_WIDTH) {
+          height = (MAX_WIDTH / width) * height;
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Comprimir para JPEG com qualidade 0.8
+        const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+        setCoverImage(compressedData);
+      };
+      img.src = event.target?.result as string;
+    };
     reader.readAsDataURL(file);
   };
 
@@ -548,8 +574,8 @@ function CaseEditor({ caseItem, onSaved }: { caseItem: Case | null; onSaved: () 
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Imagem de Capa</label>
                 {coverImage ? (
-                  <div className="relative group">
-                    <img src={coverImage} alt="Capa" className="w-full max-h-48 object-cover rounded-xl border border-slate-200" />
+                  <div className="relative group bg-slate-900 rounded-xl overflow-hidden border border-slate-200">
+                    <img src={coverImage} alt="Capa" className="w-full h-auto max-h-[80vh] object-contain mx-auto" />
                     <button
                       onClick={() => setCoverImage('')}
                       className="absolute top-2 right-2 p-1 bg-black/60 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-opacity"
