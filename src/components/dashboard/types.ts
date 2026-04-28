@@ -37,6 +37,9 @@ export interface Feature {
   type?: 'story' | 'task' | 'bug' | 'epic';
   parentId?: string;
   activities?: string;
+  testCases?: string;
+  testEvidence?: string;
+  testObservations?: string;
 }
 
 export interface Sprint {

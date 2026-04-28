@@ -56,9 +56,12 @@ model Feature {
   type        String   @default("task")
   tags        Json?
   points      Int      @default(1)
-  deadline    DateTime?
-  activities  String?  @db.Text
-  createdAt   DateTime @default(now())
+  deadline          DateTime?
+  activities        String?  @db.Text
+  testCases         String?  @db.LongText
+  testEvidence      String?  @db.Text
+  testObservations  String?  @db.Text
+  createdAt         DateTime @default(now())
 }
 
 model Sprint {
