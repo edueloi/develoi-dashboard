@@ -362,7 +362,7 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={cn(
-              'rounded-[2.5rem] border transition-all duration-300 overflow-hidden bg-white shadow-sm',
+              'rounded-[2.5rem] border transition-all duration-300 bg-white shadow-sm',
               sprint.status === 'active' ? 'border-indigo-400 ring-4 ring-indigo-500/5' : 'border-slate-200',
               snapshot.isDraggingOver && 'border-indigo-400 bg-indigo-50/20'
             )}
