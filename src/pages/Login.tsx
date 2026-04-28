@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, ArrowRight, Loader2, Sparkles, CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import develoiLogo from '../images/logo-develoi.png';
