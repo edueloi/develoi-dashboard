@@ -414,6 +414,7 @@ function CaseEditor({ caseItem, onSaved }: { caseItem: Case | null; onSaved: () 
   const [content, setContent] = useState(caseItem?.content || '');
   const [coverImage, setCoverImage] = useState(caseItem?.coverImage || '');
   const [coverImageURL, setCoverImageURL] = useState('');
+  const [showURLInput, setShowURLInput] = useState(false);
   const [status, setStatus] = useState(caseItem?.status || 'draft');
   const [featured, setFeatured] = useState(caseItem?.featured || false);
   const [categoryId, setCategoryId] = useState(caseItem?.categoryId || '');
@@ -565,20 +566,36 @@ function CaseEditor({ caseItem, onSaved }: { caseItem: Case | null; onSaved: () 
                       <Upload className="w-6 h-6 text-slate-300 group-hover:text-indigo-500 mx-auto mb-2 transition-colors" />
                       <p className="text-xs font-bold text-slate-400 group-hover:text-indigo-600 transition-colors">Clique para fazer upload da imagem</p>
                     </div>
-                    <div className="flex gap-2">
-                      <input
-                        value={coverImageURL}
-                        onChange={e => setCoverImageURL(e.target.value)}
-                        placeholder="Ou cole uma URL de imagem..."
-                        className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400"
-                      />
-                      {coverImageURL && (
-                        <button
-                          onClick={() => { setCoverImage(coverImageURL); setCoverImageURL(''); }}
-                          className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors"
+                    <div className="flex flex-col gap-2">
+                      {!showURLInput ? (
+                        <button 
+                          type="button"
+                          onClick={() => setShowURLInput(true)}
+                          className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors w-fit"
                         >
-                          Usar
+                          + Ou prefere usar uma URL externa?
                         </button>
+                      ) : (
+                        <div className="flex gap-2 animate-in fade-in slide-in-from-top-1">
+                          <input
+                            value={coverImageURL}
+                            onChange={e => setCoverImageURL(e.target.value)}
+                            placeholder="Cole a URL da imagem aqui..."
+                            className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400"
+                          />
+                          <button
+                            onClick={() => { setCoverImage(coverImageURL); setCoverImageURL(''); setShowURLInput(false); }}
+                            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors"
+                          >
+                            Usar
+                          </button>
+                          <button
+                            onClick={() => setShowURLInput(false)}
+                            className="p-2 bg-slate-100 text-slate-400 rounded-xl hover:bg-slate-200 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

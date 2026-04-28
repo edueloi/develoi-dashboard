@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, ArrowRight, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
-import develoiLogo from '../images/develoi-logo.png';
+import develoiLogo from '../images/logo-develoi.png';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function Login() {
   const { user, signIn, loading } = useAuth();
+  const { isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,11 +19,11 @@ export default function Login() {
 
   if (loading) {
     return (
-      <div className="min-h-[100svh] bg-[#030303] flex items-center justify-center">
+      <div className="min-h-screen dash-bg flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-8 h-8 border-2 border-aurora-blue/20 border-t-aurora-blue rounded-full"
+          className="w-12 h-12 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full"
         />
       </div>
     );
@@ -41,252 +43,156 @@ export default function Login() {
     }
   };
 
-  const inputBase = (field: string) =>
-    `w-full pl-12 pr-4 py-4 bg-white/[0.03] border rounded-2xl focus:outline-none transition-all duration-300 text-white text-sm placeholder:text-neutral-600 ${
-      focused === field
-        ? 'border-aurora-blue/60 shadow-[0_0_24px_rgba(0,210,255,0.10)] bg-white/[0.05]'
-        : 'border-white/[0.07] hover:border-white/[0.14]'
-    }`;
-
   return (
-    <div className="min-h-[100svh] bg-[#030303] flex items-center justify-center px-4 py-8 relative overflow-hidden">
-      {/* Aurora background */}
-      <div className="absolute inset-0 pointer-events-none">
+    <div className="min-h-screen dash-bg flex items-center justify-center px-4 py-12 relative overflow-hidden transition-colors duration-500">
+      {/* Background Aurora Effects - Adapted for Light/Dark */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
         <motion.div
-          animate={{ scale: [1, 1.3, 1], x: [0, 60, 0], y: [0, -40, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          className="aurora-blur w-[500px] h-[500px] bg-aurora-blue/15 -top-1/4 -left-1/4"
-        />
-        <motion.div
-          animate={{ scale: [1.2, 1, 1.2], x: [0, -50, 0], y: [0, 40, 0] }}
-          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-          className="aurora-blur w-[600px] h-[600px] bg-aurora-purple/15 -bottom-1/4 -right-1/4"
+          animate={{ scale: [1, 1.2, 1], x: [-50, 50, -50], y: [-30, 30, -30] }}
+          transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+          className="absolute top-0 left-0 w-[600px] h-[600px] bg-indigo-500/10 blur-[120px] rounded-full"
         />
         <motion.div
-          animate={{ scale: [1, 1.5, 1], opacity: [0.03, 0.12, 0.03] }}
-          transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-          className="aurora-blur w-[700px] h-[700px] bg-aurora-pink/8 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          animate={{ scale: [1.2, 1, 1.2], x: [50, -50, 50], y: [30, -30, 30] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+          className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-500/10 blur-[100px] rounded-full"
         />
-        {/* Grid */}
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(0,210,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(0,210,255,0.5) 1px, transparent 1px)',
-            backgroundSize: '48px 48px',
-          }}
-        />
+        <div className="absolute inset-0 noise-overlay opacity-[0.03]" />
       </div>
 
-      <div className="w-full max-w-sm sm:max-w-md relative z-10">
+      <div className="w-full max-w-md relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.96 }}
+          initial={{ opacity: 0, y: 40, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Logo + Brand */}
-          <div className="text-center mb-8 sm:mb-10">
-            <motion.div
-              initial={{ scale: 0, rotate: -20 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: 'spring', bounce: 0.4, delay: 0.1 }}
-              className="w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-2xl sm:rounded-3xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-white/10 overflow-hidden"
-            >
-              <img src={develoiLogo} alt="Develoi" className="w-full h-full object-contain p-1" />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter mb-1">
-                DEVELOI <span className="text-gradient">HUB</span>
-              </h1>
-              <p className="text-neutral-500 text-sm sm:text-base">
-                Acesso exclusivo para o time de elite.
-              </p>
-            </motion.div>
+          {/* Logo Section */}
+          <div className="text-center mb-10">
+             <motion.div
+               whileHover={{ scale: 1.05, rotate: 5 }}
+               className="inline-block relative"
+             >
+                <div className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full scale-150 opacity-50" />
+                <div className="relative w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl border dash-border overflow-hidden p-2">
+                   <img src={develoiLogo} alt="Develoi" className="w-full h-full object-contain" />
+                </div>
+             </motion.div>
+             <h1 className="mt-8 text-4xl font-black tracking-tighter dash-text flex items-center justify-center gap-3">
+                DEVELOI <span className="text-indigo-600">HUB</span>
+             </h1>
+             <p className="mt-3 text-sm font-medium dash-text-2 opacity-60 flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-500" /> Acesso de Elite ao Dashboard
+             </p>
           </div>
 
-          {/* Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="glass-strong rounded-[2rem] sm:rounded-[2.5rem] p-6 sm:p-8 md:p-10 border-white/[0.07] relative overflow-hidden"
-          >
-            {/* Card gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-aurora-blue/[0.04] to-aurora-purple/[0.04] rounded-[2rem] sm:rounded-[2.5rem] pointer-events-none" />
-            {/* Top accent line */}
-            <div className="absolute top-0 left-8 right-8 h-[1px] bg-gradient-to-r from-transparent via-aurora-blue/40 to-transparent" />
-
-            <form onSubmit={handleSubmit} className="relative space-y-4 sm:space-y-5">
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 ml-1">
-                  E-mail
-                </label>
-                <div className="relative">
-                  <Mail
-                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-300 ${
-                      focused === 'email' ? 'text-aurora-blue' : 'text-neutral-500'
-                    }`}
-                  />
-                  <input
-                    required
-                    type="email"
-                    autoComplete="email"
-                    placeholder="admin@develoi.com.br"
-                    className={inputBase('email')}
-                    value={email}
-                    onFocus={() => setFocused('email')}
-                    onBlur={() => setFocused(null)}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+          {/* Login Card */}
+          <div className="dash-surface border dash-border rounded-[3rem] p-8 sm:p-12 shadow-4xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl" />
+             
+             <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black uppercase tracking-[0.2em] dash-text-muted ml-1">Identificação / E-mail</label>
+                   <div className="relative group">
+                      <div className={`absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors duration-300 ${focused === 'email' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                         <Mail className="w-5 h-5" />
+                      </div>
+                      <input
+                        required
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        onFocus={() => setFocused('email')}
+                        onBlur={() => setFocused(null)}
+                        placeholder="admin@develoi.com.br"
+                        className="w-full pl-14 pr-6 py-4 dash-surface-2 border dash-border rounded-2xl dash-text text-sm font-medium placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                      />
+                   </div>
                 </div>
-              </div>
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 ml-1">
-                  Senha
-                </label>
-                <div className="relative">
-                  <Lock
-                    className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors duration-300 ${
-                      focused === 'password' ? 'text-aurora-blue' : 'text-neutral-500'
-                    }`}
-                  />
-                  <input
-                    required
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="••••••••••"
-                    className={`${inputBase('password')} pr-12`}
-                    value={password}
-                    onFocus={() => setFocused('password')}
-                    onBlur={() => setFocused(null)}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
+                <div className="space-y-2">
+                   <div className="flex items-center justify-between ml-1">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] dash-text-muted">Senha de Acesso</label>
+                      <button type="button" className="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600">Esqueci a senha</button>
+                   </div>
+                   <div className="relative group">
+                      <div className={`absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors duration-300 ${focused === 'password' ? 'text-indigo-500' : 'text-slate-400'}`}>
+                         <Lock className="w-5 h-5" />
+                      </div>
+                      <input
+                        required
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        onFocus={() => setFocused('password')}
+                        onBlur={() => setFocused(null)}
+                        placeholder="••••••••••••"
+                        className="w-full pl-14 pr-14 py-4 dash-surface-2 border dash-border rounded-2xl dash-text text-sm font-medium placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition-colors"
+                      >
+                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                   </div>
+                </div>
+
+                <div className="flex items-center gap-3 ml-1">
+                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors duration-200"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+                    onClick={() => setRememberMe(!rememberMe)}
+                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${rememberMe ? 'bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200' : 'dash-surface-2 border dash-border'}`}
+                   >
+                      {rememberMe && <CheckCircle className="w-4 h-4 text-white" />}
+                   </button>
+                   <span className="text-xs font-bold dash-text-2 opacity-70 cursor-pointer select-none" onClick={() => setRememberMe(!rememberMe)}>Lembrar neste dispositivo</span>
                 </div>
-              </div>
 
-              {/* Remember Me */}
-              <div className="flex items-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setRememberMe(!rememberMe)}
-                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 flex-shrink-0 ${
-                    rememberMe
-                      ? 'bg-aurora-blue border-aurora-blue shadow-[0_0_12px_rgba(0,210,255,0.4)]'
-                      : 'bg-transparent border-white/20 hover:border-white/40'
-                  }`}
-                  aria-label="Lembrar-me"
-                >
-                  {rememberMe && (
-                    <motion.svg
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="w-3 h-3 text-black"
-                      viewBox="0 0 12 12"
-                      fill="none"
+                <AnimatePresence>
+                  {status === 'error' && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl flex items-center gap-3"
                     >
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </motion.svg>
+                       <ShieldCheck className="w-5 h-5 text-rose-500" />
+                       <p className="text-xs font-bold text-rose-500">{error}</p>
+                    </motion.div>
                   )}
+                </AnimatePresence>
+
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-2xl shadow-indigo-500/30 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3"
+                >
+                   {status === 'loading' ? (
+                     <Loader2 className="w-5 h-5 animate-spin" />
+                   ) : (
+                     <>ENTRAR NO SISTEMA <ArrowRight className="w-5 h-5" /></>
+                   )}
                 </button>
-                <span
-                  className="text-xs sm:text-sm text-neutral-400 cursor-pointer select-none hover:text-white transition-colors"
-                  onClick={() => setRememberMe(!rememberMe)}
-                >
-                  Lembrar-me neste dispositivo
-                </span>
-              </div>
+             </form>
 
-              {/* Error message */}
-              <AnimatePresence>
-                {status === 'error' && error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: 'auto' }}
-                    exit={{ opacity: 0, y: -8, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
-                      <ShieldCheck className="w-4 h-4 text-red-400 flex-shrink-0" />
-                      <p className="text-red-400 text-sm font-medium">{error}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Submit */}
-              <motion.button
-                whileHover={status !== 'loading' ? { scale: 1.02 } : {}}
-                whileTap={status !== 'loading' ? { scale: 0.98 } : {}}
-                disabled={status === 'loading'}
-                type="submit"
-                className="w-full py-4 sm:py-5 bg-white text-black font-black rounded-2xl flex items-center justify-center gap-2.5 shadow-xl shadow-white/5 relative overflow-hidden group transition-all disabled:opacity-60 text-sm sm:text-base mt-2"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <span className="relative z-10 flex items-center gap-2.5 group-hover:text-white transition-colors duration-300">
-                  {status === 'loading' ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      ENTRANDO...
-                    </>
-                  ) : (
-                    <>
-                      ACESSAR DASHBOARD
-                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                    </>
-                  )}
-                </span>
-              </motion.button>
-            </form>
-
-            {/* Divider */}
-            <div className="relative my-6 sm:my-7">
-              <div className="h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-            </div>
-
-            {/* Feature pills */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {[
-                { icon: ShieldCheck, label: 'Seguro', color: 'text-aurora-green' },
-                { icon: Zap, label: 'Rápido', color: 'text-yellow-400' },
-                { icon: Lock, label: 'Privado', color: 'text-aurora-blue' },
-              ].map(({ icon: Icon, label, color }) => (
-                <div
-                  key={label}
-                  className="flex flex-col items-center gap-1.5 py-3 sm:py-4 px-2 glass-card rounded-xl sm:rounded-2xl border border-white/[0.04] hover:border-white/[0.10] transition-all duration-300"
-                >
-                  <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${color}`} />
-                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-neutral-500">
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Footer */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-center mt-5 sm:mt-6 text-[10px] font-black uppercase tracking-[0.25em] text-neutral-600"
-          >
-            DEVELOI INTERNAL SYSTEMS v2.0
-          </motion.p>
+             <div className="mt-12 pt-8 border-t dash-border grid grid-cols-3 gap-4">
+                {[
+                  { icon: ShieldCheck, label: 'Seguro', color: 'text-indigo-500' },
+                  { icon: Zap, label: 'Performance', color: 'text-amber-500' },
+                  { icon: ShieldCheck, label: 'Privado', color: 'text-emerald-500' },
+                ].map((item, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2 text-center">
+                     <item.icon className={`w-5 h-5 ${item.color}`} />
+                     <span className="text-[8px] font-black uppercase tracking-widest dash-text-muted">{item.label}</span>
+                  </div>
+                ))}
+             </div>
+          </div>
+          
+          <p className="mt-10 text-center text-[10px] font-black uppercase tracking-[0.5em] dash-text-muted opacity-40">
+             © 2026 DEVELOI SYSTEMS • V2.5.0
+          </p>
         </motion.div>
       </div>
     </div>

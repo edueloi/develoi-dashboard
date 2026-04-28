@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import develoiLogo from '../images/develoi-logo.png';
+import develoiLogo from '../images/logo-develoi.png';
 
 const navItems = [
   { name: 'Início', path: '/' },
   { name: 'Quem Somos', path: '/sobre' },
+  { name: 'Cases', path: '/cases' },
+  { name: 'Blog', path: '/blog' },
   { name: 'Valores', path: '/valores' },
   { name: 'Dúvidas', path: '/duvidas' },
 ];

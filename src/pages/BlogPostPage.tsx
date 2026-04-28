@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Carousel } from "../components/ui";
 import { useTheme } from "../contexts/ThemeContext";
-
+import { ArrowRight } from "lucide-react";
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 interface BlogPost {
   id: string;
@@ -33,79 +33,30 @@ function parseTags(tags: string): string[] {
   try { return JSON.parse(tags) || []; } catch { return []; }
 }
 
-/* ─── Navbar ──────────────────────────────────────────────────────────────── */
-function BlogNavbar() {
-  const [scrolled, setScrolled] = useState(false);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", fn);
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-
-  return (
-    <nav style={{
-      position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-      background: scrolled ? "var(--bg-secondary)" : "transparent",
-      backdropFilter: "blur(20px)",
-      borderBottom: `1px solid ${scrolled ? "var(--border-color)" : "transparent"}`,
-      transition: "all 0.3s ease",
-    }}>
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 68, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <button onClick={() => navigate("/")} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "#fff", fontWeight: 900, fontSize: 14 }}>D</span>
-            </div>
-            <span style={{ fontWeight: 900, fontSize: 15, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>DEVELOI</span>
-          </button>
-          <span style={{ color: "rgba(255,255,255,0.15)", fontSize: 18 }}>|</span>
-          <button onClick={() => navigate("/blog")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#6366f1" }}>
-            Blog
-          </button>
-        </div>
-        <button onClick={() => navigate("/login")} style={{
-          background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", cursor: "pointer",
-          fontSize: 13, fontWeight: 700, color: "#fff", padding: "8px 20px", borderRadius: 10,
-        }}>
-          Entrar
-        </button>
-      </div>
-    </nav>
-  );
-}
-
 /* ─── Related Card ────────────────────────────────────────────────────────── */
 function RelatedCard({ post }: { post: any }) {
   const navigate = useNavigate();
   return (
     <div
       onClick={() => navigate(`/blog/${post.slug}`)}
-      style={{
-        cursor: "pointer", borderRadius: 16, overflow: "hidden",
-        background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
-        transition: "transform 0.15s, box-shadow 0.15s, border-color 0.15s",
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(99,102,241,0.15)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.3)"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ""; (e.currentTarget as HTMLElement).style.boxShadow = ""; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.08)"; }}
+      className="group cursor-pointer rounded-2xl overflow-hidden dash-surface border dash-border hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
     >
-      <div style={{ height: 140 }}>
+      <div className="h-32 overflow-hidden">
         {post.coverImage ? (
-          <img src={post.coverImage} alt={post.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
         ) : (
-          <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #1e1b4b, #312e81)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 28, opacity: 0.3 }}>✍</span>
+          <div className="w-full h-full bg-gradient-to-br from-indigo-900/50 to-violet-900/50 flex items-center justify-center">
+            <span className="text-2xl opacity-20">✍</span>
           </div>
         )}
       </div>
-      <div style={{ padding: "14px 16px" }}>
+      <div className="p-4">
         {post.category && (
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: post.category.color || "#6366f1" }}>
+          <span className="text-[8px] font-black uppercase tracking-widest block mb-2" style={{ color: post.category.color || "#6366f1" }}>
             {post.category.name}
           </span>
         )}
-        <h4 style={{ fontSize: 13, fontWeight: 800, color: "var(--text-primary)", margin: "6px 0 0", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+        <h4 className="text-xs font-black text-white leading-tight line-clamp-2 group-hover:text-indigo-400 transition-colors">
           {post.title}
         </h4>
       </div>
@@ -129,20 +80,20 @@ function NewsletterInline() {
     setLoading(false);
   };
 
-  if (done) return <p style={{ fontSize: 12, color: "#a5b4fc", fontWeight: 700 }}>Inscrito! Obrigado 🎉</p>;
+  if (done) return <p className="text-xs text-indigo-400 font-black uppercase tracking-widest">Inscrito com sucesso! 🎉</p>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div className="flex flex-col gap-3">
       <input
-        value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Seu e-mail"
+        value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Seu melhor e-mail"
         onKeyDown={e => e.key === "Enter" && handle()}
-        style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.15)", fontSize: 12, background: "rgba(255,255,255,0.08)", color: "#fff", outline: "none" }}
+        className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/[0.05] text-white text-xs font-medium focus:ring-1 focus:ring-indigo-500 outline-none"
       />
       <button
         onClick={handle} disabled={loading || !email}
-        style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: "#fff", color: "#4f46e5", fontWeight: 800, fontSize: 12 }}
+        className="w-full py-3 rounded-xl bg-white text-indigo-600 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-50 transition-colors shadow-lg"
       >
-        {loading ? "..." : "Assinar grátis"}
+        {loading ? "Processando..." : "Assinar Newsletter"}
       </button>
     </div>
   );
@@ -157,7 +108,7 @@ export default function BlogPostPage() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [progress, setProgress] = useState(0);
-  const { theme, isDark } = useTheme();
+  const { isDark } = useTheme();
 
   useEffect(() => {
     const fn = () => {
@@ -222,313 +173,293 @@ export default function BlogPostPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#030303", fontFamily: "'Inter', sans-serif" }}>
-        <BlogNavbar />
-        <div style={{ paddingTop: 120, display: "flex", justifyContent: "center" }}>
-          <div style={{ maxWidth: 720, width: "100%", padding: "0 24px" }}>
-            <div style={{ height: 48, background: "rgba(255,255,255,0.05)", borderRadius: 10, marginBottom: 24, animation: "pulse 1.5s infinite" }} />
-            <div style={{ height: 360, background: "rgba(255,255,255,0.05)", borderRadius: 20, marginBottom: 32, animation: "pulse 1.5s infinite" }} />
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} style={{ height: 14, background: "rgba(255,255,255,0.05)", borderRadius: 6, marginBottom: 12, width: `${70 + Math.random() * 30}%`, animation: "pulse 1.5s infinite" }} />
+      <div className="min-h-screen dash-bg pt-40 px-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="h-12 dash-surface-2 rounded-2xl mb-8 animate-pulse" />
+          <div className="h-96 dash-surface-2 rounded-3xl mb-12 animate-pulse" />
+          <div className="space-y-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-4 dash-surface-2 rounded-lg animate-pulse" style={{ width: `${80 + Math.random() * 20}%` }} />
             ))}
           </div>
         </div>
-        <style>{`@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
       </div>
     );
   }
 
   if (notFound || !post) {
     return (
-      <div style={{ minHeight: "100vh", background: "#030303", fontFamily: "'Inter', sans-serif" }}>
-        <BlogNavbar />
-        <div style={{ paddingTop: 120, textAlign: "center", padding: "120px 24px" }}>
-          <div style={{ fontSize: 64 }}>📰</div>
-          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: "16px 0 8px" }}>Artigo não encontrado</h2>
-          <p style={{ color: "rgba(255,255,255,0.4)", marginBottom: 24 }}>O artigo que você procura não existe ou foi removido.</p>
-          <button onClick={() => navigate("/blog")} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", cursor: "pointer", padding: "12px 28px", borderRadius: 12, fontWeight: 800, fontSize: 14 }}>
-            Ver todos os artigos
-          </button>
+      <div className="min-h-screen dash-bg pt-60 px-6 text-center">
+        <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8">
+           <span className="text-5xl opacity-20">📰</span>
         </div>
+        <h2 className="text-3xl font-black mb-4 dash-text">Artigo não encontrado.</h2>
+        <p className="text-lg dash-text-2 mb-12 opacity-60">O conteúdo que você busca pode ter sido removido ou o link está incorreto.</p>
+        <button onClick={() => navigate("/blog")} className="px-10 py-5 bg-indigo-600 text-white font-black rounded-2xl uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-2xl">
+          Explorar Blog
+        </button>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen dash-bg dash-text transition-colors duration-500 ${isDark ? 'dark' : ''}`} style={{ fontFamily: "'Inter', sans-serif" }}>
-      {/* Fixed bg */}
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: isDark ? "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.07) 0%, transparent 60%)" : "radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.03) 0%, transparent 60%)" }} />
-
-      {/* Reading progress bar */}
-      <div style={{ position: "fixed", top: 68, left: 0, right: 0, height: 3, zIndex: 99, background: "rgba(255,255,255,0.05)" }}>
-        <div style={{ height: "100%", background: "linear-gradient(90deg, #6366f1, #8b5cf6)", width: `${progress}%`, transition: "width 0.1s" }} />
+    <div className="relative min-h-screen dash-bg text-white selection:bg-indigo-500/30 overflow-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="absolute top-[10%] left-[-5%] w-[500px] h-[500px] bg-indigo-500/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[20%] right-[-5%] w-[600px] h-[600px] bg-purple-500/5 blur-[150px] rounded-full" />
+        <div className="absolute inset-0 noise-overlay opacity-[0.05]" />
       </div>
 
-      <BlogNavbar />
+      {/* Reading progress bar */}
+      <div className="fixed top-[72px] left-0 right-0 h-1 z-[60] bg-white/5">
+        <motion.div 
+          className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 shadow-[0_0_15px_rgba(99,102,241,0.5)]" 
+          style={{ width: `${progress}%` }} 
+        />
+      </div>
 
-      <div style={{ paddingTop: 72, position: "relative", zIndex: 1 }}>
-        {/* Cover image */}
-        {post.coverImage && (
-          <div style={{ width: "100%", maxHeight: 500, overflow: "hidden" }}>
-            <img src={post.coverImage} alt={post.title} style={{ width: "100%", height: 500, objectFit: "cover", opacity: 0.85 }} />
-          </div>
-        )}
-
-        {/* Content layout */}
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
-          <div className="blog-post-grid">
-
-            {/* Article */}
-            <motion.article initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-              {/* Breadcrumb */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, fontSize: 12, color: "rgba(255,255,255,0.4)" }}>
-                <button onClick={() => navigate("/")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Início</button>
-                <span>›</span>
-                <button onClick={() => navigate("/blog")} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", fontSize: 12 }}>Blog</button>
+      <div className="relative z-10">
+        {/* Cover Header */}
+        <header className="pt-40 pb-20 px-6 overflow-hidden">
+          <div className="max-w-4xl mx-auto relative">
+             {/* Breadcrumb */}
+             <div className="flex items-center gap-3 mb-10 text-[10px] font-black uppercase tracking-widest text-white/30">
+                <button onClick={() => navigate("/")} className="hover:text-indigo-500 transition-colors">Develoi</button>
+                <span className="opacity-20">/</span>
+                <button onClick={() => navigate("/blog")} className="hover:text-indigo-500 transition-colors">Blog</button>
                 {post.category && (
                   <>
-                    <span>›</span>
-                    <button
+                    <span className="opacity-20">/</span>
+                    <button 
                       onClick={() => navigate(`/blog?category=${post.category!.slug}`)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: post.category.color || "#6366f1", fontSize: 12, fontWeight: 700 }}
+                      className="font-black"
+                      style={{ color: post.category.color }}
                     >
                       {post.category.name}
                     </button>
                   </>
                 )}
-              </div>
+             </div>
 
-              {/* Category badge */}
-              {post.category && (
-                <span style={{ display: "inline-block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: post.category.color || "#6366f1", marginBottom: 14 }}>
-                  {post.category.name}
-                </span>
-              )}
+             <motion.h1 
+               initial={{ opacity: 0, y: 30 }}
+               animate={{ opacity: 1, y: 0 }}
+               className="text-4xl md:text-7xl font-black mb-10 leading-[0.95] tracking-tighter dash-text"
+             >
+               {post.title}
+             </motion.h1>
 
-              {/* Title */}
-              <h1 style={{ fontSize: "clamp(24px, 3.5vw, 44px)", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1.2, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
-                {post.title}
-              </h1>
-
-              {/* Excerpt */}
-              {post.excerpt && (
-                <p style={{ fontSize: 18, color: "var(--text-secondary)", lineHeight: 1.65, margin: "0 0 28px", fontWeight: 400, borderLeft: "3px solid #6366f1", paddingLeft: 18 }}>
-                  {post.excerpt}
-                </p>
-              )}
-
-              {/* Meta */}
-              <div style={{ display: "flex", alignItems: "center", gap: 16, paddingBottom: 28, borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 36, flexWrap: "wrap" }}>
+             <motion.div 
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ delay: 0.1 }}
+               className="flex items-center gap-8 flex-wrap"
+             >
                 {post.author && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div className="flex items-center gap-4">
                     {post.author.photo ? (
-                      <img src={post.author.photo} alt={post.author.name} style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover" }} />
+                      <img src={post.author.photo} alt={post.author.name} className="w-12 h-12 rounded-full object-cover border-2 border-indigo-500/20" />
                     ) : (
-                      <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: "#fff" }}>
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-sm font-black text-white">
                         {post.author.name[0]}
                       </div>
                     )}
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text-primary)" }}>{post.author.name}</div>
-                      {post.author.role && <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 1 }}>{post.author.role}</div>}
+                      <p className="text-xs font-black uppercase tracking-widest text-white/90">{post.author.name}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500/60">{post.author.role || 'Expert Develoi'}</p>
                     </div>
                   </div>
                 )}
-                <div style={{ width: 1, height: 20, background: "rgba(255,255,255,0.1)" }} />
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{formatDate(post.publishedAt)}</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>📖 {post.readTimeMinutes} min de leitura</span>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>👁 {post.views.toLocaleString("pt-BR")} visualizações</span>
-              </div>
-
-              {/* Content */}
-              <div
-                className="blog-content"
-                style={{ fontSize: 16, lineHeight: 1.8, color: "var(--text-secondary)" }}
-              >
-                {post.content.split(/<div class="develoi-carousel" data-images="([^"]+)"[^>]*>.*?<\/div>/gs).map((part, i) => {
-                  if (i % 2 === 1) {
-                    const images = part.split(',').filter(u => u.trim());
-                    return <Carousel key={i} images={images} />;
-                  }
-                  return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />;
-                })}
-              </div>
-
-              {/* Tags */}
-              {tags.length > 0 && (
-                <div style={{ marginTop: 44, paddingTop: 28, borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.3)", marginBottom: 12 }}>Tags</p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {tags.map((tag, i) => (
-                      <button
-                        key={i}
-                        onClick={() => navigate(`/blog?search=${tag}`)}
-                        style={{ padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.6)", cursor: "pointer" }}
-                      >
-                        #{tag}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                   <span>{formatDate(post.publishedAt)}</span>
+                   <span className="w-1 h-1 rounded-full bg-indigo-500/30" />
+                   <span>{post.readTimeMinutes} MIN LEITURA</span>
+                   <span className="w-1 h-1 rounded-full bg-indigo-500/30" />
+                   <span>{post.views.toLocaleString('pt-BR')} VIEWS</span>
                 </div>
-              )}
-
-              {/* Author bio box */}
-              {post.author && post.author.bio && (
-                <div style={{ marginTop: 44, background: "rgba(99,102,241,0.08)", borderRadius: 20, padding: "28px 32px", border: "1px solid rgba(99,102,241,0.2)", display: "flex", gap: 20, alignItems: "flex-start" }}>
-                  {post.author.photo ? (
-                    <img src={post.author.photo} alt={post.author.name} style={{ width: 60, height: 60, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                  ) : (
-                    <div style={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 900, color: "#fff", flexShrink: 0 }}>
-                      {post.author.name[0]}
-                    </div>
-                  )}
-                  <div>
-                    <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#6366f1", margin: "0 0 6px" }}>Sobre o autor</p>
-                    <p style={{ fontSize: 15, fontWeight: 800, color: "var(--text-primary)", margin: "0 0 10px" }}>{post.author.name}</p>
-                    <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, margin: 0 }}>{post.author.bio}</p>
-                    {post.author.linkedin && (
-                      <a href={post.author.linkedin} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: "#6366f1", fontWeight: 700, marginTop: 10, display: "inline-block" }}>
-                        Ver perfil no LinkedIn →
-                      </a>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Share */}
-              <div style={{ marginTop: 44, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>Compartilhar:</span>
-                <button
-                  onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, "_blank")}
-                  style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#0077b5" }}
-                >
-                  LinkedIn
-                </button>
-                <button
-                  onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(post.title)}`, "_blank")}
-                  style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#1d9bf0" }}
-                >
-                  Twitter/X
-                </button>
-                <button
-                  onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(post.title + " " + window.location.href)}`, "_blank")}
-                  style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "#25d366" }}
-                >
-                  WhatsApp
-                </button>
-                <button
-                  onClick={() => navigator.clipboard.writeText(window.location.href)}
-                  style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", cursor: "pointer", fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.6)" }}
-                >
-                  Copiar link
-                </button>
-              </div>
-            </motion.article>
-
-            {/* Sidebar */}
-            <aside style={{ position: "sticky", top: 88 }}>
-              <button
-                onClick={() => navigate("/blog")}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.6)", marginBottom: 24 }}
-              >
-                ← Voltar ao Blog
-              </button>
-
-              {/* Newsletter */}
-              <div style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", borderRadius: 18, padding: "24px 20px", color: "#fff", marginBottom: 24, border: "1px solid rgba(255,255,255,0.1)" }}>
-                <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.8, margin: "0 0 8px" }}>Newsletter</p>
-                <h4 style={{ fontSize: 15, fontWeight: 900, margin: "0 0 8px" }}>Conteúdo tech semanal</h4>
-                <p style={{ fontSize: 12, opacity: 0.85, lineHeight: 1.5, margin: "0 0 16px" }}>Artigos sobre tecnologia e desenvolvimento enviados direto para você.</p>
-                <NewsletterInline />
-              </div>
-
-              {/* Related posts */}
-              {related.length > 0 && (
-                <div>
-                  <h3 style={{ fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.4)", marginBottom: 16 }}>
-                    Artigos Relacionados
-                  </h3>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                    {related.map(r => <RelatedCard key={r.id} post={r} />)}
-                  </div>
-                </div>
-              )}
-            </aside>
+             </motion.div>
           </div>
+        </header>
 
-          {/* Mobile related posts */}
-          {related.length > 0 && (
-            <div className="mobile-related" style={{ paddingBottom: 60, borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 48 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginBottom: 24 }}>Artigos Relacionados</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 20 }}>
-                {related.map(r => <RelatedCard key={r.id} post={r} />)}
-              </div>
+        {/* Featured Image */}
+        {post.coverImage && (
+          <section className="px-6 mb-24">
+            <div className="max-w-6xl mx-auto">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.8 }}
+                className="relative rounded-[3rem] overflow-hidden shadow-3xl border dash-border group"
+              >
+                <img src={post.coverImage} alt={post.title} className="w-full h-auto max-h-[600px] object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              </motion.div>
             </div>
-          )}
-        </div>
+          </section>
+        )}
+
+        {/* Article Content */}
+        <section className="px-6 pb-40">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-24 items-start">
+             
+             {/* Main Article Body */}
+             <article className="relative">
+                {post.excerpt && (
+                  <div className="mb-16 p-10 dash-surface-2 border-l-4 border-indigo-500 rounded-r-3xl italic text-xl md:text-2xl text-white/70 leading-relaxed font-medium">
+                    "{post.excerpt}"
+                  </div>
+                )}
+
+                <div className="blog-content prose prose-invert prose-indigo max-w-none">
+                  {post.content.split(/<div class="develoi-carousel" data-images="([^"]+)"[^>]*>.*?<\/div>/gs).map((part, i) => {
+                    if (i % 2 === 1) {
+                      const images = part.split(',').filter(u => u.trim());
+                      return <Carousel key={i} images={images} />;
+                    }
+                    return <div key={i} dangerouslySetInnerHTML={{ __html: part }} />;
+                  })}
+                </div>
+
+                {/* Footer Meta */}
+                <div className="mt-24 pt-12 border-t border-white/5">
+                   {tags.length > 0 && (
+                      <div className="mb-12">
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6 block">Insights & Inovação</span>
+                        <div className="flex flex-wrap gap-3">
+                          {tags.map((tag, i) => (
+                            <button 
+                              key={i}
+                              onClick={() => navigate(`/blog?search=${tag}`)}
+                              className="px-5 py-2 dash-surface border dash-border rounded-xl text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-indigo-500 hover:border-indigo-500/40 transition-all"
+                            >
+                              #{tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                   )}
+
+                   {/* Author Bio Section */}
+                   {post.author && post.author.bio && (
+                      <div className="dash-surface-2 border dash-border p-10 rounded-[2.5rem] flex flex-col md:flex-row gap-8 items-center md:items-start text-center md:text-left relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl group-hover:bg-indigo-500/10 transition-colors" />
+                        {post.author.photo ? (
+                          <img src={post.author.photo} alt={post.author.name} className="w-24 h-24 rounded-full object-cover border-2 border-indigo-500/20 shadow-2xl" />
+                        ) : (
+                          <div className="w-24 h-24 rounded-full bg-indigo-600 flex items-center justify-center text-4xl font-black text-white shadow-2xl">
+                            {post.author.name[0]}
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em] mb-2">Sobre o Autor</p>
+                          <h4 className="text-2xl font-black text-white mb-4 tracking-tight">{post.author.name}</h4>
+                          <p className="text-white/50 leading-relaxed font-medium mb-6">{post.author.bio}</p>
+                          {post.author.linkedin && (
+                            <a href={post.author.linkedin} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-indigo-500 text-[10px] font-black uppercase tracking-widest hover:gap-4 transition-all">
+                              Linkedin Profile <ArrowRight className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                   )}
+
+                   {/* Share Controls */}
+                   <div className="mt-16 flex items-center gap-6 flex-wrap justify-center md:justify-start">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Compartilhar Artigo:</span>
+                      <div className="flex items-center gap-4">
+                        {[
+                          { name: 'LinkedIn', color: 'hover:text-[#0077b5]', url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}` },
+                          { name: 'X / Twitter', color: 'hover:text-white', url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(post.title)}` },
+                          { name: 'WhatsApp', color: 'hover:text-[#25d366]', url: `https://wa.me/?text=${encodeURIComponent(post.title + " " + window.location.href)}` }
+                        ].map(platform => (
+                          <button 
+                            key={platform.name}
+                            onClick={() => window.open(platform.url, '_blank')}
+                            className={`text-[10px] font-black uppercase tracking-widest text-white/40 transition-colors ${platform.color}`}
+                          >
+                            {platform.name}
+                          </button>
+                        ))}
+                        <button 
+                          onClick={() => { navigator.clipboard.writeText(window.location.href); }}
+                          className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-indigo-500 transition-colors"
+                        >
+                          Copiar Link
+                        </button>
+                      </div>
+                   </div>
+                </div>
+             </article>
+
+             {/* Sidebar Actions */}
+             <aside className="hidden lg:block sticky top-32 space-y-12">
+                <button 
+                  onClick={() => navigate("/blog")}
+                  className="w-full flex items-center gap-3 px-6 py-4 dash-surface-2 border dash-border rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white hover:border-indigo-500/40 transition-all"
+                >
+                   <ArrowRight className="w-4 h-4 rotate-180" /> Voltar ao Feed
+                </button>
+
+                {/* Newsletter Box */}
+                <div className="relative group">
+                   <div className="absolute -inset-4 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                   <div className="relative dash-surface border dash-border p-8 rounded-3xl overflow-hidden shadow-2xl">
+                      <div className="absolute inset-0 noise-overlay opacity-[0.05]" />
+                      <p className="text-indigo-500 text-[9px] font-black uppercase tracking-[0.4em] mb-4">Elite Newsletter</p>
+                      <h4 className="text-lg font-black text-white mb-4 leading-tight">Receba insights de elite toda semana.</h4>
+                      <NewsletterInline />
+                   </div>
+                </div>
+
+                {/* Related Posts Sidebar */}
+                {related.length > 0 && (
+                   <div className="space-y-6">
+                      <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Leituras Recomendadas</h3>
+                      <div className="grid grid-cols-1 gap-6">
+                        {related.map(r => <RelatedCard key={r.id} post={r} />)}
+                      </div>
+                   </div>
+                )}
+             </aside>
+          </div>
+        </section>
+
+        {/* Mobile Related Section */}
+        {related.length > 0 && (
+          <section className="lg:hidden px-6 pb-40 border-t border-white/5 pt-20">
+             <div className="max-w-4xl mx-auto">
+               <h3 className="text-2xl font-black text-white mb-10 tracking-tight text-center">ARTIGOS RELACIONADOS</h3>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 {related.map(r => <RelatedCard key={r.id} post={r} />)}
+               </div>
+             </div>
+          </section>
+        )}
       </div>
 
-      <footer style={{ background: "rgba(255,255,255,0.02)", borderTop: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)", padding: "32px 24px", textAlign: "center", position: "relative", zIndex: 1 }}>
-        <p style={{ fontSize: 12 }}>© 2026 Develoi. Todos os direitos reservados.</p>
+      <footer className="relative z-10 py-20 border-t border-white/5 bg-black/20 text-center">
+        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-white/20">© 2026 DEVELOI. TODOS OS DIREITOS RESERVADOS.</p>
       </footer>
 
       <style>{`
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        * { box-sizing: border-box; }
-        body { margin: 0; }
-        input::placeholder { color: rgba(255,255,255,0.3); }
-
-        .blog-post-grid {
-          display: grid;
-          grid-template-columns: 1fr 320px;
-          gap: 56px;
-          align-items: start;
-          padding-top: 52px;
-          padding-bottom: 80px;
-        }
-
-        .mobile-related { display: none; }
-
-        @media (max-width: 992px) {
-          .blog-post-grid {
-            grid-template-columns: 1fr;
-            gap: 32px;
-          }
-          aside { display: none !important; }
-          .mobile-related { display: block !important; }
-        }
-
-        .blog-content h1, .blog-content h2, .blog-content h3, .blog-content h4 {
-          color: var(--text-primary); font-weight: 900; line-height: 1.3; margin-top: 2em; margin-bottom: 0.6em;
-        }
-        .blog-content h2 { font-size: 1.5em; }
-        .blog-content h3 { font-size: 1.25em; }
-        .blog-content p { margin: 0 0 1.2em; }
-        .blog-content ul, .blog-content ol { padding-left: 1.5em; margin-bottom: 1.2em; }
-        .blog-content li { margin-bottom: 0.4em; }
-        .blog-content blockquote {
-          border-left: 3px solid #6366f1; padding: 14px 22px;
-          background: var(--bg-tertiary); margin: 1.5em 0; border-radius: 0 12px 12px 0;
-          font-style: italic; color: var(--text-secondary);
-        }
-        .blog-content img { max-width: 100%; border-radius: 16px; margin: 1.5em 0; }
-        .blog-content a { color: #818cf8; font-weight: 700; }
-        .blog-content a:hover { text-decoration: underline; color: #a5b4fc; }
-        .blog-content code {
-          background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 5px;
-          font-family: 'Courier New', monospace; font-size: 0.875em; color: #a5b4fc;
-        }
-        .blog-content pre {
-          background: rgba(15,23,42,0.8); color: #e2e8f0; padding: 24px;
-          border-radius: 16px; overflow-x: auto; margin: 1.5em 0;
-          border: 1px solid rgba(255,255,255,0.08);
-        }
-        .blog-content pre code { background: none; color: inherit; padding: 0; }
-        .blog-content strong { color: var(--text-primary); font-weight: 800; }
-        .blog-content hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 2.5em 0; }
-        .blog-content table { width: 100%; border-collapse: collapse; margin: 1.5em 0; }
-        .blog-content td, .blog-content th { border: 1px solid rgba(255,255,255,0.1); padding: 10px 14px; font-size: 14px; }
-        .blog-content th { background: rgba(99,102,241,0.1); font-weight: 700; color: #a5b4fc; }
+        .blog-content h2 { @apply text-3xl md:text-5xl font-black mt-16 mb-8 tracking-tighter dash-text leading-tight; }
+        .blog-content h3 { @apply text-2xl md:text-3xl font-black mt-12 mb-6 tracking-tight text-white leading-snug; }
+        .blog-content p { @apply text-lg md:text-xl text-white/60 leading-relaxed mb-8 font-medium; }
+        .blog-content ul { @apply list-disc list-inside mb-10 space-y-4 text-white/60 text-lg; }
+        .blog-content ol { @apply list-decimal list-inside mb-10 space-y-4 text-white/60 text-lg; }
+        .blog-content li { @apply font-medium; }
+        .blog-content blockquote { @apply border-l-4 border-indigo-500 bg-indigo-500/5 p-8 rounded-r-3xl italic text-xl text-white/70 my-12; }
+        .blog-content img { @apply rounded-[2.5rem] border dash-border shadow-3xl my-16 w-full; }
+        .blog-content a { @apply text-indigo-400 font-black underline decoration-indigo-500/30 underline-offset-4 hover:text-indigo-300 transition-colors; }
+        .blog-content code { @apply bg-white/10 px-2 py-0.5 rounded font-mono text-indigo-300 text-sm; }
+        .blog-content pre { @apply bg-slate-950 border border-white/10 p-8 rounded-3xl overflow-x-auto my-12 shadow-inner; }
+        .blog-content pre code { @apply bg-transparent p-0 text-white/90 text-sm; }
+        .blog-content strong { @apply text-white font-black; }
+        .blog-content hr { @apply border-white/5 my-20; }
+        .blog-content table { @apply w-full border-collapse my-12 text-sm; }
+        .blog-content th { @apply text-left p-4 border-b border-white/10 text-indigo-500 font-black uppercase tracking-widest bg-white/[0.02]; }
+        .blog-content td { @apply p-4 border-b border-white/5 text-white/50 font-medium; }
       `}</style>
     </div>
   );

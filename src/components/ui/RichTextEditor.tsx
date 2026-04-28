@@ -165,13 +165,13 @@ function ImageDialog({ onConfirm, onClose }: {
       >
         <p style={{ fontSize: 15, fontWeight: 800, margin: "0 0 16px", color: "#111" }}>Inserir Imagem</p>
 
-        <div style={{ display: "flex", gap: 0, borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden", marginBottom: 14 }}>
-          {(["url","file"] as const).map(t => (
+        <div style={{ display: "flex", gap: 0, borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden", marginBottom: 16, background: "#f8fafc" }}>
+          {(["file", "url"] as const).map(t => (
             <button key={t} type="button" onClick={() => setTab(t)}
-              style={{ flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer",
-                background: tab === t ? "#f59e0b" : "#fff", color: tab === t ? "#fff" : "#6b7280", transition: "all 0.15s" }}
+              style={{ flex: 1, padding: "10px 0", fontSize: 11, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em", border: "none", cursor: "pointer",
+                background: tab === t ? "#f59e0b" : "transparent", color: tab === t ? "#fff" : "#64748b", transition: "all 0.2s" }}
             >
-              {t === "url" ? "🔗 URL" : "📁 Do dispositivo"}
+              {t === "url" ? "🔗 Link Externo" : "📁 Do Dispositivo"}
             </button>
           ))}
         </div>
@@ -185,12 +185,15 @@ function ImageDialog({ onConfirm, onClose }: {
               <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                style={{ padding: "14px 0", border: "2px dashed #e5e7eb", borderRadius: 10, background: "#fafafa",
-                  cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#6b7280" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#f59e0b"; (e.currentTarget as HTMLElement).style.color = "#f59e0b"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLElement).style.color = "#6b7280"; }}
+                style={{ padding: "30px 0", border: "2px dashed #e2e8f0", borderRadius: 16, background: "#f8fafc",
+                  cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#64748b", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#f59e0b"; (e.currentTarget as HTMLElement).style.background = "#fffbeb"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#e2e8f0"; (e.currentTarget as HTMLElement).style.background = "#f8fafc"; }}
               >
-                {uploading ? "Carregando..." : "Clique para escolher imagem"}
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+                   <span style={{ fontSize: 20 }}>📤</span>
+                </div>
+                {uploading ? "Carregando..." : "Selecionar foto do computador"}
               </button>
             </>
           )}

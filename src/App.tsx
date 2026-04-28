@@ -21,6 +21,7 @@ import CasePostPage from './pages/CasePostPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import { motion, useScroll, useSpring } from 'framer-motion';
+import Preloader from './components/ui/Preloader';
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -73,7 +74,7 @@ function AnimatedRoutes() {
 function AppContent() {
   console.log("AppContent component rendering");
   const location = useLocation();
-  const isDashboard = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/blog') || location.pathname.startsWith('/cases');
+  const hideGlobalLayout = location.pathname.startsWith('/dashboard') || location.pathname === '/login';
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -86,11 +87,12 @@ function AppContent() {
 
   return (
     <div className={`relative min-h-screen selection:bg-indigo-500/30 selection:text-white overflow-x-hidden ${isDark ? 'dark' : ''}`}>
+      <Preloader />
       {/* Background Layer */}
       <div className="fixed inset-0 dash-bg -z-30" />
       
       {/* Decorative Background Elements */}
-      {!isDashboard && (
+      {!hideGlobalLayout && (
         <div className="fixed inset-0 pointer-events-none -z-20">
           <div className="absolute top-0 left-0 w-full h-full dash-bg opacity-50" />
           <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
@@ -98,20 +100,20 @@ function AppContent() {
       )}
 
       {/* Progress Bar */}
-      {!isDashboard && (
+      {!hideGlobalLayout && (
         <motion.div
           className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink z-[60] origin-left"
           style={{ scaleX }}
         />
       )}
 
-      {!isDashboard && <Navbar />}
+      {!hideGlobalLayout && <Navbar />}
       
       <main className="relative z-10">
         <AnimatedRoutes />
       </main>
 
-      {!isDashboard && <Footer />}
+      {!hideGlobalLayout && <Footer />}
     </div>
   );
 }

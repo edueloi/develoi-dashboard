@@ -40,122 +40,95 @@ function parseTags(tags?: string): string[] {
   try { return JSON.parse(tags); } catch { return []; }
 }
 
-// ─── Navbar ───────────────────────────────────────────────────────────────────
-
-function Navbar() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll);
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#030303]/95 backdrop-blur-xl border-b border-white/5 shadow-2xl' : 'bg-transparent'}`}>
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-black text-sm">D</span>
-          </div>
-          <span className="font-black text-white text-lg tracking-tight">DEVELOI</span>
-        </Link>
-        <div className="flex items-center gap-6">
-          <Link to="/" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Home</Link>
-          <Link to="/blog" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Blog</Link>
-          <Link to="/cases" className="text-white text-sm font-bold border-b-2 border-indigo-500 pb-0.5">Cases</Link>
-          <Link to="/sobre" className="text-white/60 hover:text-white text-sm font-medium transition-colors">Sobre</Link>
-        </div>
-      </div>
-    </nav>
-  );
-}
-
 // ─── Case Card ─────────────────────────────────────────────────────────────────
 
 function CaseCard({ c, index }: { c: Case; index: number }) {
   const tags = parseTags(c.tags);
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.07 }}
+      transition={{ duration: 0.6, delay: index * 0.1 }}
     >
       <Link to={`/cases/${c.slug}`} className="group block h-full">
-        <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/8 hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1 h-full flex flex-col">
+        <div className="dash-surface border dash-border rounded-[2.5rem] overflow-hidden hover:border-indigo-500/40 transition-all duration-500 hover:shadow-3xl hover:shadow-indigo-500/10 hover:-translate-y-2 h-full flex flex-col">
           {/* Cover */}
-          <div className="relative overflow-hidden h-52">
+          <div className="relative overflow-hidden h-64">
             {c.coverImage ? (
               <img
                 src={c.coverImage}
                 alt={c.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
               />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-indigo-900/50 to-violet-900/50 flex items-center justify-center">
-                <Star className="w-12 h-12 text-indigo-500/30" />
+                <Star className="w-16 h-16 text-indigo-500/20" />
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-transparent opacity-80" />
 
             {/* Featured badge */}
             {c.featured && (
-              <div className="absolute top-3 left-3 flex items-center gap-1 bg-amber-500 text-black px-2.5 py-1 rounded-lg text-[10px] font-black">
-                <Star className="w-2.5 h-2.5" /> DESTAQUE
+              <div className="absolute top-5 left-5 flex items-center gap-1.5 bg-amber-500 text-black px-3 py-1.5 rounded-xl text-[10px] font-black shadow-xl">
+                <Star className="w-3 h-3" /> DESTAQUE
               </div>
             )}
 
             {/* Category */}
             {c.category && (
               <div
-                className="absolute top-3 right-3 px-2.5 py-1 rounded-lg text-[10px] font-black text-white"
-                style={{ background: c.category.color + 'cc' }}
+                className="absolute top-5 right-5 px-3 py-1.5 rounded-xl text-[10px] font-black text-white shadow-xl backdrop-blur-md"
+                style={{ background: c.category.color + 'aa' }}
               >
                 {c.category.name}
               </div>
             )}
 
             {/* Stats overlay */}
-            <div className="absolute bottom-3 left-3 flex items-center gap-3">
-              <span className="flex items-center gap-1 text-[10px] text-white/80 font-bold">
-                <Eye className="w-3 h-3" /> {c.views}
-              </span>
-              <span className="flex items-center gap-1 text-[10px] text-white/80 font-bold">
-                <Heart className="w-3 h-3" /> {c.likes}
-              </span>
-              <span className="flex items-center gap-1 text-[10px] text-white/80 font-bold">
-                <Clock className="w-3 h-3" /> {c.readTimeMinutes} min
+            <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1.5 text-[10px] text-white/70 font-black uppercase tracking-widest">
+                  <Eye className="w-3.5 h-3.5 text-indigo-500" /> {c.views}
+                </span>
+                <span className="flex items-center gap-1.5 text-[10px] text-white/70 font-black uppercase tracking-widest">
+                  <Heart className="w-3.5 h-3.5 text-rose-500" /> {c.likes}
+                </span>
+              </div>
+              <span className="flex items-center gap-1.5 text-[10px] text-white/70 font-black uppercase tracking-widest">
+                <Clock className="w-3.5 h-3.5 text-amber-500" /> {c.readTimeMinutes} MIN
               </span>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-5 flex flex-col flex-1">
-            <p className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-2">{c.client}</p>
-            <h3 className="text-white font-bold text-base leading-snug mb-3 group-hover:text-indigo-300 transition-colors line-clamp-2">
+          <div className="p-8 flex flex-col flex-1">
+            <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.3em] mb-4">{c.client}</p>
+            <h3 className="text-white font-black text-2xl leading-tight mb-4 group-hover:text-indigo-400 transition-colors line-clamp-2 tracking-tight">
               {c.title}
             </h3>
             {c.excerpt && (
-              <p className="text-white/50 text-sm leading-relaxed mb-4 line-clamp-2 flex-1">{c.excerpt}</p>
+              <p className="text-white/40 text-sm leading-relaxed mb-6 line-clamp-3 flex-1 font-medium">{c.excerpt}</p>
             )}
 
             {/* Tags */}
             {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-4">
+              <div className="flex flex-wrap gap-2 mb-8">
                 {tags.slice(0, 3).map((tag, i) => (
-                  <span key={i} className="text-[9px] font-bold px-2 py-0.5 bg-white/5 text-white/40 rounded-md uppercase border border-white/10">
+                  <span key={i} className="text-[9px] font-black px-3 py-1 bg-white/[0.03] text-white/30 rounded-lg uppercase border border-white/5 tracking-widest">
                     {tag}
                   </span>
                 ))}
               </div>
             )}
 
-            <div className="flex items-center justify-between mt-auto">
+            <div className="flex items-center justify-between mt-auto pt-6 border-t border-white/5">
               {c.publishedAt && (
-                <span className="text-[10px] text-white/30">
-                  {format(new Date(c.publishedAt), "d 'de' MMM, yyyy", { locale: ptBR })}
+                <span className="text-[10px] text-white/20 font-black uppercase tracking-widest">
+                  {format(new Date(c.publishedAt), "d MMM yyyy", { locale: ptBR })}
                 </span>
               )}
-              <span className="flex items-center gap-1 text-indigo-400 text-xs font-bold group-hover:gap-2 transition-all ml-auto">
-                Leia Mais <ArrowRight className="w-3.5 h-3.5" />
+              <span className="flex items-center gap-2 text-indigo-500 text-xs font-black uppercase tracking-widest group-hover:gap-3 transition-all">
+                DETALHES <ArrowRight className="w-4 h-4" />
               </span>
             </div>
           </div>
@@ -170,55 +143,61 @@ function CaseCard({ c, index }: { c: Case; index: number }) {
 function FeaturedCase({ c }: { c: Case }) {
   return (
     <Link to={`/cases/${c.slug}`} className="group block">
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 hover:border-indigo-500/40 transition-all duration-300">
-        <div className="grid grid-cols-1 md:grid-cols-2 min-h-[400px]">
+      <div className="relative overflow-hidden rounded-[3.5rem] dash-surface border dash-border hover:border-indigo-500/40 transition-all duration-700 shadow-3xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[500px]">
           {/* Image */}
-          <div className="relative overflow-hidden">
+          <div className="relative overflow-hidden min-h-[350px] lg:min-h-full">
             {c.coverImage ? (
               <img
                 src={c.coverImage}
                 alt={c.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 min-h-[280px] md:min-h-full"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-indigo-900 to-violet-900 flex items-center justify-center min-h-[280px]">
-                <Star className="w-20 h-20 text-indigo-500/20" />
+              <div className="w-full h-full bg-gradient-to-br from-indigo-900 to-violet-900 flex items-center justify-center">
+                <Star className="w-24 h-24 text-indigo-500/10" />
               </div>
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#030303]/50 hidden md:block" />
-            <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-amber-500 text-black px-3 py-1.5 rounded-xl text-[10px] font-black">
-              <Star className="w-3 h-3" /> CASE EM DESTAQUE
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#030303]/40 hidden lg:block" />
+            <div className="absolute top-8 left-8 flex items-center gap-2 bg-amber-500 text-black px-4 py-2 rounded-2xl text-[10px] font-black shadow-2xl">
+              <Star className="w-4 h-4" /> CASE EM DESTAQUE
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-8 md:p-12 flex flex-col justify-center">
-            <div className="space-y-4">
+          <div className="p-10 lg:p-20 flex flex-col justify-center relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/[0.03] to-transparent pointer-events-none" />
+            
+            <div className="relative z-10 space-y-8">
               {c.category && (
                 <span
-                  className="inline-block px-3 py-1 rounded-xl text-[10px] font-black text-white"
-                  style={{ background: c.category.color + '40', border: `1px solid ${c.category.color}40`, color: c.category.color }}
+                  className="inline-block px-4 py-2 rounded-2xl text-[10px] font-black text-white shadow-xl"
+                  style={{ background: c.category.color + '20', border: `1px solid ${c.category.color}40`, color: c.category.color }}
                 >
                   {c.category.name}
                 </span>
               )}
-              <p className="text-indigo-400 text-xs font-black uppercase tracking-widest">{c.client}</p>
-              <h2 className="text-2xl md:text-3xl font-black text-white leading-tight group-hover:text-indigo-300 transition-colors">
-                {c.title}
-              </h2>
-              {c.excerpt && (
-                <p className="text-white/50 leading-relaxed text-sm">{c.excerpt}</p>
-              )}
-
-              <div className="flex items-center gap-4 text-xs text-white/40">
-                <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" /> {c.views} views</span>
-                <span className="flex items-center gap-1"><Heart className="w-3.5 h-3.5" /> {c.likes} curtidas</span>
-                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {c.readTimeMinutes} min</span>
+              
+              <div>
+                <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.4em] mb-4">{c.client}</p>
+                <h2 className="text-4xl lg:text-6xl font-black text-white leading-[0.95] tracking-tighter group-hover:text-indigo-400 transition-colors">
+                  {c.title}
+                </h2>
               </div>
 
-              <div className="pt-2">
-                <span className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl text-sm transition-colors group-hover:gap-3">
-                  Ver Case Completo <ArrowRight className="w-4 h-4" />
+              {c.excerpt && (
+                <p className="text-white/50 leading-relaxed text-lg lg:text-xl font-medium max-w-xl">{c.excerpt}</p>
+              )}
+
+              <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+                <span className="flex items-center gap-2"><Eye className="w-4 h-4 text-indigo-500" /> {c.views} VIEWS</span>
+                <span className="flex items-center gap-2"><Heart className="w-4 h-4 text-rose-500" /> {c.likes} CURTIDAS</span>
+                <span className="flex items-center gap-2"><Clock className="w-4 h-4 text-amber-500" /> {c.readTimeMinutes} MIN</span>
+              </div>
+
+              <div className="pt-4">
+                <span className="inline-flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-10 py-5 rounded-2xl text-sm transition-all shadow-2xl shadow-indigo-500/30 group-hover:gap-5 group-hover:translate-x-2 uppercase tracking-widest">
+                  Ver Case Completo <ArrowRight className="w-5 h-5" />
                 </span>
               </div>
             </div>
@@ -280,46 +259,77 @@ export default function CasesPage() {
   const topFeatured = featured[0];
 
   return (
-    <div className="min-h-screen bg-[#030303] text-white">
-      <Navbar />
+    <div className="relative min-h-screen dash-bg text-white selection:bg-indigo-500/30 overflow-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="absolute top-[10%] left-[-5%] w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse-slow" />
+        <div className="absolute bottom-[20%] right-[-5%] w-[600px] h-[600px] bg-purple-500/10 blur-[150px] rounded-full animate-float-slow" />
+        <div className="absolute inset-0 noise-overlay opacity-[0.08]" />
+      </div>
 
-      {/* Hero */}
-      <section className="pt-32 pb-16 px-6">
-        <div className="max-w-7xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-2 text-indigo-400 text-xs font-bold mb-6">
-              <Star className="w-3.5 h-3.5" /> CASES DE SUCESSO
-            </div>
-            <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
-              Resultados que{' '}
-              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
-                transformam negócios
-              </span>
-            </h1>
-            <p className="text-white/50 text-lg max-w-2xl mx-auto leading-relaxed">
-              Conheça as histórias de sucesso dos nossos clientes e os impactos reais que entregamos com tecnologia e estratégia.
-            </p>
+      {/* Hero Header */}
+      <section className="pt-40 pb-20 px-6">
+        <div className="max-w-7xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full dash-surface-2 border dash-border mb-10 shadow-2xl"
+          >
+            <Star className="w-4 h-4 text-amber-500" />
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500">Hall da Fama Develoi</span>
           </motion.div>
 
-          {/* Search */}
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="flex justify-center mb-8">
-            <div className="relative w-full max-w-lg">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-6xl md:text-8xl font-black mb-10 leading-[0.9] tracking-tighter dash-text"
+          >
+            RESULTADOS QUE <span className="text-gradient-animated">TRANSFORMAM.</span>
+          </motion.h1>
+
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl md:text-3xl dash-text-2 leading-relaxed max-w-3xl mx-auto font-medium opacity-80"
+          >
+            Conheça as histórias de sucesso dos nossos clientes e os impactos reais que entregamos com tecnologia de elite.
+          </motion.p>
+        </div>
+      </section>
+
+      {/* Search & Filters */}
+      <section className="px-6 mb-24">
+        <div className="max-w-4xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="relative mb-12"
+          >
+            <div className="absolute inset-0 bg-indigo-500/10 blur-2xl opacity-50" />
+            <div className="relative flex items-center bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-2 shadow-3xl">
+              <Search className="ml-6 w-5 h-5 text-indigo-500" />
               <input
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                placeholder="Buscar cases por título, cliente..."
-                className="w-full pl-11 pr-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 text-sm focus:outline-none focus:border-indigo-500/50 focus:bg-white/8 transition-all"
+                placeholder="Buscar por projeto, cliente ou tecnologia..."
+                className="flex-1 px-4 py-5 bg-transparent border-none text-white placeholder-white/20 text-lg font-medium focus:ring-0"
               />
             </div>
           </motion.div>
 
-          {/* Category Filters */}
+          {/* Categories */}
           {categories.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="flex flex-wrap justify-center gap-2 mb-12">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-wrap justify-center gap-3"
+            >
               <button
                 onClick={() => { setCategoryFilter(''); setPage(1); }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${!categoryFilter ? 'bg-indigo-600 text-white' : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white border border-white/10'}`}
+                className={`px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${!categoryFilter ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20' : 'dash-surface-2 border dash-border text-white/50 hover:dash-text'}`}
               >
                 Todos
               </button>
@@ -327,15 +337,15 @@ export default function CasesPage() {
                 <button
                   key={cat.id}
                   onClick={() => { setCategoryFilter(cat.slug); setPage(1); }}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                  className={`px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${
                     categoryFilter === cat.slug
                       ? 'text-white'
-                      : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white border-white/10'
+                      : 'dash-surface-2 border dash-border text-white/50 hover:dash-text'
                   }`}
-                  style={categoryFilter === cat.slug ? { background: cat.color, borderColor: cat.color } : {}}
+                  style={categoryFilter === cat.slug ? { background: cat.color, borderColor: cat.color, boxShadow: `0 10px 20px -5px ${cat.color}40` } : {}}
                 >
                   {cat.name}
-                  {cat._count && <span className="ml-1.5 opacity-60">({cat._count.cases})</span>}
+                  {cat._count && <span className="ml-2 opacity-50">[{cat._count.cases}]</span>}
                 </button>
               ))}
             </motion.div>
@@ -345,7 +355,7 @@ export default function CasesPage() {
 
       {/* Featured Case */}
       {topFeatured && !categoryFilter && !search && page === 1 && (
-        <section className="px-6 pb-12">
+        <section className="px-6 pb-24">
           <div className="max-w-7xl mx-auto">
             <FeaturedCase c={topFeatured} />
           </div>
@@ -353,30 +363,31 @@ export default function CasesPage() {
       )}
 
       {/* Cases Grid */}
-      <section className="px-6 pb-20">
+      <section className="px-6 pb-40">
         <div className="max-w-7xl mx-auto">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl h-80 animate-pulse" />
+                <div key={i} className="dash-surface border dash-border rounded-[3rem] h-[500px] animate-pulse" />
               ))}
             </div>
           ) : cases.length === 0 ? (
-            <div className="text-center py-20">
-              <Star className="w-12 h-12 text-white/10 mx-auto mb-4" />
-              <p className="text-white/40 text-lg font-medium">Nenhum case encontrado.</p>
-              {(search || categoryFilter) && (
-                <button
-                  onClick={() => { setSearchInput(''); setCategoryFilter(''); }}
-                  className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm font-bold transition-colors"
-                >
-                  Limpar filtros
-                </button>
-              )}
+            <div className="text-center py-40">
+              <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-8">
+                <Filter className="w-10 h-10 text-white/10" />
+              </div>
+              <h3 className="text-3xl font-black mb-4 dash-text">Nenhum case encontrado.</h3>
+              <p className="text-lg dash-text-2 mb-10 opacity-60">Tente ajustar seus filtros ou buscar por outros termos.</p>
+              <button
+                onClick={() => { setSearchInput(''); setCategoryFilter(''); }}
+                className="px-8 py-4 bg-indigo-600/10 text-indigo-500 border border-indigo-500/20 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all"
+              >
+                Limpar Filtros
+              </button>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                 {cases.map((c, i) => (
                   <CaseCard key={c.id} c={c} index={i} />
                 ))}
@@ -384,24 +395,30 @@ export default function CasesPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-3 mt-14">
-                  <button
+                <div className="flex justify-center items-center gap-6 mt-24">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white/60 disabled:opacity-30 hover:bg-white/10 hover:text-white transition-all"
+                    className="px-8 py-4 dash-surface-2 border dash-border rounded-2xl text-sm font-black uppercase tracking-widest text-white/60 disabled:opacity-20 hover:dash-text hover:border-indigo-500/40 transition-all"
                   >
                     Anterior
-                  </button>
-                  <span className="text-white/40 text-sm">
-                    Página {page} de {totalPages}
-                  </span>
-                  <button
+                  </motion.button>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Página</span>
+                    <span className="text-lg font-black text-indigo-500">{page}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-40">de {totalPages}</span>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page >= totalPages}
-                    className="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white/60 disabled:opacity-30 hover:bg-white/10 hover:text-white transition-all"
+                    className="px-8 py-4 dash-surface-2 border dash-border rounded-2xl text-sm font-black uppercase tracking-widest text-white/60 disabled:opacity-20 hover:dash-text hover:border-indigo-500/40 transition-all"
                   >
                     Próxima
-                  </button>
+                  </motion.button>
                 </div>
               )}
             </>
@@ -410,20 +427,33 @@ export default function CasesPage() {
       </section>
 
       {/* Footer CTA */}
-      <section className="px-6 pb-20">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="bg-gradient-to-br from-indigo-900/40 to-violet-900/40 border border-indigo-500/20 rounded-3xl p-10">
-            <h2 className="text-2xl font-black text-white mb-3">Quer ser o próximo case de sucesso?</h2>
-            <p className="text-white/50 mb-6 text-sm leading-relaxed">
-              Transforme seu negócio com tecnologia e estratégia. Vamos criar algo extraordinário juntos.
-            </p>
-            <a
-              href="/#contato"
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-8 py-3.5 rounded-xl transition-colors"
-            >
-              Falar com a Develoi <ArrowRight className="w-4 h-4" />
-            </a>
-          </div>
+      <section className="px-6 pb-40">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="relative group"
+          >
+            <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-[5rem] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+            <div className="relative dash-surface-2 border dash-border p-12 sm:p-24 rounded-[4rem] text-center overflow-hidden shadow-3xl">
+              <div className="absolute inset-0 noise-overlay opacity-[0.05]" />
+              <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter dash-text leading-[0.95]">
+                QUER SER O PRÓXIMO <span className="text-gradient">CASE</span> DE SUCESSO?
+              </h2>
+              <p className="text-xl md:text-2xl dash-text-2 mb-12 max-w-2xl mx-auto font-medium opacity-70 leading-relaxed">
+                Transforme sua visão em um ecossistema digital de elite. Vamos criar o futuro do seu negócio hoje.
+              </p>
+              <motion.a
+                whileHover={{ scale: 1.05, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                href="/#contato"
+                className="inline-flex items-center gap-3 px-12 py-6 bg-indigo-600 text-white font-black rounded-2xl text-lg shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 transition-all uppercase tracking-widest"
+              >
+                INICIAR PROJETO <ArrowRight className="w-5 h-5" />
+              </motion.a>
+            </div>
+          </motion.div>
         </div>
       </section>
     </div>

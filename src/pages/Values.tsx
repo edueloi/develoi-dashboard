@@ -40,11 +40,12 @@ const fallbackPillars = [
     description:
       "Excelência absoluta, transparência total, inovação constante e compromisso inabalável com o sucesso do cliente.",
     icon: Heart,
-    color: "from-aurora-pink to-aurora-green",
+    color: "from-aurora-pink to-aurora-blue",
   },
 ];
 
 export default function Values() {
+  
   const [siteData, setSiteData] = useState<SiteValues | null>(null);
 
   useEffect(() => {
@@ -71,47 +72,51 @@ export default function Values() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="pt-28 pb-20 overflow-x-hidden"
+      className="relative min-h-screen pt-32 pb-24 overflow-hidden"
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="absolute top-[10%] right-[-5%] w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse-slow" />
+        <div className="absolute bottom-[20%] left-[-5%] w-[600px] h-[600px] bg-purple-500/10 blur-[150px] rounded-full animate-float-slow" />
+        <div className="absolute inset-0 noise-overlay opacity-[0.08]" />
+      </div>
 
-        {/* ── Hero ─────────────────────────────────────────────── */}
-        <div className="max-w-4xl mx-auto text-center mb-20 sm:mb-28 px-2">
+      <div className="container mx-auto px-6 relative z-10">
+        {/* Hero */}
+        <div className="max-w-4xl mx-auto text-center mb-40">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full border dash-border dash-surface dash-text-2 text-xs font-black uppercase tracking-widest mb-8 shadow-sm"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-full dash-surface-2 border dash-border mb-10 shadow-xl"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-            DNA Develoi
+            <Sparkles className="w-4 h-4 text-indigo-500" />
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500">DNA Develoi</span>
           </motion.div>
 
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-6xl md:text-7xl font-black mb-6 tracking-tighter leading-[1.05] dash-text"
+            className="text-6xl md:text-8xl font-black mb-10 leading-[0.9] tracking-tighter dash-text"
           >
-            IDEALIZAÇÕES,{" "}
-            <span className="text-gradient">METAS</span>{" "}
-            &amp; VALORES
+            IDEALIZAÇÕES, <span className="text-gradient-animated">METAS</span> & VALORES.
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-base sm:text-xl dash-text-2 leading-relaxed max-w-2xl mx-auto"
+            className="text-xl md:text-3xl dash-text-2 leading-relaxed max-w-2xl mx-auto font-medium opacity-80"
           >
-            A bússola que guia cada decisão na Develoi. Nossa essência é baseada em propósito e excelência.
+            A bússola que guia cada decisão estratégica. Nossa essência é forjada na excelência e no propósito inabalável.
           </motion.p>
         </div>
 
-        {/* ── Pillars ───────────────────────────────────────────── */}
+        {/* Pillars */}
         <div
           className={`grid grid-cols-1 sm:grid-cols-2 ${
-            pillarCards.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2 max-w-4xl mx-auto"
-          } gap-5 sm:gap-8 mb-20 sm:mb-28`}
+            pillarCards.length >= 3 ? "lg:grid-cols-3" : "lg:grid-cols-2 max-w-5xl mx-auto"
+          } gap-10 mb-40`}
         >
           {pillarCards.map((card, i) => (
             <motion.div
@@ -120,164 +125,130 @@ export default function Values() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group relative p-8 sm:p-10 rounded-[2rem] dash-surface border dash-border overflow-hidden text-center shadow-sm hover:shadow-xl transition-all"
+              className="group relative p-10 sm:p-12 rounded-[3.5rem] dash-surface border dash-border overflow-hidden text-center shadow-2xl hover:shadow-indigo-500/10 transition-all duration-700"
             >
-              <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${card.color} opacity-20 group-hover:opacity-100 transition-opacity duration-500`} />
+              <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${card.color} opacity-20 group-hover:opacity-100 transition-opacity duration-500`} />
 
               <div className="relative z-10">
-                <div className={`w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-br ${card.color} flex items-center justify-center mb-7 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
-                  <card.icon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                <div className={`w-20 h-20 sm:w-24 sm:h-24 mx-auto rounded-[2rem] bg-gradient-to-br ${card.color} flex items-center justify-center mb-8 shadow-2xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-500`}>
+                  <card.icon className="w-10 h-10 sm:w-12 sm:h-12 text-white" />
                 </div>
-                <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] dash-text-2 mb-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] dash-text opacity-40 mb-4">
                   {card.subtitle}
                 </p>
-                <h3 className="text-2xl sm:text-3xl font-black mb-4 tracking-tighter leading-tight dash-text">
+                <h3 className="text-3xl sm:text-4xl font-black mb-6 tracking-tighter leading-tight dash-text">
                   {card.title}
                 </h3>
-                <p className="dash-text-2 leading-relaxed text-sm sm:text-base">
+                <p className="dash-text-2 leading-relaxed text-lg font-medium opacity-70">
                   {card.description}
                 </p>
               </div>
 
-              <div className={`absolute -bottom-24 -right-24 w-48 h-48 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 blur-[60px] transition-opacity duration-700`} />
+              <div className={`absolute -bottom-24 -right-24 w-64 h-64 bg-gradient-to-br ${card.color} opacity-0 group-hover:opacity-10 blur-[80px] transition-opacity duration-700`} />
             </motion.div>
           ))}
         </div>
 
-        {/* ── Principles (values from DB) ───────────────────────── */}
+        {/* Principles */}
         {principles.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="mb-20 sm:mb-28"
+            className="mb-40"
           >
-            {/* Section Header */}
-            <div className="text-center mb-12 sm:mb-16 px-2">
-              <motion.p
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                className="text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] dash-text-2 mb-4"
-              >
-                O que nos move
-              </motion.p>
-              <motion.h2
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.05 }}
-                className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tighter mb-4 dash-text"
-              >
-                Nossos <span className="text-gradient">Princípios</span>
-              </motion.h2>
-              <motion.p
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                className="text-sm sm:text-base dash-text-2 max-w-xl mx-auto leading-relaxed"
-              >
-                Cada linha de código que escrevemos carrega o peso destes princípios. Eles não são regras — são quem somos.
-              </motion.p>
+            <div className="text-center mb-24">
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6 block">O que nos move</span>
+              <h2 className="text-4xl md:text-7xl font-black tracking-tighter mb-8 dash-text">
+                Nossos <span className="text-gradient">Princípios.</span>
+              </h2>
+              <p className="text-lg md:text-xl dash-text-2 max-w-2xl mx-auto leading-relaxed font-medium opacity-70">
+                Cada linha de código que escrevemos carrega o DNA destes princípios fundamentais.
+              </p>
             </div>
 
-            {/* Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {principles.map((v, i) => {
                 const IconComp = principleIcons[i % principleIcons.length];
                 const grad = gradients[i % gradients.length];
                 return (
                   <motion.div
                     key={i}
-                    initial={{ opacity: 0, y: 20, scale: 0.97 }}
-                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    transition={{ delay: i * 0.06, duration: 0.4, ease: "easeOut" }}
-                    whileHover={{ y: -4 }}
-                    className="group relative p-6 sm:p-7 rounded-[1.75rem] dash-surface border dash-border overflow-hidden cursor-default shadow-sm hover:shadow-xl transition-all"
+                    transition={{ delay: i * 0.05 }}
+                    className="group relative p-8 rounded-[2.5rem] dash-surface border dash-border overflow-hidden shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500"
                   >
-                    {/* Top gradient line */}
-                    <div className={`absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r ${grad} opacity-25 group-hover:opacity-100 transition-all duration-500`} />
-
-                    {/* Corner glow */}
-                    <div className={`absolute -top-10 -right-10 w-28 h-28 bg-gradient-to-br ${grad} opacity-0 group-hover:opacity-10 blur-2xl transition-opacity duration-700 rounded-full`} />
-
+                    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${grad} opacity-20 group-hover:opacity-100 transition-all`} />
+                    
                     <div className="relative z-10">
-                      {/* Icon */}
-                      <div className={`w-11 h-11 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center mb-5 shadow-md group-hover:scale-110 group-hover:shadow-lg transition-all duration-300`}>
-                        <IconComp className="w-5 h-5 text-white" />
+                      <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 transition-transform`}>
+                        <IconComp className="w-6 h-6 text-white" />
                       </div>
 
-                      {/* Number tag */}
-                      <span className="text-[10px] font-black uppercase tracking-[0.25em] text-neutral-600 mb-2 block">
-                        {String(i + 1).padStart(2, '0')}
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-neutral-500 mb-3 block">
+                        Princípio {String(i + 1).padStart(2, '0')}
                       </span>
 
-                      {/* Title */}
-                      <h4 className="text-lg sm:text-xl font-black tracking-tight dash-text mb-2 leading-tight group-hover:text-gradient transition-colors duration-300">
+                      <h4 className="text-2xl font-black tracking-tight dash-text mb-3 leading-tight">
                         {v.title}
                       </h4>
 
-                      {/* Description or impact phrase */}
-                      {v.description ? (
-                        <p className="text-xs sm:text-sm dash-text-2 leading-relaxed group-hover:dash-text transition-colors duration-300">
-                          {v.description}
-                        </p>
-                      ) : (
-                        <p className="text-xs sm:text-sm dash-text-2 opacity-50 leading-relaxed italic group-hover:opacity-100 transition-colors duration-300">
-                          Um dos pilares que definem nossa cultura e forma de trabalhar.
-                        </p>
-                      )}
+                      <p className="text-sm dash-text-2 leading-relaxed font-medium opacity-60">
+                        {v.description || "Um dos pilares que definem nossa cultura e busca incessante pela perfeição técnica."}
+                      </p>
                     </div>
                   </motion.div>
                 );
               })}
             </div>
 
-            {/* Impact quote */}
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="mt-12 sm:mt-16 text-center"
+              className="mt-32 text-center"
             >
-              <p className="text-lg sm:text-2xl md:text-3xl font-black tracking-tight dash-text max-w-3xl mx-auto leading-snug">
-                "Não entregamos apenas software.{" "}
-                <span className="text-gradient-animated">
-                  Entregamos propósito com precisão.
-                </span>
-                "
+              <p className="text-2xl md:text-5xl font-black tracking-tighter dash-text max-w-4xl mx-auto leading-tight">
+                "Não entregamos apenas software. Entregamos <span className="text-gradient-animated">propósito com precisão cirúrgica.</span>"
               </p>
-              <p className="text-xs text-neutral-600 mt-4 font-bold uppercase tracking-widest">
-                — Equipe Develoi
-              </p>
+              <div className="mt-8 flex items-center justify-center gap-3">
+                <div className="h-px w-12 bg-indigo-500/20" />
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-indigo-500 opacity-60">
+                  EQUIPE DEVELOI
+                </p>
+                <div className="h-px w-12 bg-indigo-500/20" />
+              </div>
             </motion.div>
           </motion.section>
         )}
 
-        {/* ── CTA ──────────────────────────────────────────────── */}
+        {/* CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 50 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-5xl mx-auto glass p-10 sm:p-16 md:p-24 rounded-[2.5rem] sm:rounded-[4rem] border-white/5 text-center relative overflow-hidden"
+          className="relative group max-w-6xl mx-auto"
         >
-          <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-aurora-blue to-transparent opacity-50" />
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-72 h-72 bg-aurora-blue/10 rounded-full blur-[80px] pointer-events-none" />
-
-          <h2 className="text-3xl sm:text-4xl md:text-6xl font-black mb-5 sm:mb-8 tracking-tighter relative z-10 dash-text">
-            Pronto para <span className="text-gradient">Elevar</span> seu Negócio?
-          </h2>
-          <p className="text-base sm:text-xl dash-text-2 mb-8 sm:mb-12 max-w-2xl mx-auto relative z-10">
-            Nossas metas são ambiciosas porque acreditamos no potencial ilimitado de cada projeto que abraçamos.
-          </p>
-          <button className="relative z-10 px-8 sm:px-12 py-4 sm:py-6 bg-indigo-600 text-white font-black rounded-2xl text-base sm:text-lg hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-indigo-500/20">
-            FALAR COM UM ESPECIALISTA
-          </button>
+          <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-[5rem] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+          <div className="relative dash-surface-2 border dash-border p-12 sm:p-24 rounded-[4rem] text-center overflow-hidden shadow-3xl">
+            <div className="absolute inset-0 noise-overlay opacity-[0.05]" />
+            <h2 className="text-4xl md:text-7xl font-black mb-8 tracking-tighter dash-text leading-[0.95]">
+              PRONTO PARA <span className="text-gradient">ELEVAR</span><br />SEU NEGÓCIO?
+            </h2>
+            <p className="text-xl md:text-2xl dash-text-2 mb-12 max-w-2xl mx-auto font-medium opacity-70 leading-relaxed">
+              Nossas metas são ambiciosas porque acreditamos no potencial ilimitado de cada projeto que abraçamos.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
+              className="px-12 py-6 bg-indigo-600 text-white font-black rounded-2xl text-lg shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 transition-all uppercase tracking-widest"
+            >
+              INICIAR JORNADA
+            </motion.button>
+          </div>
         </motion.div>
-
       </div>
     </motion.div>
   );
