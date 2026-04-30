@@ -100,4 +100,5 @@ export type ActiveTab =
   | 'team'
   | 'site-values'
   | 'blog'
-  | 'cases';
+  | 'cases'
+  | 'bot';

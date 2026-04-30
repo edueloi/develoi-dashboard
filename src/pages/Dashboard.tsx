@@ -53,6 +53,7 @@ import { BlogManager } from '../components/dashboard/BlogManager';
 import { CasesManager } from '../components/dashboard/CasesManager';
 import { AgileManager } from '../components/dashboard/AgileManager';
 import { TimelineView } from '../components/dashboard/TimelineView';
+import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 
 // Types
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
@@ -84,6 +85,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   'site-values': '/dashboard/valores',
   blog:          '/dashboard/blog',
   cases:         '/dashboard/cases',
+  bot:           '/dashboard/bot',
 };
 
 const PATH_TO_TAB: Record<string, ActiveTab> = Object.fromEntries(
@@ -162,9 +164,10 @@ export default function Dashboard() {
     'site-values': 'Missão & Valores',
     blog: 'Blog da Develoi',
     cases: 'Cases de Sucesso',
+    bot: 'Bot de Atendimento',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot'];
 
   return (
     <div className={`min-h-screen flex dash-bg font-sans ${isDark ? 'dark' : ''}`}>
@@ -235,6 +238,11 @@ export default function Dashboard() {
             <NavItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => goTo('site-values')} />
             <NavItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => goTo('blog')} />
             <NavItem icon={Star} label="Cases de Sucesso" active={activeTab === 'cases'} onClick={() => goTo('cases')} />
+          </NavSection>
+
+          {/* Sistema */}
+          <NavSection label="Sistema">
+            <NavItem icon={MessageSquare} label="Bot de Atendimento" active={activeTab === 'bot'} onClick={() => goTo('bot')} />
           </NavSection>
         </nav>
 
@@ -445,6 +453,7 @@ export default function Dashboard() {
               {activeTab === 'site-values' && <SiteValuesManager />}
               {activeTab === 'blog' && <BlogManager />}
               {activeTab === 'cases' && <CasesManager />}
+              {activeTab === 'bot' && <BotConfigTab />}
             </AnimatePresence>
           </div>
         </main>

@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import { blogController } from "./src/backend/blogController.js";
 import { casesController } from "./src/backend/casesController.js";
+import { botController } from "./src/backend/botController.js";
 
 dotenv.config();
 
@@ -407,6 +408,25 @@ async function startServer() {
     app.post("/api/admin/cases-categories", casesController.createCategory);
     app.put("/api/admin/cases-categories/:id", casesController.updateCategory);
     app.delete("/api/admin/cases-categories/:id", casesController.deleteCategory);
+
+    // ─── Bot WhatsApp Admin ─────────────────────────────────────────────────────
+    app.get("/api/admin/bot/sectors", botController.getSectors);
+    app.post("/api/admin/bot/sectors", botController.saveSector);
+    app.delete("/api/admin/bot/sectors/:id", botController.deleteSector);
+    
+    app.get("/api/admin/bot/flow", botController.getFlowNodes);
+    app.post("/api/admin/bot/flow", botController.saveFlowNodes);
+    
+    app.get("/api/admin/bot/conversations", botController.getConversations);
+    app.post("/api/admin/bot/conversations/message", botController.sendMessage);
+    app.post("/api/admin/bot/conversations/:id/close", botController.closeConversation);
+
+    app.get("/api/admin/bot/instance", botController.getInstance);
+    app.post("/api/admin/bot/connect", botController.connect);
+    app.post("/api/admin/bot/disconnect", botController.disconnect);
+    app.get("/api/admin/bot/status", botController.status);
+    app.get("/api/admin/bot/config", botController.getBotConfig);
+    app.put("/api/admin/bot/config", botController.updateBotConfig);
 
     // ─── Serving ────────────────────────────────────────────────────────────────
     if (isDev) {

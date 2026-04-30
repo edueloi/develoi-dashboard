@@ -215,6 +215,91 @@ model CaseCategory {
   slug        String  @unique
   color       String  @default("#6366f1")
   sortOrder   Int     @default(0)
-  isActive    Boolean @default(true)
   cases       Case[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHATSAPP BOT MÓDULO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model WppInstance {
+  id           String   @id @default(uuid())
+  instanceName String   @db.VarChar(120)
+  phone        String?  @db.VarChar(30)
+  status       String   @default("not_configured") @db.VarChar(30)
+  qrCode       String?  @db.Text
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model WppBotConfig {
+  id                    String   @id @default(uuid())
+  botEnabled            Boolean  @default(false)
+  sendWelcome           Boolean  @default(true)
+  menuEnabled           Boolean  @default(false)
+  menuWelcomeMsg        String?  @db.Text
+  menuOptions           String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model WppBotSector {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(100)           // Ex: "Vendas", "Suporte"
+  menuKey      String   @db.VarChar(10)             // Ex: "1", "2"
+  description  String?  @db.VarChar(255)
+  attendants   String   @db.Text                   // JSON array de atendentes
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  conversations WppConversation[]
+}
+
+model WppBotFlowNode {
+  id          String   @id @default(uuid())
+  type        String   @db.VarChar(30) // welcome, menu, message, sector, input, end
+  title       String   @db.VarChar(255)
+  content     String?  @db.Text
+  options     String?  @db.Text // JSON array [{key:"1", label:"Opção 1", nextNodeId:"xxx"}]
+  sectorId    String?  @db.VarChar(36)
+  inputVar    String?  @db.VarChar(50)
+  nextNodeId  String?  @db.VarChar(36)
+  isStart     Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  posX        Int      @default(0)
+  posY        Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WppConversation {
+  id             String    @id @default(uuid())
+  sectorId       String?   
+  clientPhone    String    @db.VarChar(30)
+  clientName     String?   @db.VarChar(255)
+  attendantName  String?   @db.VarChar(100)
+  status         String    @default("waiting") @db.VarChar(20) // waiting, active, closed
+  firstMessage   String?   @db.VarChar(1000)
+  closedBy       String?   @db.VarChar(20)  // attendant, client, system
+  closedAt       DateTime? 
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  sector   WppBotSector?        @relation(fields: [sectorId], references: [id])
+  messages WppConversationMessage[]
+}
+
+model WppConversationMessage {
+  id             String   @id @default(uuid())
+  conversationId String   
+  fromRole       String   @db.VarChar(20) // client, attendant, bot
+  fromPhone      String?  @db.VarChar(30)
+  body           String   @db.Text
+  sentAt         DateTime @default(now())
+
+  conversation WppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
