@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage } from "./baileysManager.js";
 
 const prisma = new PrismaClient();
 
@@ -163,7 +164,6 @@ export const botController = {
       });
 
       // Dispara a mensagem via baileysManager
-      const { sendMessage: sendWppMessage } = await import("./baileysManager.js");
       await sendWppMessage(conv.clientPhone, body);
 
       res.json(msg);
@@ -222,7 +222,6 @@ export const botController = {
 
   async connect(req: Request, res: Response) {
     try {
-      const { connectSession } = await import("./baileysManager.js");
       await connectSession();
       res.json({ success: true });
     } catch (error) {
@@ -233,7 +232,6 @@ export const botController = {
 
   async disconnect(req: Request, res: Response) {
     try {
-      const { disconnectSession } = await import("./baileysManager.js");
       await disconnectSession();
       res.json({ success: true });
     } catch (error) {
@@ -244,7 +242,6 @@ export const botController = {
 
   async status(req: Request, res: Response) {
     try {
-      const { getSessionInfo } = await import("./baileysManager.js");
       const info = getSessionInfo();
       res.json(info);
     } catch (error) {
