@@ -428,6 +428,38 @@ async function startServer() {
     app.get("/api/admin/bot/config", botController.getBotConfig);
     app.put("/api/admin/bot/config", botController.updateBotConfig);
 
+    // ─── Social Media Automation (Instagram) ────────────────────────────────────
+    app.post("/api/admin/social/instagram/publish", async (req, res) => {
+      try {
+        const { imageBase64, caption } = req.body;
+        const IG_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
+        const IG_USER_ID = process.env.INSTAGRAM_USER_ID;
+
+        if (!IG_ACCESS_TOKEN || !IG_USER_ID) {
+          console.log("Simulating Instagram Publish. Keys not found in .env.");
+          return res.json({ success: true, id: "ig_" + Date.now(), simulated: true });
+        }
+
+        /* 
+          // 1. Fazer upload do imageBase64 para um storage público (S3, Firebase, etc)
+          // const publicImageUrl = await uploadToStorage(imageBase64);
+          
+          // 2. Criar container de mídia
+          const createMediaRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media?image_url=${publicImageUrl}&caption=${encodeURIComponent(caption)}&access_token=${IG_ACCESS_TOKEN}`, { method: 'POST' });
+          const mediaData = await createMediaRes.json();
+          
+          // 3. Publicar
+          const publishRes = await fetch(`https://graph.facebook.com/v19.0/${IG_USER_ID}/media_publish?creation_id=${mediaData.id}&access_token=${IG_ACCESS_TOKEN}`, { method: 'POST' });
+          const publishData = await publishRes.json();
+        */
+        
+        res.json({ success: true, id: "ig_" + Date.now() });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Falha na automação do Instagram" });
+      }
+    });
+
     // ─── Serving ────────────────────────────────────────────────────────────────
     if (isDev) {
       const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });

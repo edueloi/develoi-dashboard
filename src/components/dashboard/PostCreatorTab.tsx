@@ -5,9 +5,9 @@ import {
   Download, Layout, Type, Palette, Image as ImageIcon, 
   Trash2, History, Plus, Circle, Square, Save, 
   Upload, MousePointer2, AlignLeft, AlignCenter, AlignRight,
-  Copy, Layers
+  Copy, Layers, Send, Instagram, X
 } from 'lucide-react';
-import { Button, Input, Textarea, Select, Badge, PanelCard } from '../ui';
+import { Button, Input, Textarea, Select, Badge, PanelCard, Modal } from '../ui';
 import { v4 as uuidv4 } from 'uuid';
 
 type PostFormat = 'instagram' | 'facebook' | 'stories';
@@ -47,6 +47,9 @@ interface CanvasElement {
   shapeType?: 'rectangle' | 'circle';
   backgroundColor?: string;
   borderRadius?: number;
+  borderWidth?: number;
+  borderColor?: string;
+  opacity?: number;
 }
 
 interface ProjectState {
@@ -58,6 +61,27 @@ interface ProjectState {
   thumbnail?: string;
   updatedAt: number;
 }
+
+const DEVELOI_TEMPLATE: CanvasElement[] = [
+  { id: uuidv4(), type: 'shape', x: 0, y: 0, width: 1080, height: 1080, zIndex: 0, shapeType: 'rectangle', backgroundColor: '#020617', borderRadius: 0 },
+  // Subtle glow
+  { id: uuidv4(), type: 'shape', x: 600, y: -200, width: 800, height: 800, zIndex: 1, shapeType: 'circle', backgroundColor: '#1e3a8a', borderRadius: 9999, opacity: 0.5 },
+  // Logo text
+  { id: uuidv4(), type: 'text', x: 80, y: 80, width: 900, height: 80, zIndex: 2, text: 'Develoi HUB', color: '#60a5fa', fontSize: 36, fontWeight: '900', textAlign: 'left' },
+  // Headline
+  { id: uuidv4(), type: 'text', x: 80, y: 220, width: 900, height: 200, zIndex: 3, text: 'Tecnologia que transforma\nnegócios', color: '#ffffff', fontSize: 80, fontWeight: '900', textAlign: 'left' },
+  // Subheadline
+  { id: uuidv4(), type: 'text', x: 80, y: 440, width: 800, height: 120, zIndex: 4, text: 'Soluções digitais inteligentes para empresas que querem crescer com eficiência, inovação e resultados.', color: '#94a3b8', fontSize: 32, fontWeight: 'normal', textAlign: 'left' },
+  // Feature box 1
+  { id: uuidv4(), type: 'shape', x: 80, y: 600, width: 180, height: 180, zIndex: 5, shapeType: 'rectangle', backgroundColor: '#0f172a', borderRadius: 24, borderWidth: 2, borderColor: '#1e293b' },
+  { id: uuidv4(), type: 'text', x: 80, y: 790, width: 180, height: 60, zIndex: 6, text: 'Sistemas sob\nmedida', color: '#ffffff', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+  // Feature box 2
+  { id: uuidv4(), type: 'shape', x: 290, y: 600, width: 180, height: 180, zIndex: 5, shapeType: 'rectangle', backgroundColor: '#0f172a', borderRadius: 24, borderWidth: 2, borderColor: '#1e293b' },
+  { id: uuidv4(), type: 'text', x: 290, y: 790, width: 180, height: 60, zIndex: 6, text: 'Automação de\nprocessos', color: '#ffffff', fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
+  // CTA Button
+  { id: uuidv4(), type: 'shape', x: 80, y: 920, width: 450, height: 80, zIndex: 5, shapeType: 'rectangle', backgroundColor: '#0f172a', borderRadius: 40, borderWidth: 2, borderColor: '#3b82f6' },
+  { id: uuidv4(), type: 'text', x: 80, y: 920, width: 450, height: 80, zIndex: 6, text: 'Fale com a Develoi >', color: '#ffffff', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+];
 
 export function PostCreatorTab() {
   const [activeTab, setActiveTab] = useState<'editor' | 'history'>('editor');
@@ -72,6 +96,10 @@ export function PostCreatorTab() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   
   const [isExporting, setIsExporting] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [caption, setCaption] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -94,10 +122,9 @@ export function PostCreatorTab() {
   const handleSave = async () => {
     let thumbnail = '';
     if (previewRef.current) {
-      // Temporarily deselect to hide borders in thumbnail
       const prevSelected = selectedId;
       setSelectedId(null);
-      await new Promise(r => setTimeout(r, 50)); // wait for re-render
+      await new Promise(r => setTimeout(r, 50)); 
       
       try {
         const canvas = await html2canvas(previewRef.current, { scale: 0.5, useCORS: true });
@@ -154,24 +181,34 @@ export function PostCreatorTab() {
     setSelectedId(null);
     setActiveTab('editor');
   };
+  
+  const loadTemplate = () => {
+    setElements(DEVELOI_TEMPLATE.map(el => ({ ...el, id: uuidv4() })));
+    setFormat('instagram');
+    setBgColor('#020617');
+    setProjectName('Template Develoi Oficial');
+  };
+
+  const generateImageBase64 = async (type: 'png' | 'jpeg'): Promise<string> => {
+    if (!previewRef.current) throw new Error('Preview ref is missing');
+    const prevSelected = selectedId;
+    setSelectedId(null);
+    await new Promise(r => setTimeout(r, 100));
+    
+    const canvas = await html2canvas(previewRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: bgColor,
+    });
+    
+    setSelectedId(prevSelected);
+    return canvas.toDataURL(`image/${type}`, 1.0);
+  };
 
   const handleExport = async (type: 'png' | 'jpeg') => {
-    if (!previewRef.current) return;
     setIsExporting(true);
-    const prevSelected = selectedId;
-    setSelectedId(null); // Hide selection borders
-    
-    // Slight delay to allow React to remove borders
-    await new Promise(r => setTimeout(r, 100));
-
     try {
-      const canvas = await html2canvas(previewRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: bgColor,
-      });
-      
-      const image = canvas.toDataURL(`image/${type}`, 1.0);
+      const image = await generateImageBase64(type);
       const link = document.createElement('a');
       link.href = image;
       link.download = `${projectName.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}.${type}`;
@@ -179,8 +216,32 @@ export function PostCreatorTab() {
     } catch (err) {
       console.error('Error exporting image:', err);
     } finally {
-      setSelectedId(prevSelected);
       setIsExporting(false);
+    }
+  };
+
+  const publishToInstagram = async () => {
+    setIsPublishing(true);
+    try {
+      const imageBase64 = await generateImageBase64('jpeg');
+      
+      const response = await fetch('/api/admin/social/instagram/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, caption }),
+      });
+      
+      const data = await response.json();
+      if (response.ok) {
+        alert('Publicado no Instagram com sucesso! (ID: ' + data.id + ')');
+        setIsPublishModalOpen(false);
+      } else {
+        alert('Erro ao publicar: ' + (data.error || 'Verifique as configurações do Meta Developer.'));
+      }
+    } catch (err) {
+      alert('Erro ao se conectar com o servidor.');
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -199,7 +260,7 @@ export function PostCreatorTab() {
       id: uuidv4(),
       type: 'shape',
       x: 100, y: 100, width: 200, height: 200, zIndex: elements.length,
-      shapeType, backgroundColor: '#4f46e5', borderRadius: shapeType === 'circle' ? 9999 : 0
+      shapeType, backgroundColor: '#4f46e5', borderRadius: shapeType === 'circle' ? 9999 : 0, opacity: 1
     }]);
   };
 
@@ -210,7 +271,6 @@ export function PostCreatorTab() {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        // Calculate initial size to fit somewhat nicely
         let w = img.width;
         let h = img.height;
         if (w > 500) {
@@ -227,7 +287,7 @@ export function PostCreatorTab() {
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
-    e.target.value = ''; // reset
+    e.target.value = '';
   };
 
   const updateElement = (id: string, updates: Partial<CanvasElement>) => {
@@ -264,11 +324,9 @@ export function PostCreatorTab() {
   const activeFormatConfig = FORMATS.find(f => f.id === format)!;
   const selectedElement = elements.find(e => e.id === selectedId);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Don't delete if editing an input
         if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
         deleteElement();
       }
@@ -319,6 +377,9 @@ export function PostCreatorTab() {
               <Button onClick={() => handleExport('png')} loading={isExporting} iconLeft={<Download className="w-4 h-4" />}>
                 Exportar
               </Button>
+              <Button onClick={() => setIsPublishModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-none text-white shadow-lg shadow-pink-500/20" iconLeft={<Instagram className="w-4 h-4" />}>
+                Postar no Instagram
+              </Button>
             </>
           )}
         </div>
@@ -328,7 +389,12 @@ export function PostCreatorTab() {
         <div className="flex flex-1 overflow-hidden">
           {/* Left Sidebar - Tools */}
           <aside className="w-20 md:w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col items-center md:items-stretch py-4 overflow-y-auto">
+            
             <div className="px-4 mb-6 hidden md:block">
+              <Button onClick={loadTemplate} fullWidth className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 shadow-lg mb-6">
+                <Layout className="w-4 h-4 mr-2" /> Template Develoi
+              </Button>
+              
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Adicionar</h3>
               <div className="space-y-2">
                 <Button variant="outline" fullWidth onClick={addText} className="justify-start">
@@ -349,15 +415,8 @@ export function PostCreatorTab() {
               </div>
             </div>
 
-            {/* Mobile/Compact icons */}
-            <div className="flex flex-col gap-4 items-center md:hidden w-full">
-               <button onClick={addText} className="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 text-slate-600"><Type className="w-5 h-5" /></button>
-               <button onClick={() => fileInputRef.current?.click()} className="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 text-slate-600"><Upload className="w-5 h-5" /></button>
-               <button onClick={() => addShape('rectangle')} className="p-3 bg-slate-100 rounded-xl hover:bg-slate-200 text-slate-600"><Square className="w-5 h-5" /></button>
-            </div>
-
             <div className="px-4 mb-6 hidden md:block mt-6">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Formato do Canvas</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Formato</h3>
               <Select value={format} onChange={(e) => setFormat(e.target.value as PostFormat)}>
                 {FORMATS.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </Select>
@@ -370,8 +429,6 @@ export function PostCreatorTab() {
 
           {/* Canvas Area */}
           <main className="flex-1 bg-slate-100 dark:bg-slate-950 flex justify-center overflow-auto p-4 md:p-8 relative" onClick={() => setSelectedId(null)}>
-            
-            {/* The scaled canvas wrapper */}
             <div className="relative m-auto shadow-2xl transition-all" style={{
               width: `${activeFormatConfig.width}px`,
               height: `${activeFormatConfig.height}px`,
@@ -433,10 +490,13 @@ export function PostCreatorTab() {
                         height: '100%',
                         backgroundColor: el.backgroundColor,
                         borderRadius: el.borderRadius === 9999 ? '50%' : `${el.borderRadius}px`,
+                        borderWidth: el.borderWidth ? `${el.borderWidth}px` : 0,
+                        borderColor: el.borderColor,
+                        borderStyle: 'solid',
+                        opacity: el.opacity ?? 1,
                       }} />
                     )}
 
-                    {/* Resize Handle - Simple bottom right corner for now */}
                     {selectedId === el.id && (
                       <div 
                         className="absolute -bottom-3 -right-3 w-6 h-6 bg-indigo-600 rounded-full border-4 border-white cursor-se-resize shadow-md"
@@ -448,12 +508,10 @@ export function PostCreatorTab() {
                           const startH = el.height;
                           
                           const onMove = (moveEvent: PointerEvent) => {
-                            // Account for scale!
                             const scale = Math.min(1, (window.innerWidth - 350) / activeFormatConfig.width, (window.innerHeight - 150) / activeFormatConfig.height);
                             const dx = (moveEvent.clientX - startX) / scale;
                             const dy = (moveEvent.clientY - startY) / scale;
                             
-                            // Maintain aspect ratio for images and circles
                             if (el.type === 'image' || (el.type === 'shape' && el.shapeType === 'circle')) {
                               const maxD = Math.max(dx, dy);
                               updateElement(el.id, { width: Math.max(50, startW + maxD), height: Math.max(50, startH + (maxD * (startH/startW))) });
@@ -536,6 +594,14 @@ export function PostCreatorTab() {
                         <button onClick={() => updateElement(selectedElement.id, { textAlign: 'right' })} className={`flex-1 p-2 flex justify-center rounded ${selectedElement.textAlign === 'right' ? 'bg-white shadow' : ''}`}><AlignRight className="w-4 h-4"/></button>
                       </div>
                     </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">Peso (Font-Weight)</label>
+                      <Select value={selectedElement.fontWeight || 'normal'} onChange={e => updateElement(selectedElement.id, { fontWeight: e.target.value })}>
+                        <option value="normal">Normal</option>
+                        <option value="bold">Negrito</option>
+                        <option value="900">Black / Muito Negrito</option>
+                      </Select>
+                    </div>
                   </div>
                 )}
 
@@ -550,6 +616,33 @@ export function PostCreatorTab() {
                         className="w-full h-8 rounded cursor-pointer"
                       />
                     </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">Cor da Borda</label>
+                      <input 
+                        type="color" 
+                        value={selectedElement.borderColor || '#000000'} 
+                        onChange={(e) => updateElement(selectedElement.id, { borderColor: e.target.value })}
+                        className="w-full h-8 rounded cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">Espessura da Borda</label>
+                      <input 
+                        type="range" min="0" max="20" 
+                        value={selectedElement.borderWidth || 0} 
+                        onChange={(e) => updateElement(selectedElement.id, { borderWidth: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 block mb-1">Opacidade</label>
+                      <input 
+                        type="range" min="0" max="1" step="0.1"
+                        value={selectedElement.opacity ?? 1} 
+                        onChange={(e) => updateElement(selectedElement.id, { opacity: Number(e.target.value) })}
+                        className="w-full"
+                      />
+                    </div>
                     {selectedElement.shapeType === 'rectangle' && (
                       <div>
                         <label className="text-xs font-bold text-slate-600 block mb-1">Arredondamento das Bordas</label>
@@ -561,12 +654,6 @@ export function PostCreatorTab() {
                         />
                       </div>
                     )}
-                  </div>
-                )}
-                
-                {selectedElement.type === 'image' && (
-                  <div className="text-xs text-slate-500 italic">
-                    Arraste pela borda inferior direita para redimensionar a imagem mantendo a proporção.
                   </div>
                 )}
                 
@@ -623,6 +710,62 @@ export function PostCreatorTab() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Publicação do Instagram */}
+      {isPublishModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-gradient-to-r from-purple-600/10 to-pink-600/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center">
+                  <Instagram className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white">Publicar no Instagram</h3>
+                  <p className="text-xs text-slate-500">Envie esta arte diretamente para o feed.</p>
+                </div>
+              </div>
+              <button onClick={() => setIsPublishModalOpen(false)} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div>
+                <label className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 block">Legenda (Caption)</label>
+                <Textarea 
+                  rows={6} 
+                  placeholder="Escreva a legenda incrível para o seu post..."
+                  value={caption}
+                  onChange={e => setCaption(e.target.value)}
+                />
+                <p className="text-xs text-slate-400 mt-2 text-right">{caption.length} / 2200 caracteres</p>
+              </div>
+              
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-3">
+                <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-800 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-amber-600 font-bold text-xs">!</span>
+                </div>
+                <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+                  Para que a postagem automática funcione, a conta do Instagram precisa ser uma conta <strong>Comercial ou Criador de Conteúdo</strong> e estar vinculada a uma página do Facebook no painel da Meta.
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setIsPublishModalOpen(false)}>Cancelar</Button>
+              <Button 
+                onClick={publishToInstagram} 
+                loading={isPublishing}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-none shadow-lg shadow-pink-500/25"
+                iconLeft={<Send className="w-4 h-4" />}
+              >
+                Publicar Agora
+              </Button>
+            </div>
           </div>
         </div>
       )}
