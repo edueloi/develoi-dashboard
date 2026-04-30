@@ -222,9 +222,20 @@ export async function connectSession() {
   fs.mkdirSync(dir, { recursive: true });
 
   const { state, saveCreds } = await useMultiFileAuthState(dir);
-  const { version } = await fetchLatestBaileysVersion();
+  
+  let version;
+  try {
+    const latest = await fetchLatestBaileysVersion();
+    version = latest.version;
+  } catch (e) {
+    version = [2, 3000, 1015901307]; // Fallback if GitHub is unreachable
+  }
 
-  const sock = (makeWASocket as any).default({
+  // Se makeWASocket for importado como default, em alguns ambientes ESM/TS ele é a própria função,
+  // em outros (CJS interop) pode precisar de .default.
+  const makeWASocketFn = (makeWASocket as any).default || makeWASocket;
+
+  const sock = makeWASocketFn({
     version,
     logger: makeLogger(),
     printQRInTerminal: false,
