@@ -57,6 +57,7 @@ import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 
 // Types
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
+import { PostCreatorTab } from '../components/dashboard/PostCreatorTab';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   blog:          '/dashboard/blog',
   cases:         '/dashboard/cases',
   bot:           '/dashboard/bot',
+  posts:         '/dashboard/postagens',
 };
 
 const PATH_TO_TAB: Record<string, ActiveTab> = Object.fromEntries(
@@ -165,9 +167,10 @@ export default function Dashboard() {
     blog: 'Blog da Develoi',
     cases: 'Cases de Sucesso',
     bot: 'Bot de Atendimento',
+    posts: 'Criador de Postagens',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts'];
 
   return (
     <div className={`min-h-screen flex dash-bg font-sans ${isDark ? 'dark' : ''}`}>
@@ -242,6 +245,7 @@ export default function Dashboard() {
 
           {/* Sistema */}
           <NavSection label="Sistema">
+            <NavItem icon={Image} label="Criador de Postagens" active={activeTab === 'posts'} onClick={() => goTo('posts')} />
             <NavItem icon={MessageSquare} label="Bot de Atendimento" active={activeTab === 'bot'} onClick={() => goTo('bot')} />
           </NavSection>
         </nav>
@@ -454,6 +458,7 @@ export default function Dashboard() {
               {activeTab === 'blog' && <BlogManager />}
               {activeTab === 'cases' && <CasesManager />}
               {activeTab === 'bot' && <BotConfigTab />}
+              {activeTab === 'posts' && <PostCreatorTab />}
             </AnimatePresence>
           </div>
         </main>
