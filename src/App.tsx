@@ -73,6 +73,7 @@ function AnimatedRoutes() {
           '/dashboard/valores',
           '/dashboard/blog',
           '/dashboard/cases',
+          '/dashboard/bot',
         ].map(path => (
           <Route
             key={path}
