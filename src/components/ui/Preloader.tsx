@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../../images/develoi-logo.jpeg';
 
 export default function Preloader() {
   const [loading, setLoading] = useState(true);
@@ -42,10 +41,9 @@ export default function Preloader() {
               className="w-56 md:w-72"
             >
               <img
-                src={logo}
+                src="/LOGO-MENU.png"
                 alt="Develoi"
                 className="w-full h-auto object-contain"
-                style={{ mixBlendMode: 'multiply' }}
               />
             </motion.div>
 
