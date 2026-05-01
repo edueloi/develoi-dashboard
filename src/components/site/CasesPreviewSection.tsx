@@ -28,7 +28,7 @@ export default function CasesPreviewSection() {
           setCases(Array.isArray(data) ? data.slice(0, 3) : []);
         }
       } catch (err) {
-        console.error("Erro ao carregar cases:", err);
+        console.error("Erro ao carregar projetos:", err);
       } finally {
         setLoading(false);
       }
@@ -42,7 +42,7 @@ export default function CasesPreviewSection() {
       <section className="relative py-24 sm:py-32 dash-bg overflow-hidden flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Carregando casos...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Carregando projetos...</p>
         </div>
       </section>
     );
@@ -82,7 +82,7 @@ export default function CasesPreviewSection() {
               viewport={{ once: true }}
             >
               <Link 
-                to="/cases" 
+                to="/projetos" 
                 className="group flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
               >
                 VER TODOS OS PROJETOS
@@ -154,10 +154,10 @@ export default function CasesPreviewSection() {
                       </p>
                     )}
                     <Link 
-                      to={`/cases/${item.slug}`} 
+                      to={`/projetos/${item.slug}`} 
                       className="inline-flex items-center gap-2 text-sm font-black uppercase tracking-widest group-hover:gap-4 transition-all"
                     >
-                      CONHECER CASE
+                      CONHECER PROJETO
                       <ArrowRight className="w-4 h-4" />
                     </Link>
                   </div>

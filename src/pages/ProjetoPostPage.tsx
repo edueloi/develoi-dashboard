@@ -60,7 +60,7 @@ function RelatedCard({ r }: { r: Case }) {
   const navigate = useNavigate();
   return (
     <div
-      onClick={() => navigate(`/cases/${r.slug}`)}
+      onClick={() => navigate(`/projetos/${r.slug}`)}
       className="group cursor-pointer rounded-2xl overflow-hidden pub-surface border hover:border-indigo-500/40 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
     >
       <div className="h-32 relative overflow-hidden">
@@ -83,9 +83,9 @@ function RelatedCard({ r }: { r: Case }) {
   );
 }
 
-// ─── Case Post Page ───────────────────────────────────────────────────────────
+// ─── Projeto Post Page ───────────────────────────────────────────────────────────
 
-export default function CasePostPage() {
+export default function ProjetoPostPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const [caseItem, setCaseItem] = useState<Case | null>(null);
@@ -120,10 +120,10 @@ export default function CasePostPage() {
         setLoading(false);
         fetch(`/api/cases/${data.case.id}/view`, { method: 'POST' }).catch(() => {});
         if (data.case.seoTitle || data.case.title) {
-          document.title = `${data.case.seoTitle || data.case.title} | Develoi Cases`;
+          document.title = `${data.case.seoTitle || data.case.title} | Develoi Projetos`;
         }
       })
-      .catch(() => { setLoading(false); navigate('/cases'); });
+      .catch(() => { setLoading(false); navigate('/projetos'); });
   }, [slug]);
 
   const handleLike = async () => {
@@ -368,7 +368,7 @@ export default function CasePostPage() {
             {/* Sidebar */}
             <aside className="hidden lg:block sticky top-32 space-y-10">
               <button
-                onClick={() => navigate("/cases")}
+                onClick={() => navigate("/projetos")}
                 className="w-full flex items-center gap-3 px-6 py-4 pub-surface-2 border rounded-2xl text-[10px] font-black uppercase tracking-widest pub-text-soft hover:pub-text hover:border-indigo-500/40 transition-all group"
               >
                 <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Voltar aos Projetos

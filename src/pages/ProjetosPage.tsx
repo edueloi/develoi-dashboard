@@ -50,7 +50,7 @@ function CaseCard({ c, index }: { c: Case; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: index * 0.1 }}
     >
-      <Link to={`/cases/${c.slug}`} className="group block h-full">
+      <Link to={`/projetos/${c.slug}`} className="group block h-full">
         <div className="pub-surface border rounded-[2.5rem] overflow-hidden hover:border-indigo-500/40 transition-all duration-500 hover:shadow-3xl hover:shadow-indigo-500/10 hover:-translate-y-2 h-full flex flex-col">
           {/* Cover */}
           <div className="relative overflow-hidden h-64">
@@ -142,7 +142,7 @@ function CaseCard({ c, index }: { c: Case; index: number }) {
 
 function FeaturedCase({ c }: { c: Case }) {
   return (
-    <Link to={`/cases/${c.slug}`} className="group block">
+    <Link to={`/projetos/${c.slug}`} className="group block">
       <div className="relative overflow-hidden rounded-[3.5rem] pub-surface border hover:border-indigo-500/40 transition-all duration-700 shadow-2xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[500px]">
           {/* Image */}
@@ -160,7 +160,7 @@ function FeaturedCase({ c }: { c: Case }) {
             )}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/20 hidden lg:block" />
             <div className="absolute top-8 left-8 flex items-center gap-2 bg-amber-500 text-black px-4 py-2 rounded-2xl text-[10px] font-black shadow-2xl">
-              <Star className="w-4 h-4" /> CASE EM DESTAQUE
+              <Star className="w-4 h-4" /> PROJETO EM DESTAQUE
             </div>
           </div>
 
@@ -197,7 +197,7 @@ function FeaturedCase({ c }: { c: Case }) {
 
               <div className="pt-4">
                 <span className="inline-flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black px-10 py-5 rounded-2xl text-sm transition-all shadow-2xl shadow-indigo-500/30 group-hover:gap-5 group-hover:translate-x-2 uppercase tracking-widest">
-                  Ver Case Completo <ArrowRight className="w-5 h-5" />
+                  Ver Projeto Completo <ArrowRight className="w-5 h-5" />
                 </span>
               </div>
             </div>
@@ -210,7 +210,7 @@ function FeaturedCase({ c }: { c: Case }) {
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function CasesPage() {
+export default function ProjetosPage() {
   const [cases, setCases] = useState<Case[]>([]);
   const [featured, setFeatured] = useState<Case[]>([]);
   const [categories, setCategories] = useState<CaseCategory[]>([]);
@@ -369,7 +369,7 @@ export default function CasesPage() {
               <div className="w-24 h-24 pub-surface-2 rounded-full flex items-center justify-center mx-auto mb-8">
                 <Filter className="w-10 h-10 pub-text-muted" />
               </div>
-              <h3 className="text-3xl font-black mb-4 pub-text">Nenhum case encontrado.</h3>
+              <h3 className="text-3xl font-black mb-4 pub-text">Nenhum projeto encontrado.</h3>
               <p className="text-lg pub-text-soft mb-10">Tente ajustar seus filtros ou buscar por outros termos.</p>
               <button
                 onClick={() => { setSearchInput(''); setCategoryFilter(''); }}

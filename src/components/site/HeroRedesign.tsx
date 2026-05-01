@@ -135,7 +135,7 @@ export default function HeroRedesign() {
               </a>
 
               <a
-                href="/cases"
+                href="/projetos"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 border"
                 style={{
                   color: 'rgba(255,255,255,0.85)',

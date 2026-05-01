@@ -16,8 +16,8 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
-import CasesPage from './pages/CasesPage';
-import CasePostPage from './pages/CasePostPage';
+import ProjetosPage from './pages/ProjetosPage';
+import ProjetoPostPage from './pages/ProjetoPostPage';
 import ContactPage from './pages/ContactPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
@@ -58,8 +58,8 @@ function AnimatedRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
-        <Route path="/cases" element={<CasesPage />} />
-        <Route path="/cases/:slug" element={<CasePostPage />} />
+        <Route path="/projetos" element={<ProjetosPage />} />
+        <Route path="/projetos/:slug" element={<ProjetoPostPage />} />
         {[
           '/dashboard',
           '/dashboard/resumo',

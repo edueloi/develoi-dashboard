@@ -35,7 +35,7 @@ const contactCards = [
     label: 'Endereço',
     value: 'Tatuí / SP',
     sub: 'Rua Prof. Joaquim Teixeira, 220 — Junqueira',
-    href: 'https://maps.google.com/?q=18277-130',
+    href: 'https://maps.google.com/?q=18271-130',
     cta: 'Ver no mapa',
     color: '#C49A2A',
     bg: 'rgba(196,154,42,0.07)',
@@ -380,7 +380,7 @@ export default function ContactPage() {
               <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 24px rgba(13,31,78,0.07)', height: '320px' }}>
                 <iframe
                   title="Localização Develoi"
-                  src="https://maps.google.com/maps?q=18277-130&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                  src="https://maps.google.com/maps?q=18271-130&t=&z=16&ie=UTF8&iwloc=&output=embed"
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
@@ -412,7 +412,7 @@ export default function ContactPage() {
                       Junqueira — Tatuí / SP
                     </p>
                     <a
-                      href="https://maps.google.com/?q=18277-130"
+                      href="https://maps.google.com/?q=18271-130"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs font-bold mt-3 transition-opacity hover:opacity-70"
