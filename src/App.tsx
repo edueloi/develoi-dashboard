@@ -23,6 +23,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import Preloader from './components/ui/Preloader';
+import WhatsAppChat from './components/WhatsAppChat';
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -136,6 +137,7 @@ function AppContent() {
       </main>
 
       {!hideGlobalLayout && <Footer />}
+      {!hideGlobalLayout && <WhatsAppChat />}
     </div>
   );
 }
