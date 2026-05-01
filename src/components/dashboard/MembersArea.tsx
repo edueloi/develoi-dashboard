@@ -103,9 +103,13 @@ export function MembersArea() {
           />
         </StatGrid>
         
-        <Button onClick={() => setIsModalOpen(true)} iconLeft={<UserPlus className="w-4 h-4" />} size="lg">
-          NOVO MEMBRO
-        </Button>
+        <button 
+          onClick={() => setIsModalOpen(true)} 
+          className="flex items-center gap-2 text-white text-xs font-bold px-5 py-3 rounded-xl transition-all hover:-translate-y-0.5"
+          style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
+        >
+          <UserPlus className="w-4 h-4" /> NOVO MEMBRO
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-12">
@@ -115,9 +119,12 @@ export function MembersArea() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-[32px] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100/40 transition-all group relative overflow-hidden"
+            className="bg-white rounded-2xl border transition-all duration-250 group relative overflow-hidden"
+            style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.06)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(13,31,78,0.1)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(13,31,78,0.06)'; }}
           >
-            <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 to-violet-500" />
+            <div className="h-[3px] w-full" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.1))' }} />
             
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
@@ -125,7 +132,7 @@ export function MembersArea() {
                   {member.photoURL ? (
                     <img src={member.photoURL} alt="" className="w-full h-full rounded-2xl border-4 border-white shadow-xl object-cover" />
                   ) : (
-                    <div className="w-full h-full rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xl font-black text-white border-4 border-white shadow-xl">
+                    <div className="w-full h-full rounded-2xl flex items-center justify-center text-xl font-black text-white border-4 border-white shadow-xl" style={{ background: 'var(--brand-navy)' }}>
                       {member.displayName?.[0]?.toUpperCase() ?? 'D'}
                     </div>
                   )}
@@ -144,7 +151,7 @@ export function MembersArea() {
               </div>
 
               <div className="mb-6">
-                <h3 className="font-black text-slate-900 text-lg mb-1.5 group-hover:text-indigo-600 transition-colors truncate tracking-tight">
+                <h3 className="font-black text-lg mb-1.5 transition-colors truncate tracking-tight" style={{ color: 'var(--brand-navy)' }}>
                   {member.displayName}
                 </h3>
                 <Badge color={getRoleConfig(member.role).color} dot pill>
@@ -219,9 +226,14 @@ export function MembersArea() {
               </Select>
             </div>
 
-            <Button type="submit" loading={loading} fullWidth size="lg" className="mt-4">
-              CADASTRAR NA ELITE
-            </Button>
+            <button 
+              type="submit" 
+              disabled={loading} 
+              className="w-full mt-4 py-3.5 text-white font-black rounded-xl text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2.5 disabled:opacity-60 transition-all duration-200"
+              style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
+            >
+              {loading ? 'CADASTRANDO...' : 'CADASTRAR MEMBRO'}
+            </button>
           </form>
         </Modal>
       )}
