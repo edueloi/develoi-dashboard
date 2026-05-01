@@ -11,7 +11,7 @@ const metrics = [
 
 export default function MetricsSection() {
   return (
-    <section className="relative py-12 md:py-16">
+    <section className="relative pt-20 pb-12 md:pt-24 md:pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div
           className="rounded-2xl p-8 md:p-12 relative overflow-hidden"

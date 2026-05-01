@@ -1,190 +1,219 @@
 // @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Globe, Settings, Bot, Package } from 'lucide-react';
+import { ArrowRight, Monitor, Smartphone, TrendingUp } from 'lucide-react';
 
-const serviceCards = [
+const featureCards = [
   {
-    icon: Globe,
-    title: 'Sites e Landing Pages',
-    desc: 'Presença digital profissional para atrair, apresentar e vender melhor.',
+    icon: Monitor,
+    title: 'Design Moderno',
+    desc: 'Layouts elegantes e focados na experiência do usuário.',
   },
   {
-    icon: Settings,
-    title: 'Sistemas Sob Medida',
-    desc: 'Ferramentas exclusivas para organizar cadastros, processos e operações.',
+    icon: Smartphone,
+    title: 'Totalmente Responsivo',
+    desc: 'Seu site perfeito em qualquer dispositivo.',
   },
   {
-    icon: Bot,
-    title: 'Chatbots e Automações',
-    desc: 'Atendimento, triagem, vendas e agendamentos funcionando de forma mais inteligente.',
-  },
-  {
-    icon: Package,
-    title: 'Sistemas Prontos',
-    desc: 'Produtos Develoi por assinatura para negócios que querem começar agora.',
+    icon: TrendingUp,
+    title: 'Focado em Resultados',
+    desc: 'Sites estratégicos para gerar credibilidade e novos clientes.',
   },
 ];
 
 export default function HeroRedesign() {
   return (
-    <section className="relative min-h-screen flex flex-col justify-center pt-28 sm:pt-32 pb-16 overflow-hidden">
-      {/* Subtle background decoration */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div
-          className="absolute top-[-15%] right-[-8%] w-[600px] h-[600px] rounded-full opacity-[0.06]"
-          style={{ background: 'radial-gradient(circle, var(--brand-navy) 0%, transparent 70%)' }}
-        />
-        <div
-          className="absolute bottom-[5%] left-[-5%] w-[400px] h-[400px] rounded-full opacity-[0.05]"
-          style={{ background: 'radial-gradient(circle, var(--brand-gold) 0%, transparent 70%)' }}
-        />
-        {/* Subtle dot grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, var(--brand-navy) 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-          }}
-        />
-      </div>
+    <>
+      {/* ─── HERO PRINCIPAL ─── */}
+      <section className="relative min-h-screen flex items-center overflow-hidden">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-16 items-center">
+        {/* Fundo navy escuro full */}
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 55%, #0A1840 100%)' }}
+        />
 
-          {/* Left — copy */}
-          <motion.div
-            initial={{ opacity: 0, x: -24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-start text-left"
-          >
-            {/* Badge */}
+        {/* Foto de cidade/prédio lado direito com overlay gradiente */}
+        <div className="absolute inset-0 hidden md:block">
+          {/* Imagem de prédio corporativo via Unsplash */}
+          <div
+            className="absolute right-0 top-0 bottom-0 w-[52%]"
+            style={{
+              backgroundImage: 'url(https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1200&q=80&fit=crop)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+          {/* Overlay gradiente da esquerda para cobrir a foto */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(90deg, #06112B 38%, rgba(6,17,43,0.85) 58%, rgba(6,17,43,0.4) 75%, rgba(6,17,43,0.15) 100%)',
+            }}
+          />
+          {/* Overlay escuro leve no topo e base */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(180deg, rgba(6,17,43,0.5) 0%, transparent 25%, transparent 75%, rgba(6,17,43,0.7) 100%)',
+            }}
+          />
+        </div>
+
+        {/* Linha dourada decorativa no topo */}
+        <div
+          className="absolute top-0 left-0 right-0 h-[3px] z-10"
+          style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 60%, transparent)' }}
+        />
+
+        {/* Conteúdo */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-32 pb-52 sm:pb-48 md:pb-40">
+          <div className="max-w-xl lg:max-w-2xl">
+
+            {/* Badge topo */}
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-8 border"
-              style={{
-                background: 'var(--brand-gold-pale)',
-                borderColor: 'rgba(196,154,42,0.3)',
-              }}
+              transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 mb-8"
             >
               <span
-                className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                className="w-6 h-[2px] rounded-full"
                 style={{ background: 'var(--brand-gold)' }}
               />
               <span
-                className="text-[10px] font-black uppercase tracking-[0.2em]"
-                style={{ color: 'var(--brand-navy)' }}
+                className="text-[11px] font-bold uppercase tracking-[0.22em]"
+                style={{ color: 'var(--brand-gold)' }}
               >
-                Soluções Digitais
+                Develoi — Soluções Digitais
               </span>
             </motion.div>
 
-            <h1
-              className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black leading-[1.0] tracking-tighter mb-7"
-              style={{ color: 'var(--brand-navy)' }}
+            {/* Título principal */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.75, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              className="font-black leading-[1.05] tracking-tight mb-6 text-white"
+              style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4rem)' }}
             >
-              Transformamos ideias, processos e desafios em{' '}
-              <span className="text-gradient-gold">soluções digitais</span>{' '}
-              que fazem empresas crescerem.
-            </h1>
+              SOLUÇÕES PARA{' '}
+              <br className="hidden sm:block" />
+              IMPULSIONAR{' '}
+              <br />
+              <span style={{ color: 'var(--brand-gold)' }}>O SEU NEGÓCIO</span>
+            </motion.h1>
 
-            <p
-              className="text-base sm:text-lg lg:text-xl mb-10 max-w-lg leading-relaxed font-medium"
-              style={{ color: 'var(--text-secondary)' }}
+            {/* Subtítulo */}
+            <motion.p
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.25 }}
+              className="text-base sm:text-lg leading-relaxed mb-10 max-w-md"
+              style={{ color: 'rgba(255,255,255,0.65)' }}
             >
-              A Develoi cria <strong style={{ color: 'var(--brand-navy)', fontWeight: 700 }}>sites, sistemas sob medida, chatbots, dashboards e plataformas prontas</strong> para negócios que querem mais presença, organização e resultado.
-            </p>
+              Desenvolvemos soluções digitais sob medida para alavancar seu negócio e gerar resultados reais e sustentáveis.
+            </motion.p>
 
-            <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-              <motion.a
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
+            {/* Botões */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.38 }}
+              className="flex flex-col sm:flex-row gap-4"
+            >
+              <a
                 href="#contato"
-                className="btn-primary inline-flex items-center justify-center gap-3 px-8 py-4 text-sm font-black group"
+                className="inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 group"
+                style={{
+                  background: 'var(--brand-gold)',
+                  color: '#06112B',
+                  boxShadow: '0 6px 24px rgba(196,154,42,0.35)',
+                }}
               >
-                QUERO UMA SOLUÇÃO PARA MEU NEGÓCIO
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </motion.a>
+                SAIBA MAIS
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </a>
 
-              <motion.a
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
+              <a
                 href="/cases"
-                className="btn-outline-navy inline-flex items-center justify-center gap-3 px-8 py-4 text-sm font-black"
+                className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 border"
+                style={{
+                  color: 'rgba(255,255,255,0.85)',
+                  borderColor: 'rgba(255,255,255,0.2)',
+                  background: 'rgba(255,255,255,0.05)',
+                }}
               >
-                CONHECER PRODUTOS DEVELOI
-              </motion.a>
-            </div>
+                VER PORTFÓLIO
+              </a>
+            </motion.div>
 
-            {/* Trust line */}
-            <p
-              className="mt-8 text-xs font-semibold uppercase tracking-widest"
-              style={{ color: 'var(--brand-gold)' }}
+            {/* Métricas inline */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.55 }}
+              className="flex flex-wrap gap-8 mt-12"
             >
-              Do pequeno negócio à grande empresa — tecnologia com propósito.
-            </p>
-          </motion.div>
+              {[
+                { value: '+150', label: 'Projetos Entregues' },
+                { value: '98%', label: 'Clientes Satisfeitos' },
+                { value: 'Resultados', label: 'que Geram Crescimento' },
+              ].map((m, i) => (
+                <div key={i} className="flex flex-col">
+                  <span
+                    className="text-xl font-black leading-none"
+                    style={{ color: 'var(--brand-gold)' }}
+                  >
+                    {m.value}
+                  </span>
+                  <span className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    {m.label}
+                  </span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+      </section>
 
-          {/* Right — service cards */}
-          <motion.div
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.9, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="grid grid-cols-2 gap-4"
-          >
-            {serviceCards.map((card, i) => (
+      {/* ─── CARDS DE SERVIÇOS (flutuam sobre o hero) ─── */}
+      <section className="relative z-20 -mt-24 sm:-mt-20 pb-0">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+            {featureCards.map((card, i) => (
               <motion.div
                 key={card.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                className="brand-card card-gold-top p-5 flex flex-col gap-3"
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.55, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="bg-white rounded-2xl p-6 flex flex-col items-center text-center gap-3 border"
+                style={{
+                  borderColor: 'var(--border-color)',
+                  boxShadow: '0 8px 32px rgba(13,31,78,0.1)',
+                }}
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-1"
                   style={{ background: 'var(--bg-tertiary)' }}
                 >
-                  <card.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+                  <card.icon className="w-6 h-6" style={{ color: 'var(--brand-navy)' }} />
                 </div>
-                <div>
-                  <h3
-                    className="text-sm font-black leading-tight mb-1"
-                    style={{ color: 'var(--brand-navy)' }}
-                  >
-                    {card.title}
-                  </h3>
-                  <p
-                    className="text-xs leading-relaxed"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    {card.desc}
-                  </p>
-                </div>
+                <h3
+                  className="font-black text-sm leading-snug"
+                  style={{ color: 'var(--brand-navy)' }}
+                >
+                  {card.title}
+                </h3>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                  {card.desc}
+                </p>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         </div>
-
-        {/* Bottom tagline */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.7 }}
-          className="mt-16 pt-10 border-t"
-          style={{ borderColor: 'var(--border-color)' }}
-        >
-          <p
-            className="text-base sm:text-lg font-black tracking-tight text-center"
-            style={{ color: 'var(--brand-navy)' }}
-          >
-            Tecnologia com estratégia, beleza e resultado.{' '}
-            <span style={{ color: 'var(--brand-gold)' }}>Do seu jeito. Para o tamanho do seu negócio.</span>
-          </p>
-        </motion.div>
-      </div>
-    </section>
+      </section>
+    </>
   );
 }
