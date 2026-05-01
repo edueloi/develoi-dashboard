@@ -63,14 +63,15 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Contact Info (Placeholder) */}
+          {/* Contact Info */}
           <div className="lg:col-span-1">
             <h4 className="text-[10px] font-black uppercase tracking-[0.4em] dash-text-2 mb-8">
               Contato
             </h4>
             <ul className="space-y-4">
               <li className="text-sm dash-text-2 font-medium">contato@develoi.com.br</li>
-              <li className="text-sm dash-text-2 font-medium">São Paulo, SP - Brasil</li>
+              <li className="text-sm dash-text-2 font-medium">(15) 99702-6791</li>
+              <li className="text-sm dash-text-2 font-medium">Tatuí/SP</li>
             </ul>
           </div>
 

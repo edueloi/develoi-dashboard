@@ -4,23 +4,23 @@ import { Users, Code2, Rocket, Target, CheckCircle2, ArrowRight } from 'lucide-r
 const values = [
   {
     icon: Users,
-    title: 'Colaboração',
-    desc: 'Atuamos como parceiros estratégicos do seu negócio, do planejamento à entrega.',
+    title: 'Atendimento Humano',
+    desc: 'Somos próximos. Atendemos com atenção, clareza e parceria real em cada etapa.',
   },
   {
     icon: Code2,
-    title: 'Tecnologia',
-    desc: 'Stack moderna para garantir performance, segurança e escalabilidade real.',
+    title: 'Tecnologia com Propósito',
+    desc: 'Cada solução é construída com intenção — para resolver o seu problema, não só para impressionar.',
   },
   {
     icon: Rocket,
-    title: 'Resultado',
-    desc: 'Cada decisão técnica é tomada pensando no impacto direto no seu negócio.',
+    title: 'Agilidade com Responsabilidade',
+    desc: 'Entregamos rápido, sem abrir mão da qualidade. Compromisso com prazo e resultado.',
   },
   {
     icon: Target,
-    title: 'Propósito',
-    desc: 'Tecnologia com clareza e visão de futuro, feita para o tamanho do seu negócio.',
+    title: 'Ética e Parceria Contínua',
+    desc: 'Transparência no relacionamento e comprometimento com o crescimento do cliente a longo prazo.',
   },
 ];
 
@@ -93,12 +93,12 @@ export default function About() {
               className="font-black text-white leading-[1.05] tracking-tight mb-6"
               style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)' }}
             >
-              A Develoi cria soluções digitais{' '}
-              <span style={{ color: 'var(--brand-gold)' }}>que fazem empresas crescerem.</span>
+              Tecnologia com propósito,{' '}
+              <span style={{ color: 'var(--brand-gold)' }}>estratégia com proximidade.</span>
             </h1>
 
             <p className="text-lg leading-relaxed max-w-xl" style={{ color: 'rgba(255,255,255,0.65)' }}>
-              Nascemos para simplificar e fortalecer o digital das empresas. Criamos soluções que organizam processos, aumentam a presença e geram resultado real — do pequeno negócio à grande empresa.
+              Não começamos pelo código. Começamos pela realidade de quem precisa evoluir. Criamos soluções digitais para empresas que querem crescer sem perder sua essência.
             </p>
           </motion.div>
         </div>
@@ -127,13 +127,13 @@ export default function About() {
                 className="font-black tracking-tight leading-tight mb-6"
                 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', color: 'var(--brand-navy)' }}
               >
-                Tecnologia com estratégia,{' '}
+                Transformar necessidades reais{' '}
                 <br className="hidden sm:block" />
-                beleza e resultado.
+                em soluções inteligentes.
               </h2>
 
               <p className="text-base leading-relaxed mb-8" style={{ color: 'var(--text-secondary)' }}>
-                A Develoi é uma empresa de soluções digitais focada em transformar processos, ideias e desafios em tecnologia simples, bonita e eficiente. Trabalhamos com empresas de todos os tamanhos que querem sair do improviso e crescer com estrutura.
+                A Develoi existe para unir tecnologia, estratégia e olhar humano. Criamos sites, sistemas, automações e experiências digitais que simplificam processos, fortalecem marcas e ajudam empresas de diferentes tamanhos a crescerem com mais clareza, organização e segurança.
               </p>
 
               <ul className="space-y-3 mb-10">

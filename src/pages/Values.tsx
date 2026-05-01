@@ -19,28 +19,20 @@ const principleIcons = [Flame, Zap, TrendingUp, Heart, Shield, Star, Compass, Us
 
 const fallbackPillars = [
   {
-    title: "Idealizações",
-    subtitle: "Onde tudo começa",
+    title: "Nossa Missão",
+    subtitle: "Por que existimos",
     description:
-      "Nossa visão é ser a maior plataforma de inovação digital do Brasil, transformando sonhos complexos em realidades extraordinárias.",
-    icon: Sparkles,
+      "Transformar necessidades reais em soluções digitais inteligentes, funcionais e bem construídas. Unimos tecnologia, estratégia e olhar humano para criar sites, sistemas, automações e experiências que simplificam processos e ajudam empresas a crescerem com clareza e segurança.",
+    icon: Target,
     color: "from-aurora-blue to-aurora-purple",
   },
   {
-    title: "Metas",
+    title: "Nossa Visão",
     subtitle: "Onde queremos chegar",
     description:
-      "Impactar positivamente 1 milhão de vidas através de nossas soluções digitais nos próximos 5 anos.",
-    icon: Target,
+      "Ser reconhecidos como uma empresa de soluções digitais que entrega mais do que tecnologia: entrega confiança, proximidade e evolução. Uma marca forte, respeitada pela qualidade das entregas e pela capacidade de acompanhar clientes desde a estruturação inicial até projetos escaláveis.",
+    icon: Sparkles,
     color: "from-aurora-purple to-aurora-pink",
-  },
-  {
-    title: "Valores",
-    subtitle: "O que nos guia",
-    description:
-      "Excelência absoluta, transparência total, inovação constante e compromisso inabalável com o sucesso do cliente.",
-    icon: Heart,
-    color: "from-aurora-pink to-aurora-blue",
   },
 ];
 
@@ -108,7 +100,7 @@ export default function Values() {
             transition={{ delay: 0.2 }}
             className="text-xl md:text-3xl dash-text-2 leading-relaxed max-w-2xl mx-auto font-medium opacity-80"
           >
-            A bússola que guia cada decisão estratégica. Nossa essência é forjada na excelência e no propósito inabalável.
+            O que nos move, o que entregamos e como nos relacionamos. A essência por trás de cada solução que construímos.
           </motion.p>
         </div>
 
@@ -211,12 +203,12 @@ export default function Values() {
               className="mt-32 text-center"
             >
               <p className="text-2xl md:text-5xl font-black tracking-tighter dash-text max-w-4xl mx-auto leading-tight">
-                "Não entregamos apenas software. Entregamos <span className="text-gradient-animated">propósito com precisão cirúrgica.</span>"
+                "Não começamos pelo código. Começamos pela <span className="text-gradient-animated">realidade de quem precisa evoluir.</span>"
               </p>
               <div className="mt-8 flex items-center justify-center gap-3">
                 <div className="h-px w-12 bg-indigo-500/20" />
                 <p className="text-[10px] font-black uppercase tracking-[0.5em] text-indigo-500 opacity-60">
-                  EQUIPE DEVELOI
+                  DEVELOI SOLUÇÕES DIGITAIS
                 </p>
                 <div className="h-px w-12 bg-indigo-500/20" />
               </div>
@@ -238,15 +230,17 @@ export default function Values() {
               PRONTO PARA <span className="text-gradient">ELEVAR</span><br />SEU NEGÓCIO?
             </h2>
             <p className="text-xl md:text-2xl dash-text-2 mb-12 max-w-2xl mx-auto font-medium opacity-70 leading-relaxed">
-              Nossas metas são ambiciosas porque acreditamos no potencial ilimitado de cada projeto que abraçamos.
+              Criamos soluções digitais para empresas que querem evoluir sem perder sua essência. Vamos conversar sobre o seu negócio?
             </p>
-            <motion.button
+            <motion.a
+              href="/#contato"
               whileHover={{ scale: 1.05, y: -5 }}
               whileTap={{ scale: 0.95 }}
-              className="px-12 py-6 bg-indigo-600 text-white font-black rounded-2xl text-lg shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 transition-all uppercase tracking-widest"
+              className="inline-block px-12 py-6 text-white font-black rounded-2xl text-lg shadow-2xl transition-all uppercase tracking-widest"
+              style={{ background: 'var(--brand-navy)', boxShadow: '0 20px 60px rgba(13,31,78,0.35)' }}
             >
-              INICIAR JORNADA
-            </motion.button>
+              FALAR COM A DEVELOI
+            </motion.a>
           </div>
         </motion.div>
       </div>
