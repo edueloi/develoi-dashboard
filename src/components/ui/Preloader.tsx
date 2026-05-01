@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../../images/develoi-logo.png';
+import logo from '../../images/develoi-logo.jpeg';
 
 export default function Preloader() {
   const [loading, setLoading] = useState(true);
