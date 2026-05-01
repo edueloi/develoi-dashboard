@@ -77,17 +77,7 @@ export default function Navbar() {
 
           {/* Ações direita — desktop */}
           <div className="hidden lg:flex items-center gap-3">
-            {/* Nossa Equipe */}
-            <Link
-              to="/sobre"
-              className="flex items-center gap-1.5 text-[13px] font-semibold transition-colors duration-200"
-              style={{ color: 'rgba(255,255,255,0.45)' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)'}
-            >
-              <Users className="w-3.5 h-3.5" />
-              Nossa Equipe
-            </Link>
+
 
             {/* Dashboard se logado */}
             {user && (
@@ -222,18 +212,7 @@ export default function Navbar() {
 
                 <div className="my-4 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
 
-                {/* Nossa Equipe */}
-                <Link
-                  to="/sobre"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-                  style={{ color: 'rgba(255,255,255,0.4)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; }}
-                >
-                  <Users className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm font-semibold">Nossa Equipe</span>
-                </Link>
+
 
                 {/* Membros / Dashboard */}
                 <Link
