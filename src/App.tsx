@@ -122,8 +122,8 @@ function AppContent() {
       {/* Progress Bar */}
       {!hideGlobalLayout && (
         <motion.div
-          className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink z-[60] origin-left"
-          style={{ scaleX }}
+          className="fixed top-0 left-0 right-0 h-[3px] z-[60] origin-left"
+          style={{ scaleX, background: 'linear-gradient(90deg, var(--brand-navy), var(--brand-gold))' }}
         />
       )}
 

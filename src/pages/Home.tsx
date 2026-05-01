@@ -19,8 +19,14 @@ export default function Home() {
     <div className={`relative min-h-screen dash-bg dash-text selection:bg-indigo-500/30 selection:text-white overflow-x-hidden ${isDark ? 'dark' : ''}`}>
       {/* Background Blurs */}
       <div className="fixed inset-0 pointer-events-none -z-10">
-        <div className="absolute top-[10%] left-[-10%] w-[500px] h-[500px] bg-indigo-500/10 blur-[120px] rounded-full animate-pulse-slow" />
-        <div className="absolute bottom-[20%] right-[-5%] w-[600px] h-[600px] bg-purple-500/10 blur-[150px] rounded-full animate-float-slow" />
+        <div
+          className="absolute top-[5%] left-[-8%] w-[500px] h-[500px] blur-[130px] rounded-full animate-pulse-slow"
+          style={{ background: 'rgba(13,31,78,0.06)' }}
+        />
+        <div
+          className="absolute bottom-[15%] right-[-5%] w-[500px] h-[500px] blur-[130px] rounded-full animate-float-slow"
+          style={{ background: 'rgba(196,154,42,0.05)' }}
+        />
       </div>
 
       <motion.div

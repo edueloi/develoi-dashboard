@@ -33,46 +33,62 @@ export default function Contact() {
     }
   };
 
+  const inputBase = `w-full px-4 py-3 rounded-xl border text-sm font-medium outline-none transition-all duration-200`;
   const inputClass = (field: string) =>
-    `w-full px-4 sm:px-6 py-3 sm:py-4 bg-white/[0.03] border rounded-xl sm:rounded-2xl focus:outline-none transition-all duration-300 text-white placeholder:text-neutral-600 text-sm sm:text-base ${
+    `${inputBase} ${
       focused === field
-        ? 'border-aurora-blue/50 shadow-[0_0_20px_rgba(0,210,255,0.08)] bg-white/[0.05]'
-        : 'border-white/[0.06] hover:border-white/[0.10]'
+        ? 'border-[var(--brand-navy)] shadow-[0_0_0_3px_rgba(13,31,78,0.08)] bg-white'
+        : 'border-[var(--border-color)] bg-white hover:border-slate-300'
     }`;
 
   return (
     <section id="contato" className="py-16 sm:py-24 md:py-32 relative overflow-hidden">
+      {/* Subtle background accents */}
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute bottom-0 left-0 w-[300px] sm:w-[500px] md:w-[600px] h-[300px] sm:h-[500px] md:h-[600px] bg-aurora-blue/5 blur-[80px] sm:blur-[120px] rounded-full" />
-        <div className="absolute top-0 right-0 w-[200px] sm:w-[350px] md:w-[400px] h-[200px] sm:h-[350px] md:h-[400px] bg-aurora-purple/5 blur-[80px] sm:blur-[100px] rounded-full" />
+        <div
+          className="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-[0.06] blur-[100px]"
+          style={{ background: 'var(--brand-navy)' }}
+        />
+        <div
+          className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-[0.05] blur-[80px]"
+          style={{ background: 'var(--brand-gold)' }}
+        />
       </div>
 
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-14 lg:gap-20 items-center">
-          {/* Left side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+
+          {/* Left — info */}
           <div className="space-y-8 sm:space-y-10">
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
+              initial={{ opacity: 0, x: -24 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-aurora-blue/10 border border-aurora-blue/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-aurora-blue mb-4 sm:mb-6">
-                <MessageSquare className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <div
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border"
+                style={{
+                  background: 'var(--brand-gold-pale)',
+                  borderColor: 'rgba(196,154,42,0.3)',
+                  color: 'var(--brand-navy)',
+                }}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
                 <span>Fale Conosco</span>
               </div>
 
               <h2
-                className="font-black mb-4 sm:mb-6 tracking-tighter leading-[0.9]"
-                style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)' }}
+                className="font-black mb-5 tracking-tighter leading-[1.0]"
+                style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', color: 'var(--brand-navy)' }}
               >
-                VAMOS <br />
-                <span className="text-gradient">CONSTRUIR</span>
-                <br /> O FUTURO?
+                VAMOS CONSTRUIR{' '}
+                <span className="text-gradient-gold">O FUTURO?</span>
               </h2>
-              <p className="text-base sm:text-lg text-neutral-400 leading-relaxed max-w-lg">
-                Sua visão merece a elite do desenvolvimento. Entre em contato e descubra como a{' '}
-                <span className="text-white font-semibold">Develoi</span> pode transformar seu negócio.
+              <p className="text-base sm:text-lg leading-relaxed max-w-lg" style={{ color: 'var(--text-secondary)' }}>
+                Sua visão merece tecnologia de qualidade. Entre em contato e descubra como a{' '}
+                <strong style={{ color: 'var(--brand-navy)', fontWeight: 700 }}>Develoi</strong>{' '}
+                pode transformar seu negócio.
               </p>
             </motion.div>
 
@@ -82,21 +98,33 @@ export default function Contact() {
                 <motion.a
                   key={item.label}
                   href={item.href}
-                  initial={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, x: -16 }}
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: index * 0.1, duration: 0.6 }}
                   whileHover={{ x: 4 }}
-                  className="flex items-center gap-4 sm:gap-5 group cursor-pointer"
+                  className="flex items-center gap-4 group cursor-pointer"
                 >
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl glass flex items-center justify-center group-hover:border-aurora-blue/40 group-hover:shadow-[0_0_20px_rgba(0,210,255,0.1)] transition-all duration-300 flex-shrink-0">
-                    <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-aurora-blue" />
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border transition-all duration-250 group-hover:shadow-md"
+                    style={{
+                      background: 'var(--bg-tertiary)',
+                      borderColor: 'var(--border-color)',
+                    }}
+                  >
+                    <item.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-0.5">
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-widest mb-0.5"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
                       {item.label}
                     </p>
-                    <p className="text-base sm:text-lg font-black tracking-tighter group-hover:text-aurora-blue transition-colors duration-300">
+                    <p
+                      className="text-base font-bold transition-colors duration-200 group-hover:text-[var(--brand-gold)]"
+                      style={{ color: 'var(--brand-navy)' }}
+                    >
                       {item.value}
                     </p>
                   </div>
@@ -104,60 +132,65 @@ export default function Contact() {
               ))}
             </div>
 
-            {/* Trust indicators */}
+            {/* Trust tags */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: 0.4 }}
-              className="flex flex-wrap gap-2 sm:gap-3"
+              transition={{ delay: 0.35 }}
+              className="flex flex-wrap gap-2.5"
             >
               {['Resposta em 24h', 'Sem compromisso', 'Orçamento gratuito'].map((tag) => (
-                <span key={tag} className="tag-pill text-[10px] sm:text-xs">
-                  <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-aurora-green" />
+                <span key={tag} className="tag-pill">
+                  <CheckCircle2 className="w-3 h-3" />
                   {tag}
                 </span>
               ))}
             </motion.div>
           </div>
 
-          {/* Right: Form */}
+          {/* Right — form */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            whileInView={{ opacity: 1, scale: 1, y: 0 }}
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="glass-strong p-6 sm:p-8 md:p-12 rounded-[2rem] sm:rounded-[3rem] border-white/[0.06] relative overflow-hidden"
+            className="brand-card card-gold-top p-7 sm:p-10 relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-aurora-blue/[0.03] to-aurora-purple/[0.03] rounded-[2rem] sm:rounded-[3rem]" />
-
             <AnimatePresence mode="wait">
               {status === 'success' ? (
                 <motion.div
                   key="success"
-                  initial={{ opacity: 0, scale: 0.9 }}
+                  initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  className="relative text-center py-12 sm:py-16 space-y-5 sm:space-y-6"
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="text-center py-12 space-y-5"
                 >
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
-                    className="w-20 h-20 sm:w-24 sm:h-24 bg-aurora-green/15 rounded-full flex items-center justify-center mx-auto ring-2 ring-aurora-green/30"
+                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
+                    style={{ background: 'rgba(21,128,61,0.1)', border: '2px solid rgba(21,128,61,0.3)' }}
                   >
-                    <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-aurora-green" />
+                    <CheckCircle2 className="w-10 h-10" style={{ color: 'var(--accent-success)' }} />
                   </motion.div>
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter">Mensagem Enviada!</h3>
-                  <p className="text-neutral-400 text-base sm:text-lg">Nossa equipe entrará em contato em até 24 horas.</p>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <h3
+                    className="text-2xl sm:text-3xl font-black tracking-tighter"
+                    style={{ color: 'var(--brand-navy)' }}
+                  >
+                    Mensagem Enviada!
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    Nossa equipe entrará em contato em até 24 horas.
+                  </p>
+                  <button
                     onClick={() => setStatus('idle')}
-                    className="px-6 sm:px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-black transition-all"
+                    className="px-6 py-3 rounded-xl text-sm font-bold border transition-all hover:bg-slate-50"
+                    style={{ color: 'var(--brand-navy)', borderColor: 'var(--border-color)' }}
                   >
                     ENVIAR OUTRA
-                  </motion.button>
+                  </button>
                 </motion.div>
               ) : (
                 <motion.form
@@ -166,54 +199,58 @@ export default function Contact() {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   onSubmit={handleSubmit}
-                  className="relative space-y-4 sm:space-y-6"
+                  className="space-y-5"
                 >
-                  <div className="mb-5 sm:mb-8">
-                    <h3 className="text-xl sm:text-2xl font-black tracking-tighter mb-1">Inicie seu projeto</h3>
-                    <p className="text-xs sm:text-sm text-neutral-500">Preencha o formulário e entraremos em contato.</p>
+                  <div className="mb-6">
+                    <h3
+                      className="text-xl sm:text-2xl font-black tracking-tight mb-1"
+                      style={{ color: 'var(--brand-navy)' }}
+                    >
+                      Inicie seu projeto
+                    </h3>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Preencha o formulário e entraremos em contato.
+                    </p>
                   </div>
 
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 ml-1 sm:ml-2">
-                      Nome Completo
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Como podemos te chamar?"
-                      className={inputClass('name')}
-                      value={formData.name}
-                      onFocus={() => setFocused('name')}
-                      onBlur={() => setFocused(null)}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                  </div>
+                  {[
+                    { field: 'name', label: 'Nome Completo', type: 'text', placeholder: 'Como podemos te chamar?' },
+                    { field: 'email', label: 'E-mail', type: 'email', placeholder: 'seu@email.com' },
+                  ].map(({ field, label, type, placeholder }) => (
+                    <div key={field} className="space-y-1.5">
+                      <label
+                        className="text-[10px] font-bold uppercase tracking-[0.12em]"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {label}
+                      </label>
+                      <input
+                        required
+                        type={type}
+                        placeholder={placeholder}
+                        className={inputClass(field)}
+                        style={{ color: 'var(--text-primary)' }}
+                        value={(formData as any)[field]}
+                        onFocus={() => setFocused(field)}
+                        onBlur={() => setFocused(null)}
+                        onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
+                      />
+                    </div>
+                  ))}
 
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 ml-1 sm:ml-2">
-                      E-mail Corporativo
-                    </label>
-                    <input
-                      required
-                      type="email"
-                      placeholder="seu@email.com"
-                      className={inputClass('email')}
-                      value={formData.email}
-                      onFocus={() => setFocused('email')}
-                      onBlur={() => setFocused(null)}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 sm:space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-neutral-500 ml-1 sm:ml-2">
-                      Sua Visão
+                  <div className="space-y-1.5">
+                    <label
+                      className="text-[10px] font-bold uppercase tracking-[0.12em]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Mensagem
                     </label>
                     <textarea
                       required
                       rows={4}
                       placeholder="Conte-nos sobre seu projeto..."
                       className={`${inputClass('message')} resize-none`}
+                      style={{ color: 'var(--text-primary)' }}
                       value={formData.message}
                       onFocus={() => setFocused('message')}
                       onBlur={() => setFocused(null)}
@@ -222,34 +259,34 @@ export default function Contact() {
                   </div>
 
                   <motion.button
-                    whileHover={status !== 'loading' ? { scale: 1.02 } : {}}
-                    whileTap={status !== 'loading' ? { scale: 0.98 } : {}}
+                    whileHover={status !== 'loading' ? { scale: 1.01, y: -1 } : {}}
+                    whileTap={status !== 'loading' ? { scale: 0.99 } : {}}
                     disabled={status === 'loading'}
-                    className="w-full py-4 sm:py-5 bg-white text-black font-black rounded-xl sm:rounded-2xl shadow-xl shadow-white/5 flex items-center justify-center gap-2 sm:gap-3 disabled:opacity-60 relative overflow-hidden group transition-all text-sm sm:text-base md:text-lg"
+                    type="submit"
+                    className="w-full py-4 font-black rounded-xl flex items-center justify-center gap-3 disabled:opacity-60 transition-all duration-200 text-white text-sm hover:shadow-[0_8px_24px_rgba(13,31,78,0.3)] hover:-translate-y-px"
+                    style={{ background: 'var(--brand-navy)' }}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-aurora-blue via-aurora-purple to-aurora-pink opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <span className="relative z-10 flex items-center gap-2 sm:gap-3 group-hover:text-white transition-colors duration-300">
-                      {status === 'loading' ? (
-                        <>
-                          <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
-                          ENVIANDO...
-                        </>
-                      ) : (
-                        <>
-                          ENVIAR MENSAGEM
-                          <Send className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                        </>
-                      )}
-                    </span>
+                    {status === 'loading' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        ENVIANDO...
+                      </>
+                    ) : (
+                      <>
+                        ENVIAR MENSAGEM
+                        <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </>
+                    )}
                   </motion.button>
 
                   <AnimatePresence>
                     {status === 'error' && (
                       <motion.p
-                        initial={{ opacity: 0, y: -10 }}
+                        initial={{ opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="text-red-400 text-center text-xs sm:text-sm font-bold"
+                        exit={{ opacity: 0, y: -8 }}
+                        className="text-center text-sm font-semibold"
+                        style={{ color: 'var(--accent-error)' }}
                       >
                         Ocorreu um erro. Tente novamente.
                       </motion.p>
