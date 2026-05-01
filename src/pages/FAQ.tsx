@@ -5,11 +5,11 @@ import { useState } from 'react';
 const faqs = [
   {
     question: "A Develoi só faz software?",
-    answer: "Não! Somos uma consultoria completa. Oferecemos desde o planejamento estratégico e marketing de performance até o desenvolvimento de softwares de elite e integração de IA."
+    answer: "Não! Somos uma consultoria completa. Oferecemos desde o planejamento estratégico e marketing de performance até o desenvolvimento de sistemas sob medida e integração de IA."
   },
   {
     question: "Quanto tempo leva para iniciar um projeto?",
-    answer: "Nossa equipe de elite consegue mobilizar e iniciar a fase de planejamento em até 48 horas após a aprovação da proposta estratégica."
+    answer: "Nossa equipe consegue mobilizar e iniciar a fase de planejamento em até 48 horas após a aprovação da proposta estratégica."
   },
   {
     question: "Vocês trabalham com empresas de todos os tamanhos?",

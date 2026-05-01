@@ -30,7 +30,7 @@ const fallbackPillars = [
     title: "Metas",
     subtitle: "Onde queremos chegar",
     description:
-      "Impactar positivamente 1 milhão de vidas através de nossos ecossistemas digitais e soluções de elite nos próximos 5 anos.",
+      "Impactar positivamente 1 milhão de vidas através de nossas soluções digitais nos próximos 5 anos.",
     icon: Target,
     color: "from-aurora-purple to-aurora-pink",
   },

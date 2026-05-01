@@ -11,7 +11,7 @@ const differentials = [
     color: "from-amber-500 to-orange-500"
   },
   {
-    title: "Parceria de Elite",
+    title: "Parceria Estratégica",
     desc: "Atuamos como seu CTO as a Service, pensando estrategicamente em cada decisão técnica.",
     icon: ShieldCheck,
     color: "from-indigo-500 to-blue-500"
@@ -53,7 +53,7 @@ export default function DifferentialsSection() {
             transition={{ delay: 0.1 }}
             className="dash-text-2 text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed"
           >
-            Diferente de agências tradicionais, somos seu braço tecnológico estratégico focado em escalar lucros através de software de elite.
+            Diferente de agências tradicionais, somos seu braço tecnológico estratégico focado em organizar, escalar e gerar resultado real para o seu negócio.
           </motion.p>
         </div>
 

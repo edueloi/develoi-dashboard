@@ -67,7 +67,7 @@ function NewsletterBanner() {
           <CheckCircle className="w-8 h-8 text-emerald-500" />
         </div>
         <h3 className="text-xl font-black text-white mb-2">Inscrição Confirmada!</h3>
-        <p className="text-sm text-white/50">Você agora faz parte da nossa elite de leitores.</p>
+        <p className="text-sm text-white/50">Você vai receber nossos conteúdos em primeira mão.</p>
       </motion.div>
     );
   }
@@ -326,7 +326,7 @@ export default function BlogPage() {
                 BLOG <span className="text-gradient-animated">DEVELOI.</span>
               </h1>
               <p className="text-xl md:text-3xl dash-text-2 leading-relaxed max-w-2xl mx-auto font-medium opacity-80">
-                Tecnologia, estratégia e o futuro do software de elite.
+                Tecnologia, estratégia e tendências digitais para o seu negócio.
               </p>
             </motion.div>
 
@@ -468,7 +468,7 @@ export default function BlogPage() {
                 <div className="absolute inset-0 noise-overlay opacity-[0.05]" />
                 <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center text-left">
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6 block">Elite Newsletter</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-500 mb-6 block">Newsletter Develoi</span>
                     <h2 className="text-4xl lg:text-6xl font-black mb-8 tracking-tighter dash-text leading-tight">
                       FIQUE POR DENTRO DA <span className="text-gradient">INOVAÇÃO.</span>
                     </h2>

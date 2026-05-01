@@ -34,7 +34,7 @@ export default function Footer() {
               <span className="text-2xl font-black tracking-tighter dash-text">DEVELOI</span>
             </div>
             <p className="text-sm dash-text-2 leading-relaxed max-w-xs font-medium">
-              Transformamos visões complexas em experiências digitais extraordinárias. A elite do desenvolvimento sob medida.
+              Criamos sites, sistemas e soluções digitais para empresas que querem crescer com mais estrutura e resultado.
             </p>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-slow shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
@@ -110,7 +110,7 @@ export default function Footer() {
         <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent mb-12" />
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-[11px] dash-text-2 font-black uppercase tracking-widest opacity-40">
-          <p>© {new Date().getFullYear()} Develoi. Tecnologia de Elite.</p>
+          <p>© {new Date().getFullYear()} Develoi. Soluções Digitais.</p>
           <p className="flex items-center gap-2">
             DESIGNED WITH <span className="text-rose-500 animate-pulse">♥</span> BY DEVELOI
           </p>

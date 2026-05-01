@@ -20,8 +20,8 @@ const steps = [
   },
   { 
     num: '03', 
-    title: 'Desenvolvimento de Elite', 
-    desc: 'Nossa equipe constrói seu projeto com as tecnologias mais rápidas e seguras do mercado.',
+    title: 'Desenvolvimento',
+    desc: 'Nossa equipe constrói seu projeto com as tecnologias mais modernas, seguras e eficientes do mercado.',
     icon: Code2,
     color: 'from-violet-500 to-purple-500'
   },

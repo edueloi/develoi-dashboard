@@ -42,7 +42,7 @@ export default function CasesPreviewSection() {
       <section className="relative py-24 sm:py-32 dash-bg overflow-hidden flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Carregando histórias de elite...</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-white/20">Carregando casos...</p>
         </div>
       </section>
     );
@@ -63,7 +63,7 @@ export default function CasesPreviewSection() {
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-6"
             >
               <Star className="w-3 h-3 fill-indigo-600" />
-              Portfólio de Elite
+              Nosso Portfólio
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}

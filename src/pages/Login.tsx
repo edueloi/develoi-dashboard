@@ -81,7 +81,7 @@ export default function Login() {
                 DEVELOI <span className="text-indigo-600">HUB</span>
              </h1>
              <p className="mt-3 text-sm font-medium dash-text-2 opacity-60 flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-500" /> Acesso de Elite ao Dashboard
+                <Sparkles className="w-4 h-4 text-indigo-500" /> Acesso ao Dashboard
              </p>
           </div>
 

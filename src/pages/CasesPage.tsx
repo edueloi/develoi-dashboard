@@ -289,7 +289,7 @@ export default function CasesPage() {
             transition={{ delay: 0.2 }}
             className="text-xl md:text-3xl pub-text-soft leading-relaxed max-w-3xl mx-auto font-medium"
           >
-            Conheça as histórias de sucesso dos nossos clientes e os impactos reais que entregamos com tecnologia de elite.
+            Conheça as histórias de sucesso dos nossos clientes e os impactos reais que entregamos com tecnologia e estratégia.
           </motion.p>
         </div>
       </section>
@@ -434,7 +434,7 @@ export default function CasesPage() {
                 QUER SER O PRÓXIMO <span className="text-gradient">CASE</span> DE SUCESSO?
               </h2>
               <p className="text-xl md:text-2xl pub-text-soft mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
-                Transforme sua visão em um ecossistema digital de elite. Vamos criar o futuro do seu negócio hoje.
+                Transforme sua visão em uma solução digital real. Vamos criar o futuro do seu negócio hoje.
               </p>
               <motion.a
                 whileHover={{ scale: 1.05, y: -5 }}

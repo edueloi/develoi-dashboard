@@ -407,8 +407,8 @@ export default function BlogPostPage() {
                    <div className="absolute -inset-4 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-[2.5rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                    <div className="relative dash-surface border dash-border p-8 rounded-3xl overflow-hidden shadow-2xl">
                       <div className="absolute inset-0 noise-overlay opacity-[0.05]" />
-                      <p className="text-indigo-500 text-[9px] font-black uppercase tracking-[0.4em] mb-4">Elite Newsletter</p>
-                      <h4 className="text-lg font-black text-white mb-4 leading-tight">Receba insights de elite toda semana.</h4>
+                      <p className="text-indigo-500 text-[9px] font-black uppercase tracking-[0.4em] mb-4">Newsletter Develoi</p>
+                      <h4 className="text-lg font-black text-white mb-4 leading-tight">Receba conteúdos e novidades toda semana.</h4>
                       <NewsletterInline />
                    </div>
                 </div>

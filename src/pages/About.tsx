@@ -4,7 +4,7 @@ import { Users, Code, Rocket, Heart } from 'lucide-react';
 const team = [
   {
     name: "Especialistas Develoi",
-    role: "Time de Elite",
+    role: "Nossa Equipe",
     image: "https://picsum.photos/seed/develoi-team/400/400",
     bio: "Um coletivo de designers, desenvolvedores e estrategistas focados em excelência absoluta e resultados reais."
   },
@@ -54,7 +54,7 @@ export default function About() {
             transition={{ delay: 0.2 }}
             className="text-xl md:text-3xl dash-text-2 leading-relaxed font-medium opacity-80"
           >
-            A Develoi nasceu para elevar o padrão do desenvolvimento digital. Somos o motor de inovação que impulsiona negócios para o futuro com tecnologia de elite.
+            A Develoi nasceu para simplificar e fortalecer o digital das empresas. Criamos soluções que organizam processos, aumentam a presença e geram resultado real.
           </motion.p>
         </div>
 
@@ -62,7 +62,7 @@ export default function About() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center mb-40">
           <div className="space-y-12">
             <div>
-              <h2 className="text-4xl md:text-6xl font-black tracking-tighter dash-text mb-6">Time de <span className="text-gradient">Elite.</span></h2>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tighter dash-text mb-6">Nossa <span className="text-gradient">Equipe.</span></h2>
               <p className="dash-text-2 text-lg md:text-xl leading-relaxed font-medium opacity-70">
                 Selecionamos os melhores talentos para garantir que cada pixel e cada linha de código entreguem o máximo de valor. Excelência não é um ato, é um hábito.
               </p>
