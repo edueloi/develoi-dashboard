@@ -1,10 +1,8 @@
 import { motion } from 'framer-motion';
-import { Instagram, Linkedin, Github, ArrowUp } from 'lucide-react';
+import { Instagram, ArrowUp } from 'lucide-react';
 
 const socialLinks = [
-  { icon: Instagram, label: 'Instagram', href: '#' },
-  { icon: Linkedin, label: 'LinkedIn', href: '#' },
-  { icon: Github, label: 'GitHub', href: '#' },
+  { icon: Instagram, label: 'Instagram', href: 'https://www.instagram.com/develoi.solucoesdigitais/' },
 ];
 
 const footerLinks = [
