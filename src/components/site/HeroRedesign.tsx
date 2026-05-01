@@ -33,29 +33,28 @@ export default function HeroRedesign() {
           style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 55%, #0A1840 100%)' }}
         />
 
-        {/* Foto de cidade/prédio lado direito com overlay gradiente */}
-        <div className="absolute inset-0 hidden md:block">
-          {/* Imagem de prédio corporativo via Unsplash */}
+        {/* Capa header personalizada Develoi */}
+        <div className="absolute inset-0">
           <div
-            className="absolute right-0 top-0 bottom-0 w-[52%]"
+            className="absolute inset-0"
             style={{
-              backgroundImage: 'url(https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1200&q=80&fit=crop)',
+              backgroundImage: 'url(/capa-header.png)',
               backgroundSize: 'cover',
-              backgroundPosition: 'center',
+              backgroundPosition: 'center right',
             }}
           />
-          {/* Overlay gradiente da esquerda para cobrir a foto */}
+          {/* Overlay gradiente para legibilidade do texto à esquerda */}
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(90deg, #06112B 38%, rgba(6,17,43,0.85) 58%, rgba(6,17,43,0.4) 75%, rgba(6,17,43,0.15) 100%)',
+              background: 'linear-gradient(90deg, rgba(6,17,43,0.96) 0%, rgba(6,17,43,0.88) 35%, rgba(6,17,43,0.55) 60%, rgba(6,17,43,0.15) 100%)',
             }}
           />
-          {/* Overlay escuro leve no topo e base */}
+          {/* Overlay escuro topo e base */}
           <div
             className="absolute inset-0"
             style={{
-              background: 'linear-gradient(180deg, rgba(6,17,43,0.5) 0%, transparent 25%, transparent 75%, rgba(6,17,43,0.7) 100%)',
+              background: 'linear-gradient(180deg, rgba(6,17,43,0.4) 0%, transparent 20%, transparent 80%, rgba(6,17,43,0.6) 100%)',
             }}
           />
         </div>

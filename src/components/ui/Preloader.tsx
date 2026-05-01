@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import logo from '../../images/logo-develoi.png';
+import logo from '../../images/develoi-logo.png';
 
 export default function Preloader() {
   const [loading, setLoading] = useState(true);
@@ -33,40 +33,19 @@ export default function Preloader() {
             }}
           />
 
-          <div className="relative flex flex-col items-center gap-10">
-            {/* Logo */}
+          <div className="relative flex flex-col items-center gap-8">
+            {/* Logo completa */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.85, y: 8 }}
+              initial={{ opacity: 0, scale: 0.88, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="w-28 h-28 md:w-36 md:h-36"
+              className="w-56 md:w-72"
             >
               <img
                 src={logo}
                 alt="Develoi"
-                className="w-full h-full object-contain"
+                className="w-full h-auto object-contain"
               />
-            </motion.div>
-
-            {/* Brand name */}
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="flex flex-col items-center gap-1"
-            >
-              <span
-                className="text-2xl font-black tracking-tight"
-                style={{ color: 'var(--brand-navy)' }}
-              >
-                develoi
-              </span>
-              <span
-                className="text-[10px] font-semibold uppercase tracking-[0.22em]"
-                style={{ color: 'var(--brand-gold)' }}
-              >
-                Soluções Digitais
-              </span>
             </motion.div>
 
             {/* Progress bar */}
