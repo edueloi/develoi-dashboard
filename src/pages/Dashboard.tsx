@@ -118,7 +118,7 @@ export default function Dashboard() {
   const searchParams = new URLSearchParams(location.search);
   const projetoParam = searchParams.get('projeto');
 
-  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -128,10 +128,19 @@ export default function Dashboard() {
         const response = await fetch(`/api/projects?userId=${profile.uid}&isAdmin=${isAdmin}`);
         const data = await response.json();
         setProjects(data);
-        if (data.length > 0 && !projectsLoaded) {
-          setProjectsLoaded(true);
-          const fromUrl = projetoParam ? data.find((p: Project) => p.id === projetoParam) : null;
+        
+        if (data.length > 0 && !hasLoadedRef.current) {
+          hasLoadedRef.current = true;
+          const currentParams = new URLSearchParams(window.location.search);
+          const currentProjParam = currentParams.get('projeto');
+          const fromUrl = currentProjParam ? data.find((p: Project) => p.id === currentProjParam) : null;
           setSelectedProject(fromUrl || data[0]);
+        } else if (data.length > 0) {
+          // Keep selectedProject up to date with new data (like progress/status changes) without overriding selection
+          setSelectedProject(prev => {
+            if (!prev) return null;
+            return data.find((p: Project) => p.id === prev.id) || prev;
+          });
         }
       } catch (error) {
         handleApiError(error, OperationType.LIST, 'projects');
