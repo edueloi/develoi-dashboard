@@ -65,16 +65,15 @@ export default function Login() {
         <div className="absolute top-1/3 right-0 w-64 h-64 rounded-full blur-[100px] opacity-10" style={{ background: '#1A3070' }} />
 
         {/* Logo topo */}
-        <div className="relative z-10 p-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/5 p-1.5 flex-shrink-0">
-              <img src={develoiLogo} alt="Develoi" className="w-full h-full object-contain" />
-            </div>
-            <div>
-              <p className="font-black text-white text-base tracking-tight leading-none">DEVELOI</p>
-              <p className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'rgba(196,154,42,0.6)' }}>Hub</p>
-            </div>
-          </div>
+        <div className="relative z-10 p-10 flex items-center justify-between">
+          <img src="/LOGO-MENU-BRANCO.png" alt="Develoi" className="h-9 w-auto object-contain" />
+          <a href="/" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-70"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.8)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            Ir para o site
+          </a>
         </div>
 
         {/* Conteúdo central */}
@@ -139,13 +138,14 @@ export default function Login() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-10 py-12 relative">
 
         {/* Logo mobile */}
-        <div className="lg:hidden mb-10 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center mx-auto mb-4 p-2">
-            <img src={develoiLogo} alt="Develoi" className="w-full h-full object-contain" />
+        <div className="lg:hidden mb-10 flex flex-col items-center gap-4">
+          <div className="bg-white rounded-2xl shadow-sm border px-5 py-3" style={{ borderColor: '#E2E8F0' }}>
+            <img src="/LOGO-MENU.png" alt="Develoi" className="h-8 w-auto object-contain" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ color: '#0D1F4E' }}>
-            DEVELOI <span style={{ color: 'var(--brand-gold)' }}>HUB</span>
-          </h1>
+          <a href="/" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-60" style={{ color: '#94A3B8' }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            Voltar ao site
+          </a>
         </div>
 
         <motion.div
