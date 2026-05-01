@@ -11,6 +11,7 @@ const navItems = [
   { name: 'Blog', path: '/blog' },
   { name: 'Valores', path: '/valores' },
   { name: 'Dúvidas', path: '/duvidas' },
+  { name: 'Contato', path: '/contato' },
 ];
 
 export default function Navbar() {

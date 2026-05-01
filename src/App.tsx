@@ -18,6 +18,7 @@ import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
 import CasesPage from './pages/CasesPage';
 import CasePostPage from './pages/CasePostPage';
+import ContactPage from './pages/ContactPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import { motion, useScroll, useSpring } from 'framer-motion';
@@ -53,6 +54,7 @@ function AnimatedRoutes() {
         <Route path="/sobre" element={<About />} />
         <Route path="/valores" element={<Values />} />
         <Route path="/duvidas" element={<FAQ />} />
+        <Route path="/contato" element={<ContactPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
