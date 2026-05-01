@@ -198,7 +198,7 @@ export default function About() {
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[10px] font-bold uppercase tracking-[0.18em]"
                     style={{ background: 'rgba(196,154,42,0.15)', color: 'var(--brand-gold)', border: '1px solid rgba(196,154,42,0.25)' }}
                   >
-                    Develoi — Desde 2022
+                    Develoi — Desde 2019
                   </div>
 
                   <h3 className="text-2xl font-black text-white mb-2 tracking-tight">

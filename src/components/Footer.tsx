@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { Instagram, Linkedin, Github, ArrowUp } from 'lucide-react';
-import develoiLogo from '../images/logo-develoi.png';
 
 const socialLinks = [
   { icon: Instagram, label: 'Instagram', href: '#' },
@@ -27,11 +26,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8 mb-16">
           {/* Brand */}
           <div className="space-y-6 lg:col-span-1">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-white/5 flex-shrink-0">
-                <img src={develoiLogo} alt="Develoi" className="w-full h-full object-contain p-0.5" />
-              </div>
-              <span className="text-2xl font-black tracking-tighter dash-text">DEVELOI</span>
+            <div className="flex items-center">
+              <img src="/LOGO-MENU.png" alt="Develoi" className="h-10 w-auto object-contain" />
             </div>
             <p className="text-sm dash-text-2 leading-relaxed max-w-xs font-medium">
               Criamos sites, sistemas e soluções digitais para empresas que querem crescer com mais estrutura e resultado.

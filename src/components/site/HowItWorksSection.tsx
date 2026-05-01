@@ -1,119 +1,58 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Search, Lightbulb, Code2, Rocket } from 'lucide-react';
 
 const steps = [
-  { 
-    num: '01', 
-    title: 'Imersão & Estratégia', 
-    desc: 'Mergulhamos fundo no seu modelo de negócio para identificar dores e oportunidades reais.',
-    icon: Search,
-    color: 'from-blue-500 to-indigo-500'
-  },
-  { 
-    num: '02', 
-    title: 'Arquitetura de Solução', 
-    desc: 'Desenhamos a infraestrutura ideal e a experiência do usuário focada em conversão.',
-    icon: Lightbulb,
-    color: 'from-indigo-500 to-violet-500'
-  },
-  { 
-    num: '03', 
-    title: 'Desenvolvimento',
-    desc: 'Nossa equipe constrói seu projeto com as tecnologias mais modernas, seguras e eficientes do mercado.',
-    icon: Code2,
-    color: 'from-violet-500 to-purple-500'
-  },
-  { 
-    num: '04', 
-    title: 'Escala & Performance', 
-    desc: 'Lançamos e otimizamos continuamente para garantir que seu negócio nunca pare de crescer.',
-    icon: Rocket,
-    color: 'from-purple-500 to-fuchsia-500'
-  }
+  { num: '01', title: 'Imersão & Estratégia', desc: 'Mergulhamos fundo no seu modelo de negócio para identificar dores e oportunidades reais.', icon: Search },
+  { num: '02', title: 'Arquitetura de Solução', desc: 'Desenhamos a infraestrutura ideal e a experiência do usuário focada em conversão.', icon: Lightbulb },
+  { num: '03', title: 'Desenvolvimento', desc: 'Nossa equipe constrói seu projeto com as tecnologias mais modernas, seguras e eficientes do mercado.', icon: Code2 },
+  { num: '04', title: 'Escala & Performance', desc: 'Lançamos e otimizamos continuamente para garantir que seu negócio nunca pare de crescer.', icon: Rocket },
 ];
 
 export default function HowItWorksSection() {
   return (
-    <section className="relative py-24 sm:py-32 dash-bg transition-colors duration-300 overflow-hidden">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
-        <div className="absolute top-1/4 left-0 w-96 h-96 bg-indigo-500 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-purple-500 rounded-full blur-[120px]" />
-      </div>
+    <section className="relative py-20 md:py-28 overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-20">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-black uppercase tracking-widest text-indigo-600 mb-6"
-          >
-            Nossa Metodologia
-          </motion.div>
-          <motion.h2 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl md:text-6xl font-black dash-text tracking-tighter mb-6"
-          >
-            Como criamos seu <span className="text-gradient">sucesso</span>
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-            className="text-lg dash-text-2 max-w-2xl mx-auto leading-relaxed"
-          >
-            Um processo refinado que transforma ideias complexas em plataformas de alta performance e escala global.
-          </motion.p>
-        </div>
-
-        <div className="relative">
-          {/* Connecting Line (Desktop) */}
-          <div className="hidden lg:block absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent -translate-y-1/2" />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 xl:gap-12">
-            {steps.map((step, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.15 }}
-                className="group relative"
-              >
-                {/* Step Number Background */}
-                <div className="absolute -top-10 -right-4 text-9xl font-black dash-text opacity-[0.03] select-none pointer-events-none group-hover:opacity-[0.06] transition-opacity duration-700">
-                  {step.num}
-                </div>
-
-                <div className="relative h-full flex flex-col items-center lg:items-start text-center lg:text-left">
-                  {/* Icon Container */}
-                  <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-[2rem] bg-gradient-to-br ${step.color} p-[1px] mb-8 shadow-xl shadow-indigo-500/10 group-hover:scale-110 transition-transform duration-500`}>
-                    <div className="w-full h-full rounded-[2rem] dash-surface flex items-center justify-center">
-                      <step.icon className="w-8 h-8 sm:w-10 sm:h-10 text-indigo-500" />
-                    </div>
-                  </div>
-
-                  <div className="dash-surface p-8 rounded-[2.5rem] border dash-border shadow-sm hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500 flex-1">
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-600 mb-4 block">
-                      Fase {step.num}
-                    </span>
-                    <h4 className="text-xl sm:text-2xl font-black dash-text mb-4 tracking-tight leading-tight">
-                      {step.title}
-                    </h4>
-                    <p className="dash-text-2 text-sm sm:text-base leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
-                      {step.desc}
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+          <div className="inline-flex items-center gap-2 mb-4">
+            <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Nossa metodologia</span>
+            <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
           </div>
+          <h2 className="font-black tracking-tight mb-4" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
+            Como criamos seu sucesso
+          </h2>
+          <p className="text-sm max-w-xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            Um processo refinado que transforma ideias complexas em plataformas de alta performance.
+          </p>
+        </motion.div>
+
+        {/* Steps */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {steps.map((step, idx) => (
+            <motion.div key={idx} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: idx * 0.1 }}
+              className="bg-white rounded-2xl p-6 border relative overflow-hidden transition-all duration-250 hover:-translate-y-1"
+              style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
+            >
+              {/* Step number watermark */}
+              <div className="absolute -top-4 -right-2 text-8xl font-black select-none pointer-events-none" style={{ color: 'rgba(13,31,78,0.04)' }}>{step.num}</div>
+
+              {/* Top accent */}
+              <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.2))' }} />
+
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'var(--bg-tertiary)' }}>
+                <step.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--brand-gold)' }}>Fase {step.num}</p>
+              <h4 className="font-black text-sm leading-snug mb-3 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{step.title}</h4>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{step.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>

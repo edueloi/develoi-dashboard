@@ -49,7 +49,7 @@ export default function Navbar() {
             <img
               src="/LOGO-MENU-BRANCO.png"
               alt="Develoi"
-              className="h-8 w-auto object-contain transition-opacity duration-200 group-hover:opacity-75"
+              className="h-10 w-auto object-contain transition-opacity duration-200 group-hover:opacity-75"
             />
           </Link>
 
@@ -178,7 +178,7 @@ export default function Navbar() {
               {/* Header drawer */}
               <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
                 <Link to="/" onClick={() => setIsOpen(false)}>
-                  <img src="/LOGO-MENU-BRANCO.png" alt="Develoi" className="h-7 w-auto object-contain" />
+                  <img src="/LOGO-MENU-BRANCO.png" alt="Develoi" className="h-9 w-auto object-contain" />
                 </Link>
                 <button
                   onClick={() => setIsOpen(false)}

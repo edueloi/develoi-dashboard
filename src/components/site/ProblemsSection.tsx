@@ -1,80 +1,51 @@
-// @ts-nocheck
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, ArrowDown } from 'lucide-react';
+import { AlertCircle, XCircle } from 'lucide-react';
 
 const problems = [
   "Processos manuais que travam o crescimento",
   "Dificuldade em visualizar lucros e métricas reais",
   "Equipe sobrecarregada com tarefas repetitivas",
   "Falta de integração entre setores e ferramentas",
-  "Incerteza tecnológica para escalar o negócio"
+  "Incerteza tecnológica para escalar o negócio",
 ];
 
 export default function ProblemsSection() {
   return (
-    <section className="relative py-24 sm:py-32 dash-bg overflow-hidden">
-      {/* Background Glow */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-red-500/[0.02] blur-[120px] rounded-full pointer-events-none" />
+    <section className="relative py-20 md:py-28 overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 items-center">
-          <div className="lg:w-1/2">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-[10px] font-black uppercase tracking-widest text-red-600 mb-6"
-            >
-              <AlertCircle className="w-3 h-3" />
-              O Custo da Ineficiência
-            </motion.div>
-            <motion.h2 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-4xl md:text-6xl font-black dash-text mb-8 tracking-tighter leading-tight"
-            >
-              Seu negócio está <span className="text-red-500">estagnado</span> por tecnologia defasada?
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="dash-text-2 text-lg lg:text-xl leading-relaxed mb-8"
-            >
+          {/* Esquerda */}
+          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
+            <div className="inline-flex items-center gap-2 mb-5">
+              <AlertCircle className="w-4 h-4" style={{ color: '#dc2626' }} />
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: '#dc2626' }}>O custo da ineficiência</span>
+            </div>
+            <h2 className="font-black tracking-tight leading-tight mb-6" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.8rem)', color: 'var(--brand-navy)' }}>
+              Seu negócio está{' '}
+              <span style={{ color: '#dc2626' }}>estagnado</span>{' '}
+              por tecnologia defasada?
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               Muitas empresas perdem tempo e dinheiro tentando adaptar seus processos a ferramentas limitadas. Nós fazemos o contrário: criamos a tecnologia que se adapta à sua ambição.
-            </motion.p>
-            
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="flex items-center gap-4 text-sm font-bold dash-text-2"
-            >
-              <div className="w-12 h-12 rounded-full border dash-border flex items-center justify-center animate-bounce">
-                <ArrowDown className="w-5 h-5" />
-              </div>
-              Identifique se você enfrenta esses desafios
-            </motion.div>
-          </div>
+            </p>
+          </motion.div>
 
-          <div className="lg:w-1/2 grid grid-cols-1 gap-4 w-full">
+          {/* Direita — lista de problemas */}
+          <div className="grid grid-cols-1 gap-3 w-full">
             {problems.map((problem, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                className="dash-surface p-6 rounded-2xl border dash-border hover:border-red-500/30 transition-all duration-500 group flex items-center gap-4 shadow-sm"
+              <motion.div key={idx} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}
+                transition={{ delay: idx * 0.08 }}
+                className="bg-white rounded-2xl border p-5 flex items-center gap-4 transition-all duration-250"
+                style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 8px rgba(13,31,78,0.04)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(220,38,38,0.3)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
               >
-                <div className="w-2 h-2 rounded-full bg-red-500 group-hover:scale-150 transition-transform" />
-                <p className="dash-text font-bold text-base sm:text-lg">
-                  {problem}
-                </p>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
+                  <XCircle className="w-4 h-4" style={{ color: '#dc2626' }} />
+                </div>
+                <p className="font-semibold text-sm" style={{ color: 'var(--brand-navy)' }}>{problem}</p>
               </motion.div>
             ))}
           </div>
