@@ -188,7 +188,7 @@ export default function Dashboard() {
         w-64 flex flex-col
         transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `} style={{ background: '#0D1F4E' }}>
+      `} style={{ background: '#06112B' }}>
 
         {/* Logo */}
         <div className="flex items-center justify-between px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
