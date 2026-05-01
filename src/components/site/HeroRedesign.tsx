@@ -144,7 +144,7 @@ export default function HeroRedesign() {
                   background: 'rgba(255,255,255,0.05)',
                 }}
               >
-                VER PORTFÓLIO
+                VER PROJETOS
               </a>
             </motion.div>
 

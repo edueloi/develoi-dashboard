@@ -63,7 +63,7 @@ export default function CasesPreviewSection() {
               className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-6"
             >
               <Star className="w-3 h-3 fill-indigo-600" />
-              Nosso Portfólio
+              Nossos Projetos
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
@@ -85,7 +85,7 @@ export default function CasesPreviewSection() {
                 to="/cases" 
                 className="group flex items-center gap-3 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
               >
-                VER TODOS OS CASES
+                VER TODOS OS PROJETOS
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </motion.div>

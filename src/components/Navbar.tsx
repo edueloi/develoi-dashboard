@@ -8,7 +8,7 @@ import develoiLogo from '../images/logo-develoi.png';
 const navItems = [
   { name: 'Início', path: '/' },
   { name: 'Quem Somos', path: '/sobre' },
-  { name: 'Cases', path: '/cases' },
+  { name: 'Projetos', path: '/cases' },
   { name: 'Blog', path: '/blog' },
   { name: 'Valores', path: '/valores' },
   { name: 'Dúvidas', path: '/duvidas' },

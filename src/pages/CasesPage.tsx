@@ -272,7 +272,7 @@ export default function CasesPage() {
             className="inline-flex items-center gap-2 px-5 py-2 rounded-full pub-surface border mb-10 shadow-xl"
           >
             <Star className="w-4 h-4 text-amber-500" />
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 dark:text-indigo-400">Hall da Fama Develoi</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600 dark:text-indigo-400">Nossos Projetos</span>
           </motion.div>
 
           <motion.h1
@@ -280,7 +280,7 @@ export default function CasesPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-6xl md:text-8xl font-black mb-10 leading-[0.9] tracking-tighter dash-text"
           >
-            RESULTADOS QUE <span className="text-gradient-animated">TRANSFORMAM.</span>
+            NOSSOS <span className="text-gradient-animated">PROJETOS.</span>
           </motion.h1>
 
           <motion.p
@@ -431,7 +431,7 @@ export default function CasesPage() {
             <div className="absolute -inset-6 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-[5rem] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
             <div className="relative pub-surface border p-12 sm:p-24 rounded-[4rem] text-center overflow-hidden shadow-2xl">
               <h2 className="text-4xl md:text-6xl font-black mb-8 tracking-tighter pub-text leading-[0.95]">
-                QUER SER O PRÓXIMO <span className="text-gradient">CASE</span> DE SUCESSO?
+                QUER FAZER PARTE DOS NOSSOS <span className="text-gradient">PROJETOS?</span>
               </h2>
               <p className="text-xl md:text-2xl pub-text-soft mb-12 max-w-2xl mx-auto font-medium leading-relaxed">
                 Transforme sua visão em uma solução digital real. Vamos criar o futuro do seu negócio hoje.

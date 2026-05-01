@@ -371,7 +371,7 @@ export default function CasePostPage() {
                 onClick={() => navigate("/cases")}
                 className="w-full flex items-center gap-3 px-6 py-4 pub-surface-2 border rounded-2xl text-[10px] font-black uppercase tracking-widest pub-text-soft hover:pub-text hover:border-indigo-500/40 transition-all group"
               >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Voltar ao Portfólio
+                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Voltar aos Projetos
               </button>
 
               <div className="pub-surface border p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden">
@@ -427,7 +427,7 @@ export default function CasePostPage() {
         {related.length > 0 && (
           <section className="lg:hidden px-6 pb-40 border-t border-slate-100 dark:border-white/5 pt-20">
             <div className="max-w-4xl mx-auto">
-              <h3 className="text-2xl font-black pub-text mb-10 tracking-tight text-center">MAIS CASES DE SUCESSO</h3>
+              <h3 className="text-2xl font-black pub-text mb-10 tracking-tight text-center">MAIS PROJETOS</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {related.map(r => <RelatedCard key={r.id} r={r} />)}
               </div>

@@ -240,7 +240,7 @@ export default function Dashboard() {
             <NavItem icon={Users2} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => goTo('team')} />
             <NavItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => goTo('site-values')} />
             <NavItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => goTo('blog')} />
-            <NavItem icon={Star} label="Cases de Sucesso" active={activeTab === 'cases'} onClick={() => goTo('cases')} />
+            <NavItem icon={Star} label="Nossos Projetos" active={activeTab === 'cases'} onClick={() => goTo('cases')} />
           </NavSection>
 
           {/* Sistema */}
