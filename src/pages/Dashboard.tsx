@@ -370,9 +370,9 @@ export default function Dashboard() {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                       { label: 'Projetos Ativos', value: projects.filter(p => p.status === 'active').length, icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)', sub: 'em andamento' },
-                      { label: 'Concluídos', value: projects.filter(p => p.status === 'completed').length, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)', sub: 'projetos entregues' },
-                      { label: 'Tickets Abertos', value: 12, icon: AlertCircle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', sub: 'pendentes' },
-                      { label: 'Horas Totais', value: '164h', icon: Clock, color: '#2563EB', bg: 'rgba(37,99,235,0.08)', sub: 'registradas' },
+                      { label: 'Concluídos', value: projects.filter(p => p.status === 'completed').length, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)', sub: 'entregues' },
+                      { label: 'Em Espera', value: projects.filter(p => p.status === 'on-hold').length, icon: AlertCircle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', sub: 'pausados' },
+                      { label: 'Clientes Únicos', value: new Set(projects.map(p => p.clientName).filter(Boolean)).size, icon: Users, color: '#2563EB', bg: 'rgba(37,99,235,0.08)', sub: 'atendidos' },
                     ].map((s, i) => (
                       <motion.div
                         key={s.label}
@@ -470,66 +470,62 @@ export default function Dashboard() {
                           <Calendar className="w-4 h-4" style={{ color: '#C49A2A' }} />
                         </div>
                         <div>
-                          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Próximas Entregas</p>
-                          <p className="text-[10px] text-slate-400">Sprints em andamento</p>
+                          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Próximos da Entrega</p>
+                          <p className="text-[10px] text-slate-400">Projetos mais avançados</p>
                         </div>
                       </div>
                       <div className="p-6 space-y-5">
-                        {[
-                          { name: 'Sprint Agendelle #12', pct: 85, color: '#15803D' },
-                          { name: 'Refatoração MySQL', pct: 40, color: '#C49A2A' },
-                          { name: 'Módulo Relatórios', pct: 20, color: '#2563EB' },
-                        ].map((item) => (
-                          <div key={item.name}>
-                            <div className="flex items-center justify-between mb-2">
-                              <p className="text-xs font-bold truncate max-w-[140px]" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{item.name}</p>
-                              <span className="text-[10px] font-black" style={{ color: item.color }}>{item.pct}%</span>
+                        {projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 4).length === 0 ? (
+                          <div className="text-center text-sm text-slate-400 py-4">Sem projetos avançados no momento.</div>
+                        ) : projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 4).map((item, i) => {
+                          const color = ['#15803D', '#C49A2A', '#2563EB', '#8B5CF6'][i % 4];
+                          return (
+                            <div key={item.id}>
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-xs font-bold truncate max-w-[140px]" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{item.name}</p>
+                                <span className="text-[10px] font-black" style={{ color: color }}>{item.progress}%</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${item.progress}%` }}
+                                  transition={{ duration: 0.8, delay: 0.3 }}
+                                  className="h-full rounded-full"
+                                  style={{ background: color }}
+                                />
+                              </div>
                             </div>
-                            <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${item.pct}%` }}
-                                transition={{ duration: 0.8, delay: 0.3 }}
-                                className="h-full rounded-full"
-                                style={{ background: item.color }}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
 
-                  {/* Atividade recente */}
+                  {/* Últimos Adicionados */}
                   <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
                     <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                       <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.08)' }}>
                         <History className="w-4 h-4 text-blue-600" />
                       </div>
                       <div>
-                        <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Atividade Recente</p>
-                        <p className="text-[10px] text-slate-400">Últimas movimentações</p>
+                        <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Iniciados Recentemente</p>
+                        <p className="text-[10px] text-slate-400">Novos projetos no ecossistema</p>
                       </div>
                     </div>
                     <div className="divide-y divide-slate-100 dark:divide-white/5">
-                      {[
-                        { title: 'Ajuste de layout do dashboard', key: 'DEV-1024', status: 'Concluído', color: 'emerald' },
-                        { title: 'Implementação de filtros no backlog', key: 'DEV-1025', status: 'Em Progresso', color: 'blue' },
-                        { title: 'Correção de bug no módulo de chat', key: 'DEV-1026', status: 'Em Teste', color: 'yellow' },
-                      ].map((item) => (
-                        <div key={item.key} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            item.color === 'emerald' ? 'bg-emerald-500' :
-                            item.color === 'blue' ? 'bg-blue-500' : 'bg-yellow-500'
-                          }`} />
-                          <p className="text-sm font-medium flex-1 truncate" style={{ color: isDark ? '#fff' : '#1e293b' }}>{item.title}</p>
-                          <span className="text-[10px] font-black text-slate-400 hidden sm:block">{item.key}</span>
+                      {projects.length === 0 ? (
+                        <div className="px-6 py-8 text-center text-sm text-slate-400">Nenhum projeto ainda.</div>
+                      ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 3).map((item) => (
+                        <button key={item.id} onClick={() => { setSelectedProject(item); goTo('summary', item); }} className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.status === 'active' ? 'bg-emerald-500' : item.status === 'completed' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
+                          <p className="text-sm font-medium flex-1 truncate" style={{ color: isDark ? '#fff' : '#1e293b' }}>{item.name}</p>
+                          <span className="text-[10px] font-black text-slate-400 hidden sm:block truncate max-w-[100px]">{item.clientName}</span>
                           <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wide flex-shrink-0 ${
-                            item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
-                            item.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                            item.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
+                            item.status === 'completed' ? 'bg-blue-50 text-blue-600' :
                             'bg-yellow-50 text-yellow-600'
-                          }`}>{item.status}</span>
-                        </div>
+                          }`}>{item.status === 'active' ? 'Ativo' : item.status === 'completed' ? 'Entregue' : 'Espera'}</span>
+                        </button>
                       ))}
                     </div>
                   </div>
