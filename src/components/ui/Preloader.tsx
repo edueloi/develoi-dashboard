@@ -45,6 +45,7 @@ export default function Preloader() {
                 src={logo}
                 alt="Develoi"
                 className="w-full h-auto object-contain"
+                style={{ mixBlendMode: 'multiply' }}
               />
             </motion.div>
 
