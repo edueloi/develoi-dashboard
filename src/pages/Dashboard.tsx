@@ -173,52 +173,53 @@ export default function Dashboard() {
   const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts'];
 
   return (
-    <div className={`min-h-screen flex dash-bg font-sans ${isDark ? 'dark' : ''}`}>
+    <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar — navy sólido */}
       <aside className={`
         fixed lg:sticky top-0 left-0 h-screen z-40 lg:z-auto
-        w-72 flex flex-col
-        dash-surface border-r dash-border
+        w-64 flex flex-col
         transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      `} style={{ background: '#0D1F4E' }}>
+
         {/* Logo */}
-        <div className="flex items-center justify-between p-5 border-b dash-border">
+        <div className="flex items-center justify-between px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <span className="text-white font-black text-base">D</span>
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'var(--brand-gold)', boxShadow: '0 4px 12px rgba(196,154,42,0.4)' }}
+            >
+              <span className="text-[#0D1F4E] font-black text-sm">D</span>
             </div>
             <div>
-              <p className="font-black text-sm dash-text tracking-tight">DEVELOI</p>
-              <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest">Hub</p>
+              <p className="font-black text-sm text-white tracking-tight leading-none">DEVELOI</p>
+              <p className="text-[9px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'rgba(196,154,42,0.7)' }}>Hub</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1.5 rounded-lg dash-text-2 hover:dash-surface-2 transition-colors"
+            className="lg:hidden p-1.5 rounded-lg text-white/40 hover:text-white/70 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1 custom-scrollbar">
-          {/* Geral */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 custom-scrollbar">
           <NavSection label="Geral">
             <NavItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'overview'} onClick={() => goTo('overview')} />
             {selectedProject && <NavItem icon={Briefcase} label="Resumo Projeto" active={activeTab === 'summary'} onClick={() => goTo('summary')} />}
             <NavItem icon={FolderOpen} label="Projetos" active={activeTab === 'projects'} onClick={() => goTo('projects')} />
           </NavSection>
 
-          {/* Projeto selecionado */}
           {selectedProject && (
             <NavSection label={selectedProject.name}>
               <NavItem icon={ListTodo} label="Backlog" active={activeTab === 'backlog'} onClick={() => goTo('backlog')} />
@@ -227,14 +228,12 @@ export default function Dashboard() {
             </NavSection>
           )}
 
-          {/* Equipe */}
           <NavSection label="Equipe">
             <NavItem icon={ShieldCheck} label="Qualidade" active={activeTab === 'tests'} onClick={() => goTo('tests')} />
             <NavItem icon={Users} label="Membros" active={activeTab === 'members'} onClick={() => goTo('members')} />
             <NavItem icon={MessageSquare} label="Chat" active={activeTab === 'chat'} onClick={() => goTo('chat')} />
           </NavSection>
 
-          {/* Site Público */}
           <NavSection label="Site Público">
             <NavItem icon={Globe} label="Portfólio" active={activeTab === 'portfolio'} onClick={() => goTo('portfolio')} />
             <NavItem icon={Users2} label="Nossa Equipe" active={activeTab === 'team'} onClick={() => goTo('team')} />
@@ -243,7 +242,6 @@ export default function Dashboard() {
             <NavItem icon={Star} label="Nossos Projetos" active={activeTab === 'cases'} onClick={() => goTo('cases')} />
           </NavSection>
 
-          {/* Sistema */}
           <NavSection label="Sistema">
             <NavItem icon={Image} label="Criador de Postagens" active={activeTab === 'posts'} onClick={() => goTo('posts')} />
             <NavItem icon={MessageSquare} label="Bot de Atendimento" active={activeTab === 'bot'} onClick={() => goTo('bot')} />
@@ -251,31 +249,37 @@ export default function Dashboard() {
         </nav>
 
         {/* User footer */}
-        <div className="p-4 border-t dash-border">
+        <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3 mb-3">
             {profile?.photoURL ? (
-              <img src={profile.photoURL} alt="" className="w-9 h-9 rounded-xl object-cover" />
+              <img src={profile.photoURL} alt="" className="w-9 h-9 rounded-xl object-cover ring-2 ring-white/10" />
             ) : (
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-black text-sm flex-shrink-0">
-                {profile?.displayName?.[0]?.toUpperCase() ?? 'D'}
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: 'var(--brand-gold)' }}>
+                <span style={{ color: '#0D1F4E' }}>{profile?.displayName?.[0]?.toUpperCase() ?? 'D'}</span>
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold dash-text truncate">{profile?.displayName}</p>
-              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">{profile?.role}</p>
+              <p className="text-sm font-bold text-white truncate">{profile?.displayName}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(196,154,42,0.7)' }}>{profile?.role}</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={toggleTheme}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border dash-border dash-text-2 hover:border-indigo-400 hover:text-indigo-500 transition-all text-xs font-bold dash-surface-2"
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
             >
               {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-              {isDark ? 'Modo Claro' : 'Modo Escuro'}
+              {isDark ? 'Claro' : 'Escuro'}
             </button>
             <button
               onClick={logout}
-              className="p-2 rounded-xl border dash-border dash-text-2 hover:border-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
+              className="p-2 rounded-xl transition-all"
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)', border: '1px solid rgba(255,255,255,0.08)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(220,38,38,0.2)'; (e.currentTarget as HTMLElement).style.color = '#f87171'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; }}
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -286,18 +290,17 @@ export default function Dashboard() {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top header */}
-        <header className="dash-surface border-b dash-border px-4 lg:px-6 py-3.5 flex items-center gap-4 flex-shrink-0">
-          {/* Mobile menu button */}
+        <header className="bg-white dark:bg-[#111827] border-b border-slate-200/80 dark:border-white/5 px-4 lg:px-6 py-3.5 flex items-center gap-4 flex-shrink-0 shadow-sm">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-xl border dash-border dash-text-2 hover:text-indigo-600 transition-colors"
+            className="lg:hidden p-2 rounded-xl border border-slate-200 text-slate-500 hover:text-[#0D1F4E] transition-colors"
           >
             <Menu className="w-4 h-4" />
           </button>
 
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-black dash-text truncate">{tabTitles[activeTab]}</h1>
-            <p className="text-xs dash-text-muted hidden sm:block">
+            <h1 className="text-base font-black tracking-tight truncate" style={{ color: '#0D1F4E' }}>{tabTitles[activeTab]}</h1>
+            <p className="text-xs text-slate-400 hidden sm:block">
               {activeTab === 'overview' ? `Bem-vindo de volta, ${profile?.displayName?.split(' ')[0]}` : 'Develoi Hub'}
             </p>
           </div>
@@ -311,7 +314,7 @@ export default function Dashboard() {
                   setSelectedProject(proj);
                   goTo(activeTab, proj);
                 }}
-                className="text-xs font-bold dash-surface border dash-border dash-text rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors max-w-[200px]"
+                className="text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:border-[#0D1F4E] transition-colors max-w-[200px]"
               >
                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -319,7 +322,8 @@ export default function Dashboard() {
             {activeTab === 'projects' && (
               <button
                 onClick={() => setIsNewProjectModalOpen(true)}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors"
+                className="flex items-center gap-2 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all hover:opacity-90"
+                style={{ background: '#0D1F4E' }}
               >
                 <Plus className="w-3.5 h-3.5" /> Novo Projeto
               </button>
@@ -328,83 +332,199 @@ export default function Dashboard() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <main className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
           <div className="p-4 lg:p-6 pb-12">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && (
-                <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-8">
-                  {/* Global Stats Grid */}
-                  <StatGrid cols={3}>
-                    <StatCard
-                      title="Projetos Ativos"
-                      value={projects.filter(p => p.status === 'active').length}
-                      icon={Rocket}
-                      color="success"
-                      delay={0.1}
-                    />
-                    <StatCard
-                      title="Tickets Pendentes"
-                      value={12}
-                      icon={AlertCircle}
-                      color="warning"
-                      trend={{ value: 5, isUp: false }}
-                      delay={0.2}
-                    />
-                    <StatCard
-                      title="Horas Totais"
-                      value="164h"
-                      icon={Clock}
-                      color="info"
-                      delay={0.3}
-                    />
-                  </StatGrid>
+                <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-6">
 
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    {/* Activity Feed */}
-                    <PanelCard
-                      title="Atividade Recente"
-                      icon={History}
-                      description="Últimas movimentações no seu ecossistema"
+                  {/* Saudação */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
+                        Olá, {profile?.displayName?.split(' ')[0]} 👋
+                      </h2>
+                      <p className="text-sm text-slate-400 mt-0.5">
+                        {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsNewProjectModalOpen(true)}
+                      className="hidden sm:flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all hover:opacity-90"
+                      style={{ background: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
                     >
-                      <div className="divide-y divide-zinc-100 dark:divide-white/5">
-                        {[1, 2].map((_, i) => (
-                          <div key={i} className="py-4 first:pt-0 last:pb-0 flex items-center gap-4 hover:bg-slate-50/50 dark:hover:bg-white/5 transition-colors rounded-xl px-2 -mx-2">
-                            <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center shrink-0", i === 0 ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600" : "bg-blue-50 dark:bg-blue-500/10 text-blue-600")}>
-                              {i === 0 ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold dash-text truncate">{i === 0 ? 'Ajuste de layout do dashboard' : 'Implementação de filtros no backlog'}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] dash-text-muted uppercase font-black tracking-widest">DEV-102{4+i}</span>
-                                <div className="w-1 h-1 rounded-full bg-zinc-300 dark:bg-white/20" />
-                                <Badge color={i === 0 ? "success" : "info"} size="sm">{i === 0 ? 'Concluído' : 'Em Progresso'}</Badge>
-                              </div>
-                            </div>
-                            <ArrowRight className="w-4 h-4 dash-text-muted" />
-                          </div>
-                        ))}
-                      </div>
-                    </PanelCard>
-
-                    {/* Deliveries Timeline */}
-                    <PanelCard
-                      title="Próximas Entregas"
-                      icon={Calendar}
-                      description="Cronograma das próximas 48 horas"
-                    >
-                      <div className="space-y-6">
-                        {[1, 2].map((_, i) => (
-                          <div key={i}>
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-xs font-black dash-text uppercase tracking-wide">{i === 0 ? 'Sprint Agendelle #12' : 'Refatoração MySQL'}</h4>
-                              <span className="text-[10px] font-bold text-indigo-600">{i === 0 ? '85%' : '40%'}</span>
-                            </div>
-                            <ProgressBar progress={i === 0 ? 85 : 40} className="h-2" />
-                          </div>
-                        ))}
-                      </div>
-                    </PanelCard>
+                      <Plus className="w-3.5 h-3.5" /> Novo Projeto
+                    </button>
                   </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Projetos Ativos', value: projects.filter(p => p.status === 'active').length, icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)', sub: 'em andamento' },
+                      { label: 'Concluídos', value: projects.filter(p => p.status === 'completed').length, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)', sub: 'projetos entregues' },
+                      { label: 'Tickets Abertos', value: 12, icon: AlertCircle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', sub: 'pendentes' },
+                      { label: 'Horas Totais', value: '164h', icon: Clock, color: '#2563EB', bg: 'rgba(37,99,235,0.08)', sub: 'registradas' },
+                    ].map((s, i) => (
+                      <motion.div
+                        key={s.label}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.07 }}
+                        className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-slate-200/60 dark:border-white/10 group hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center"
+                            style={{ background: s.bg }}
+                          >
+                            <s.icon className="w-5 h-5" style={{ color: s.color }} />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.sub}</span>
+                        </div>
+                        <p className="text-2xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
+                        <p className="text-xs text-slate-400 font-medium mt-0.5">{s.label}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Linha média: Projetos recentes + Entregas */}
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+                    {/* Projetos recentes — col span 3 */}
+                    <div className="lg:col-span-3 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+                      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.08)' }}>
+                            <FolderOpen className="w-4 h-4" style={{ color: '#0D1F4E' }} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Projetos Recentes</p>
+                            <p className="text-[10px] text-slate-400">Últimos atualizados</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => goTo('projects')}
+                          className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 transition-colors hover:opacity-70"
+                          style={{ color: '#0D1F4E' }}
+                        >
+                          Ver todos <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <div className="divide-y divide-slate-100 dark:divide-white/5">
+                        {projects.slice(0, 4).length === 0 ? (
+                          <div className="px-6 py-8 text-center text-sm text-slate-400">Nenhum projeto ainda.</div>
+                        ) : projects.slice(0, 4).map((proj, i) => (
+                          <button
+                            key={proj.id}
+                            onClick={() => { setSelectedProject(proj); goTo('summary', proj); }}
+                            className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left group/row"
+                          >
+                            <div
+                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0"
+                              style={{ background: ['#0D1F4E','#C49A2A','#15803D','#2563EB'][i % 4] }}
+                            >
+                              {proj.name[0]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{proj.name}</p>
+                              <p className="text-[11px] text-slate-400 truncate">{proj.clientName || 'Cliente'}</p>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <div className="hidden sm:block w-20">
+                                <div className="flex justify-between mb-1">
+                                  <span className="text-[10px] font-bold text-slate-400">{proj.progress ?? 0}%</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all"
+                                    style={{ width: `${proj.progress ?? 0}%`, background: proj.status === 'completed' ? '#15803D' : '#C49A2A' }}
+                                  />
+                                </div>
+                              </div>
+                              <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wide ${
+                                proj.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
+                                proj.status === 'completed' ? 'bg-blue-50 text-blue-600' :
+                                'bg-yellow-50 text-yellow-600'
+                              }`}>
+                                {proj.status === 'active' ? 'Ativo' : proj.status === 'completed' ? 'Entregue' : 'Espera'}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Próximas entregas — col span 2 */}
+                    <div className="lg:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+                      <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.1)' }}>
+                          <Calendar className="w-4 h-4" style={{ color: '#C49A2A' }} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Próximas Entregas</p>
+                          <p className="text-[10px] text-slate-400">Sprints em andamento</p>
+                        </div>
+                      </div>
+                      <div className="p-6 space-y-5">
+                        {[
+                          { name: 'Sprint Agendelle #12', pct: 85, color: '#15803D' },
+                          { name: 'Refatoração MySQL', pct: 40, color: '#C49A2A' },
+                          { name: 'Módulo Relatórios', pct: 20, color: '#2563EB' },
+                        ].map((item) => (
+                          <div key={item.name}>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-xs font-bold truncate max-w-[140px]" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{item.name}</p>
+                              <span className="text-[10px] font-black" style={{ color: item.color }}>{item.pct}%</span>
+                            </div>
+                            <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${item.pct}%` }}
+                                transition={{ duration: 0.8, delay: 0.3 }}
+                                className="h-full rounded-full"
+                                style={{ background: item.color }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Atividade recente */}
+                  <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.08)' }}>
+                        <History className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Atividade Recente</p>
+                        <p className="text-[10px] text-slate-400">Últimas movimentações</p>
+                      </div>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-white/5">
+                      {[
+                        { title: 'Ajuste de layout do dashboard', key: 'DEV-1024', status: 'Concluído', color: 'emerald' },
+                        { title: 'Implementação de filtros no backlog', key: 'DEV-1025', status: 'Em Progresso', color: 'blue' },
+                        { title: 'Correção de bug no módulo de chat', key: 'DEV-1026', status: 'Em Teste', color: 'yellow' },
+                      ].map((item) => (
+                        <div key={item.key} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                            item.color === 'emerald' ? 'bg-emerald-500' :
+                            item.color === 'blue' ? 'bg-blue-500' : 'bg-yellow-500'
+                          }`} />
+                          <p className="text-sm font-medium flex-1 truncate" style={{ color: isDark ? '#fff' : '#1e293b' }}>{item.title}</p>
+                          <span className="text-[10px] font-black text-slate-400 hidden sm:block">{item.key}</span>
+                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wide flex-shrink-0 ${
+                            item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                            item.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                            'bg-yellow-50 text-yellow-600'
+                          }`}>{item.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                 </motion.div>
               )}
 
@@ -475,8 +595,8 @@ export default function Dashboard() {
 
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mb-2">
-      <p className="text-[9px] font-black uppercase tracking-[0.18em] dash-text-muted px-3 mb-1 mt-3">{label}</p>
+    <div className="mb-1">
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] px-3 mb-1 mt-4" style={{ color: 'rgba(255,255,255,0.25)' }}>{label}</p>
       <div className="space-y-0.5">{children}</div>
     </div>
   );
@@ -488,31 +608,46 @@ function NavItem({ icon: Icon, label, active, onClick, badge }: {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group text-left ${
-        active
-          ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold'
-          : 'dash-text-2 hover:dash-surface-2 hover:dash-text font-medium'
-      }`}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group text-left"
+      style={{
+        background: active ? 'rgba(196,154,42,0.15)' : 'transparent',
+        color: active ? 'var(--brand-gold)' : 'rgba(255,255,255,0.5)',
+      }}
+      onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
+      onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
     >
-      <Icon className={`w-4 h-4 flex-shrink-0 transition-colors ${active ? 'text-indigo-600 dark:text-indigo-400' : 'dash-text-muted group-hover:dash-text-2'}`} />
-      <span className="text-sm flex-1 truncate">{label}</span>
+      <Icon
+        className="w-4 h-4 flex-shrink-0 transition-colors"
+        style={{ color: active ? 'var(--brand-gold)' : 'rgba(255,255,255,0.35)' }}
+      />
+      <span className="text-sm flex-1 truncate font-medium">{label}</span>
       {badge && (
-        <span className="w-5 h-5 bg-indigo-600 text-white text-[9px] font-black rounded-full flex items-center justify-center flex-shrink-0">{badge > 9 ? '9+' : badge}</span>
+        <span className="w-5 h-5 text-[#0D1F4E] text-[9px] font-black rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--brand-gold)' }}>
+          {badge > 9 ? '9+' : badge}
+        </span>
       )}
-      {active && <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0" />}
+      {active && (
+        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--brand-gold)' }} />
+      )}
     </button>
   );
 }
 
 function EmptyProjectState({ onAction }: { onAction: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[2.5rem] border border-slate-200 shadow-sm">
-      <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mb-6">
-        <Briefcase className="w-10 h-10 text-indigo-600" />
+    <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: 'rgba(13,31,78,0.08)' }}>
+        <Briefcase className="w-8 h-8" style={{ color: '#0D1F4E' }} />
       </div>
-      <h3 className="text-xl font-bold text-slate-900 mb-2">Nenhum Projeto Selecionado</h3>
-      <p className="text-slate-500 text-sm mb-8 max-w-xs text-center">Crie um novo projeto ou selecione um existente para começar.</p>
-      <Button onClick={onAction}><Plus className="w-4 h-4 mr-2" /> CRIAR PRIMEIRO PROJETO</Button>
+      <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white mb-1.5">Nenhum Projeto Selecionado</h3>
+      <p className="text-slate-400 text-sm mb-7 max-w-xs text-center">Crie um novo projeto ou selecione um existente para começar.</p>
+      <button
+        onClick={onAction}
+        className="flex items-center gap-2 text-white text-sm font-bold px-6 py-3 rounded-xl transition-all hover:opacity-90"
+        style={{ background: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
+      >
+        <Plus className="w-4 h-4" /> CRIAR PRIMEIRO PROJETO
+      </button>
     </div>
   );
 }
@@ -602,14 +737,15 @@ function ProjectSummary({ project }: { project: Project }) {
             </div>
           </PanelCard>
 
-          <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 p-8 rounded-[32px] shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-amber-500/20 transition-colors" />
+          <div className="p-8 rounded-2xl relative overflow-hidden group" style={{ background: 'linear-gradient(135deg, #0D1F4E 0%, #1A3070 100%)', boxShadow: '0 12px 40px rgba(13,31,78,0.25)' }}>
+            <div className="absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 blur-3xl opacity-30" style={{ background: 'var(--brand-gold)' }} />
+            <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2))' }} />
             <div className="relative z-10 space-y-4">
-              <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                <Rocket className="w-6 h-6 text-white" />
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--brand-gold)' }}>
+                <Rocket className="w-5 h-5" style={{ color: '#0D1F4E' }} />
               </div>
-              <h4 className="text-xl font-black text-white leading-tight">Pronto para a próxima fase?</h4>
-              <p className="text-zinc-400 text-sm font-medium leading-relaxed">
+              <h4 className="text-lg font-black text-white leading-tight">Pronto para a próxima fase?</h4>
+              <p className="text-sm font-medium leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
                 Acompanhe as entregas e valide as funcionalidades no Quadro Kanban.
               </p>
             </div>
