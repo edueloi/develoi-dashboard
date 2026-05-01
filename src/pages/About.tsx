@@ -351,46 +351,58 @@ export default function About() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="group relative bg-white rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-2 text-center"
+                  className="group flex flex-col bg-white rounded-3xl overflow-hidden border transition-all duration-500 hover:-translate-y-2"
                   style={{
                     borderColor: 'var(--border-color)',
-                    boxShadow: '0 4px 20px rgba(13,31,78,0.03)',
+                    boxShadow: '0 12px 40px rgba(13,31,78,0.04)',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(13,31,78,0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(13,31,78,0.04)';
                   }}
                 >
-                  <div className="relative w-28 h-28 mx-auto mb-6">
-                    <div className="absolute inset-0 rounded-2xl rotate-6 transition-transform group-hover:rotate-12" style={{ background: 'var(--brand-gold)', opacity: 0.2 }} />
-                    <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 bg-white" style={{ borderColor: 'var(--brand-navy)' }}>
-                      {member.photoURL ? (
-                        <img src={member.photoURL} alt={member.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-3xl font-black text-white" style={{ background: 'var(--brand-navy)' }}>
-                          {member.name[0]}
-                        </div>
-                      )}
-                    </div>
+                  <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    {member.photoURL ? (
+                      <img src={member.photoURL} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-5xl font-black text-white" style={{ background: 'var(--brand-navy)' }}>
+                        {member.name[0]}
+                      </div>
+                    )}
+                    
+                    {/* Efeito Hover Redes Sociais */}
+                    {(member.linkedin || member.github) && (
+                      <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                        {member.linkedin && (
+                          <a href={member.linkedin} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white text-[#0a66c2] flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                            <Linkedin className="w-4 h-4" />
+                          </a>
+                        )}
+                        {member.github && (
+                          <a href={member.github} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                            <Github className="w-4 h-4" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 h-1.5 z-20" style={{ background: 'linear-gradient(90deg, var(--brand-gold), transparent)' }} />
                   </div>
 
-                  <h3 className="font-black text-lg mb-1 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{member.name}</h3>
-                  <p className="text-[10px] font-black uppercase tracking-widest mb-4 inline-block px-3 py-1 rounded-full" style={{ background: 'rgba(196,154,42,0.1)', color: 'var(--brand-gold)' }}>
-                    {member.role}
-                  </p>
-                  
-                  {member.bio && (
-                    <p className="text-sm leading-relaxed mb-6 line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
-                      {member.bio}
+                  <div className="p-6 md:p-8 flex flex-col flex-1 text-left">
+                    <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--brand-gold)' }}>
+                      {member.role}
                     </p>
-                  )}
-
-                  <div className="flex justify-center gap-4 pt-5 mt-auto border-t" style={{ borderColor: 'var(--border-color)' }}>
-                    {member.linkedin && (
-                      <a href={member.linkedin} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[#0a66c2] transition-colors">
-                        <Linkedin className="w-4 h-4" />
-                      </a>
-                    )}
-                    {member.github && (
-                      <a href={member.github} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
-                        <Github className="w-4 h-4" />
-                      </a>
+                    <h3 className="font-black text-xl mb-3 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{member.name}</h3>
+                    
+                    {member.bio && (
+                      <p className="text-sm leading-relaxed line-clamp-3 mb-0" style={{ color: 'var(--text-secondary)' }}>
+                        {member.bio}
+                      </p>
                     )}
                   </div>
                 </motion.div>
