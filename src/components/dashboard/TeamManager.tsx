@@ -57,21 +57,25 @@ export function TeamManager() {
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="bg-indigo-50 border border-indigo-100 rounded-[24px] p-6 flex items-start gap-5 flex-1">
-          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
-            <Users className="w-5 h-5 text-indigo-600" />
+        <div className="bg-white rounded-[24px] p-6 flex items-start gap-5 flex-1 border shadow-sm" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.03)' }}>
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--bg-tertiary)' }}>
+            <Users className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
           </div>
           <div>
-            <p className="text-sm font-black text-indigo-900 uppercase tracking-tight">Equipe Develoi</p>
-            <p className="text-xs text-indigo-600/80 mt-1 font-medium leading-relaxed">
+            <p className="text-sm font-black uppercase tracking-tight" style={{ color: 'var(--brand-navy)' }}>Equipe Develoi</p>
+            <p className="text-xs font-medium leading-relaxed mt-1" style={{ color: 'var(--text-secondary)' }}>
               Estes são os talentos que dão vida aos nossos ecossistemas.
               As informações abaixo são exibidas na seção <strong>Sobre</strong> do site oficial.
             </p>
           </div>
         </div>
-        <Button onClick={openNew} iconLeft={<UserPlus className="w-4 h-4" />} size="lg">
-          ADICIONAR TALENTO
-        </Button>
+        <button 
+          onClick={openNew} 
+          className="flex items-center gap-2 text-white text-xs font-bold px-6 py-3.5 rounded-xl transition-all hover:-translate-y-0.5"
+          style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
+        >
+          <UserPlus className="w-4 h-4" /> ADICIONAR TALENTO
+        </button>
       </div>
 
       {members.length === 0 ? (
@@ -120,20 +124,22 @@ function MemberCard({ member: m, deleting, onEdit, onDelete }: {
 
   return (
     <>
-      <PanelCard noPadding className="group hover:shadow-2xl hover:shadow-indigo-100/40 transition-all overflow-hidden">
+      <div className="bg-white rounded-2xl border transition-all overflow-hidden group hover:-translate-y-1" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.06)' }}>
         <div className="p-8">
           <div className="flex justify-between items-start mb-6">
-            <div className="relative w-16 h-16">
+            <div className="relative w-20 h-20">
               {m.photoURL ? (
-                <img src={m.photoURL} alt={m.name} className="w-full h-full rounded-2xl border-4 border-white shadow-xl object-cover" />
+                <img src={m.photoURL} alt={m.name} className="w-full h-full rounded-2xl border-2 shadow-sm object-cover" style={{ borderColor: 'var(--brand-gold)' }} />
               ) : (
-                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-xl font-black text-white border-4 border-white shadow-xl">
+                <div className="w-full h-full rounded-2xl flex items-center justify-center text-3xl font-black text-white border-2 shadow-sm" style={{ background: 'var(--brand-navy)', borderColor: 'var(--brand-gold)' }}>
                   {m.name?.[0]?.toUpperCase() ?? '?'}
                 </div>
               )}
             </div>
             <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-              <button onClick={onEdit} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
+              <button onClick={onEdit} className="p-2 text-slate-400 rounded-xl transition-all"
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--brand-navy)'; (e.currentTarget as HTMLElement).style.background = 'var(--bg-tertiary)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#94a3b8'; (e.currentTarget as HTMLElement).style.background = 'transparent'; }}>
                 <Pencil className="w-4 h-4" />
               </button>
               <button
@@ -147,15 +153,18 @@ function MemberCard({ member: m, deleting, onEdit, onDelete }: {
           </div>
 
           <div className="mb-4">
-            <h3 className="font-black text-slate-900 text-lg mb-1 group-hover:text-indigo-600 transition-colors tracking-tight truncate">{m.name}</h3>
-            <Badge color="primary" dot pill>{m.role}</Badge>
+            <h3 className="font-black text-lg mb-1 tracking-tight truncate transition-colors" style={{ color: 'var(--brand-navy)' }}>{m.name}</h3>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest" style={{ background: 'var(--bg-tertiary)', color: 'var(--brand-navy)' }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--brand-gold)' }} />
+              {m.role}
+            </span>
           </div>
 
-          {m.bio && <p className="text-xs text-slate-500 font-medium leading-relaxed italic line-clamp-3 mb-6">"{m.bio}"</p>}
+          {m.bio && <p className="text-xs font-medium leading-relaxed italic line-clamp-3 mb-6" style={{ color: 'var(--text-secondary)' }}>"{m.bio}"</p>}
 
-          <div className="flex gap-4 pt-6 border-t border-slate-50">
+          <div className="flex gap-4 pt-6 border-t" style={{ borderColor: 'var(--border-color)' }}>
             {m.linkedin && (
-              <a href={m.linkedin} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+              <a href={m.linkedin} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[#0a66c2] transition-colors">
                 <Linkedin className="w-4 h-4" />
               </a>
             )}
@@ -166,7 +175,7 @@ function MemberCard({ member: m, deleting, onEdit, onDelete }: {
             )}
           </div>
         </div>
-      </PanelCard>
+      </div>
 
       <ConfirmModal
         isOpen={confirmDelete}
@@ -215,25 +224,25 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
           {/* Preview */}
           <div className="relative shrink-0">
             {form.photoURL ? (
-              <img src={form.photoURL} alt="" className="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg" />
+              <img src={form.photoURL} alt="" className="w-24 h-24 rounded-2xl object-cover border-2 shadow-sm" style={{ borderColor: 'var(--brand-gold)' }} />
             ) : (
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-2xl font-black text-white border-4 border-white shadow-lg">
+              <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-3xl font-black text-white shadow-sm" style={{ background: 'var(--brand-navy)' }}>
                 {form.name?.[0]?.toUpperCase() || '?'}
               </div>
             )}
             {form.photoURL && (
               <button
                 onClick={() => onChange({ photoURL: '' })}
-                className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-colors shadow"
+                className="absolute -top-2 -right-2 w-6 h-6 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600 transition-colors shadow-md"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
           {/* Upload buttons */}
           <div className="flex-1 space-y-2">
-            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Foto do Membro</p>
+            <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-gold)' }}>Foto do Talento</p>
             <input
               ref={fileRef}
               type="file"
@@ -245,12 +254,15 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors disabled:opacity-50 w-full justify-center"
+              className="flex items-center gap-2 px-4 py-3 rounded-xl border text-[11px] font-black transition-all disabled:opacity-50 w-full justify-center"
+              style={{ borderColor: 'var(--border-color)', color: 'var(--brand-navy)', background: 'var(--bg-tertiary)' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.4)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
             >
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-              {uploading ? 'Carregando...' : 'ESCOLHER FOTO'}
+              {uploading ? 'CARREGANDO FOTO...' : 'SELECIONAR FOTO (JPG, PNG, WebP)'}
             </button>
-            <p className="text-[10px] text-slate-400 text-center">JPG, PNG ou WebP · Máx 5MB</p>
+            <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>* A foto aparecerá publicamente no site. Recomendado imagem quadrada.</p>
           </div>
         </div>
 
@@ -297,10 +309,13 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
         />
 
         <div className="flex gap-3 pt-2">
-          <Button variant="outline" onClick={onClose} fullWidth>CANCELAR</Button>
-          <Button onClick={onSave} loading={saving} fullWidth iconLeft={<Save className="w-4 h-4" />}>
-            SALVAR
-          </Button>
+          <button onClick={onClose} className="flex-1 py-3.5 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
+            CANCELAR
+          </button>
+          <button onClick={onSave} disabled={saving} className="flex-1 py-3.5 rounded-xl text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all disabled:opacity-60" style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}>
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            SALVAR TALENTO
+          </button>
         </div>
       </div>
     </Modal>
