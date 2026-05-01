@@ -420,9 +420,9 @@ export default function Dashboard() {
                         </button>
                       </div>
                       <div className="divide-y divide-slate-100 dark:divide-white/5">
-                        {projects.slice(0, 4).length === 0 ? (
+                        {projects.length === 0 ? (
                           <div className="px-6 py-8 text-center text-sm text-slate-400">Nenhum projeto ainda.</div>
-                        ) : projects.slice(0, 4).map((proj, i) => (
+                        ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 4).map((proj, i) => (
                           <button
                             key={proj.id}
                             onClick={() => { setSelectedProject(proj); goTo('summary', proj); }}
@@ -673,7 +673,7 @@ function ProjectSummary({ project }: { project: Project }) {
               {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Em Espera'}
             </Badge>
           </div>
-          <p className="text-sm font-medium text-zinc-400">Espaço de software • Gerenciado por Equipe Develoi</p>
+          <p className="text-sm font-medium text-zinc-400">Gestão de ecossistema digital • Develoi Hub</p>
         </div>
         <Button variant="outline" iconLeft={<Settings className="w-4 h-4" />} onClick={() => setIsEditModalOpen(true)}>
           CONFIGURAÇÕES DO PROJETO

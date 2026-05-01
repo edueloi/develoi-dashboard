@@ -1,5 +1,16 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Code2, Rocket, Target, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Users, Code2, Rocket, Target, CheckCircle2, ArrowRight, Github, Linkedin } from 'lucide-react';
+
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  bio?: string;
+  photoURL?: string;
+  linkedin?: string;
+  github?: string;
+}
 
 const values = [
   {
@@ -34,6 +45,15 @@ const differentials = [
 ];
 
 export default function About() {
+  const [team, setTeam] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    fetch('/api/site/team')
+      .then(res => res.json())
+      .then(data => setTeam(data))
+      .catch(console.error);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -297,6 +317,88 @@ export default function About() {
           </div>
         </div>
       </section>
+
+      {/* ── EQUIPE DEVELOI ── */}
+      {team.length > 0 && (
+        <section className="py-16 md:py-24 bg-white border-y" style={{ borderColor: 'var(--border-color)' }}>
+          <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
+            >
+              <div className="inline-flex items-center gap-2 mb-4">
+                <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
+                  Quem faz acontecer
+                </span>
+                <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
+              </div>
+              <h2
+                className="font-black tracking-tight"
+                style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}
+              >
+                Nossa Equipe
+              </h2>
+            </motion.div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+              {team.map((member, i) => (
+                <motion.div
+                  key={member.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                  className="group relative bg-white rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-2 text-center"
+                  style={{
+                    borderColor: 'var(--border-color)',
+                    boxShadow: '0 4px 20px rgba(13,31,78,0.03)',
+                  }}
+                >
+                  <div className="relative w-28 h-28 mx-auto mb-6">
+                    <div className="absolute inset-0 rounded-2xl rotate-6 transition-transform group-hover:rotate-12" style={{ background: 'var(--brand-gold)', opacity: 0.2 }} />
+                    <div className="relative w-full h-full rounded-2xl overflow-hidden border-2 bg-white" style={{ borderColor: 'var(--brand-navy)' }}>
+                      {member.photoURL ? (
+                        <img src={member.photoURL} alt={member.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-3xl font-black text-white" style={{ background: 'var(--brand-navy)' }}>
+                          {member.name[0]}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <h3 className="font-black text-lg mb-1 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{member.name}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-4 inline-block px-3 py-1 rounded-full" style={{ background: 'rgba(196,154,42,0.1)', color: 'var(--brand-gold)' }}>
+                    {member.role}
+                  </p>
+                  
+                  {member.bio && (
+                    <p className="text-sm leading-relaxed mb-6 line-clamp-3" style={{ color: 'var(--text-secondary)' }}>
+                      {member.bio}
+                    </p>
+                  )}
+
+                  <div className="flex justify-center gap-4 pt-5 mt-auto border-t" style={{ borderColor: 'var(--border-color)' }}>
+                    {member.linkedin && (
+                      <a href={member.linkedin} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[#0a66c2] transition-colors">
+                        <Linkedin className="w-4 h-4" />
+                      </a>
+                    )}
+                    {member.github && (
+                      <a href={member.github} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
+                        <Github className="w-4 h-4" />
+                      </a>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── CTA FINAL ── */}
       <section className="py-20 md:py-24">
