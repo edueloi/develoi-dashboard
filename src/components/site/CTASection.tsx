@@ -28,7 +28,7 @@ export default function CTASection() {
           <motion.a
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            href="https://wa.me/5511999999999" // TODO: Add real whatsapp link
+            href="https://wa.me/5515997026791" // TODO: Add real whatsapp link
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-3 px-10 py-5 rounded-2xl bg-indigo-600 text-white font-black text-xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all duration-300 group"
