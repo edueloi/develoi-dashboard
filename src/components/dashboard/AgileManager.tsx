@@ -696,9 +696,10 @@ function BoardCard({ provided, feature, onRefresh }: { provided: any; feature: F
         ref={provided.innerRef}
         {...provided.draggableProps}
         {...provided.dragHandleProps}
-        className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-300 transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden"
+        onClick={() => setEditing(true)}
+        className="bg-white p-5 rounded-lg border border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-300 transition-all cursor-pointer group relative overflow-hidden"
       >
-        <div className={cn('absolute top-0 left-0 bottom-0 w-1.5 rounded-l-[2rem]',
+        <div className={cn('absolute top-0 left-0 bottom-0 w-1.5 rounded-l-lg',
           feature.type === 'bug' ? 'bg-rose-500' : feature.type === 'story' ? 'bg-emerald-500' : feature.type === 'epic' ? 'bg-purple-500' : 'bg-indigo-500'
         )} />
         <div className="pl-3 space-y-3">
@@ -906,7 +907,7 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           onConfirm={handleDelete}
           title="Excluir Ticket"
           message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
-          confirmText="EXCLUIR"
+          confirmLabel="EXCLUIR"
           variant="danger"
         />
       )}
