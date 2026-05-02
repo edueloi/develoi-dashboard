@@ -765,6 +765,22 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
   const [newActivity, setNewActivity] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [actToDelete, setActToDelete] = useState<string | null>(null);
+  const [draggedActIndex, setDraggedActIndex] = useState<number | null>(null);
+
+  const handleDragStart = (index: number) => setDraggedActIndex(index);
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedActIndex === null || draggedActIndex === index) return;
+    setActivities(prev => {
+      const items = [...prev];
+      const draggedItem = items[draggedActIndex];
+      items.splice(draggedActIndex, 1);
+      items.splice(index, 0, draggedItem);
+      return items;
+    });
+    setDraggedActIndex(index);
+  };
 
   const addActivity = () => {
     const text = newActivity.trim();
@@ -849,21 +865,42 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           )}
 
           <div className="space-y-1.5 mb-3">
-            {activities.map(act => (
-              <div key={act.id} className="flex items-center gap-2 group/act px-3 py-2 rounded-xl hover:bg-slate-50 transition-colors">
+            {activities.map((act, index) => (
+              <div
+                key={act.id}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={() => setDraggedActIndex(null)}
+                className={cn(
+                  "flex items-center gap-2 group/act px-2 py-1.5 rounded-xl transition-all border",
+                  draggedActIndex === index ? "opacity-50 border-indigo-200 bg-white shadow-sm" : "border-transparent hover:bg-slate-50 hover:border-slate-100"
+                )}
+              >
+                <div className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing px-1">
+                  <GripVertical className="w-4 h-4" />
+                </div>
                 <button type="button" onClick={() => toggleActivity(act.id)} className="shrink-0">
                   {act.done
                     ? <CheckSquare className="w-4 h-4 text-emerald-500" />
                     : <Square className="w-4 h-4 text-slate-300" />
                   }
                 </button>
-                <span className={cn('text-sm flex-1', act.done ? 'line-through text-slate-400' : 'text-slate-700')}>{act.text}</span>
+                <input
+                  type="text"
+                  value={act.text}
+                  onChange={(e) => setActivities(prev => prev.map(a => a.id === act.id ? { ...a, text: e.target.value } : a))}
+                  className={cn(
+                    'text-sm flex-1 bg-transparent border-none outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1.5 py-0.5 transition-all',
+                    act.done ? 'line-through text-slate-400' : 'text-slate-700'
+                  )}
+                />
                 <button
                   type="button"
-                  onClick={() => removeActivity(act.id)}
-                  className="opacity-0 group-hover/act:opacity-100 p-1 rounded text-slate-300 hover:text-rose-500 transition-all"
+                  onClick={() => setActToDelete(act.id)}
+                  className="opacity-0 group-hover/act:opacity-100 p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
@@ -907,6 +944,18 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           onConfirm={handleDelete}
           title="Excluir Ticket"
           message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
+          confirmLabel="EXCLUIR"
+          variant="danger"
+        />
+      )}
+
+      {!!actToDelete && (
+        <ConfirmModal
+          isOpen={true}
+          onClose={() => setActToDelete(null)}
+          onConfirm={() => { removeActivity(actToDelete); setActToDelete(null); }}
+          title="Excluir Subtarefa"
+          message="Tem certeza que deseja excluir esta subtarefa? Esta ação não pode ser desfeita."
           confirmLabel="EXCLUIR"
           variant="danger"
         />
