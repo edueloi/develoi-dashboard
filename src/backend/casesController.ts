@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
@@ -19,6 +19,33 @@ function toSlug(text: string): string {
 function calcReadTime(content: string): number {
   const words = content.replace(/<[^>]+>/g, "").split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
+}
+
+function getPrismaFieldFromError(error: Prisma.PrismaClientKnownRequestError): string | null {
+  const meta = error.meta as Record<string, unknown> | undefined;
+  const target = meta?.target;
+
+  if (typeof target === "string") return target;
+  if (Array.isArray(target) && typeof target[0] === "string") return target[0];
+
+  const match = error.message.match(/Column:\s([A-Za-z0-9_]+)/);
+  return match?.[1] ?? null;
+}
+
+function handleCaseWriteError(res: Response, error: unknown) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2000") {
+      const field = getPrismaFieldFromError(error) || "informado";
+      return res.status(400).json({ error: `O campo ${field} excede o limite permitido.` });
+    }
+
+    if (error.code === "P2003") {
+      return res.status(400).json({ error: "A categoria informada é inválida." });
+    }
+  }
+
+  const message = error instanceof Error ? error.message : "Erro interno ao processar case";
+  return res.status(500).json({ error: message });
 }
 
 export const casesController = {
@@ -64,7 +91,7 @@ export const casesController = {
 
       res.json({ cases, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return handleCaseWriteError(res, e);
     }
   },
 
@@ -78,7 +105,7 @@ export const casesController = {
       });
       res.json(cases);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return handleCaseWriteError(res, e);
     }
   },
 
@@ -197,6 +224,11 @@ export const casesController = {
 
       if (!title || !content) return res.status(400).json({ error: "Título e conteúdo são obrigatórios" });
 
+      if (categoryId) {
+        const category = await (prisma as any).caseCategory.findUnique({ where: { id: categoryId } });
+        if (!category) return res.status(400).json({ error: "A categoria informada é inválida." });
+      }
+
       let slug = toSlug(title);
       const existing = await (prisma as any).case.findFirst({ where: { slug } });
       if (existing) slug = `${slug}-${Date.now()}`;
@@ -218,7 +250,7 @@ export const casesController = {
 
       res.json(caseItem);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return handleCaseWriteError(res, e);
     }
   },
 
@@ -233,6 +265,11 @@ export const casesController = {
 
       const current = await (prisma as any).case.findUnique({ where: { id } });
       if (!current) return res.status(404).json({ error: "Case não encontrado" });
+
+      if (categoryId) {
+        const category = await (prisma as any).caseCategory.findUnique({ where: { id: categoryId } });
+        if (!category) return res.status(400).json({ error: "A categoria informada é inválida." });
+      }
 
       const data: any = {};
       if (title !== undefined) {
@@ -268,7 +305,7 @@ export const casesController = {
       const updated = await (prisma as any).case.update({ where: { id }, data });
       res.json(updated);
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      return handleCaseWriteError(res, e);
     }
   },
 

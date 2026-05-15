@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Search, Eye, Heart, Clock, Star, Filter, Folder } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowRight, Search, Eye, Heart, Clock, Star, Filter, Folder, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -36,6 +36,208 @@ interface CaseCategory {
 function parseTags(tags?: string): string[] {
   if (!tags) return [];
   try { return JSON.parse(tags); } catch { return []; }
+}
+
+// ─── Draggable Featured Slider ─────────────────────────────────────────────
+
+function FeaturedSlider({ featured }: { featured: Case[] }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [current, setCurrent] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [imageLoaded, setImageLoaded] = useState<Record<string, boolean>>({});
+  const autoRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const count = featured.length;
+
+  const goTo = useCallback((idx: number) => {
+    setCurrent(((idx % count) + count) % count);
+    setDragOffset(0);
+  }, [count]);
+
+  const prev = () => goTo(current - 1);
+  const next = () => goTo(current + 1);
+
+  useEffect(() => {
+    if (count < 2) return;
+    autoRef.current = setInterval(() => {
+      setCurrent(c => ((c + 1) % count));
+    }, 5000);
+    return () => { if (autoRef.current) clearInterval(autoRef.current); };
+  }, [count, current]);
+
+  const stopAuto = () => { if (autoRef.current) clearInterval(autoRef.current); };
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    stopAuto();
+    setDragging(true);
+    setDragStartX(e.clientX);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragging) return;
+    setDragOffset(e.clientX - dragStartX);
+  };
+  const onPointerUp = () => {
+    if (!dragging) return;
+    setDragging(false);
+    if (Math.abs(dragOffset) > 60) {
+      dragOffset < 0 ? next() : prev();
+    } else {
+      setDragOffset(0);
+    }
+  };
+
+  if (!count) return null;
+
+  const c = featured[current];
+
+  return (
+    <div className="relative select-none overflow-hidden rounded-2xl" style={{ boxShadow: '0 24px 80px rgba(6,17,43,0.18)' }}>
+      {/* Track arrastável */}
+      <div
+        ref={trackRef}
+        className="cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'pan-y' }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, x: dragOffset < 0 ? 60 : -60 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dragOffset < 0 ? -60 : 60 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="grid grid-cols-1 lg:grid-cols-2 min-h-[460px]"
+            style={{ background: 'white', borderRadius: '16px', overflow: 'hidden' }}
+          >
+            {/* Image */}
+            <div className="relative overflow-hidden min-h-[280px] lg:min-h-full">
+              {c.coverImage ? (
+                <>
+                  {!imageLoaded[c.id] && (
+                    <div className="absolute inset-0 animate-pulse" style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)' }} />
+                  )}
+                  <img
+                    src={c.coverImage}
+                    alt={c.title}
+                    className="w-full h-full object-cover"
+                    style={{ opacity: imageLoaded[c.id] ? 1 : 0, transition: 'opacity 0.4s ease' }}
+                    onLoad={() => setImageLoaded(prev => ({ ...prev, [c.id]: true }))}
+                    draggable={false}
+                  />
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}>
+                  <Folder className="w-20 h-20" style={{ color: 'rgba(196,154,42,0.2)' }} />
+                </div>
+              )}
+              {/* Overlay gradient */}
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(255,255,255,0.08))' }} />
+
+              {/* Badge destaque */}
+              <div className="absolute top-6 left-6 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[10px] font-black" style={{ background: 'var(--brand-gold)', color: '#06112B' }}>
+                <Star className="w-3 h-3" /> PROJETO EM DESTAQUE
+              </div>
+
+              {/* Indicadores de posição */}
+              {count > 1 && (
+                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+                  {featured.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={(e) => { e.stopPropagation(); stopAuto(); goTo(i); }}
+                      className="rounded-full transition-all duration-300"
+                      style={{
+                        width: i === current ? '24px' : '6px',
+                        height: '6px',
+                        background: i === current ? 'var(--brand-gold)' : 'rgba(255,255,255,0.4)',
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Content */}
+            <div className="p-8 sm:p-12 flex flex-col justify-center relative">
+              {/* Barra lateral dourada */}
+              <div className="absolute top-0 left-0 bottom-0 w-[3px] hidden lg:block" style={{ background: 'linear-gradient(180deg, var(--brand-gold), rgba(196,154,42,0.05))' }} />
+
+              {c.category && (
+                <span
+                  className="inline-block px-3 py-1 rounded-full text-[10px] font-black mb-5 w-fit"
+                  style={{ background: c.category.color + '18', color: c.category.color, border: `1px solid ${c.category.color}35` }}
+                >
+                  {c.category.name}
+                </span>
+              )}
+
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] mb-3" style={{ color: 'var(--brand-gold)' }}>{c.client}</p>
+              <h2
+                className="font-black leading-tight tracking-tight mb-5"
+                style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}
+              >
+                {c.title}
+              </h2>
+
+              {c.excerpt && (
+                <p className="text-sm leading-relaxed mb-6 line-clamp-3" style={{ color: 'var(--text-secondary)' }}>{c.excerpt}</p>
+              )}
+
+              <div className="flex items-center gap-5 text-[10px] font-bold uppercase tracking-widest mb-8" style={{ color: 'var(--text-muted)' }}>
+                <span className="flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" style={{ color: 'var(--brand-navy)' }} /> {c.views} views</span>
+                <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" style={{ color: '#e11d48' }} /> {c.likes}</span>
+                <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} /> {c.readTimeMinutes} min</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Link
+                  to={`/projetos/${c.slug}`}
+                  onClick={e => dragging && e.preventDefault()}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:opacity-90 hover:-translate-y-px group"
+                  style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}
+                >
+                  Ver Projeto <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+
+                {/* Controles prev/next */}
+                {count > 1 && (
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); stopAuto(); prev(); }}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:-translate-x-0.5"
+                      style={{ background: 'var(--bg-tertiary, #f4f6fa)', color: 'var(--brand-navy)' }}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); stopAuto(); next(); }}
+                      className="w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:translate-x-0.5"
+                      style={{ background: 'var(--bg-tertiary, #f4f6fa)', color: 'var(--brand-navy)' }}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Hint de arrastar */}
+              {count > 1 && (
+                <p className="text-[10px] font-medium mt-4 opacity-30 flex items-center gap-1" style={{ color: 'var(--brand-navy)' }}>
+                  ← Arraste para navegar →
+                </p>
+              )}
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
+  );
 }
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
@@ -137,73 +339,10 @@ function CaseCard({ c, index }: { c: Case; index: number }) {
   );
 }
 
-// ─── Featured ─────────────────────────────────────────────────────────────────
-
-function FeaturedCase({ c }: { c: Case }) {
-  return (
-    <Link to={`/projetos/${c.slug}`} className="group block">
-      <div
-        className="rounded-2xl overflow-hidden border transition-all duration-300"
-        style={{ borderColor: 'var(--border-color)', boxShadow: '0 8px 40px rgba(13,31,78,0.1)' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.4)'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
-      >
-        <div className="grid grid-cols-1 lg:grid-cols-2 min-h-[420px]">
-          {/* Image */}
-          <div className="relative overflow-hidden min-h-[300px] lg:min-h-full">
-            {c.coverImage ? (
-              <img src={c.coverImage} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}>
-                <Folder className="w-20 h-20" style={{ color: 'rgba(196,154,42,0.2)' }} />
-              </div>
-            )}
-            <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.05))' }} />
-            <div className="absolute top-6 left-6 flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black" style={{ background: 'var(--brand-gold)', color: '#06112B' }}>
-              <Star className="w-3.5 h-3.5" /> PROJETO EM DESTAQUE
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="p-8 sm:p-12 flex flex-col justify-center bg-white">
-            <div className="absolute top-0 right-0 bottom-0 w-[3px] hidden lg:block" style={{ background: 'linear-gradient(180deg, var(--brand-gold), rgba(196,154,42,0.1))' }} />
-
-            {c.category && (
-              <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black mb-5" style={{ background: c.category.color + '18', color: c.category.color, border: `1px solid ${c.category.color}35` }}>
-                {c.category.name}
-              </span>
-            )}
-
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] mb-3" style={{ color: 'var(--brand-gold)' }}>{c.client}</p>
-            <h2 className="font-black leading-tight tracking-tight mb-5 group-hover:opacity-80 transition-opacity" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.6rem)', color: 'var(--brand-navy)' }}>
-              {c.title}
-            </h2>
-
-            {c.excerpt && (
-              <p className="text-sm leading-relaxed mb-6" style={{ color: 'var(--text-secondary)' }}>{c.excerpt}</p>
-            )}
-
-            <div className="flex items-center gap-5 text-[10px] font-bold uppercase tracking-widest mb-8" style={{ color: 'var(--text-muted)' }}>
-              <span className="flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" style={{ color: 'var(--brand-navy)' }} /> {c.views} views</span>
-              <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5" style={{ color: '#e11d48' }} /> {c.likes}</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} /> {c.readTimeMinutes} min</span>
-            </div>
-
-            <div>
-              <span className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:opacity-90 hover:-translate-y-px group-hover:gap-3" style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}>
-                Ver Projeto Completo <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
 // ─── Main ──────────────────────────────────────────────────────────────────────
 
 export default function ProjetosPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cases, setCases] = useState<Case[]>([]);
   const [featured, setFeatured] = useState<Case[]>([]);
   const [categories, setCategories] = useState<CaseCategory[]>([]);
@@ -211,13 +350,19 @@ export default function ProjetosPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch('/api/cases/featured').then(r => r.json()).then(setFeatured).catch(console.error);
     fetch('/api/cases-categories').then(r => r.json()).then(setCategories).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    const catFromUrl = searchParams.get('category') || '';
+    setCategoryFilter(catFromUrl);
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     setLoading(true);
@@ -236,7 +381,15 @@ export default function ProjetosPage() {
   }, [searchInput]);
 
   const totalPages = Math.ceil(total / 9);
-  const topFeatured = featured[0];
+
+  const handleCategoryFilter = (slug: string) => {
+    if (slug) {
+      setSearchParams({ category: slug });
+    } else {
+      setSearchParams({});
+    }
+    setPage(1);
+  };
 
   return (
     <motion.div
@@ -256,6 +409,9 @@ export default function ProjetosPage() {
       <section className="relative pt-32 pb-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}>
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 60%, transparent)' }} />
         <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
+
+        {/* Decorative dots */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <motion.div
@@ -279,18 +435,31 @@ export default function ProjetosPage() {
             <p className="text-lg leading-relaxed max-w-xl" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Conheça as histórias de sucesso dos nossos clientes e os impactos reais que entregamos com tecnologia e estratégia.
             </p>
+
+            {/* Stats rápidos */}
+            <div className="flex items-center gap-8 mt-10">
+              {[
+                { value: total > 0 ? `${total}+` : '∞', label: 'Projetos' },
+                { value: categories.length > 0 ? `${categories.length}` : '–', label: 'Categorias' },
+              ].map(stat => (
+                <div key={stat.label}>
+                  <p className="text-2xl font-black text-white">{stat.value}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{stat.label}</p>
+                </div>
+              ))}
+            </div>
           </motion.div>
         </div>
       </section>
 
       {/* ── BUSCA + FILTROS ── */}
-      <section className="py-12 md:py-16" style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
+      <section className="py-10 md:py-14" style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
         <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.15 }}
-            className="relative mb-8"
+            className="relative mb-7"
           >
             <div className="relative flex items-center bg-white rounded-2xl border transition-all" style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.06)' }}>
               <Search className="ml-5 w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-navy)' }} />
@@ -301,6 +470,15 @@ export default function ProjetosPage() {
                 className="flex-1 px-4 py-4 bg-transparent border-none text-sm font-medium focus:ring-0 focus:outline-none"
                 style={{ color: 'var(--brand-navy)' }}
               />
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput('')}
+                  className="mr-4 text-[11px] font-bold uppercase tracking-widest px-3 py-1 rounded-lg transition-all"
+                  style={{ color: 'var(--text-muted)', background: 'var(--bg-tertiary)' }}
+                >
+                  Limpar
+                </button>
+              )}
             </div>
           </motion.div>
 
@@ -312,7 +490,7 @@ export default function ProjetosPage() {
               className="flex flex-wrap justify-center gap-2"
             >
               <button
-                onClick={() => { setCategoryFilter(''); setPage(1); }}
+                onClick={() => handleCategoryFilter('')}
                 className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200"
                 style={!categoryFilter
                   ? { background: 'var(--brand-navy)', color: 'white', boxShadow: '0 4px 14px rgba(13,31,78,0.2)' }
@@ -324,7 +502,7 @@ export default function ProjetosPage() {
               {categories.map(cat => (
                 <button
                   key={cat.id}
-                  onClick={() => { setCategoryFilter(cat.slug); setPage(1); }}
+                  onClick={() => handleCategoryFilter(cat.slug)}
                   className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 border"
                   style={categoryFilter === cat.slug
                     ? { background: cat.color, borderColor: cat.color, color: 'white', boxShadow: `0 4px 14px ${cat.color}40` }
@@ -340,22 +518,40 @@ export default function ProjetosPage() {
         </div>
       </section>
 
-      {/* ── DESTAQUE ── */}
-      {topFeatured && !categoryFilter && !search && page === 1 && (
+      {/* ── SLIDER DESTAQUE ── */}
+      {featured.length > 0 && !categoryFilter && !search && page === 1 && (
         <section className="py-16 md:py-20">
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="flex items-center gap-2 mb-8"
+              className="flex items-center justify-between mb-8"
             >
-              <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
-                Em destaque
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
+                  Em destaque
+                </span>
+              </div>
+              <Link
+                to="/projetos"
+                className="text-[11px] font-black uppercase tracking-widest flex items-center gap-1 transition-opacity hover:opacity-70"
+                style={{ color: 'var(--brand-navy)' }}
+                onClick={() => handleCategoryFilter('')}
+              >
+                Ver todos <ArrowUpRight className="w-3 h-3" />
+              </Link>
             </motion.div>
-            <FeaturedCase c={topFeatured} />
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
+              <FeaturedSlider featured={featured} />
+            </motion.div>
           </div>
         </section>
       )}
@@ -378,8 +574,17 @@ export default function ProjetosPage() {
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
             </div>
             <h2 className="font-black tracking-tight" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}>
-              Todos os projetos
+              {categoryFilter
+                ? categories.find(c => c.slug === categoryFilter)?.name || 'Projetos filtrados'
+                : search
+                  ? `Resultados para "${search}"`
+                  : 'Todos os projetos'}
             </h2>
+            {total > 0 && (
+              <p className="text-sm mt-2 font-medium" style={{ color: 'var(--text-muted)' }}>
+                {total} projeto{total !== 1 ? 's' : ''} encontrado{total !== 1 ? 's' : ''}
+              </p>
+            )}
           </motion.div>
 
           {loading ? (
@@ -396,7 +601,7 @@ export default function ProjetosPage() {
               <h3 className="text-xl font-black mb-3 tracking-tight" style={{ color: 'var(--brand-navy)' }}>Nenhum projeto encontrado.</h3>
               <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>Tente ajustar seus filtros ou buscar por outros termos.</p>
               <button
-                onClick={() => { setSearchInput(''); setCategoryFilter(''); }}
+                onClick={() => { setSearchInput(''); handleCategoryFilter(''); }}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90"
                 style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}
               >
@@ -450,6 +655,7 @@ export default function ProjetosPage() {
             style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}
           >
             <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
+            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div>
                 <h2 className="font-black text-white tracking-tight mb-2" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)' }}>

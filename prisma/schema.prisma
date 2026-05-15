@@ -131,7 +131,7 @@ model BlogPost {
   publishedAt     DateTime?
   seoTitle        String?
   seoDescription  String?        @db.Text
-  seoKeywords     String?
+  seoKeywords     String?        @db.Text
   categoryId      String?
   authorId        String?
   createdAt       DateTime       @default(now())
@@ -197,8 +197,8 @@ model Case {
   publishedAt     DateTime?
   seoTitle        String?
   seoDescription  String?   @db.Text
-  seoKeywords     String?
-  segment         String?
+  seoKeywords     String?   @db.Text
+  segment         String?   @db.Text
   services        String?   @db.Text
   results         String?   @db.Text
   challenge       String?   @db.Text

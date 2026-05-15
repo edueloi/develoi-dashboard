@@ -59,6 +59,8 @@ interface CasesStats {
   topCases: Case[];
 }
 
+const SEO_KEYWORDS_DB_LIMIT = 191;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
@@ -483,6 +485,10 @@ function CaseEditor({ caseItem, onSaved }: { caseItem: Case | null; onSaved: () 
 
   const handleSave = async (publishNow = false) => {
     if (!title.trim() || !content.trim()) { setError('Título e conteúdo são obrigatórios.'); return; }
+    if (seoKeywords.trim().length > SEO_KEYWORDS_DB_LIMIT) {
+      setError(`Palavras-chave excedem o limite atual do banco (${seoKeywords.trim().length}/${SEO_KEYWORDS_DB_LIMIT}). Reduza esse campo antes de salvar.`);
+      return;
+    }
     setSaving(true); setError('');
     try {
       const payload = {
@@ -731,9 +737,11 @@ function CaseEditor({ caseItem, onSaved }: { caseItem: Case | null; onSaved: () 
                 <input
                   value={seoKeywords}
                   onChange={e => setSeoKeywords(e.target.value)}
+                  maxLength={SEO_KEYWORDS_DB_LIMIT}
                   placeholder="case de sucesso, develoi, marketing digital..."
                   className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">{seoKeywords.length}/{SEO_KEYWORDS_DB_LIMIT} caracteres</p>
               </div>
             </div>
           )}
