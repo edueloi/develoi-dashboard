@@ -18,7 +18,7 @@ export function TeamManager() {
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch('/api/site/team');
+      const res = await fetch('/api/admin/team');
       setMembers(await res.json());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -36,6 +36,7 @@ export function TeamManager() {
     objectives: '', objectivesPublic: false,
     expectations: '', expectationsPublic: false,
     phrase: '', phrasePublic: true,
+    isPublic: true,
   });
 
   const openNew  = () => { setForm(blankForm()); setEditingId('new'); };
@@ -163,6 +164,8 @@ function AdminMemberCard({ member: m, deleting, onEdit, onView, onDelete }: {
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const isProfilePublic = m.isPublic !== false;
+
   const publicCount = [
     m.missionPublic && m.mission,
     m.responsibilitiesPublic && m.responsibilities,
@@ -209,6 +212,13 @@ function AdminMemberCard({ member: m, deleting, onEdit, onView, onDelete }: {
               </button>
             </div>
           </div>
+
+          {/* Badge de visibilidade global */}
+          {!isProfilePublic && (
+            <div className="mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold" style={{ background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <EyeOff className="w-3 h-3" /> Oculto do site
+            </div>
+          )}
 
           {/* Nome e cargo */}
           <h3 className="font-black text-base mb-1 tracking-tight truncate" style={{ color: 'var(--brand-navy)' }}>{m.name}</h3>
@@ -486,6 +496,48 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Input label="Localização" iconLeft={<MapPin className="w-4 h-4" />} placeholder="Ex: São Paulo, SP" value={form.location || ''} onChange={e => onChange({ location: e.target.value })} />
           <Input label="Anos de Experiência" iconLeft={<Calendar className="w-4 h-4" />} type="number" placeholder="Ex: 5" value={form.yearsExp?.toString() || ''} onChange={e => onChange({ yearsExp: e.target.value ? parseInt(e.target.value) : undefined })} />
+        </div>
+
+        <Divider />
+
+        {/* Visibilidade do perfil */}
+        <div
+          className="flex items-center justify-between rounded-2xl px-4 py-3 border"
+          style={form.isPublic !== false
+            ? { background: 'rgba(34,197,94,0.06)', borderColor: 'rgba(34,197,94,0.3)' }
+            : { background: 'rgba(239,68,68,0.06)', borderColor: 'rgba(239,68,68,0.3)' }
+          }
+        >
+          <div className="flex items-center gap-2">
+            {form.isPublic !== false
+              ? <Globe className="w-4 h-4" style={{ color: '#16a34a' }} />
+              : <EyeOff className="w-4 h-4" style={{ color: '#dc2626' }} />
+            }
+            <div>
+              <p className="text-[11px] font-black" style={{ color: 'var(--brand-navy)' }}>
+                {form.isPublic !== false ? 'Perfil visível no site' : 'Perfil oculto do site'}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                {form.isPublic !== false
+                  ? 'Este membro aparece na página pública Nossa Equipe.'
+                  : 'Este membro existe apenas no sistema interno.'}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onChange({ isPublic: form.isPublic === false ? true : false })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shrink-0"
+            style={form.isPublic !== false
+              ? { background: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }
+              : { background: 'rgba(239,68,68,0.12)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)' }
+            }
+          >
+            {form.isPublic !== false
+              ? <><Globe className="w-3 h-3" /> Público</>
+              : <><EyeOff className="w-3 h-3" /> Privado</>
+            }
+          </button>
         </div>
 
         <Divider />

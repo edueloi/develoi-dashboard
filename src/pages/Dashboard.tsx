@@ -9,7 +9,7 @@ import {
   TrendingUp, Share2, MoreHorizontal, Link2, History,
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
-  ShoppingBag, BarChart2, PhoneCall,
+  ShoppingBag, BarChart2, PhoneCall, UserCircle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -62,6 +62,7 @@ import { PostCreatorTab } from '../components/dashboard/PostCreatorTab';
 import { SalesManager } from '../components/dashboard/SalesManager';
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
+import { MyProfile } from '../components/dashboard/MyProfile';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   sales:           '/dashboard/vendas',
   products:        '/dashboard/produtos',
   'client-contact':'/dashboard/contatos',
+  'profile':       '/dashboard/perfil',
 };
 
 const PATH_TO_TAB: Record<string, ActiveTab> = Object.fromEntries(
@@ -187,9 +189,10 @@ export default function Dashboard() {
     sales:           'Controle de Vendas',
     products:        'Produtos & Planos',
     'client-contact':'Contato com Clientes',
+    'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -270,6 +273,10 @@ export default function Dashboard() {
           <NavSection label="Sistema">
             <NavItem icon={Image} label="Criador de Postagens" active={activeTab === 'posts'} onClick={() => goTo('posts')} />
             <NavItem icon={MessageSquare} label="Bot de Atendimento" active={activeTab === 'bot'} onClick={() => goTo('bot')} />
+          </NavSection>
+
+          <NavSection label="Conta">
+            <NavItem icon={UserCircle} label="Meu Perfil" active={activeTab === 'profile'} onClick={() => goTo('profile')} />
           </NavSection>
         </nav>
 
@@ -603,6 +610,7 @@ export default function Dashboard() {
               {activeTab === 'sales' && <SalesManager />}
               {activeTab === 'products' && <ProductsManager />}
               {activeTab === 'client-contact' && <ClientContactManager />}
+              {activeTab === 'profile' && <MyProfile />}
             </AnimatePresence>
           </div>
         </main>

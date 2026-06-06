@@ -127,6 +127,7 @@ model TeamMember {
   expectationsPublic     Boolean @default(false)
   phrase                 String? @db.VarChar(512)
   phrasePublic           Boolean @default(true)
+  isPublic               Boolean @default(true)
   order                  Int     @default(0)
 }
 

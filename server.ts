@@ -162,6 +162,41 @@ async function startServer() {
       }
     });
 
+    app.patch("/api/auth/me", async (req, res) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: "Não autorizado" });
+      const token = authHeader.split(" ")[1];
+      const user = await prisma.user.findFirst({ where: { token } });
+      if (!user) return res.status(401).json({ error: "Token inválido" });
+      const { displayName, photoURL } = req.body;
+      const updated = await prisma.user.update({
+        where: { uid: user.uid },
+        data: { displayName: displayName ?? user.displayName, photoURL: photoURL ?? null },
+      });
+      const { passwordHash, ...userWithoutPass } = updated;
+      res.json(userWithoutPass);
+    });
+
+    app.post("/api/auth/change-password", async (req, res) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ error: "Não autorizado" });
+      const token = authHeader.split(" ")[1];
+      const user = await prisma.user.findFirst({ where: { token } });
+      if (!user) return res.status(401).json({ error: "Token inválido" });
+      const { currentPassword, newPassword } = req.body;
+      if (user.passwordHash !== hashPassword(currentPassword)) {
+        return res.status(400).json({ error: "Senha atual incorreta" });
+      }
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ error: "A nova senha deve ter ao menos 6 caracteres" });
+      }
+      await prisma.user.update({
+        where: { uid: user.uid },
+        data: { passwordHash: hashPassword(newPassword) },
+      });
+      res.json({ ok: true });
+    });
+
     // ─── Users Management ───────────────────────────────────────────────────────
     app.get("/api/users", async (req, res) => {
       const users = await prisma.user.findMany({
@@ -382,6 +417,11 @@ async function startServer() {
     });
 
     app.get("/api/site/team", async (req, res) => {
+      const team = await prisma.teamMember.findMany({ where: { isPublic: true }, orderBy: { order: 'asc' } });
+      res.json(team);
+    });
+
+    app.get("/api/admin/team", async (req, res) => {
       const team = await prisma.teamMember.findMany({ orderBy: { order: 'asc' } });
       res.json(team);
     });

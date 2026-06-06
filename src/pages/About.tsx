@@ -32,6 +32,7 @@ interface TeamMember {
   expectationsPublic?: boolean;
   phrase?: string;
   phrasePublic?: boolean;
+  isPublic?: boolean;
 }
 
 const values = [

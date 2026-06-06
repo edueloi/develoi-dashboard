@@ -101,6 +101,7 @@ export interface TeamMemberSite {
   expectationsPublic?: boolean;
   phrase?: string;
   phrasePublic?: boolean;
+  isPublic?: boolean;
   order?: number;
 }
 
@@ -129,7 +130,8 @@ export type ActiveTab =
   | 'posts'
   | 'sales'
   | 'products'
-  | 'client-contact';
+  | 'client-contact'
+  | 'profile';
 
 // ─── Produtos / Planos ────────────────────────────────────────────────────────
 
