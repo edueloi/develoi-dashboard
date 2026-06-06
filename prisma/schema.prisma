@@ -65,6 +65,7 @@ model Feature {
   functionalArea          String?
   acceptanceCriteria      String?  @db.Text
   functionalRequirements  String?  @db.Text
+  businessRules           String?  @db.Text
   linkedDemandId          String?
   linkedDemandTitle       String?  @db.VarChar(512)
   createdAt               DateTime @default(now())

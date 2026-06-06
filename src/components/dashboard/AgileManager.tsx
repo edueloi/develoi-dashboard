@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import * as pdfjsLib from 'pdfjs-dist';
+// worker inline para não precisar de CDN separado
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
 import {
   Plus, ChevronDown, ChevronRight, Play, CheckCircle2,
   AlertCircle, Rocket, Briefcase, Calendar, Star, MoreVertical,
@@ -1263,7 +1266,15 @@ function parseImportText(raw: string) {
   const points   = parseInt(pointsRaw) || 1;
   const reporter = get(['relator', 'reporter', 'solicitante', 'quem solicitou']);
   const area     = get(['tela', 'funcionalidade', 'tela / funcionalidade', 'área funcional']);
-  const deadline = get(['prazo', 'deadline', 'data limite']);
+  const rawDeadline = get(['prazo', 'deadline', 'data limite']);
+  // Converte dd/mm/aaaa → yyyy-MM-dd; descarta texto livre como "A definir"
+  const deadline = (() => {
+    const m = rawDeadline.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+    if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    const m2 = rawDeadline.match(/(\d{4})[\/-](\d{2})[\/-](\d{2})/);
+    if (m2) return rawDeadline.slice(0, 10);
+    return '';
+  })();
 
   const desc      = get(['descrição', 'narrativa', 'como usuário', 'contexto', 'description', 'passos para reproduzir']);
   const funcReqs  = get(['requisitos funcionais', 'requisitos', 'functional requirements', 'comportamento atual']);
@@ -1643,11 +1654,39 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
   const [objective,  setObjective]  = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = e => setRawText((e.target?.result as string) || '');
-    reader.readAsText(file, 'utf-8');
+    if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        setLoading(true);
+        const pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url
+        ).toString();
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = content.items
+            .map((item: any) => ('str' in item ? item.str : ''))
+            .join(' ');
+          fullText += pageText + '\n';
+        }
+        setRawText(fullText.trim());
+      } catch (err) {
+        console.error('Erro ao ler PDF:', err);
+        alert('Não foi possível ler o PDF. Tente exportar como .txt e importar.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = e => setRawText((e.target?.result as string) || '');
+      reader.readAsText(file, 'utf-8');
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -1765,12 +1804,21 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
             onClick={() => fileRef.current?.click()}
             className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all"
           >
-            <Upload className="w-7 h-7 text-slate-400 mx-auto mb-2" />
-            <p className="text-sm font-bold text-slate-600">
-              {fileName ? <span className="text-indigo-600">{fileName}</span> : 'Arraste o arquivo .txt ou clique para selecionar'}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">Formato: .txt (UTF-8)</p>
-            <input ref={fileRef} type="file" accept=".txt,.md,.text" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            {loading ? (
+              <div className="flex flex-col items-center gap-2">
+                <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+                <p className="text-sm font-bold text-indigo-500">Lendo PDF...</p>
+              </div>
+            ) : (
+              <>
+                <Upload className="w-7 h-7 text-slate-400 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-600">
+                  {fileName ? <span className="text-indigo-600">{fileName}</span> : 'Arraste o arquivo ou clique para selecionar'}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">Formatos aceitos: <strong>.pdf</strong> · <strong>.txt</strong></p>
+              </>
+            )}
+            <input ref={fileRef} type="file" accept=".txt,.md,.text,.pdf" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
 
           <div className="flex items-center gap-3">
@@ -1779,13 +1827,27 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
-          <Textarea
-            label="Texto da história / demanda"
-            placeholder="Cole aqui o conteúdo do arquivo modelo preenchido..."
-            value={rawText}
-            onChange={(e: any) => setRawText(e.target.value)}
-            rows={10}
-          />
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500">
+                Texto extraído / colado
+                {rawText && <span className="ml-2 text-indigo-400 normal-case font-bold">{rawText.length} caracteres lidos</span>}
+              </label>
+              {rawText && (
+                <button type="button" onClick={() => { setRawText(''); setFileName(''); }}
+                  className="text-[10px] font-black text-rose-400 hover:text-rose-600 transition-colors">
+                  LIMPAR
+                </button>
+              )}
+            </div>
+            <Textarea
+              label=""
+              placeholder="Cole aqui o conteúdo do arquivo modelo preenchido, ou faça upload acima (PDF ou TXT)..."
+              value={rawText}
+              onChange={(e: any) => setRawText(e.target.value)}
+              rows={10}
+            />
+          </div>
 
           <div className="flex gap-3">
             <Button

@@ -211,107 +211,134 @@ async function startServer() {
 
     // ─── Projects ───────────────────────────────────────────────────────────────
     app.get("/api/projects", async (req, res) => {
-      const { userId, isAdmin } = req.query;
-      const projects = await prisma.project.findMany({
-        orderBy: { createdAt: 'desc' }
-      });
-      
-      const filtered = isAdmin === 'true' ? projects : projects.filter(p => {
-        if (p.visibility === 'public') return true;
-        const allowed = p.allowedUsers as string[] | null;
-        return allowed?.includes(userId as string);
-      });
-
-      res.json(filtered);
+      try {
+        const { userId, isAdmin } = req.query;
+        const projects = await prisma.project.findMany({ orderBy: { createdAt: 'desc' } });
+        const filtered = isAdmin === 'true' ? projects : projects.filter(p => {
+          if (p.visibility === 'public') return true;
+          const allowed = p.allowedUsers as string[] | null;
+          return allowed?.includes(userId as string);
+        });
+        res.json(filtered);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/projects", async (req, res) => {
-      const project = await prisma.project.create({
-        data: {
-          ...req.body,
-          deadline: req.body.deadline ? new Date(req.body.deadline) : null
-        }
-      });
-      res.json(project);
+      try {
+        const project = await prisma.project.create({
+          data: { ...req.body, deadline: req.body.deadline ? new Date(req.body.deadline) : null }
+        });
+        res.json(project);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/projects/:id", async (req, res) => {
-      const project = await prisma.project.update({
-        where: { id: req.params.id },
-        data: {
-          ...req.body,
-          deadline: req.body.deadline ? new Date(req.body.deadline) : undefined
-        }
-      });
-      res.json(project);
+      try {
+        const project = await prisma.project.update({
+          where: { id: req.params.id },
+          data: { ...req.body, deadline: req.body.deadline ? new Date(req.body.deadline) : undefined }
+        });
+        res.json(project);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/projects/:id", async (req, res) => {
-      await prisma.project.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.project.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     // ─── Features ───────────────────────────────────────────────────────────────
     app.get("/api/projects/:projectId/features", async (req, res) => {
-      const features = await prisma.feature.findMany({ where: { projectId: req.params.projectId } });
-      res.json(features);
+      try {
+        const features = await prisma.feature.findMany({ where: { projectId: req.params.projectId } });
+        res.json(features);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // Sanitiza campos do feature antes de passar ao Prisma
+    const sanitizeFeature = (body: any) => {
+      const allowed = [
+        'id','key','projectId','sprintId','title','description','status','priority','category',
+        'assignedTo','type','tags','points','deadline','activities','testCases','testEvidence',
+        'testObservations','reporter','functionalArea','acceptanceCriteria','functionalRequirements',
+        'businessRules','linkedDemandId','linkedDemandTitle','createdAt',
+      ];
+      const clean: any = {};
+      for (const k of allowed) { if (k in body) clean[k] = body[k]; }
+      if (clean.deadline && isNaN(new Date(clean.deadline).getTime())) clean.deadline = null;
+      return clean;
+    };
+
     app.post("/api/projects/:projectId/features", async (req, res) => {
-      const feature = await prisma.feature.create({ data: { ...req.body, projectId: req.params.projectId } });
-      res.json(feature);
+      try {
+        const body = sanitizeFeature({ ...req.body, projectId: req.params.projectId });
+        const feature = await prisma.feature.create({ data: body });
+        res.json(feature);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/projects/:projectId/features/:id", async (req, res) => {
-      const feature = await prisma.feature.update({ where: { id: req.params.id }, data: req.body });
-      res.json(feature);
+      try {
+        const body = sanitizeFeature(req.body);
+        const feature = await prisma.feature.update({ where: { id: req.params.id }, data: body });
+        res.json(feature);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/projects/:projectId/features/:id", async (req, res) => {
-      await prisma.feature.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.feature.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     // ─── Sprints ────────────────────────────────────────────────────────────────
     app.get("/api/projects/:projectId/sprints", async (req, res) => {
-      const sprints = await prisma.sprint.findMany({ 
-        where: { projectId: req.params.projectId },
-        orderBy: { createdAt: 'desc' }
-      });
-      res.json(sprints);
+      try {
+        const sprints = await prisma.sprint.findMany({
+          where: { projectId: req.params.projectId },
+          orderBy: { createdAt: 'desc' }
+        });
+        res.json(sprints);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/projects/:projectId/sprints", async (req, res) => {
-      const sprint = await prisma.sprint.create({ 
-        data: { 
-          ...req.body, 
-          projectId: req.params.projectId,
-          startDate: req.body.startDate ? new Date(req.body.startDate) : null,
-          endDate: req.body.endDate ? new Date(req.body.endDate) : null
-        } 
-      });
-      res.json(sprint);
+      try {
+        const sprint = await prisma.sprint.create({
+          data: {
+            ...req.body,
+            projectId: req.params.projectId,
+            startDate: req.body.startDate ? new Date(req.body.startDate) : null,
+            endDate: req.body.endDate ? new Date(req.body.endDate) : null
+          }
+        });
+        res.json(sprint);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/projects/:projectId/sprints/:id", async (req, res) => {
-      const sprint = await prisma.sprint.update({
-        where: { id: req.params.id },
-        data: {
-          ...req.body,
-          startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
-          endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
-        }
-      });
-      res.json(sprint);
+      try {
+        const sprint = await prisma.sprint.update({
+          where: { id: req.params.id },
+          data: {
+            ...req.body,
+            startDate: req.body.startDate ? new Date(req.body.startDate) : undefined,
+            endDate: req.body.endDate ? new Date(req.body.endDate) : undefined,
+          }
+        });
+        res.json(sprint);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/projects/:projectId/sprints/:id", async (req, res) => {
-      await prisma.feature.updateMany({
-        where: { sprintId: req.params.id },
-        data: { sprintId: null }
-      });
-      await prisma.sprint.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.feature.updateMany({ where: { sprintId: req.params.id }, data: { sprintId: null } });
+        await prisma.sprint.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/projects/:projectId/sprints/:id/start", async (req, res) => {
@@ -478,100 +505,115 @@ async function startServer() {
 
     // ─── Products ──────────────────────────────────────────────────────────────
     app.get("/api/products", async (req, res) => {
-      const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
-      res.json(products);
+      try {
+        const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
+        res.json(products);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/products", async (req, res) => {
-      const product = await prisma.product.create({ data: req.body });
-      res.json(product);
+      try {
+        const product = await prisma.product.create({ data: req.body });
+        res.json(product);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/products/:id", async (req, res) => {
-      const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
-      res.json(product);
+      try {
+        const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
+        res.json(product);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/products/:id", async (req, res) => {
-      await prisma.product.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.product.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     // ─── Sales ─────────────────────────────────────────────────────────────────
     app.get("/api/sales", async (req, res) => {
-      const sales = await prisma.sale.findMany({ orderBy: { createdAt: 'desc' } });
-      res.json(sales);
+      try {
+        const sales = await prisma.sale.findMany({ orderBy: { createdAt: 'desc' } });
+        res.json(sales);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/sales", async (req, res) => {
-      const sale = await prisma.sale.create({
-        data: {
-          ...req.body,
-          closedAt: req.body.closedAt ? new Date(req.body.closedAt) : null,
-        }
-      });
-      res.json(sale);
+      try {
+        const sale = await prisma.sale.create({
+          data: { ...req.body, closedAt: req.body.closedAt ? new Date(req.body.closedAt) : null }
+        });
+        res.json(sale);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/sales/:id", async (req, res) => {
-      const sale = await prisma.sale.update({
-        where: { id: req.params.id },
-        data: {
-          ...req.body,
-          closedAt: req.body.closedAt ? new Date(req.body.closedAt) : undefined,
-        }
-      });
-      res.json(sale);
+      try {
+        const sale = await prisma.sale.update({
+          where: { id: req.params.id },
+          data: { ...req.body, closedAt: req.body.closedAt ? new Date(req.body.closedAt) : undefined }
+        });
+        res.json(sale);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/sales/:id", async (req, res) => {
-      await prisma.sale.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.sale.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     // ─── Ready Messages ────────────────────────────────────────────────────────
-    // Retorna: mensagens padrão (isDefault=true, userId=null) + mensagens do usuário
     app.get("/api/ready-messages", async (req, res) => {
-      const { userId } = req.query;
-      const messages = await prisma.readyMessage.findMany({
-        where: userId
-          ? { OR: [{ isDefault: true }, { userId: userId as string }] }
-          : { isDefault: true },
-        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-      });
-      res.json(messages);
+      try {
+        const { userId } = req.query;
+        const messages = await prisma.readyMessage.findMany({
+          where: userId ? { OR: [{ isDefault: true }, { userId: userId as string }] } : { isDefault: true },
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+        });
+        res.json(messages);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/ready-messages", async (req, res) => {
-      const message = await prisma.readyMessage.create({ data: req.body });
-      res.json(message);
+      try {
+        const message = await prisma.readyMessage.create({ data: req.body });
+        res.json(message);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/ready-messages/:id", async (req, res) => {
-      const message = await prisma.readyMessage.update({ where: { id: req.params.id }, data: req.body });
-      res.json(message);
+      try {
+        const message = await prisma.readyMessage.update({ where: { id: req.params.id }, data: req.body });
+        res.json(message);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/ready-messages/:id", async (req, res) => {
-      await prisma.readyMessage.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.readyMessage.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     // ─── Client Contacts ───────────────────────────────────────────────────────
-    // Cada contato pertence a um usuário (userId) — isolamento por vendedor
     app.get("/api/client-contacts", async (req, res) => {
-      const { userId } = req.query;
-      const where = userId ? { userId: userId as string } : {};
-      const contacts = await prisma.clientContact.findMany({ where, orderBy: { createdAt: 'desc' } });
-      res.json(contacts);
+      try {
+        const { userId } = req.query;
+        const where = userId ? { userId: userId as string } : {};
+        const contacts = await prisma.clientContact.findMany({ where, orderBy: { createdAt: 'desc' } });
+        res.json(contacts);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
-    // POST — verifica duplicata de telefone para o mesmo userId antes de criar
     app.post("/api/client-contacts", async (req, res) => {
+      try {
       const { userId, clientPhone, clientPhone2 } = req.body;
       if (userId && clientPhone) {
         const phoneCleaned = clientPhone.replace(/\D/g, '');
-        // Busca todos os contatos deste usuário e verifica manualmente (MySQL não tem regex fácil)
         const existing = await prisma.clientContact.findMany({ where: { userId } });
         const duplicate = existing.find(c => {
           const p1 = (c.clientPhone ?? '').replace(/\D/g, '');
@@ -594,23 +636,28 @@ async function startServer() {
         }
       });
       res.json(contact);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/client-contacts/:id", async (req, res) => {
-      const contact = await prisma.clientContact.update({
-        where: { id: req.params.id },
-        data: {
-          ...req.body,
-          scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : undefined,
-          lastContactAt: req.body.lastContactAt ? new Date(req.body.lastContactAt) : undefined,
-        }
-      });
-      res.json(contact);
+      try {
+        const contact = await prisma.clientContact.update({
+          where: { id: req.params.id },
+          data: {
+            ...req.body,
+            scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : undefined,
+            lastContactAt: req.body.lastContactAt ? new Date(req.body.lastContactAt) : undefined,
+          }
+        });
+        res.json(contact);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.delete("/api/client-contacts/:id", async (req, res) => {
-      await prisma.clientContact.delete({ where: { id: req.params.id } });
-      res.json({ success: true });
+      try {
+        await prisma.clientContact.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     // ─── Serving ────────────────────────────────────────────────────────────────
