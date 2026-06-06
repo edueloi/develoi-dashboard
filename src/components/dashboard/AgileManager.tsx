@@ -1659,11 +1659,32 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
         setLoading(true);
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-          'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url
-        ).toString();
+        // Carrega pdfjs via CDN para evitar problemas de build com Vite
+        const PDFJS_VERSION = '4.4.168';
+        const cdnBase = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
+        if (!(window as any).pdfjsLib) {
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = `${cdnBase}/pdf.min.mjs`;
+            script.type = 'module';
+            script.onload = () => resolve();
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+          // fallback: tenta cdn não-module
+          if (!(window as any).pdfjsLib) {
+            await new Promise<void>((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
+              script.onload = () => resolve();
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          }
+        }
+        const pdfjsLib = (window as any).pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
