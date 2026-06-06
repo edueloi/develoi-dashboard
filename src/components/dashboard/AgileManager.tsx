@@ -1651,37 +1651,33 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
   const [objective,  setObjective]  = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
 
+  const loadPdfJs = (): Promise<any> => {
+    if ((window as any).pdfjsLib) return Promise.resolve((window as any).pdfjsLib);
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      // unpkg serve qualquer versão publicada no npm
+      script.src = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js';
+      script.onload = () => {
+        const lib = (window as any).pdfjsLib;
+        if (lib) {
+          lib.GlobalWorkerOptions.workerSrc =
+            'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+          resolve(lib);
+        } else {
+          reject(new Error('pdfjsLib não encontrado após carregamento'));
+        }
+      };
+      script.onerror = () => reject(new Error('Falha ao carregar pdf.js'));
+      document.head.appendChild(script);
+    });
+  };
+
   const handleFile = async (file: File) => {
     setFileName(file.name);
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       try {
         setLoading(true);
-        // Carrega pdfjs via CDN para evitar problemas de build com Vite
-        const PDFJS_VERSION = '4.4.168';
-        const cdnBase = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}`;
-        if (!(window as any).pdfjsLib) {
-          await new Promise<void>((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = `${cdnBase}/pdf.min.mjs`;
-            script.type = 'module';
-            script.onload = () => resolve();
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-          // fallback: tenta cdn não-module
-          if (!(window as any).pdfjsLib) {
-            await new Promise<void>((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.min.js`;
-              script.onload = () => resolve();
-              script.onerror = reject;
-              document.head.appendChild(script);
-            });
-          }
-        }
-        const pdfjsLib = (window as any).pdfjsLib;
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-          `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/pdf.worker.min.js`;
+        const pdfjsLib = await loadPdfJs();
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let fullText = '';
