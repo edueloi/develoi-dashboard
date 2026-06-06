@@ -6,7 +6,7 @@ import {
   Trash2, Edit2, History, BarChart2, Loader2,
   Archive, X, Kanban, GripVertical, ArrowRight, CheckSquare,
   Square, ListTodo, Pencil, Link2, Search, FileText, ClipboardList,
-  Target, User, Tag, Layers,
+  Target, User, Tag, Layers, Upload, Sparkles,
 } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -1019,21 +1019,24 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
+  const handleTypeChange = (newType: string) => {
+    setType(newType as any);
+  };
+
+  const editTitles = { story: 'Editar História', task: 'Editar Tarefa', bug: 'Editar Bug', epic: 'Editar Épico' };
+
   return (
-    <Modal isOpen onClose={onClose} title={`${feature.key || 'TASK'} — Editar Ticket`} size="2xl">
+    <Modal isOpen onClose={onClose} title={`${feature.key || '—'} — ${editTitles[type as keyof typeof editTitles] || 'Editar Ticket'}`} size="2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* Seletor de tipo */}
+        <TypeSelector value={type} onChange={handleTypeChange} />
 
         {/* Identificação */}
         <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
         <Input label="Título *" required value={title} onChange={e => setTitle(e.target.value)} />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Select label="Tipo" value={type} onChange={e => setType(e.target.value as any)}>
-            <option value="story">História</option>
-            <option value="task">Tarefa</option>
-            <option value="bug">Bug</option>
-            <option value="epic">Épico</option>
-          </Select>
           <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
             <option value="low">Baixa</option>
             <option value="medium">Média</option>
@@ -1047,50 +1050,37 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
             <option value="testing">Em Teste</option>
             <option value="done">Concluído</option>
           </Select>
-          <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
-          <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+          {type !== 'epic' && (
+            <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
+          )}
           <Input label="Prazo" type="date" iconLeft={<Calendar className="w-4 h-4" />} value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
 
-        {/* Descrição / Contexto */}
-        <FSection icon={<FileText className="w-4 h-4" />} label="Descrição e Contexto" />
-        <Textarea label="Descrição / Contexto" placeholder="Descreva o problema, contexto e proposta de solução..." value={desc} onChange={e => setDesc(e.target.value)} rows={4} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
+          {(type === 'story' || type === 'task' || type === 'bug') && (
+            <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+          )}
+        </div>
 
-        {/* Requisitos */}
-        <FSection icon={<ClipboardList className="w-4 h-4" />} label="Requisitos Funcionais" />
-        <Textarea
-          label="Requisitos Funcionais"
-          placeholder={"Liste um por linha:\n- O sistema deverá alterar o label X para Y\n- As alterações devem refletir em todos os pontos"}
-          value={funcReqs}
-          onChange={e => setFuncReqs(e.target.value)}
-          rows={5}
-        />
-
-        {/* Critérios de Aceite */}
-        <FSection icon={<CheckCircle2 className="w-4 h-4" />} label="Critérios de Aceite" />
-        <Textarea
-          label="Critérios de Aceite"
-          placeholder={"Liste um por linha:\n- O sistema deve exibir X corretamente na Grid Inicial\n- O sistema deve manter funcionamento normal dos filtros"}
-          value={acceptance}
-          onChange={e => setAcceptance(e.target.value)}
-          rows={5}
-        />
-
-        {/* Objetivo */}
-        <FSection icon={<Target className="w-4 h-4" />} label="Objetivo" />
-        <Textarea label="Objetivo" placeholder="Qual o objetivo desta demanda para o negócio?" value={objective} onChange={e => setObjective(e.target.value)} rows={2} />
-
-        {/* Atividades */}
-        <FSection icon={<CheckSquare className="w-4 h-4" />} label="Atividades / Subtarefas" />
-        <ActivitiesField activities={activities} setActivities={setActivities} />
-
-        {/* Vínculo */}
-        <FSection icon={<Link2 className="w-4 h-4" />} label="Vínculo" />
-        <LinkedDemandPicker projectId={feature.projectId} value={linkedDemand} onChange={setLinkedDemand} />
+        {/* Campos específicos por tipo */}
+        {type === 'story' && (
+          <StoryFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
+            acceptance={acceptance} setAcceptance={setAcceptance} objective={objective} setObjective={setObjective}
+            linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={feature.projectId} />
+        )}
+        {type === 'task' && (
+          <TaskFields desc={desc} setDesc={setDesc} activities={activities} setActivities={setActivities}
+            linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={feature.projectId} />
+        )}
+        {type === 'bug' && (
+          <BugFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
+            acceptance={acceptance} setAcceptance={setAcceptance} activities={activities} setActivities={setActivities} />
+        )}
+        {type === 'epic' && (
+          <EpicFields desc={desc} setDesc={setDesc} objective={objective} setObjective={setObjective}
+            funcReqs={funcReqs} setFuncReqs={setFuncReqs} />
+        )}
 
         {/* Ações */}
         <div className="flex gap-3 pt-2">
@@ -1185,6 +1175,180 @@ function NewSprintModal({ projectId, onClose, onSuccess }: { projectId: string; 
   );
 }
 
+// ─── TYPE_CONFIG — rótulos e cores dos tipos ──────────────────────────────────
+
+const TYPE_CONFIG = {
+  story: { label: 'História',  color: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  task:  { label: 'Tarefa',    color: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+  bug:   { label: 'Bug',       color: 'bg-rose-500',    badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+  epic:  { label: 'Épico',     color: 'bg-purple-500',  badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+};
+
+// ─── TypeSelector — botões visuais de seleção de tipo ────────────────────────
+
+function TypeSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const types = [
+    { id: 'story', label: 'História',  icon: <CheckCircle2 className="w-5 h-5" />, desc: 'Funcionalidade do ponto de vista do usuário' },
+    { id: 'task',  label: 'Tarefa',    icon: <Briefcase className="w-5 h-5" />,    desc: 'Trabalho técnico ou operacional' },
+    { id: 'bug',   label: 'Bug',       icon: <AlertCircle className="w-5 h-5" />,  desc: 'Defeito ou comportamento incorreto' },
+    { id: 'epic',  label: 'Épico',     icon: <Rocket className="w-5 h-5" />,       desc: 'Conjunto de histórias / objetivo grande' },
+  ];
+
+  return (
+    <div>
+      <label className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500 block mb-2">Tipo *</label>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {types.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onChange(t.id)}
+            className={cn(
+              'flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all text-center',
+              value === t.id
+                ? `${TYPE_CONFIG[t.id as keyof typeof TYPE_CONFIG].badge} border-current shadow-sm scale-[1.02]`
+                : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50'
+            )}
+          >
+            {t.icon}
+            <span className="text-xs font-black">{t.label}</span>
+            <span className="text-[9px] font-medium leading-tight opacity-70">{t.desc}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── FormFields por tipo ──────────────────────────────────────────────────────
+
+function StoryFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcceptance, objective, setObjective, linkedDemand, setLinkedDemand, projectId }: any) {
+  return (
+    <>
+      <FSection icon={<FileText className="w-4 h-4" />} label="Narrativa do Usuário" />
+      <Textarea
+        label="Como usuário, eu quero... para que..."
+        placeholder={"Ex: Eu como usuário desejo que o sistema atualize a nomenclatura dos campos na tela de Aviso Embarque para que os termos sejam consistentes com os processos de ICMS/EXONERAÇÃO."}
+        value={desc}
+        onChange={(e: any) => setDesc(e.target.value)}
+        rows={4}
+      />
+
+      <FSection icon={<ClipboardList className="w-4 h-4" />} label="Requisitos Funcionais" />
+      <Textarea
+        label="Requisitos Funcionais"
+        placeholder={"Liste um por linha:\n- O sistema deverá alterar o label X → Y\n- A alteração deve refletir em todas as telas relacionadas"}
+        value={funcReqs}
+        onChange={(e: any) => setFuncReqs(e.target.value)}
+        rows={5}
+      />
+
+      <FSection icon={<CheckCircle2 className="w-4 h-4" />} label="Critérios de Aceite" />
+      <Textarea
+        label="Critérios de Aceite"
+        placeholder={"Liste um por linha:\n- O label X deve aparecer como Y na Grid Inicial\n- O filtro deve continuar funcionando normalmente\n- Nenhum dado salvo deve ser alterado"}
+        value={acceptance}
+        onChange={(e: any) => setAcceptance(e.target.value)}
+        rows={5}
+      />
+
+      <FSection icon={<Target className="w-4 h-4" />} label="Objetivo de Negócio" />
+      <Textarea label="Objetivo" placeholder="Qual o valor desta história para o negócio?" value={objective} onChange={(e: any) => setObjective(e.target.value)} rows={2} />
+
+      <FSection icon={<Link2 className="w-4 h-4" />} label="Épico / Demanda Pai" />
+      <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
+    </>
+  );
+}
+
+function TaskFields({ desc, setDesc, activities, setActivities, linkedDemand, setLinkedDemand, projectId }: any) {
+  return (
+    <>
+      <FSection icon={<FileText className="w-4 h-4" />} label="Descrição" />
+      <Textarea
+        label="O que precisa ser feito?"
+        placeholder="Descreva a tarefa em detalhes — o que deve ser implementado, alterado ou configurado."
+        value={desc}
+        onChange={(e: any) => setDesc(e.target.value)}
+        rows={4}
+      />
+
+      <FSection icon={<CheckSquare className="w-4 h-4" />} label="Subtarefas / Checklist" />
+      <ActivitiesField activities={activities} setActivities={setActivities} />
+
+      <FSection icon={<Link2 className="w-4 h-4" />} label="Vinculada a" />
+      <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
+    </>
+  );
+}
+
+function BugFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcceptance, activities, setActivities }: any) {
+  return (
+    <>
+      <FSection icon={<AlertCircle className="w-4 h-4" />} label="Passos para Reproduzir" />
+      <Textarea
+        label="Como reproduzir o bug?"
+        placeholder={"1. Acesse a tela X\n2. Preencha o campo Y com Z\n3. Clique em Salvar\n4. Observe o erro"}
+        value={desc}
+        onChange={(e: any) => setDesc(e.target.value)}
+        rows={5}
+      />
+
+      <FSection icon={<X className="w-4 h-4" />} label="Comportamento Atual vs Esperado" />
+      <Textarea
+        label="Comportamento Atual"
+        placeholder="O que acontece atualmente (o bug em si)..."
+        value={funcReqs}
+        onChange={(e: any) => setFuncReqs(e.target.value)}
+        rows={3}
+      />
+      <Textarea
+        label="Comportamento Esperado"
+        placeholder="O que deveria acontecer corretamente..."
+        value={acceptance}
+        onChange={(e: any) => setAcceptance(e.target.value)}
+        rows={3}
+      />
+
+      <FSection icon={<CheckSquare className="w-4 h-4" />} label="Cenários de Teste" />
+      <ActivitiesField activities={activities} setActivities={setActivities} />
+    </>
+  );
+}
+
+function EpicFields({ desc, setDesc, objective, setObjective, funcReqs, setFuncReqs }: any) {
+  return (
+    <>
+      <FSection icon={<Rocket className="w-4 h-4" />} label="Visão e Objetivo Estratégico" />
+      <Textarea
+        label="Descrição do Épico"
+        placeholder="Qual é a iniciativa ou objetivo maior que este épico representa? Qual problema de negócio resolve?"
+        value={desc}
+        onChange={(e: any) => setDesc(e.target.value)}
+        rows={4}
+      />
+
+      <FSection icon={<Target className="w-4 h-4" />} label="Resultado Esperado" />
+      <Textarea
+        label="Resultado / Valor de Negócio"
+        placeholder="Quais métricas ou resultados este épico deve alcançar?"
+        value={objective}
+        onChange={(e: any) => setObjective(e.target.value)}
+        rows={3}
+      />
+
+      <FSection icon={<ClipboardList className="w-4 h-4" />} label="Escopo / Histórias Planejadas" />
+      <Textarea
+        label="Escopo (histórias previstas)"
+        placeholder={"Liste as histórias que fazem parte deste épico:\n- Como usuário, quero X\n- Como admin, quero Y"}
+        value={funcReqs}
+        onChange={(e: any) => setFuncReqs(e.target.value)}
+        rows={5}
+      />
+    </>
+  );
+}
+
 // ─── NewFeatureModal ──────────────────────────────────────────────────────────
 
 function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSuccess }: {
@@ -1206,6 +1370,12 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   const [activities, setActivities] = useState<Activity[]>([]);
   const [linkedDemand, setLinkedDemand] = useState<{ id: string; title: string } | null>(null);
   const [loading,    setLoading]    = useState(false);
+
+  // Reset campos específicos ao trocar tipo
+  const handleTypeChange = (newType: string) => {
+    setType(newType as any);
+    setDesc(''); setFuncReqs(''); setAcceptance(''); setObjective(''); setActivities([]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1236,21 +1406,32 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
+  const cfg = TYPE_CONFIG[type];
+  const modalTitles = { story: 'Nova História', task: 'Nova Tarefa', bug: 'Novo Bug', epic: 'Novo Épico' };
+
   return (
-    <Modal isOpen onClose={onClose} title="Nova História / Ticket" size="2xl">
+    <Modal isOpen onClose={onClose} title={modalTitles[type]} size="2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
 
-        {/* Identificação */}
+        {/* Seletor de tipo visual */}
+        <TypeSelector value={type} onChange={handleTypeChange} />
+
+        {/* Identificação comum */}
         <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
-        <Input label="Título *" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: [CINF-2383] Alteração de Labels na tela de Aviso Embarque" />
+        <Input
+          label="Título *"
+          required
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder={
+            type === 'story' ? 'Ex: [CINF-2383] Alteração de Labels na tela de Aviso Embarque' :
+            type === 'task'  ? 'Ex: Configurar integração com API de pagamentos' :
+            type === 'bug'   ? 'Ex: [BUG] Filtro de datas não retorna resultados corretos' :
+                               'Ex: Módulo de Relatórios Gerenciais'
+          }
+        />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Select label="Tipo" value={type} onChange={e => setType(e.target.value as any)}>
-            <option value="story">História</option>
-            <option value="task">Tarefa</option>
-            <option value="bug">Bug</option>
-            <option value="epic">Épico</option>
-          </Select>
           <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
             <option value="low">Baixa</option>
             <option value="medium">Média</option>
@@ -1265,58 +1446,41 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
               </option>
             ))}
           </Select>
-          <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
-          <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+          {type !== 'epic' && (
+            <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
+          )}
           <Input label="Prazo" type="date" iconLeft={<Calendar className="w-4 h-4" />} value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
 
-        {/* Descrição */}
-        <FSection icon={<FileText className="w-4 h-4" />} label="Descrição e Contexto" />
-        <Textarea
-          label="Descrição / Proposta de Contexto"
-          placeholder="Ex: Eu como usuário desejo que o sistema atualize a nomenclatura de campos específicos em todas as telas e funcionalidades relacionadas..."
-          value={desc}
-          onChange={e => setDesc(e.target.value)}
-          rows={4}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
+          {(type === 'story' || type === 'task' || type === 'bug') && (
+            <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+          )}
+        </div>
 
-        {/* Requisitos */}
-        <FSection icon={<ClipboardList className="w-4 h-4" />} label="Requisitos Funcionais" />
-        <Textarea
-          label="Requisitos Funcionais"
-          placeholder={"Liste um por linha:\n- O sistema deverá alterar a nomenclatura dos campos abaixo\n- DATA Entrada Dossiê ICMS → Data Entrada ICMS/EXONERAÇÃO\n- Data Deferimento Dossiê ICMS → Data Deferimento ICMS/EXONERAÇÃO"}
-          value={funcReqs}
-          onChange={e => setFuncReqs(e.target.value)}
-          rows={6}
-        />
+        {/* Campos específicos por tipo */}
+        {type === 'story' && (
+          <StoryFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
+            acceptance={acceptance} setAcceptance={setAcceptance} objective={objective} setObjective={setObjective}
+            linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={projectId} />
+        )}
+        {type === 'task' && (
+          <TaskFields desc={desc} setDesc={setDesc} activities={activities} setActivities={setActivities}
+            linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={projectId} />
+        )}
+        {type === 'bug' && (
+          <BugFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
+            acceptance={acceptance} setAcceptance={setAcceptance} activities={activities} setActivities={setActivities} />
+        )}
+        {type === 'epic' && (
+          <EpicFields desc={desc} setDesc={setDesc} objective={objective} setObjective={setObjective}
+            funcReqs={funcReqs} setFuncReqs={setFuncReqs} />
+        )}
 
-        {/* Critérios de Aceite */}
-        <FSection icon={<CheckCircle2 className="w-4 h-4" />} label="Critérios de Aceite" />
-        <Textarea
-          label="Critérios de Aceite"
-          placeholder={"Liste um por linha:\n- O sistema deverá alterar o label corretamente na Grid Inicial\n- O sistema deverá alterar o label corretamente na funcionalidade Personalizar\n- O sistema não deverá alterar o conteúdo gravado nos campos"}
-          value={acceptance}
-          onChange={e => setAcceptance(e.target.value)}
-          rows={6}
-        />
-
-        {/* Objetivo */}
-        <FSection icon={<Target className="w-4 h-4" />} label="Objetivo" />
-        <Textarea label="Objetivo" placeholder="Qual o objetivo desta demanda para o negócio?" value={objective} onChange={e => setObjective(e.target.value)} rows={2} />
-
-        {/* Atividades */}
-        <FSection icon={<CheckSquare className="w-4 h-4" />} label="Atividades / Subtarefas" />
-        <ActivitiesField activities={activities} setActivities={setActivities} />
-
-        {/* Vínculo */}
-        <FSection icon={<Link2 className="w-4 h-4" />} label="Vincular a Demanda Existente" />
-        <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
-
-        <Button type="submit" loading={loading} fullWidth size="lg">CRIAR TICKET</Button>
+        <Button type="submit" loading={loading} fullWidth size="lg">
+          CRIAR {cfg.label.toUpperCase()}
+        </Button>
       </form>
     </Modal>
   );
