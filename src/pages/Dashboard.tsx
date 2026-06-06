@@ -370,56 +370,111 @@ export default function Dashboard() {
               {activeTab === 'overview' && (
                 <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-6">
 
-                  {/* Saudação */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
-                        Olá, {profile?.displayName?.split(' ')[0]} 👋
-                      </h2>
-                      <p className="text-sm text-slate-400 mt-0.5">
-                        {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                      </p>
+                  {/* ── HERO BANNER ── */}
+                  <div className="relative rounded-3xl overflow-hidden" style={{ minHeight: 200 }}>
+                    <img
+                      src="/capa-header.png"
+                      alt="Develoi Hub"
+                      className="absolute inset-0 w-full h-full object-cover object-center"
+                    />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(6,17,43,0.93) 40%, rgba(6,17,43,0.55) 80%, rgba(6,17,43,0.3))' }} />
+                    <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.2))' }} />
+                    <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+
+                    <div className="relative z-10 px-8 py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                      <div>
+                        <div className="flex items-center gap-3 mb-3">
+                          <img src="/LOGO-MENU-BRANCO.png" alt="Develoi" className="h-7 object-contain" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.25em] px-2.5 py-1 rounded-full" style={{ background: 'rgba(196,154,42,0.2)', color: '#C49A2A' }}>Hub</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-white leading-tight tracking-tight mb-1">
+                          Olá, {profile?.displayName?.split(' ')[0]}
+                        </h2>
+                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <button
+                          onClick={() => setIsNewProjectModalOpen(true)}
+                          className="flex items-center gap-2 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all hover:opacity-90"
+                          style={{ background: '#C49A2A', boxShadow: '0 4px 16px rgba(196,154,42,0.35)', color: '#06112B' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Novo Projeto
+                        </button>
+                        <button
+                          onClick={() => goTo('projects')}
+                          className="flex items-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl transition-all hover:opacity-90"
+                          style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}
+                        >
+                          <FolderOpen className="w-3.5 h-3.5" /> Projetos
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => setIsNewProjectModalOpen(true)}
-                      className="hidden sm:flex items-center gap-2 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all hover:opacity-90"
-                      style={{ background: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Novo Projeto
-                    </button>
                   </div>
 
-                  {/* Stats */}
+                  {/* ── STATS ── */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                      { label: 'Projetos Ativos', value: projects.filter(p => p.status === 'active').length, icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)', sub: 'em andamento' },
-                      { label: 'Concluídos', value: projects.filter(p => p.status === 'completed').length, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)', sub: 'entregues' },
-                      { label: 'Em Espera', value: projects.filter(p => p.status === 'on-hold').length, icon: AlertCircle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', sub: 'pausados' },
-                      { label: 'Clientes Únicos', value: new Set(projects.map(p => p.clientName).filter(Boolean)).size, icon: Users, color: '#2563EB', bg: 'rgba(37,99,235,0.08)', sub: 'atendidos' },
+                      { label: 'Projetos Ativos', value: projects.filter(p => p.status === 'active').length, icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)', sub: 'em andamento', onClick: () => goTo('projects') },
+                      { label: 'Concluídos', value: projects.filter(p => p.status === 'completed').length, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)', sub: 'entregues', onClick: () => goTo('projects') },
+                      { label: 'Em Espera', value: projects.filter(p => p.status === 'on-hold').length, icon: AlertCircle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', sub: 'pausados', onClick: () => goTo('projects') },
+                      { label: 'Clientes Únicos', value: new Set(projects.map(p => p.clientName).filter(Boolean)).size, icon: Users, color: '#2563EB', bg: 'rgba(37,99,235,0.08)', sub: 'atendidos', onClick: () => {} },
                     ].map((s, i) => (
-                      <motion.div
+                      <motion.button
                         key={s.label}
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.07 }}
-                        className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-slate-200/60 dark:border-white/10 group hover:shadow-md transition-all duration-200"
+                        onClick={s.onClick}
+                        className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-slate-200/60 dark:border-white/10 group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
                       >
                         <div className="flex items-start justify-between mb-4">
-                          <div
-                            className="w-10 h-10 rounded-xl flex items-center justify-center"
-                            style={{ background: s.bg }}
-                          >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: s.bg }}>
                             <s.icon className="w-5 h-5" style={{ color: s.color }} />
                           </div>
                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.sub}</span>
                         </div>
-                        <p className="text-2xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
+                        <p className="text-3xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
                         <p className="text-xs text-slate-400 font-medium mt-0.5">{s.label}</p>
-                      </motion.div>
+                        <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.05)' }}>
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: projects.length > 0 ? `${Math.min(100, (s.value / projects.length) * 100)}%` : '0%', background: s.color }} />
+                        </div>
+                      </motion.button>
                     ))}
                   </div>
 
-                  {/* Linha média: Projetos recentes + Entregas */}
+                  {/* ── O QUE É O DEVELOI HUB ── */}
+                  <div className="rounded-3xl overflow-hidden border" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 16px rgba(13,31,78,0.05)' }}>
+                    <div className="px-6 py-5 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
+                        <Sparkles className="w-4 h-4" style={{ color: '#C49A2A' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Sobre o Develoi Hub</p>
+                        <p className="text-[10px] text-slate-400">Sistema interno de gestão de projetos e negócios</p>
+                      </div>
+                    </div>
+                    <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {[
+                        { icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.07)', title: 'Gestão Ágil de Projetos', desc: 'Planeje e entregue projetos com Backlog, Kanban, Cronograma e Controle de Qualidade integrados em tempo real.' },
+                        { icon: TrendingUp, color: '#15803D', bg: 'rgba(21,128,61,0.08)', title: 'Controle Comercial', desc: 'Gerencie vendas, produtos, planos e o relacionamento com seus clientes e leads em um único lugar.' },
+                        { icon: Globe, color: '#C49A2A', bg: 'rgba(196,154,42,0.1)', title: 'Conteúdo do Site', desc: 'Alimente o portfólio, blog, equipe e valores do site público da Develoi diretamente pelo Hub.' },
+                      ].map(item => (
+                        <div key={item.title} className="flex items-start gap-4 p-4 rounded-2xl border" style={{ borderColor: 'rgba(13,31,78,0.06)', background: 'rgba(240,242,248,0.3)' }}>
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.bg }}>
+                            <item.icon className="w-5 h-5" style={{ color: item.color }} />
+                          </div>
+                          <div>
+                            <p className="font-black text-sm mb-1" style={{ color: '#0D1F4E' }}>{item.title}</p>
+                            <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── LINHA PRINCIPAL: Projetos recentes + Entregas ── */}
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
                     {/* Projetos recentes — col span 3 */}
@@ -444,8 +499,14 @@ export default function Dashboard() {
                       </div>
                       <div className="divide-y divide-slate-100 dark:divide-white/5">
                         {projects.length === 0 ? (
-                          <div className="px-6 py-8 text-center text-sm text-slate-400">Nenhum projeto ainda.</div>
-                        ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 4).map((proj, i) => (
+                          <div className="px-6 py-10 text-center">
+                            <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(13,31,78,0.06)' }}>
+                              <FolderOpen className="w-5 h-5 text-slate-300" />
+                            </div>
+                            <p className="text-sm text-slate-400 font-medium">Nenhum projeto criado ainda.</p>
+                            <button onClick={() => setIsNewProjectModalOpen(true)} className="mt-3 text-xs font-bold text-[#0D1F4E] underline underline-offset-2">Criar primeiro projeto</button>
+                          </div>
+                        ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5).map((proj, i) => (
                           <button
                             key={proj.id}
                             onClick={() => { setSelectedProject(proj); goTo('summary', proj); }}
@@ -453,7 +514,7 @@ export default function Dashboard() {
                           >
                             <div
                               className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0"
-                              style={{ background: ['#0D1F4E','#C49A2A','#15803D','#2563EB'][i % 4] }}
+                              style={{ background: ['#0D1F4E','#C49A2A','#15803D','#2563EB','#7C3AED'][i % 5] }}
                             >
                               {proj.name[0]}
                             </div>
@@ -487,7 +548,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Próximas entregas — col span 2 */}
-                    <div className="lg:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+                    <div className="lg:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
                       <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.1)' }}>
                           <Calendar className="w-4 h-4" style={{ color: '#C49A2A' }} />
@@ -497,22 +558,27 @@ export default function Dashboard() {
                           <p className="text-[10px] text-slate-400">Projetos mais avançados</p>
                         </div>
                       </div>
-                      <div className="p-6 space-y-5">
-                        {projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 4).length === 0 ? (
-                          <div className="text-center text-sm text-slate-400 py-4">Sem projetos avançados no momento.</div>
-                        ) : projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 4).map((item, i) => {
-                          const color = ['#15803D', '#C49A2A', '#2563EB', '#8B5CF6'][i % 4];
+                      <div className="p-6 space-y-5 flex-1">
+                        {projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 5).length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                            <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(196,154,42,0.08)' }}>
+                              <Calendar className="w-5 h-5" style={{ color: '#C49A2A' }} />
+                            </div>
+                            <p className="text-sm text-slate-400">Sem projetos em andamento.</p>
+                          </div>
+                        ) : projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 5).map((item, i) => {
+                          const color = ['#15803D', '#C49A2A', '#2563EB', '#8B5CF6', '#DC2626'][i % 5];
                           return (
                             <div key={item.id}>
                               <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-bold truncate max-w-[140px]" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{item.name}</p>
-                                <span className="text-[10px] font-black" style={{ color: color }}>{item.progress}%</span>
+                                <p className="text-xs font-bold truncate max-w-[130px]" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{item.name}</p>
+                                <span className="text-[10px] font-black" style={{ color }}>{item.progress}%</span>
                               </div>
                               <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
                                 <motion.div
                                   initial={{ width: 0 }}
                                   animate={{ width: `${item.progress}%` }}
-                                  transition={{ duration: 0.8, delay: 0.3 }}
+                                  transition={{ duration: 0.8, delay: 0.3 + i * 0.07 }}
                                   className="h-full rounded-full"
                                   style={{ background: color }}
                                 />
@@ -521,10 +587,58 @@ export default function Dashboard() {
                           );
                         })}
                       </div>
+
+                      {/* Atalho para criar projeto */}
+                      <div className="px-6 pb-5">
+                        <button
+                          onClick={() => setIsNewProjectModalOpen(true)}
+                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90"
+                          style={{ background: 'rgba(13,31,78,0.06)', color: '#0D1F4E', border: '1px dashed rgba(13,31,78,0.15)' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Novo Projeto
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Últimos Adicionados */}
+                  {/* ── ATALHOS RÁPIDOS ── */}
+                  <div className="rounded-3xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 16px rgba(13,31,78,0.04)' }}>
+                    <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
+                        <Sparkles className="w-4 h-4" style={{ color: '#0D1F4E' }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Atalhos Rápidos</p>
+                        <p className="text-[10px] text-slate-400">Navegue direto para as seções do sistema</p>
+                      </div>
+                    </div>
+                    <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      {[
+                        { icon: FolderOpen, label: 'Projetos', tab: 'projects' as const, color: '#0D1F4E', bg: 'rgba(13,31,78,0.07)' },
+                        { icon: Star, label: 'Portfólio', tab: 'portfolio' as const, color: '#C49A2A', bg: 'rgba(196,154,42,0.1)' },
+                        { icon: BookOpen, label: 'Blog', tab: 'blog' as const, color: '#2563EB', bg: 'rgba(37,99,235,0.09)' },
+                        { icon: BarChart2, label: 'Vendas', tab: 'sales' as const, color: '#15803D', bg: 'rgba(21,128,61,0.08)' },
+                        { icon: Users, label: 'Membros', tab: 'members' as const, color: '#7C3AED', bg: 'rgba(124,58,237,0.09)' },
+                        { icon: MessageSquare, label: 'Chat', tab: 'chat' as const, color: '#0891B2', bg: 'rgba(8,145,178,0.09)' },
+                      ].map(item => (
+                        <button
+                          key={item.tab}
+                          onClick={() => goTo(item.tab)}
+                          className="flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-md"
+                          style={{ borderColor: 'rgba(13,31,78,0.07)', background: 'rgba(240,242,248,0.3)' }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = item.color + '30'; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.07)'; }}
+                        >
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: item.bg }}>
+                            <item.icon className="w-5 h-5" style={{ color: item.color }} />
+                          </div>
+                          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#0D1F4E' }}>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── INICIADOS RECENTEMENTE ── */}
                   <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
                     <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                       <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.08)' }}>
@@ -538,11 +652,17 @@ export default function Dashboard() {
                     <div className="divide-y divide-slate-100 dark:divide-white/5">
                       {projects.length === 0 ? (
                         <div className="px-6 py-8 text-center text-sm text-slate-400">Nenhum projeto ainda.</div>
-                      ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 3).map((item) => (
+                      ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 4).map((item) => (
                         <button key={item.id} onClick={() => { setSelectedProject(item); goTo('summary', item); }} className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left">
                           <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.status === 'active' ? 'bg-emerald-500' : item.status === 'completed' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
                           <p className="text-sm font-medium flex-1 truncate" style={{ color: isDark ? '#fff' : '#1e293b' }}>{item.name}</p>
                           <span className="text-[10px] font-black text-slate-400 hidden sm:block truncate max-w-[100px]">{item.clientName}</span>
+                          {item.deadline && (
+                            <span className="text-[10px] font-bold text-slate-300 hidden md:flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(item.deadline), 'dd MMM', { locale: ptBR })}
+                            </span>
+                          )}
                           <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wide flex-shrink-0 ${
                             item.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
                             item.status === 'completed' ? 'bg-blue-50 text-blue-600' :
