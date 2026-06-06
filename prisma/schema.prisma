@@ -96,21 +96,31 @@ model SiteValues {
 }
 
 model TeamMember {
-  id           String  @id @default(uuid())
-  name         String
-  role         String
-  bio          String? @db.Text
-  photoURL     String? @db.LongText
-  linkedin     String?
-  github       String?
-  instagram    String?
-  specialty    String? @db.Text
-  formation    String? @db.Text
-  curiosities  String? @db.Text
-  hobbies      String? @db.Text
-  location     String?
-  yearsExp     Int?
-  order        Int     @default(0)
+  id                     String  @id @default(uuid())
+  name                   String
+  role                   String
+  bio                    String? @db.Text
+  photoURL               String? @db.LongText
+  linkedin               String?
+  github                 String?
+  instagram              String?
+  specialty              String? @db.Text
+  formation              String? @db.Text
+  curiosities            String? @db.Text
+  hobbies                String? @db.Text
+  location               String?
+  yearsExp               Int?
+  mission                String? @db.Text
+  missionPublic          Boolean @default(true)
+  responsibilities       String? @db.Text
+  responsibilitiesPublic Boolean @default(false)
+  objectives             String? @db.Text
+  objectivesPublic       Boolean @default(false)
+  expectations           String? @db.Text
+  expectationsPublic     Boolean @default(false)
+  phrase                 String? @db.VarChar(512)
+  phrasePublic           Boolean @default(true)
+  order                  Int     @default(0)
 }
 
 model PortfolioItem {

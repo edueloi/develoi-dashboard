@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Code2, Rocket, Target, CheckCircle2, ArrowRight, Github, Linkedin, Instagram, MapPin, GraduationCap, Star, Heart, Zap, Calendar, X, ExternalLink } from 'lucide-react';
+import {
+  Users, Code2, Rocket, Target, CheckCircle2, ArrowRight,
+  Github, Linkedin, Instagram, MapPin, GraduationCap, Star,
+  Heart, Zap, Calendar, X, ExternalLink, Briefcase, ListChecks,
+  Flag, Quote,
+} from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -17,13 +22,23 @@ interface TeamMember {
   hobbies?: string;
   location?: string;
   yearsExp?: number | null;
+  mission?: string;
+  missionPublic?: boolean;
+  responsibilities?: string;
+  responsibilitiesPublic?: boolean;
+  objectives?: string;
+  objectivesPublic?: boolean;
+  expectations?: string;
+  expectationsPublic?: boolean;
+  phrase?: string;
+  phrasePublic?: boolean;
 }
 
 const values = [
-  { icon: Users, title: 'Atendimento Humano', desc: 'Somos próximos. Atendemos com atenção, clareza e parceria real em cada etapa.' },
-  { icon: Code2, title: 'Tecnologia com Propósito', desc: 'Cada solução é construída com intenção — para resolver o seu problema, não só para impressionar.' },
+  { icon: Users,  title: 'Atendimento Humano',          desc: 'Somos próximos. Atendemos com atenção, clareza e parceria real em cada etapa.' },
+  { icon: Code2,  title: 'Tecnologia com Propósito',     desc: 'Cada solução é construída com intenção — para resolver o seu problema, não só para impressionar.' },
   { icon: Rocket, title: 'Agilidade com Responsabilidade', desc: 'Entregamos rápido, sem abrir mão da qualidade. Compromisso com prazo e resultado.' },
-  { icon: Target, title: 'Ética e Parceria Contínua', desc: 'Transparência no relacionamento e comprometimento com o crescimento do cliente a longo prazo.' },
+  { icon: Target, title: 'Ética e Parceria Contínua',    desc: 'Transparência no relacionamento e comprometimento com o crescimento do cliente a longo prazo.' },
 ];
 
 const differentials = [
@@ -35,6 +50,15 @@ const differentials = [
   'Suporte contínuo e evolução do produto',
 ];
 
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function parseList(text: string): string[] {
+  return text
+    .split(/\n|;/)
+    .map(l => l.replace(/^[\s\-\*\•]+/, '').trim())
+    .filter(Boolean);
+}
+
 // ─── Modal de detalhe do membro ───────────────────────────────────────────────
 
 function MemberModal({ member, onClose }: { member: TeamMember; onClose: () => void }) {
@@ -42,181 +66,270 @@ function MemberModal({ member, onClose }: { member: TeamMember; onClose: () => v
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
     document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', handler); document.body.style.overflow = ''; };
+    return () => {
+      document.removeEventListener('keydown', handler);
+      document.body.style.overflow = '';
+    };
   }, [onClose]);
 
-  const infoSections = [
-    { icon: Zap, label: 'Especialidades', value: member.specialty },
-    { icon: GraduationCap, label: 'Formação', value: member.formation },
-    { icon: Star, label: 'Curiosidades', value: member.curiosities },
-    { icon: Heart, label: 'Hobbies & Interesses', value: member.hobbies },
-  ].filter(s => s.value);
-
   const socials = [
-    { icon: Linkedin, href: member.linkedin, label: 'LinkedIn', color: '#0a66c2' },
-    { icon: Github, href: member.github, label: 'GitHub', color: '#1f2937' },
+    { icon: Linkedin,  href: member.linkedin,  label: 'LinkedIn',  color: '#0a66c2' },
+    { icon: Github,    href: member.github,    label: 'GitHub',    color: '#1f2937' },
     { icon: Instagram, href: member.instagram, label: 'Instagram', color: '#e1306c' },
   ].filter(s => s.href);
 
+  // Seções "sobre a pessoa"
+  const aboutSections = [
+    { icon: Zap,          label: 'Especialidades',      value: member.specialty,   list: false },
+    { icon: GraduationCap,label: 'Formação',             value: member.formation,   list: false },
+    { icon: Star,         label: 'Curiosidades',         value: member.curiosities, list: false },
+    { icon: Heart,        label: 'Hobbies & Interesses', value: member.hobbies,     list: false },
+  ].filter(s => s.value);
+
+  // Seções "função na Develoi" — só aparecem se marcadas como públicas
+  const roleSections = [
+    { icon: Briefcase,   label: 'Missão na Develoi',            value: member.missionPublic          ? member.mission          : null, list: false },
+    { icon: ListChecks,  label: 'Principais Responsabilidades', value: member.responsibilitiesPublic ? member.responsibilities  : null, list: true  },
+    { icon: Flag,        label: 'Objetivo da Função',           value: member.objectivesPublic       ? member.objectives        : null, list: false },
+    { icon: Users,       label: 'O que esperamos',              value: member.expectationsPublic     ? member.expectations      : null, list: false },
+  ].filter(s => s.value);
+
+  const hasPhrase = member.phrasePublic && member.phrase;
+
   return (
     <AnimatePresence>
+      {/* Backdrop — clique fecha */}
       <motion.div
+        key="backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6"
-        style={{ background: 'rgba(6,17,43,0.75)', backdropFilter: 'blur(8px)' }}
+        className="fixed inset-0 z-[998]"
+        style={{ background: 'rgba(6,17,43,0.82)', backdropFilter: 'blur(8px)' }}
         onClick={onClose}
-      >
+      />
+
+      {/* Container de posicionamento — não scrollável */}
+      <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6 pointer-events-none">
         <motion.div
-          initial={{ opacity: 0, scale: 0.93, y: 24 }}
+          key="modal"
+          initial={{ opacity: 0, scale: 0.93, y: 28 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.93, y: 24 }}
+          exit={{ opacity: 0, scale: 0.93, y: 28 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl"
-          style={{ background: 'var(--bg-primary)', boxShadow: '0 32px 80px rgba(6,17,43,0.4)' }}
-          onClick={e => e.stopPropagation()}
+          className="relative w-full max-w-2xl pointer-events-auto"
+          style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
         >
-          {/* Header com foto */}
-          <div className="relative overflow-hidden rounded-t-3xl" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}>
-            {/* Linha dourada */}
-            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
+          {/* ── Botão X FIXO — fora do scroll ── */}
+          <button
+            onClick={onClose}
+            className="absolute -top-3 -right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95"
+            style={{ background: 'var(--brand-gold)', color: '#06112B' }}
+            aria-label="Fechar"
+          >
+            <X className="w-4 h-4" strokeWidth={2.5} />
+          </button>
 
-            <div className="relative z-10 p-8 pb-0 flex gap-6 items-end">
-              {/* Foto */}
-              <div className="relative shrink-0">
-                {member.photoURL ? (
-                  <img
-                    src={member.photoURL}
-                    alt={member.name}
-                    className="w-28 h-28 rounded-2xl object-cover border-2"
-                    style={{ borderColor: 'var(--brand-gold)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
-                  />
-                ) : (
+          {/* ── Área com scroll ── */}
+          <div
+            className="rounded-3xl overflow-y-auto"
+            style={{ background: 'var(--bg-primary)', boxShadow: '0 32px 80px rgba(6,17,43,0.45)' }}
+          >
+            {/* Header navy */}
+            <div
+              className="relative overflow-hidden rounded-t-3xl"
+              style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}
+            >
+              <div
+                className="absolute top-0 left-0 right-0 h-[3px]"
+                style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }}
+              />
+
+              <div className="relative z-10 p-8 pb-0 flex gap-5 items-end">
+                {/* Foto */}
+                <div className="relative shrink-0">
+                  {member.photoURL ? (
+                    <img
+                      src={member.photoURL}
+                      alt={member.name}
+                      className="w-24 h-24 rounded-2xl object-cover border-2"
+                      style={{ borderColor: 'var(--brand-gold)', boxShadow: '0 8px 32px rgba(0,0,0,0.35)' }}
+                    />
+                  ) : (
+                    <div
+                      className="w-24 h-24 rounded-2xl flex items-center justify-center text-4xl font-black text-white border-2"
+                      style={{ background: 'rgba(255,255,255,0.08)', borderColor: 'var(--brand-gold)' }}
+                    >
+                      {member.name[0]}
+                    </div>
+                  )}
                   <div
-                    className="w-28 h-28 rounded-2xl flex items-center justify-center text-4xl font-black text-white border-2"
-                    style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'var(--brand-gold)' }}
-                  >
-                    {member.name[0]}
-                  </div>
-                )}
-                <div
-                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2"
-                  style={{ background: '#22c55e', borderColor: '#06112B' }}
-                />
-              </div>
+                    className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
+                    style={{ background: '#22c55e', borderColor: '#06112B' }}
+                  />
+                </div>
 
-              {/* Nome e cargo */}
-              <div className="pb-6 flex-1 min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>
-                  {member.role}
-                </p>
-                <h2 className="font-black text-white text-2xl tracking-tight leading-tight mb-2">
-                  {member.name}
-                </h2>
-                <div className="flex flex-wrap gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  {member.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3" /> {member.location}
-                    </span>
-                  )}
-                  {member.yearsExp && (
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> {member.yearsExp} anos de exp.
-                    </span>
-                  )}
+                {/* Nome / cargo / meta */}
+                <div className="pb-5 flex-1 min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>
+                    {member.role}
+                  </p>
+                  <h2 className="font-black text-white text-xl tracking-tight leading-tight mb-2">
+                    {member.name}
+                  </h2>
+                  <div className="flex flex-wrap gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {member.location && (
+                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {member.location}</span>
+                    )}
+                    {member.yearsExp && (
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {member.yearsExp} anos de exp.</span>
+                    )}
+                  </div>
                 </div>
               </div>
+
+              {/* Wave */}
+              <svg viewBox="0 0 1440 36" className="w-full" preserveAspectRatio="none" style={{ height: 36, display: 'block' }}>
+                <path d="M0,36 C480,0 960,36 1440,18 L1440,36 Z" fill="var(--bg-primary)" />
+              </svg>
             </div>
 
-            {/* Wave divider */}
-            <svg viewBox="0 0 1440 40" className="w-full" preserveAspectRatio="none" style={{ height: 40, display: 'block' }}>
-              <path d="M0,40 C360,0 1080,40 1440,20 L1440,40 Z" fill="var(--bg-primary)" />
-            </svg>
-          </div>
+            {/* Conteúdo scrollável */}
+            <div className="px-8 pb-8 pt-2 space-y-5">
 
-          {/* Conteúdo */}
-          <div className="p-8 pt-4 space-y-6">
-            {/* Bio */}
-            {member.bio && (
-              <div>
+              {/* Bio */}
+              {member.bio && (
                 <p className="text-base leading-relaxed italic" style={{ color: 'var(--text-secondary)' }}>
                   "{member.bio}"
                 </p>
-              </div>
-            )}
+              )}
 
-            {/* Seções de info */}
-            {infoSections.length > 0 && (
-              <div className="space-y-4">
-                {infoSections.map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="rounded-2xl p-4" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.12)' }}>
-                        <Icon className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>{label}</span>
-                    </div>
-                    <p className="text-sm leading-relaxed ml-8" style={{ color: 'var(--text-secondary)' }}>{value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+              {/* Frase de destaque */}
+              {hasPhrase && (
+                <div
+                  className="rounded-2xl p-5 flex gap-3"
+                  style={{ background: 'linear-gradient(135deg,rgba(13,31,78,0.05),rgba(196,154,42,0.06))', border: '1px solid rgba(196,154,42,0.25)' }}
+                >
+                  <Quote className="w-5 h-5 shrink-0 mt-0.5" style={{ color: 'var(--brand-gold)' }} />
+                  <p className="text-sm font-semibold leading-relaxed italic" style={{ color: 'var(--brand-navy)' }}>
+                    {member.phrase}
+                  </p>
+                </div>
+              )}
 
-            {/* Redes sociais */}
-            {socials.length > 0 && (
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--brand-navy)' }}>Conecte-se</p>
-                <div className="flex flex-wrap gap-3">
-                  {socials.map(({ icon: Icon, href, label, color }) => (
-                    <a
+              {/* Seções de função (missão, responsabilidades, etc.) */}
+              {roleSections.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>
+                    Função na Develoi
+                  </p>
+                  {roleSections.map(({ icon: Icon, label, value, list }) => (
+                    <div
                       key={label}
-                      href={href!}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs border transition-all hover:-translate-y-0.5"
-                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.borderColor = color;
-                        (e.currentTarget as HTMLElement).style.color = color;
-                        (e.currentTarget as HTMLElement).style.background = `${color}10`;
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
-                        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                      }}
+                      className="rounded-2xl p-4"
+                      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
                     >
-                      <Icon className="w-3.5 h-3.5" />
-                      {label}
-                      <ExternalLink className="w-3 h-3 opacity-50" />
-                    </a>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.08)' }}>
+                          <Icon className="w-3.5 h-3.5" style={{ color: 'var(--brand-navy)' }} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>{label}</span>
+                      </div>
+                      {list ? (
+                        <ul className="ml-8 space-y-1.5">
+                          {parseList(value!).map((item, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                              <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--brand-gold)' }} />
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm leading-relaxed ml-8" style={{ color: 'var(--text-secondary)' }}>{value}</p>
+                      )}
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Botão fechar */}
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
-            style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
-          >
-            <X className="w-4 h-4" />
-          </button>
+              {/* Seções sobre a pessoa */}
+              {aboutSections.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>
+                    Sobre {member.name.split(' ')[0]}
+                  </p>
+                  {aboutSections.map(({ icon: Icon, label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-2xl p-4"
+                      style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.12)' }}>
+                          <Icon className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>{label}</span>
+                      </div>
+                      <p className="text-sm leading-relaxed ml-8" style={{ color: 'var(--text-secondary)' }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Redes sociais */}
+              {socials.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--brand-navy)' }}>Conecte-se</p>
+                  <div className="flex flex-wrap gap-3">
+                    {socials.map(({ icon: Icon, href, label, color }) => (
+                      <a
+                        key={label}
+                        href={href!}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs border transition-all hover:-translate-y-0.5"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLElement).style.borderColor = color;
+                          (e.currentTarget as HTMLElement).style.color = color;
+                          (e.currentTarget as HTMLElement).style.background = `${color}12`;
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
+                          (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+                          (e.currentTarget as HTMLElement).style.background = 'transparent';
+                        }}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        {label}
+                        <ExternalLink className="w-3 h-3 opacity-40" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </motion.div>
-      </motion.div>
+      </div>
     </AnimatePresence>
   );
 }
 
-// ─── Card de membro ───────────────────────────────────────────────────────────
+// ─── Card público ─────────────────────────────────────────────────────────────
 
 function MemberCard({ member, index }: { member: TeamMember; index: number }) {
   const [open, setOpen] = useState(false);
 
-  const hasDetails = member.bio || member.specialty || member.formation || member.curiosities || member.hobbies || member.location || member.yearsExp || member.linkedin || member.github || member.instagram;
+  const hasDetails =
+    member.bio || member.specialty || member.formation || member.curiosities ||
+    member.hobbies || member.location || member.yearsExp ||
+    member.linkedin || member.github || member.instagram ||
+    (member.missionPublic && member.mission) ||
+    (member.responsibilitiesPublic && member.responsibilities) ||
+    (member.objectivesPublic && member.objectives) ||
+    (member.expectationsPublic && member.expectations) ||
+    (member.phrasePublic && member.phrase);
 
   return (
     <>
@@ -226,10 +339,7 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
         viewport={{ once: true }}
         transition={{ duration: 0.5, delay: index * 0.08 }}
         className="group flex flex-col bg-white rounded-3xl overflow-hidden border transition-all duration-500"
-        style={{
-          borderColor: 'var(--border-color)',
-          boxShadow: '0 12px 40px rgba(13,31,78,0.04)',
-        }}
+        style={{ borderColor: 'var(--border-color)', boxShadow: '0 12px 40px rgba(13,31,78,0.04)' }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)';
           (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(13,31,78,0.1)';
@@ -241,7 +351,7 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
           (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
         }}
       >
-        {/* Foto — altura fixa */}
+        {/* Foto */}
         <div className="relative w-full overflow-hidden bg-slate-100" style={{ height: 280 }}>
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {member.photoURL ? (
@@ -251,12 +361,15 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
               className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}>
+            <div
+              className="w-full h-full flex items-center justify-center text-6xl font-black text-white"
+              style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}
+            >
               {member.name[0]}
             </div>
           )}
 
-          {/* Tags de info rápida sobre a foto (aparecem no hover) */}
+          {/* Tags flutuantes no hover */}
           <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap gap-1.5 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
             {member.location && (
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-white" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)' }}>
@@ -270,11 +383,10 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
             )}
           </div>
 
-          {/* Barra dourada inferior */}
           <div className="absolute bottom-0 left-0 right-0 h-1 z-20" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 70%, transparent)' }} />
         </div>
 
-        {/* Conteúdo do card */}
+        {/* Conteúdo */}
         <div className="p-6 flex flex-col flex-1">
           <p className="text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: 'var(--brand-gold)' }}>
             {member.role}
@@ -289,7 +401,6 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
             </p>
           )}
 
-          {/* Especialidades preview */}
           {member.specialty && (
             <div className="flex items-start gap-1.5 mb-4">
               <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--brand-gold)' }} />
@@ -299,7 +410,6 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
             </div>
           )}
 
-          {/* Redes sociais */}
           {(member.linkedin || member.github || member.instagram) && (
             <div className="flex gap-3 mb-4 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
               {member.linkedin && (
@@ -320,7 +430,6 @@ function MemberCard({ member, index }: { member: TeamMember; index: number }) {
             </div>
           )}
 
-          {/* Botão ver mais — só aparece se tiver conteúdo */}
           {hasDetails && (
             <button
               onClick={() => setOpen(true)}
@@ -368,18 +477,16 @@ export default function About() {
       className="relative min-h-screen overflow-hidden"
       style={{ background: 'var(--bg-primary)' }}
     >
-      {/* Background sutil */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[8%] right-[-6%] w-[500px] h-[500px] rounded-full blur-[130px]" style={{ background: 'rgba(13,31,78,0.05)' }} />
         <div className="absolute bottom-[20%] left-[-4%] w-[400px] h-[400px] rounded-full blur-[120px]" style={{ background: 'rgba(196,154,42,0.04)' }} />
       </div>
 
-      {/* ── HERO DA PÁGINA ── */}
+      {/* HERO */}
       <section className="relative pt-32 pb-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}>
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 60%, transparent)' }} />
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&q=70&fit=crop)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
         <div className="absolute inset-0" style={{ background: 'rgba(6,17,43,0.7)' }} />
-
         <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} className="max-w-3xl">
             <div className="inline-flex items-center gap-2 mb-6">
@@ -397,7 +504,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── MISSÃO + DIFERENCIAIS ── */}
+      {/* MISSÃO + DIFERENCIAIS */}
       <section className="py-20 md:py-28">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
@@ -407,9 +514,7 @@ export default function About() {
                 <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Nossa missão</span>
               </div>
               <h2 className="font-black tracking-tight leading-tight mb-6" style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', color: 'var(--brand-navy)' }}>
-                Transformar necessidades reais{' '}
-                <br className="hidden sm:block" />
-                em soluções inteligentes.
+                Transformar necessidades reais{' '}<br className="hidden sm:block" />em soluções inteligentes.
               </h2>
               <p className="text-base leading-relaxed mb-8" style={{ color: 'var(--text-secondary)' }}>
                 A Develoi existe para unir tecnologia, estratégia e olhar humano. Criamos sites, sistemas, automações e experiências digitais que simplificam processos, fortalecem marcas e ajudam empresas de diferentes tamanhos a crescerem com mais clareza, organização e segurança.
@@ -433,9 +538,7 @@ export default function About() {
                 <div className="w-full h-64 opacity-20" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800&q=70&fit=crop)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
                 <div className="absolute top-0 left-0 right-0 h-full" style={{ background: 'linear-gradient(180deg, transparent 30%, #06112B 100%)' }} />
                 <div className="relative px-8 pb-8 -mt-16">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ background: 'rgba(196,154,42,0.15)', color: 'var(--brand-gold)', border: '1px solid rgba(196,154,42,0.25)' }}>
-                    Develoi — Desde 2019
-                  </div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ background: 'rgba(196,154,42,0.15)', color: 'var(--brand-gold)', border: '1px solid rgba(196,154,42,0.25)' }}>Develoi — Desde 2019</div>
                   <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Do planejamento à entrega</h3>
                   <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>Acompanhamos seu projeto do início ao fim, com comunicação clara e foco em resultado.</p>
                   <div className="grid grid-cols-3 gap-4 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
@@ -454,7 +557,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── 4 PILARES ── */}
+      {/* PILARES */}
       <section className="py-16 md:py-20" style={{ background: 'var(--bg-tertiary)' }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
@@ -465,7 +568,6 @@ export default function About() {
             </div>
             <h2 className="font-black tracking-tight" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}>Os pilares da Develoi</h2>
           </motion.div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {values.map((item, i) => (
               <motion.div
@@ -474,7 +576,7 @@ export default function About() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.08 }}
-                className="bg-white rounded-2xl p-6 border group transition-all duration-250 hover:-translate-y-1"
+                className="bg-white rounded-2xl p-6 border transition-all duration-250 hover:-translate-y-1"
                 style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(13,31,78,0.1)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
@@ -490,7 +592,7 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── EQUIPE DEVELOI ── */}
+      {/* EQUIPE */}
       {team.length > 0 && (
         <section className="py-16 md:py-24 bg-white border-y" style={{ borderColor: 'var(--border-color)' }}>
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
@@ -504,10 +606,9 @@ export default function About() {
                 Nossa Equipe
               </h2>
               <p className="text-sm max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
-                Conheça os talentos por trás de cada projeto. Clique em <em>Ver Perfil Completo</em> para descobrir mais sobre cada membro.
+                Conheça os talentos por trás de cada projeto. Clique em <em>Ver Perfil Completo</em> para saber mais.
               </p>
             </motion.div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {team.map((member, i) => (
                 <MemberCard key={member.id} member={member} index={i} />
@@ -517,7 +618,7 @@ export default function About() {
         </section>
       )}
 
-      {/* ── CTA FINAL ── */}
+      {/* CTA */}
       <section className="py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}>
@@ -525,12 +626,9 @@ export default function About() {
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div>
                 <h2 className="font-black text-white tracking-tight mb-2" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)' }}>
-                  Pronto para transformar{' '}
-                  <span style={{ color: 'var(--brand-gold)' }}>seu negócio?</span>
+                  Pronto para transformar{' '}<span style={{ color: 'var(--brand-gold)' }}>seu negócio?</span>
                 </h2>
-                <p style={{ color: 'rgba(255,255,255,0.55)' }} className="text-sm">
-                  Fale com a nossa equipe e descubra a solução certa para você.
-                </p>
+                <p style={{ color: 'rgba(255,255,255,0.55)' }} className="text-sm">Fale com a nossa equipe e descubra a solução certa para você.</p>
               </div>
               <a href="/#contato" className="flex-shrink-0 inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:opacity-90 hover:-translate-y-px group" style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 6px 20px rgba(196,154,42,0.35)' }}>
                 FALAR COM A DEVELOI

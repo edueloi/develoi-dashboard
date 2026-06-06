@@ -84,6 +84,17 @@ export interface TeamMemberSite {
   hobbies?: string;
   location?: string;
   yearsExp?: number | null;
+  // campos estruturados
+  mission?: string;
+  missionPublic?: boolean;
+  responsibilities?: string;
+  responsibilitiesPublic?: boolean;
+  objectives?: string;
+  objectivesPublic?: boolean;
+  expectations?: string;
+  expectationsPublic?: boolean;
+  phrase?: string;
+  phrasePublic?: boolean;
   order?: number;
 }
 
