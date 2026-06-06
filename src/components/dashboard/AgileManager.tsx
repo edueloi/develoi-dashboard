@@ -6,7 +6,8 @@ import {
   Trash2, Edit2, History, BarChart2, Loader2,
   Archive, X, Kanban, GripVertical, ArrowRight, CheckSquare,
   Square, ListTodo, Pencil, Link2, Search, FileText, ClipboardList,
-  Target, User, Tag, Layers, Upload, Sparkles,
+  Target, User, Tag, Layers, Upload, Sparkles, Copy, Check as CheckIcon,
+  Bot,
 } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -1187,9 +1188,58 @@ function NewSprintModal({ projectId, onClose, onSuccess }: { projectId: string; 
   );
 }
 
+// ─── AiPromptCopyButton ───────────────────────────────────────────────────────
+
+function AiPromptCopyButton({ typeId, label, icon, prompt }: { typeId: string; label: string; icon: React.ReactNode; prompt: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const COLORS: Record<string, string> = {
+    story: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100',
+    task:  'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100',
+    bug:   'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100',
+    epic:  'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100',
+  };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = prompt;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black transition-all ${COLORS[typeId]}`}
+    >
+      {copied ? <CheckIcon className="w-4 h-4" /> : icon}
+      {label}
+      {copied ? <span className="text-[10px]">Copiado!</span> : <Copy className="w-3 h-3 opacity-60" />}
+    </button>
+  );
+}
+
 // ─── ImportTicketModal ────────────────────────────────────────────────────────
 
 function parseImportText(raw: string) {
+  const cleanValue = (v: string) => {
+    // remove valores que são só placeholders do template (linhas de traço, colchetes ou vazios)
+    const stripped = v.replace(/^[-=\s]+$/gm, '').replace(/^\[.*\]$/gm, '').trim();
+    return stripped;
+  };
+
   const get = (labels: string[]) => {
     for (const label of labels) {
       const re = new RegExp(`(?:^|\\n)\\s*${label}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${
@@ -1199,7 +1249,7 @@ function parseImportText(raw: string) {
          'comportamento esperado','escopo','resultado','visão'].join('|')
       })\\s*[:\\-]|$)`, 'im');
       const m = raw.match(re);
-      if (m) return m[1].trim();
+      if (m) return cleanValue(m[1].trim());
     }
     return '';
   };
@@ -1414,6 +1464,159 @@ REQUISITOS FUNCIONAIS:
 ========================================`,
   };
 
+  const AI_PROMPTS: Record<string, { label: string; color: string; prompt: string }> = {
+    story: {
+      label: 'História',
+      color: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+      prompt: `Você é um analista de sistemas especialista em metodologias ágeis (Scrum/SAFe). Preciso que você me ajude a criar uma história de usuário bem estruturada para o nosso sistema de gestão de projetos.
+
+Por favor, gere a história no seguinte formato exato (mantenha os rótulos e separadores idênticos):
+
+Título: [Título claro e objetivo da história]
+
+Tipo: História
+Prioridade: [Baixa | Média | Alta | Crítica]
+Story Points: [número de 1 a 13]
+Relator: [Nome de quem solicitou]
+Tela: [Nome da tela ou módulo afetado]
+Prazo: [dd/mm/aaaa — se aplicável]
+
+----------------------------------------
+DESCRIÇÃO (narrativa do usuário):
+----------------------------------------
+Eu como [perfil do usuário] desejo [o que quer] para que [qual benefício/motivo].
+
+----------------------------------------
+REQUISITOS FUNCIONAIS:
+----------------------------------------
+- [Requisito 1: O sistema deverá...]
+- [Requisito 2: O sistema deverá...]
+- [Requisito 3: ...]
+
+----------------------------------------
+CRITÉRIOS DE ACEITE:
+----------------------------------------
+- [Critério 1: Dado que... quando... então...]
+- [Critério 2: ...]
+- [Critério 3: ...]
+
+----------------------------------------
+OBJETIVO:
+----------------------------------------
+[Valor de negócio desta história — qual problema resolve, qual resultado espera alcançar]
+
+Contexto do que preciso: [DESCREVA AQUI O QUE VOCÊ PRECISA]`,
+    },
+    task: {
+      label: 'Tarefa',
+      color: 'bg-blue-50 border-blue-200 text-blue-800',
+      prompt: `Você é um analista de sistemas especialista em metodologias ágeis. Preciso que você crie uma tarefa técnica bem descrita para o nosso sistema de gestão de projetos.
+
+Por favor, gere a tarefa no seguinte formato exato (mantenha os rótulos e separadores idênticos):
+
+Título: [Título claro e objetivo da tarefa]
+
+Tipo: Tarefa
+Prioridade: [Baixa | Média | Alta | Crítica]
+Story Points: [número de 1 a 13]
+Relator: [Nome de quem solicitou]
+Tela: [Nome da tela ou módulo — se aplicável]
+Prazo: [dd/mm/aaaa — se aplicável]
+
+----------------------------------------
+DESCRIÇÃO:
+----------------------------------------
+[Descrição detalhada do que precisa ser feito. O que deve ser implementado, alterado ou configurado?]
+
+----------------------------------------
+ATIVIDADES:
+----------------------------------------
+- [Subtarefa 1: ...]
+- [Subtarefa 2: ...]
+- [Subtarefa 3: ...]
+- [Subtarefa 4: ...]
+
+Contexto do que preciso: [DESCREVA AQUI O QUE VOCÊ PRECISA]`,
+    },
+    bug: {
+      label: 'Bug',
+      color: 'bg-rose-50 border-rose-200 text-rose-800',
+      prompt: `Você é um analista de QA especialista em documentação de bugs. Preciso que você estruture um relatório de bug completo para o nosso sistema de gestão de projetos.
+
+Por favor, gere o bug no seguinte formato exato (mantenha os rótulos e separadores idênticos):
+
+Título: [Título descritivo do bug — O que + Onde]
+
+Tipo: Bug
+Prioridade: [Baixa | Média | Alta | Crítica]
+Story Points: [número de 1 a 5]
+Relator: [Nome de quem reportou]
+Tela: [Nome da tela onde o bug ocorre]
+Prazo: [dd/mm/aaaa — se urgente]
+
+----------------------------------------
+DESCRIÇÃO (passos para reproduzir):
+----------------------------------------
+1. [Passo 1: Acesse a tela X]
+2. [Passo 2: ...]
+3. [Passo 3: ...]
+4. [Passo 4: Observe o erro]
+
+----------------------------------------
+COMPORTAMENTO ATUAL:
+----------------------------------------
+[O que acontece atualmente — descreva o bug em si]
+
+----------------------------------------
+COMPORTAMENTO ESPERADO:
+----------------------------------------
+[O que deveria acontecer corretamente]
+
+----------------------------------------
+ATIVIDADES:
+----------------------------------------
+- [Cenário de teste 1: ...]
+- [Cenário de teste 2: ...]
+- [Cenário de teste 3: ...]
+
+Contexto do bug que encontrei: [DESCREVA AQUI O BUG]`,
+    },
+    epic: {
+      label: 'Épico',
+      color: 'bg-purple-50 border-purple-200 text-purple-800',
+      prompt: `Você é um Product Manager especialista em metodologias ágeis (SAFe/Scrum). Preciso que você estruture um épico completo para o nosso sistema de gestão de projetos.
+
+Por favor, gere o épico no seguinte formato exato (mantenha os rótulos e separadores idênticos):
+
+Título: [Nome estratégico do épico]
+
+Tipo: Épico
+Prioridade: [Baixa | Média | Alta | Crítica]
+Relator: [Nome do responsável pelo épico]
+Prazo: [dd/mm/aaaa — data estimada de conclusão]
+
+----------------------------------------
+DESCRIÇÃO (visão estratégica):
+----------------------------------------
+[Qual é a iniciativa ou objetivo maior que este épico representa? Qual problema de negócio ou oportunidade ele resolve?]
+
+----------------------------------------
+OBJETIVO:
+----------------------------------------
+[Quais métricas ou resultados este épico deve alcançar? Quais indicadores de sucesso?]
+
+----------------------------------------
+REQUISITOS FUNCIONAIS:
+----------------------------------------
+- [História 1: Como... desejo... para que...]
+- [História 2: Como... desejo... para que...]
+- [História 3: Como... desejo... para que...]
+- [História 4: Como... desejo... para que...]
+
+Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
+    },
+  };
+
   const downloadTemplate = (templateType: string) => {
     const content = TEMPLATES[templateType];
     const names: Record<string, string> = { story: 'modelo-historia', task: 'modelo-tarefa', bug: 'modelo-bug', epic: 'modelo-epico' };
@@ -1509,6 +1712,25 @@ REQUISITOS FUNCIONAIS:
               <p className="text-sm font-black text-indigo-800">Importar via arquivo .txt ou texto colado</p>
               <p className="text-xs text-indigo-600 mt-0.5">Baixe o modelo do tipo desejado, preencha e importe. O sistema identifica os campos automaticamente.</p>
             </div>
+          </div>
+
+          {/* Prompts de IA */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Bot className="w-3.5 h-3.5 text-indigo-500" />
+              <p className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500">Gerar com IA (copie e cole no ChatGPT ou Claude)</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {([
+                { id: 'story', label: 'História',  icon: <CheckCircle2 className="w-4 h-4" /> },
+                { id: 'task',  label: 'Tarefa',    icon: <Briefcase className="w-4 h-4" /> },
+                { id: 'bug',   label: 'Bug',       icon: <AlertCircle className="w-4 h-4" /> },
+                { id: 'epic',  label: 'Épico',     icon: <Rocket className="w-4 h-4" /> },
+              ] as const).map(t => (
+                <AiPromptCopyButton key={t.id} typeId={t.id} label={t.label} icon={t.icon} prompt={AI_PROMPTS[t.id].prompt} />
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1.5">Copie o prompt → cole num assistente de IA → preencha o contexto → cole o resultado abaixo para importar.</p>
           </div>
 
           {/* Download de modelos */}

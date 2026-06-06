@@ -193,6 +193,22 @@ async function startServer() {
       res.json({ success: true });
     });
 
+    app.patch("/api/users/:uid", async (req, res) => {
+      const { displayName, email, role, password } = req.body;
+      try {
+        const data: Record<string, string> = {};
+        if (displayName) data.displayName = displayName;
+        if (email)       data.email       = email;
+        if (role)        data.role        = role;
+        if (password)    data.passwordHash = hashPassword(password);
+        const user = await prisma.user.update({ where: { uid: req.params.uid }, data });
+        const { passwordHash, ...userWithoutPass } = user as any;
+        res.json(userWithoutPass);
+      } catch (e) {
+        res.status(400).json({ error: "Erro ao atualizar usuário" });
+      }
+    });
+
     // ─── Projects ───────────────────────────────────────────────────────────────
     app.get("/api/projects", async (req, res) => {
       const { userId, isAdmin } = req.query;
