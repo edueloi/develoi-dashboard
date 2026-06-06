@@ -21,6 +21,7 @@ import ProjetoPostPage from './pages/ProjetoPostPage';
 import ContactPage from './pages/ContactPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
+import { ToastProvider } from './components/ui';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import Preloader from './components/ui/Preloader';
 import WhatsAppChat from './components/WhatsAppChat';
@@ -78,6 +79,9 @@ function AnimatedRoutes() {
           '/dashboard/cases',
           '/dashboard/bot',
           '/dashboard/postagens',
+          '/dashboard/vendas',
+          '/dashboard/produtos',
+          '/dashboard/contatos',
         ].map(path => (
           <Route
             key={path}
@@ -146,10 +150,12 @@ export default function App() {
   console.log("App component rendering");
   return (
     <AuthProvider>
-      <Router>
-        <ScrollToTop />
-        <AppContent />
-      </Router>
+      <ToastProvider>
+        <Router>
+          <ScrollToTop />
+          <AppContent />
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 }

@@ -96,14 +96,21 @@ model SiteValues {
 }
 
 model TeamMember {
-  id       String  @id @default(uuid())
-  name     String
-  role     String
-  bio      String? @db.Text
-  photoURL String? @db.LongText
-  linkedin String?
-  github   String?
-  order    Int     @default(0)
+  id           String  @id @default(uuid())
+  name         String
+  role         String
+  bio          String? @db.Text
+  photoURL     String? @db.LongText
+  linkedin     String?
+  github       String?
+  instagram    String?
+  specialty    String? @db.Text
+  formation    String? @db.Text
+  curiosities  String? @db.Text
+  hobbies      String? @db.Text
+  location     String?
+  yearsExp     Int?
+  order        Int     @default(0)
 }
 
 model PortfolioItem {
@@ -217,6 +224,80 @@ model CaseCategory {
   sortOrder   Int     @default(0)
   isActive    Boolean @default(true)
   cases       Case[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MÓDULO COMERCIAL
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  category    String
+  type        String   @default("service") // product | plan | service
+  price       Float    @default(0)
+  currency    String   @default("BRL")
+  active      Boolean  @default(true)
+  features    Json?
+  tags        Json?
+  createdAt   DateTime @default(now())
+}
+
+model Sale {
+  id              String    @id @default(uuid())
+  clientName      String
+  clientEmail     String?
+  clientPhone     String?
+  productId       String
+  productName     String
+  productCategory String    @default("")
+  value           Float     @default(0)
+  status          String    @default("lead") // lead | negotiation | won | lost | cancelled
+  paymentMethod   String?
+  notes           String?   @db.Text
+  origin          String?
+  closedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ReadyMessage {
+  id          String   @id @default(uuid())
+  userId      String?  // null = mensagem global/padrão; preenchido = mensagem do usuário
+  title       String
+  category    String   @default("general")
+  productId   String?
+  productName String?
+  body        String   @db.Text
+  tags        Json?
+  isDefault   Boolean  @default(false)
+  isFavorite  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model ClientContact {
+  id               String    @id @default(uuid())
+  userId           String    // dono do contato (uid do User)
+  clientName       String
+  establishmentName String?
+  ownerName        String?
+  clientPhone      String?
+  clientPhone2     String?
+  clientEmail      String?
+  city             String?
+  segment          String?
+  productName      String?
+  messageId        String?
+  messageTitle     String?
+  channel          String    @default("whatsapp")
+  status           String    @default("new")
+  priority         String    @default("medium")
+  notes            String?   @db.Text
+  scheduledAt      DateTime?
+  lastContactAt    DateTime?
+  contactCount     Int       @default(0)
+  createdAt        DateTime  @default(now())
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

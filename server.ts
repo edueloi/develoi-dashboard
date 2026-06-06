@@ -460,6 +460,143 @@ async function startServer() {
       }
     });
 
+    // ─── Products ──────────────────────────────────────────────────────────────
+    app.get("/api/products", async (req, res) => {
+      const products = await prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
+      res.json(products);
+    });
+
+    app.post("/api/products", async (req, res) => {
+      const product = await prisma.product.create({ data: req.body });
+      res.json(product);
+    });
+
+    app.patch("/api/products/:id", async (req, res) => {
+      const product = await prisma.product.update({ where: { id: req.params.id }, data: req.body });
+      res.json(product);
+    });
+
+    app.delete("/api/products/:id", async (req, res) => {
+      await prisma.product.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    });
+
+    // ─── Sales ─────────────────────────────────────────────────────────────────
+    app.get("/api/sales", async (req, res) => {
+      const sales = await prisma.sale.findMany({ orderBy: { createdAt: 'desc' } });
+      res.json(sales);
+    });
+
+    app.post("/api/sales", async (req, res) => {
+      const sale = await prisma.sale.create({
+        data: {
+          ...req.body,
+          closedAt: req.body.closedAt ? new Date(req.body.closedAt) : null,
+        }
+      });
+      res.json(sale);
+    });
+
+    app.patch("/api/sales/:id", async (req, res) => {
+      const sale = await prisma.sale.update({
+        where: { id: req.params.id },
+        data: {
+          ...req.body,
+          closedAt: req.body.closedAt ? new Date(req.body.closedAt) : undefined,
+        }
+      });
+      res.json(sale);
+    });
+
+    app.delete("/api/sales/:id", async (req, res) => {
+      await prisma.sale.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    });
+
+    // ─── Ready Messages ────────────────────────────────────────────────────────
+    // Retorna: mensagens padrão (isDefault=true, userId=null) + mensagens do usuário
+    app.get("/api/ready-messages", async (req, res) => {
+      const { userId } = req.query;
+      const messages = await prisma.readyMessage.findMany({
+        where: userId
+          ? { OR: [{ isDefault: true }, { userId: userId as string }] }
+          : { isDefault: true },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      });
+      res.json(messages);
+    });
+
+    app.post("/api/ready-messages", async (req, res) => {
+      const message = await prisma.readyMessage.create({ data: req.body });
+      res.json(message);
+    });
+
+    app.patch("/api/ready-messages/:id", async (req, res) => {
+      const message = await prisma.readyMessage.update({ where: { id: req.params.id }, data: req.body });
+      res.json(message);
+    });
+
+    app.delete("/api/ready-messages/:id", async (req, res) => {
+      await prisma.readyMessage.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    });
+
+    // ─── Client Contacts ───────────────────────────────────────────────────────
+    // Cada contato pertence a um usuário (userId) — isolamento por vendedor
+    app.get("/api/client-contacts", async (req, res) => {
+      const { userId } = req.query;
+      const where = userId ? { userId: userId as string } : {};
+      const contacts = await prisma.clientContact.findMany({ where, orderBy: { createdAt: 'desc' } });
+      res.json(contacts);
+    });
+
+    // POST — verifica duplicata de telefone para o mesmo userId antes de criar
+    app.post("/api/client-contacts", async (req, res) => {
+      const { userId, clientPhone, clientPhone2 } = req.body;
+      if (userId && clientPhone) {
+        const phoneCleaned = clientPhone.replace(/\D/g, '');
+        // Busca todos os contatos deste usuário e verifica manualmente (MySQL não tem regex fácil)
+        const existing = await prisma.clientContact.findMany({ where: { userId } });
+        const duplicate = existing.find(c => {
+          const p1 = (c.clientPhone ?? '').replace(/\D/g, '');
+          const p2 = (c.clientPhone2 ?? '').replace(/\D/g, '');
+          return p1 === phoneCleaned || p2 === phoneCleaned;
+        });
+        if (duplicate) {
+          return res.status(409).json({
+            error: 'duplicate',
+            message: `Este número já está cadastrado como "${duplicate.establishmentName ?? duplicate.clientName}"`,
+            existing: duplicate,
+          });
+        }
+      }
+      const contact = await prisma.clientContact.create({
+        data: {
+          ...req.body,
+          scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : null,
+          lastContactAt: req.body.lastContactAt ? new Date(req.body.lastContactAt) : null,
+        }
+      });
+      res.json(contact);
+    });
+
+    app.patch("/api/client-contacts/:id", async (req, res) => {
+      const contact = await prisma.clientContact.update({
+        where: { id: req.params.id },
+        data: {
+          ...req.body,
+          scheduledAt: req.body.scheduledAt ? new Date(req.body.scheduledAt) : undefined,
+          lastContactAt: req.body.lastContactAt ? new Date(req.body.lastContactAt) : undefined,
+        }
+      });
+      res.json(contact);
+    });
+
+    app.delete("/api/client-contacts/:id", async (req, res) => {
+      await prisma.clientContact.delete({ where: { id: req.params.id } });
+      res.json({ success: true });
+    });
+
     // ─── Serving ────────────────────────────────────────────────────────────────
     if (isDev) {
       const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });

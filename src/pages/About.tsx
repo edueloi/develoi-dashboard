@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Code2, Rocket, Target, CheckCircle2, ArrowRight, Github, Linkedin } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Code2, Rocket, Target, CheckCircle2, ArrowRight, Github, Linkedin, Instagram, MapPin, GraduationCap, Star, Heart, Zap, Calendar, X, ExternalLink } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -10,29 +10,20 @@ interface TeamMember {
   photoURL?: string;
   linkedin?: string;
   github?: string;
+  instagram?: string;
+  specialty?: string;
+  formation?: string;
+  curiosities?: string;
+  hobbies?: string;
+  location?: string;
+  yearsExp?: number | null;
 }
 
 const values = [
-  {
-    icon: Users,
-    title: 'Atendimento Humano',
-    desc: 'Somos próximos. Atendemos com atenção, clareza e parceria real em cada etapa.',
-  },
-  {
-    icon: Code2,
-    title: 'Tecnologia com Propósito',
-    desc: 'Cada solução é construída com intenção — para resolver o seu problema, não só para impressionar.',
-  },
-  {
-    icon: Rocket,
-    title: 'Agilidade com Responsabilidade',
-    desc: 'Entregamos rápido, sem abrir mão da qualidade. Compromisso com prazo e resultado.',
-  },
-  {
-    icon: Target,
-    title: 'Ética e Parceria Contínua',
-    desc: 'Transparência no relacionamento e comprometimento com o crescimento do cliente a longo prazo.',
-  },
+  { icon: Users, title: 'Atendimento Humano', desc: 'Somos próximos. Atendemos com atenção, clareza e parceria real em cada etapa.' },
+  { icon: Code2, title: 'Tecnologia com Propósito', desc: 'Cada solução é construída com intenção — para resolver o seu problema, não só para impressionar.' },
+  { icon: Rocket, title: 'Agilidade com Responsabilidade', desc: 'Entregamos rápido, sem abrir mão da qualidade. Compromisso com prazo e resultado.' },
+  { icon: Target, title: 'Ética e Parceria Contínua', desc: 'Transparência no relacionamento e comprometimento com o crescimento do cliente a longo prazo.' },
 ];
 
 const differentials = [
@@ -43,6 +34,321 @@ const differentials = [
   'Integrações com APIs e serviços externos',
   'Suporte contínuo e evolução do produto',
 ];
+
+// ─── Modal de detalhe do membro ───────────────────────────────────────────────
+
+function MemberModal({ member, onClose }: { member: TeamMember; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', handler); document.body.style.overflow = ''; };
+  }, [onClose]);
+
+  const infoSections = [
+    { icon: Zap, label: 'Especialidades', value: member.specialty },
+    { icon: GraduationCap, label: 'Formação', value: member.formation },
+    { icon: Star, label: 'Curiosidades', value: member.curiosities },
+    { icon: Heart, label: 'Hobbies & Interesses', value: member.hobbies },
+  ].filter(s => s.value);
+
+  const socials = [
+    { icon: Linkedin, href: member.linkedin, label: 'LinkedIn', color: '#0a66c2' },
+    { icon: Github, href: member.github, label: 'GitHub', color: '#1f2937' },
+    { icon: Instagram, href: member.instagram, label: 'Instagram', color: '#e1306c' },
+  ].filter(s => s.href);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6"
+        style={{ background: 'rgba(6,17,43,0.75)', backdropFilter: 'blur(8px)' }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.93, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.93, y: 24 }}
+          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl"
+          style={{ background: 'var(--bg-primary)', boxShadow: '0 32px 80px rgba(6,17,43,0.4)' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header com foto */}
+          <div className="relative overflow-hidden rounded-t-3xl" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}>
+            {/* Linha dourada */}
+            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
+
+            <div className="relative z-10 p-8 pb-0 flex gap-6 items-end">
+              {/* Foto */}
+              <div className="relative shrink-0">
+                {member.photoURL ? (
+                  <img
+                    src={member.photoURL}
+                    alt={member.name}
+                    className="w-28 h-28 rounded-2xl object-cover border-2"
+                    style={{ borderColor: 'var(--brand-gold)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}
+                  />
+                ) : (
+                  <div
+                    className="w-28 h-28 rounded-2xl flex items-center justify-center text-4xl font-black text-white border-2"
+                    style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'var(--brand-gold)' }}
+                  >
+                    {member.name[0]}
+                  </div>
+                )}
+                <div
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2"
+                  style={{ background: '#22c55e', borderColor: '#06112B' }}
+                />
+              </div>
+
+              {/* Nome e cargo */}
+              <div className="pb-6 flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>
+                  {member.role}
+                </p>
+                <h2 className="font-black text-white text-2xl tracking-tight leading-tight mb-2">
+                  {member.name}
+                </h2>
+                <div className="flex flex-wrap gap-3 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  {member.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {member.location}
+                    </span>
+                  )}
+                  {member.yearsExp && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" /> {member.yearsExp} anos de exp.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Wave divider */}
+            <svg viewBox="0 0 1440 40" className="w-full" preserveAspectRatio="none" style={{ height: 40, display: 'block' }}>
+              <path d="M0,40 C360,0 1080,40 1440,20 L1440,40 Z" fill="var(--bg-primary)" />
+            </svg>
+          </div>
+
+          {/* Conteúdo */}
+          <div className="p-8 pt-4 space-y-6">
+            {/* Bio */}
+            {member.bio && (
+              <div>
+                <p className="text-base leading-relaxed italic" style={{ color: 'var(--text-secondary)' }}>
+                  "{member.bio}"
+                </p>
+              </div>
+            )}
+
+            {/* Seções de info */}
+            {infoSections.length > 0 && (
+              <div className="space-y-4">
+                {infoSections.map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="rounded-2xl p-4" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.12)' }}>
+                        <Icon className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} />
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>{label}</span>
+                    </div>
+                    <p className="text-sm leading-relaxed ml-8" style={{ color: 'var(--text-secondary)' }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Redes sociais */}
+            {socials.length > 0 && (
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: 'var(--brand-navy)' }}>Conecte-se</p>
+                <div className="flex flex-wrap gap-3">
+                  {socials.map(({ icon: Icon, href, label, color }) => (
+                    <a
+                      key={label}
+                      href={href!}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs border transition-all hover:-translate-y-0.5"
+                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.borderColor = color;
+                        (e.currentTarget as HTMLElement).style.color = color;
+                        (e.currentTarget as HTMLElement).style.background = `${color}10`;
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
+                        (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)';
+                        (e.currentTarget as HTMLElement).style.background = 'transparent';
+                      }}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {label}
+                      <ExternalLink className="w-3 h-3 opacity-50" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Botão fechar */}
+          <button
+            onClick={onClose}
+            className="absolute top-5 right-5 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+            style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ─── Card de membro ───────────────────────────────────────────────────────────
+
+function MemberCard({ member, index }: { member: TeamMember; index: number }) {
+  const [open, setOpen] = useState(false);
+
+  const hasDetails = member.bio || member.specialty || member.formation || member.curiosities || member.hobbies || member.location || member.yearsExp || member.linkedin || member.github || member.instagram;
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: index * 0.08 }}
+        className="group flex flex-col bg-white rounded-3xl overflow-hidden border transition-all duration-500"
+        style={{
+          borderColor: 'var(--border-color)',
+          boxShadow: '0 12px 40px rgba(13,31,78,0.04)',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)';
+          (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(13,31,78,0.1)';
+          (e.currentTarget as HTMLElement).style.transform = 'translateY(-6px)';
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
+          (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(13,31,78,0.04)';
+          (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+        }}
+      >
+        {/* Foto — altura fixa */}
+        <div className="relative w-full overflow-hidden bg-slate-100" style={{ height: 280 }}>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          {member.photoURL ? (
+            <img
+              src={member.photoURL}
+              alt={member.name}
+              className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-6xl font-black text-white" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)' }}>
+              {member.name[0]}
+            </div>
+          )}
+
+          {/* Tags de info rápida sobre a foto (aparecem no hover) */}
+          <div className="absolute bottom-4 left-4 right-4 z-20 flex flex-wrap gap-1.5 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+            {member.location && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-white" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)' }}>
+                <MapPin className="w-2.5 h-2.5" /> {member.location}
+              </span>
+            )}
+            {member.yearsExp && (
+              <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold text-white" style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)' }}>
+                <Calendar className="w-2.5 h-2.5" /> {member.yearsExp} anos
+              </span>
+            )}
+          </div>
+
+          {/* Barra dourada inferior */}
+          <div className="absolute bottom-0 left-0 right-0 h-1 z-20" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 70%, transparent)' }} />
+        </div>
+
+        {/* Conteúdo do card */}
+        <div className="p-6 flex flex-col flex-1">
+          <p className="text-[10px] font-black uppercase tracking-widest mb-1.5" style={{ color: 'var(--brand-gold)' }}>
+            {member.role}
+          </p>
+          <h3 className="font-black text-lg mb-2 tracking-tight leading-snug" style={{ color: 'var(--brand-navy)' }}>
+            {member.name}
+          </h3>
+
+          {member.bio && (
+            <p className="text-sm leading-relaxed line-clamp-3 mb-3 flex-1" style={{ color: 'var(--text-secondary)' }}>
+              {member.bio}
+            </p>
+          )}
+
+          {/* Especialidades preview */}
+          {member.specialty && (
+            <div className="flex items-start gap-1.5 mb-4">
+              <Zap className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--brand-gold)' }} />
+              <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>
+                {member.specialty}
+              </p>
+            </div>
+          )}
+
+          {/* Redes sociais */}
+          {(member.linkedin || member.github || member.instagram) && (
+            <div className="flex gap-3 mb-4 pt-3 border-t" style={{ borderColor: 'var(--border-color)' }}>
+              {member.linkedin && (
+                <a href={member.linkedin} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-[#0a66c2] transition-colors">
+                  <Linkedin className="w-4 h-4" />
+                </a>
+              )}
+              {member.github && (
+                <a href={member.github} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-slate-900 transition-colors">
+                  <Github className="w-4 h-4" />
+                </a>
+              )}
+              {member.instagram && (
+                <a href={member.instagram} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-slate-300 hover:text-pink-600 transition-colors">
+                  <Instagram className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Botão ver mais — só aparece se tiver conteúdo */}
+          {hasDetails && (
+            <button
+              onClick={() => setOpen(true)}
+              className="mt-auto w-full py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all border"
+              style={{ borderColor: 'rgba(196,154,42,0.3)', color: 'var(--brand-navy)', background: 'rgba(196,154,42,0.06)' }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = 'var(--brand-navy)';
+                (e.currentTarget as HTMLElement).style.color = '#fff';
+                (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand-navy)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = 'rgba(196,154,42,0.06)';
+                (e.currentTarget as HTMLElement).style.color = 'var(--brand-navy)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)';
+              }}
+            >
+              Ver Perfil Completo
+            </button>
+          )}
+        </div>
+      </motion.div>
+
+      {open && <MemberModal member={member} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function About() {
   const [team, setTeam] = useState<TeamMember[]>([]);
@@ -64,59 +370,26 @@ export default function About() {
     >
       {/* Background sutil */}
       <div className="fixed inset-0 pointer-events-none -z-10">
-        <div
-          className="absolute top-[8%] right-[-6%] w-[500px] h-[500px] rounded-full blur-[130px]"
-          style={{ background: 'rgba(13,31,78,0.05)' }}
-        />
-        <div
-          className="absolute bottom-[20%] left-[-4%] w-[400px] h-[400px] rounded-full blur-[120px]"
-          style={{ background: 'rgba(196,154,42,0.04)' }}
-        />
+        <div className="absolute top-[8%] right-[-6%] w-[500px] h-[500px] rounded-full blur-[130px]" style={{ background: 'rgba(13,31,78,0.05)' }} />
+        <div className="absolute bottom-[20%] left-[-4%] w-[400px] h-[400px] rounded-full blur-[120px]" style={{ background: 'rgba(196,154,42,0.04)' }} />
       </div>
 
       {/* ── HERO DA PÁGINA ── */}
-      <section
-        className="relative pt-32 pb-24 overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}
-      >
-        {/* Linha dourada topo */}
-        <div
-          className="absolute top-0 left-0 right-0 h-[3px]"
-          style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 60%, transparent)' }}
-        />
-        {/* Foto de fundo com overlay */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&q=70&fit=crop)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
+      <section className="relative pt-32 pb-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}>
+        <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 60%, transparent)' }} />
+        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&q=70&fit=crop)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
         <div className="absolute inset-0" style={{ background: 'rgba(6,17,43,0.7)' }} />
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-3xl"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }} className="max-w-3xl">
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-6 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
-                Quem Somos
-              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>Quem Somos</span>
             </div>
-
-            <h1
-              className="font-black text-white leading-[1.05] tracking-tight mb-6"
-              style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)' }}
-            >
+            <h1 className="font-black text-white leading-[1.05] tracking-tight mb-6" style={{ fontSize: 'clamp(2.2rem, 5vw, 3.8rem)' }}>
               Tecnologia com propósito,{' '}
               <span style={{ color: 'var(--brand-gold)' }}>estratégia com proximidade.</span>
             </h1>
-
             <p className="text-lg leading-relaxed max-w-xl" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Não começamos pelo código. Começamos pela realidade de quem precisa evoluir. Criamos soluções digitais para empresas que querem crescer sem perder sua essência.
             </p>
@@ -128,113 +401,45 @@ export default function About() {
       <section className="py-20 md:py-28">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-
-            {/* Esquerda — texto */}
-            <motion.div
-              initial={{ opacity: 0, x: -24 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-            >
+            <motion.div initial={{ opacity: 0, x: -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
               <div className="inline-flex items-center gap-2 mb-5">
                 <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-                <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
-                  Nossa missão
-                </span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Nossa missão</span>
               </div>
-
-              <h2
-                className="font-black tracking-tight leading-tight mb-6"
-                style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', color: 'var(--brand-navy)' }}
-              >
+              <h2 className="font-black tracking-tight leading-tight mb-6" style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', color: 'var(--brand-navy)' }}>
                 Transformar necessidades reais{' '}
                 <br className="hidden sm:block" />
                 em soluções inteligentes.
               </h2>
-
               <p className="text-base leading-relaxed mb-8" style={{ color: 'var(--text-secondary)' }}>
                 A Develoi existe para unir tecnologia, estratégia e olhar humano. Criamos sites, sistemas, automações e experiências digitais que simplificam processos, fortalecem marcas e ajudam empresas de diferentes tamanhos a crescerem com mais clareza, organização e segurança.
               </p>
-
               <ul className="space-y-3 mb-10">
                 {differentials.map((item, i) => (
-                  <motion.li
-                    key={i}
-                    initial={{ opacity: 0, x: -12 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.06 }}
-                    className="flex items-center gap-3 text-sm font-medium"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
+                  <motion.li key={i} initial={{ opacity: 0, x: -12 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06 }} className="flex items-center gap-3 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                     <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-gold)' }} />
                     {item}
                   </motion.li>
                 ))}
               </ul>
-
-              <a
-                href="/#contato"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:opacity-90 hover:-translate-y-px group"
-                style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}
-              >
+              <a href="/#contato" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:opacity-90 hover:-translate-y-px group" style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}>
                 Falar com a Develoi
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>
             </motion.div>
 
-            {/* Direita — card visual navy */}
-            <motion.div
-              initial={{ opacity: 0, x: 24 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="relative"
-            >
-              <div
-                className="rounded-2xl overflow-hidden relative"
-                style={{
-                  background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
-                  boxShadow: '0 24px 64px rgba(13,31,78,0.25)',
-                }}
-              >
-                {/* Foto */}
-                <div
-                  className="w-full h-64 opacity-20"
-                  style={{
-                    backgroundImage: 'url(https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800&q=70&fit=crop)',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                />
-                <div
-                  className="absolute top-0 left-0 right-0 h-full"
-                  style={{ background: 'linear-gradient(180deg, transparent 30%, #06112B 100%)' }}
-                />
-
-                {/* Conteúdo sobre a imagem */}
+            <motion.div initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: 0.1 }} className="relative">
+              <div className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 24px 64px rgba(13,31,78,0.25)' }}>
+                <div className="w-full h-64 opacity-20" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800&q=70&fit=crop)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                <div className="absolute top-0 left-0 right-0 h-full" style={{ background: 'linear-gradient(180deg, transparent 30%, #06112B 100%)' }} />
                 <div className="relative px-8 pb-8 -mt-16">
-                  <div
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[10px] font-bold uppercase tracking-[0.18em]"
-                    style={{ background: 'rgba(196,154,42,0.15)', color: 'var(--brand-gold)', border: '1px solid rgba(196,154,42,0.25)' }}
-                  >
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-5 text-[10px] font-bold uppercase tracking-[0.18em]" style={{ background: 'rgba(196,154,42,0.15)', color: 'var(--brand-gold)', border: '1px solid rgba(196,154,42,0.25)' }}>
                     Develoi — Desde 2019
                   </div>
-
-                  <h3 className="text-2xl font-black text-white mb-2 tracking-tight">
-                    Do planejamento à entrega
-                  </h3>
-                  <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                    Acompanhamos seu projeto do início ao fim, com comunicação clara e foco em resultado.
-                  </p>
-
-                  {/* Mini métricas */}
+                  <h3 className="text-2xl font-black text-white mb-2 tracking-tight">Do planejamento à entrega</h3>
+                  <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.55)' }}>Acompanhamos seu projeto do início ao fim, com comunicação clara e foco em resultado.</p>
                   <div className="grid grid-cols-3 gap-4 pt-6" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                    {[
-                      { v: '+50', l: 'Projetos' },
-                      { v: '98%', l: 'Satisfação' },
-                      { v: '+40%', l: 'Crescimento' },
-                    ].map((m) => (
+                    {[{ v: '+50', l: 'Projetos' }, { v: '98%', l: 'Satisfação' }, { v: '+40%', l: 'Crescimento' }].map(m => (
                       <div key={m.l} className="text-center">
                         <div className="text-xl font-black" style={{ color: 'var(--brand-gold)' }}>{m.v}</div>
                         <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>{m.l}</div>
@@ -243,12 +448,7 @@ export default function About() {
                   </div>
                 </div>
               </div>
-
-              {/* Detalhe decorativo */}
-              <div
-                className="absolute -bottom-4 -right-4 w-32 h-32 rounded-2xl -z-10"
-                style={{ background: 'var(--brand-gold-pale)', border: '2px solid rgba(196,154,42,0.2)' }}
-              />
+              <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-2xl -z-10" style={{ background: 'var(--brand-gold-pale)', border: '2px solid rgba(196,154,42,0.2)' }} />
             </motion.div>
           </div>
         </div>
@@ -257,25 +457,13 @@ export default function About() {
       {/* ── 4 PILARES ── */}
       <section className="py-16 md:py-20" style={{ background: 'var(--bg-tertiary)' }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
             <div className="inline-flex items-center gap-2 mb-4">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
-                O que nos move
-              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>O que nos move</span>
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
             </div>
-            <h2
-              className="font-black tracking-tight"
-              style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}
-            >
-              Os pilares da Develoi
-            </h2>
+            <h2 className="font-black tracking-tight" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}>Os pilares da Develoi</h2>
           </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -287,31 +475,15 @@ export default function About() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.08 }}
                 className="bg-white rounded-2xl p-6 border group transition-all duration-250 hover:-translate-y-1"
-                style={{
-                  borderColor: 'var(--border-color)',
-                  boxShadow: '0 2px 12px rgba(13,31,78,0.05)',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(13,31,78,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)';
-                }}
+                style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(13,31,78,0.1)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
               >
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center mb-4"
-                  style={{ background: 'var(--bg-tertiary)' }}
-                >
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: 'var(--bg-tertiary)' }}>
                   <item.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
                 </div>
-                <h3 className="font-black text-base mb-2" style={{ color: 'var(--brand-navy)' }}>
-                  {item.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                  {item.desc}
-                </p>
+                <h3 className="font-black text-base mb-2" style={{ color: 'var(--brand-navy)' }}>{item.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -322,90 +494,23 @@ export default function About() {
       {team.length > 0 && (
         <section className="py-16 md:py-24 bg-white border-y" style={{ borderColor: 'var(--border-color)' }}>
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="text-center mb-16"
-            >
+            <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16">
               <div className="inline-flex items-center gap-2 mb-4">
                 <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-                <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
-                  Quem faz acontecer
-                </span>
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Quem faz acontecer</span>
                 <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               </div>
-              <h2
-                className="font-black tracking-tight"
-                style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}
-              >
+              <h2 className="font-black tracking-tight mb-3" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}>
                 Nossa Equipe
               </h2>
+              <p className="text-sm max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
+                Conheça os talentos por trás de cada projeto. Clique em <em>Ver Perfil Completo</em> para descobrir mais sobre cada membro.
+              </p>
             </motion.div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {team.map((member, i) => (
-                <motion.div
-                  key={member.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                  className="group flex flex-col bg-white rounded-3xl overflow-hidden border transition-all duration-500 hover:-translate-y-2"
-                  style={{
-                    borderColor: 'var(--border-color)',
-                    boxShadow: '0 12px 40px rgba(13,31,78,0.04)',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 20px 60px rgba(13,31,78,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(13,31,78,0.04)';
-                  }}
-                >
-                  <div className="relative aspect-square w-full overflow-hidden bg-slate-100">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    {member.photoURL ? (
-                      <img src={member.photoURL} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-5xl font-black text-white" style={{ background: 'var(--brand-navy)' }}>
-                        {member.name[0]}
-                      </div>
-                    )}
-                    
-                    {/* Efeito Hover Redes Sociais */}
-                    {(member.linkedin || member.github) && (
-                      <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-3 z-20 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
-                        {member.linkedin && (
-                          <a href={member.linkedin} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white text-[#0a66c2] flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-                            <Linkedin className="w-4 h-4" />
-                          </a>
-                        )}
-                        {member.github && (
-                          <a href={member.github} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-full bg-white text-slate-900 flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
-                            <Github className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 h-1.5 z-20" style={{ background: 'linear-gradient(90deg, var(--brand-gold), transparent)' }} />
-                  </div>
-
-                  <div className="p-6 md:p-8 flex flex-col flex-1 text-left">
-                    <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: 'var(--brand-gold)' }}>
-                      {member.role}
-                    </p>
-                    <h3 className="font-black text-xl mb-3 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{member.name}</h3>
-                    
-                    {member.bio && (
-                      <p className="text-sm leading-relaxed line-clamp-3 mb-0" style={{ color: 'var(--text-secondary)' }}>
-                        {member.bio}
-                      </p>
-                    )}
-                  </div>
-                </motion.div>
+                <MemberCard key={member.id} member={member} index={i} />
               ))}
             </div>
           </div>
@@ -415,28 +520,11 @@ export default function About() {
       {/* ── CTA FINAL ── */}
       <section className="py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="rounded-2xl overflow-hidden relative"
-            style={{
-              background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
-              boxShadow: '0 20px 60px rgba(13,31,78,0.2)',
-            }}
-          >
-            {/* Linha dourada topo */}
-            <div
-              className="absolute top-0 left-0 right-0 h-[3px]"
-              style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }}
-            />
-
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}>
+            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div>
-                <h2
-                  className="font-black text-white tracking-tight mb-2"
-                  style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)' }}
-                >
+                <h2 className="font-black text-white tracking-tight mb-2" style={{ fontSize: 'clamp(1.5rem, 3vw, 2.2rem)' }}>
                   Pronto para transformar{' '}
                   <span style={{ color: 'var(--brand-gold)' }}>seu negócio?</span>
                 </h2>
@@ -444,16 +532,7 @@ export default function About() {
                   Fale com a nossa equipe e descubra a solução certa para você.
                 </p>
               </div>
-
-              <a
-                href="/#contato"
-                className="flex-shrink-0 inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:opacity-90 hover:-translate-y-px group"
-                style={{
-                  background: 'var(--brand-gold)',
-                  color: '#06112B',
-                  boxShadow: '0 6px 20px rgba(196,154,42,0.35)',
-                }}
-              >
+              <a href="/#contato" className="flex-shrink-0 inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:opacity-90 hover:-translate-y-px group" style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 6px 20px rgba(196,154,42,0.35)' }}>
                 FALAR COM A DEVELOI
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>

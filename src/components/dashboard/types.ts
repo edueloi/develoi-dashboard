@@ -73,10 +73,17 @@ export interface TeamMemberSite {
   id: string;
   name: string;
   role: string;
-  bio: string;
+  bio?: string;
   photoURL?: string;
   linkedin?: string;
   github?: string;
+  instagram?: string;
+  specialty?: string;
+  formation?: string;
+  curiosities?: string;
+  hobbies?: string;
+  location?: string;
+  yearsExp?: number | null;
   order?: number;
 }
 
@@ -102,4 +109,114 @@ export type ActiveTab =
   | 'blog'
   | 'cases'
   | 'bot'
-  | 'posts';
+  | 'posts'
+  | 'sales'
+  | 'products'
+  | 'client-contact';
+
+// ─── Produtos / Planos ────────────────────────────────────────────────────────
+
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  type: 'product' | 'plan' | 'service';
+  price: number;
+  currency: string;
+  active: boolean;
+  features?: string[];
+  tags?: string[];
+  createdAt: string;
+}
+
+// ─── Vendas ───────────────────────────────────────────────────────────────────
+
+export type SaleStatus = 'lead' | 'negotiation' | 'won' | 'lost' | 'cancelled';
+export type SalePaymentMethod = 'pix' | 'card' | 'boleto' | 'transfer' | 'cash' | 'other';
+
+export interface Sale {
+  id: string;
+  clientName: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  productId: string;
+  productName: string;
+  productCategory: string;
+  value: number;
+  status: SaleStatus;
+  paymentMethod?: SalePaymentMethod;
+  notes?: string;
+  origin?: string;
+  closedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ─── Mensagens Prontas / Contato ──────────────────────────────────────────────
+
+export type MessageCategory =
+  | 'approach'
+  | 'followup'
+  | 'proposal'
+  | 'closing'
+  | 'support'
+  | 'onboarding'
+  | 'recovery'
+  | 'upsell'
+  | 'general';
+
+export interface ReadyMessage {
+  id: string;
+  userId?: string;
+  title: string;
+  category: MessageCategory;
+  productId?: string;
+  productName?: string;
+  body: string;
+  tags?: string[];
+  isDefault?: boolean;
+  isFavorite?: boolean;
+  createdAt: string;
+}
+
+export type ContactStatus =
+  | 'new'          // Novo — ainda não contactado
+  | 'pending'      // Aguardando entrar em contato
+  | 'contacted'    // Contatado (mensagem enviada)
+  | 'no_answer'    // Não atendeu / não respondeu
+  | 'callback'     // Pediu para ligar depois / retornar
+  | 'interested'   // Demonstrou interesse
+  | 'negotiation'  // Em negociação
+  | 'won'          // Fechou / virou cliente
+  | 'not_interested' // Não tem interesse
+  | 'invalid'      // Número/contato inválido
+  | 'closed';      // Encerrado sem conversão
+
+export interface ClientContact {
+  id: string;
+  userId?: string;
+  // Dados do cliente / estabelecimento
+  clientName: string;
+  establishmentName?: string;
+  ownerName?: string;
+  clientPhone?: string;
+  clientPhone2?: string;
+  clientEmail?: string;
+  city?: string;
+  segment?: string;
+  // Relacionamentos
+  saleId?: string;
+  productName?: string;
+  messageId?: string;
+  messageTitle?: string;
+  // Contato
+  channel: 'whatsapp' | 'email' | 'phone' | 'other';
+  status: ContactStatus;
+  priority: 'low' | 'medium' | 'high';
+  notes?: string;
+  scheduledAt?: string;
+  lastContactAt?: string;
+  contactCount?: number;
+  createdAt: string;
+}

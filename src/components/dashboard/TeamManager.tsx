@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Users, UserPlus, Pencil, Trash2, Save, Github, Linkedin, Camera, X, Loader2 } from 'lucide-react';
+import { Users, UserPlus, Pencil, Trash2, Save, Github, Linkedin, Instagram, Camera, X, Loader2, MapPin, GraduationCap, Star, Heart, Zap, Calendar } from 'lucide-react';
 import { Button, Modal, ConfirmModal, EmptyState, Input, Textarea, PanelCard, Badge } from '../ui';
 import type { TeamMemberSite } from './types';
 import { cn } from '../../lib/utils';
@@ -22,7 +22,10 @@ export function TeamManager() {
 
   useEffect(() => { fetchMembers(); }, []);
 
-  const openNew  = () => { setForm({ name: '', role: '', bio: '', photoURL: '', linkedin: '', github: '' }); setEditingId('new'); };
+  const openNew  = () => {
+    setForm({ name: '', role: '', bio: '', photoURL: '', linkedin: '', github: '', instagram: '', specialty: '', formation: '', curiosities: '', hobbies: '', location: '', yearsExp: undefined });
+    setEditingId('new');
+  };
   const openEdit = (m: TeamMemberSite) => { setForm({ ...m }); setEditingId(m.id); };
 
   const handleSave = async () => {
@@ -66,11 +69,12 @@ export function TeamManager() {
             <p className="text-xs font-medium leading-relaxed mt-1" style={{ color: 'var(--text-secondary)' }}>
               Estes são os talentos que dão vida aos nossos ecossistemas.
               As informações abaixo são exibidas na seção <strong>Sobre</strong> do site oficial.
+              Preencha quantos campos quiser — só aparecem os que tiverem conteúdo.
             </p>
           </div>
         </div>
-        <button 
-          onClick={openNew} 
+        <button
+          onClick={openNew}
           className="flex items-center gap-2 text-white text-xs font-bold px-6 py-3.5 rounded-xl transition-all hover:-translate-y-0.5"
           style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
         >
@@ -122,6 +126,12 @@ function MemberCard({ member: m, deleting, onEdit, onDelete }: {
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const extras = [
+    m.location && { icon: MapPin, label: m.location },
+    m.yearsExp && { icon: Calendar, label: `${m.yearsExp} anos de exp.` },
+    m.specialty && { icon: Zap, label: m.specialty },
+  ].filter(Boolean) as { icon: any; label: string }[];
+
   return (
     <>
       <div className="bg-white rounded-2xl border transition-all overflow-hidden group hover:-translate-y-1" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.06)' }}>
@@ -160,9 +170,19 @@ function MemberCard({ member: m, deleting, onEdit, onDelete }: {
             </span>
           </div>
 
-          {m.bio && <p className="text-xs font-medium leading-relaxed italic line-clamp-3 mb-6" style={{ color: 'var(--text-secondary)' }}>"{m.bio}"</p>}
+          {m.bio && <p className="text-xs font-medium leading-relaxed italic line-clamp-2 mb-4" style={{ color: 'var(--text-secondary)' }}>"{m.bio}"</p>}
 
-          <div className="flex gap-4 pt-6 border-t" style={{ borderColor: 'var(--border-color)' }}>
+          {extras.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              {extras.map(({ icon: Icon, label }) => (
+                <span key={label} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                  <Icon className="w-3 h-3" /> {label}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-4 pt-4 border-t" style={{ borderColor: 'var(--border-color)' }}>
             {m.linkedin && (
               <a href={m.linkedin} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-[#0a66c2] transition-colors">
                 <Linkedin className="w-4 h-4" />
@@ -171,6 +191,11 @@ function MemberCard({ member: m, deleting, onEdit, onDelete }: {
             {m.github && (
               <a href={m.github} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
                 <Github className="w-4 h-4" />
+              </a>
+            )}
+            {m.instagram && (
+              <a href={m.instagram} target="_blank" rel="noreferrer" className="text-slate-400 hover:text-pink-600 transition-colors">
+                <Instagram className="w-4 h-4" />
               </a>
             )}
           </div>
@@ -216,12 +241,11 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={isNew ? 'Novo Talento' : 'Editar Talento'} size="md">
+    <Modal isOpen onClose={onClose} title={isNew ? 'Novo Talento' : 'Editar Talento'} size="lg">
       <div className="space-y-6">
 
         {/* Photo upload */}
         <div className="flex items-center gap-5">
-          {/* Preview */}
           <div className="relative shrink-0">
             {form.photoURL ? (
               <img src={form.photoURL} alt="" className="w-24 h-24 rounded-2xl object-cover border-2 shadow-sm" style={{ borderColor: 'var(--brand-gold)' }} />
@@ -240,16 +264,9 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
             )}
           </div>
 
-          {/* Upload buttons */}
           <div className="flex-1 space-y-2">
             <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-gold)' }}>Foto do Talento</p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
@@ -262,43 +279,41 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
               {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
               {uploading ? 'CARREGANDO FOTO...' : 'SELECIONAR FOTO (JPG, PNG, WebP)'}
             </button>
-            <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>* A foto aparecerá publicamente no site. Recomendado imagem quadrada.</p>
+            <p className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>* Recomendado imagem quadrada. Só é exibida se preenchida.</p>
           </div>
         </div>
 
         <div className="h-px bg-slate-100" />
 
+        {/* Seção — Identificação */}
+        <SectionLabel icon={<Users className="w-3.5 h-3.5" />} label="Identificação" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Input
-            label="Nome Completo *"
-            placeholder="Ex: João Silva"
-            value={form.name || ''}
-            onChange={e => onChange({ name: e.target.value })}
-          />
-          <Input
-            label="Cargo / Função *"
-            placeholder="Ex: Desenvolvedor Sênior"
-            value={form.role || ''}
-            onChange={e => onChange({ role: e.target.value })}
-          />
+          <Input label="Nome Completo *" placeholder="Ex: João Silva" value={form.name || ''} onChange={e => onChange({ name: e.target.value })} />
+          <Input label="Cargo / Função *" placeholder="Ex: Desenvolvedor Sênior" value={form.role || ''} onChange={e => onChange({ role: e.target.value })} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Input
-            label="LinkedIn"
-            iconLeft={<Linkedin className="w-4 h-4" />}
-            placeholder="https://linkedin.com/in/..."
-            value={form.linkedin || ''}
-            onChange={e => onChange({ linkedin: e.target.value })}
+            label="Localização"
+            iconLeft={<MapPin className="w-4 h-4" />}
+            placeholder="Ex: São Paulo, SP"
+            value={form.location || ''}
+            onChange={e => onChange({ location: e.target.value })}
           />
           <Input
-            label="GitHub"
-            iconLeft={<Github className="w-4 h-4" />}
-            placeholder="https://github.com/..."
-            value={form.github || ''}
-            onChange={e => onChange({ github: e.target.value })}
+            label="Anos de Experiência"
+            iconLeft={<Calendar className="w-4 h-4" />}
+            type="number"
+            placeholder="Ex: 5"
+            value={form.yearsExp?.toString() || ''}
+            onChange={e => onChange({ yearsExp: e.target.value ? parseInt(e.target.value) : undefined })}
           />
         </div>
+
+        <div className="h-px bg-slate-100" />
+
+        {/* Seção — Sobre */}
+        <SectionLabel icon={<Star className="w-3.5 h-3.5" />} label="Sobre o Talento" />
 
         <Textarea
           label="Mini Bio"
@@ -307,6 +322,54 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
           onChange={e => onChange({ bio: e.target.value })}
           rows={3}
         />
+
+        <Textarea
+          label="Especialidades"
+          placeholder="Ex: React, Node.js, UX Design, Gestão de projetos ágeis..."
+          value={form.specialty || ''}
+          onChange={e => onChange({ specialty: e.target.value })}
+          rows={2}
+        />
+
+        <Textarea
+          label="Formação Acadêmica"
+          placeholder="Ex: Bacharelado em Sistemas de Informação — UNESP (2019)"
+          value={form.formation || ''}
+          onChange={e => onChange({ formation: e.target.value })}
+          rows={2}
+        />
+
+        <div className="h-px bg-slate-100" />
+
+        {/* Seção — Curiosidades */}
+        <SectionLabel icon={<Heart className="w-3.5 h-3.5" />} label="Curiosidades &amp; Personalidade" />
+
+        <Textarea
+          label="Curiosidades"
+          placeholder="Ex: Fala 3 idiomas, já viajou para 12 países, colecionador de quadrinhos..."
+          value={form.curiosities || ''}
+          onChange={e => onChange({ curiosities: e.target.value })}
+          rows={2}
+        />
+
+        <Textarea
+          label="Hobbies e Interesses"
+          placeholder="Ex: Fotografia, música, jogos de tabuleiro, culinária italiana..."
+          value={form.hobbies || ''}
+          onChange={e => onChange({ hobbies: e.target.value })}
+          rows={2}
+        />
+
+        <div className="h-px bg-slate-100" />
+
+        {/* Seção — Redes Sociais */}
+        <SectionLabel icon={<Linkedin className="w-3.5 h-3.5" />} label="Redes Sociais" />
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <Input label="LinkedIn" iconLeft={<Linkedin className="w-4 h-4" />} placeholder="https://linkedin.com/in/..." value={form.linkedin || ''} onChange={e => onChange({ linkedin: e.target.value })} />
+          <Input label="GitHub" iconLeft={<Github className="w-4 h-4" />} placeholder="https://github.com/..." value={form.github || ''} onChange={e => onChange({ github: e.target.value })} />
+          <Input label="Instagram" iconLeft={<Instagram className="w-4 h-4" />} placeholder="https://instagram.com/..." value={form.instagram || ''} onChange={e => onChange({ instagram: e.target.value })} />
+        </div>
 
         <div className="flex gap-3 pt-2">
           <button onClick={onClose} className="flex-1 py-3.5 rounded-xl border text-[11px] font-black uppercase tracking-widest transition-all" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -319,5 +382,15 @@ function MemberFormModal({ form, isNew, saving, onChange, onSave, onClose }: {
         </div>
       </div>
     </Modal>
+  );
+}
+
+function SectionLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span style={{ color: 'var(--brand-gold)' }}>{icon}</span>
+      <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: 'var(--brand-navy)' }}>{label}</span>
+      <div className="flex-1 h-px" style={{ background: 'var(--border-color)' }} />
+    </div>
   );
 }

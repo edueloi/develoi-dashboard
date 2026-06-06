@@ -9,6 +9,7 @@ import {
   TrendingUp, Share2, MoreHorizontal, Link2, History,
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
+  ShoppingBag, BarChart2, PhoneCall,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -58,6 +59,9 @@ import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 // Types
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
 import { PostCreatorTab } from '../components/dashboard/PostCreatorTab';
+import { SalesManager } from '../components/dashboard/SalesManager';
+import { ProductsManager } from '../components/dashboard/ProductsManager';
+import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -72,22 +76,25 @@ function handleApiError(error: unknown, op: OperationType, path: string | null) 
 // ─── URL ↔ Tab mapping ────────────────────────────────────────────────────────
 
 const TAB_TO_PATH: Record<ActiveTab, string> = {
-  overview:      '/dashboard',
-  summary:       '/dashboard/resumo',
-  projects:      '/dashboard/projetos',
-  backlog:       '/dashboard/backlog',
-  board:         '/dashboard/quadro',
-  timeline:      '/dashboard/cronograma',
-  tests:         '/dashboard/qualidade',
-  members:       '/dashboard/membros',
-  chat:          '/dashboard/chat',
-  portfolio:     '/dashboard/portfolio',
-  team:          '/dashboard/equipe',
-  'site-values': '/dashboard/valores',
-  blog:          '/dashboard/blog',
-  cases:         '/dashboard/cases',
-  bot:           '/dashboard/bot',
-  posts:         '/dashboard/postagens',
+  overview:        '/dashboard',
+  summary:         '/dashboard/resumo',
+  projects:        '/dashboard/projetos',
+  backlog:         '/dashboard/backlog',
+  board:           '/dashboard/quadro',
+  timeline:        '/dashboard/cronograma',
+  tests:           '/dashboard/qualidade',
+  members:         '/dashboard/membros',
+  chat:            '/dashboard/chat',
+  portfolio:       '/dashboard/portfolio',
+  team:            '/dashboard/equipe',
+  'site-values':   '/dashboard/valores',
+  blog:            '/dashboard/blog',
+  cases:           '/dashboard/cases',
+  bot:             '/dashboard/bot',
+  posts:           '/dashboard/postagens',
+  sales:           '/dashboard/vendas',
+  products:        '/dashboard/produtos',
+  'client-contact':'/dashboard/contatos',
 };
 
 const PATH_TO_TAB: Record<string, ActiveTab> = Object.fromEntries(
@@ -161,25 +168,28 @@ export default function Dashboard() {
   };
 
   const tabTitles: Record<ActiveTab, string> = {
-    overview: 'Para você',
-    summary: `Resumo: ${selectedProject?.name ?? ''}`,
-    backlog: 'Backlog',
-    board: 'Quadro',
-    timeline: 'Cronograma',
-    projects: 'Todos os Projetos',
-    tests: 'Controle de Qualidade',
-    members: 'Área de Membros',
-    chat: 'Comunicação Interna',
-    portfolio: 'Portfólio Público',
-    team: 'Nossa Equipe',
-    'site-values': 'Missão & Valores',
-    blog: 'Blog da Develoi',
-    cases: 'Cases de Sucesso',
-    bot: 'Bot de Atendimento',
-    posts: 'Criador de Postagens',
+    overview:        'Para você',
+    summary:         `Resumo: ${selectedProject?.name ?? ''}`,
+    backlog:         'Backlog',
+    board:           'Quadro',
+    timeline:        'Cronograma',
+    projects:        'Todos os Projetos',
+    tests:           'Controle de Qualidade',
+    members:         'Área de Membros',
+    chat:            'Comunicação Interna',
+    portfolio:       'Portfólio Público',
+    team:            'Nossa Equipe',
+    'site-values':   'Missão & Valores',
+    blog:            'Blog da Develoi',
+    cases:           'Cases de Sucesso',
+    bot:             'Bot de Atendimento',
+    posts:           'Criador de Postagens',
+    sales:           'Controle de Vendas',
+    products:        'Produtos & Planos',
+    'client-contact':'Contato com Clientes',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -249,6 +259,12 @@ export default function Dashboard() {
             <NavItem icon={Heart} label="Missão & Valores" active={activeTab === 'site-values'} onClick={() => goTo('site-values')} />
             <NavItem icon={BookOpen} label="Blog" active={activeTab === 'blog'} onClick={() => goTo('blog')} />
             <NavItem icon={Star} label="Nossos Projetos" active={activeTab === 'cases'} onClick={() => goTo('cases')} />
+          </NavSection>
+
+          <NavSection label="Comercial">
+            <NavItem icon={BarChart2} label="Vendas" active={activeTab === 'sales'} onClick={() => goTo('sales')} />
+            <NavItem icon={ShoppingBag} label="Produtos & Planos" active={activeTab === 'products'} onClick={() => goTo('products')} />
+            <NavItem icon={PhoneCall} label="Contato com Clientes" active={activeTab === 'client-contact'} onClick={() => goTo('client-contact')} />
           </NavSection>
 
           <NavSection label="Sistema">
@@ -584,6 +600,9 @@ export default function Dashboard() {
               {activeTab === 'cases' && <CasesManager />}
               {activeTab === 'bot' && <BotConfigTab />}
               {activeTab === 'posts' && <PostCreatorTab />}
+              {activeTab === 'sales' && <SalesManager />}
+              {activeTab === 'products' && <ProductsManager />}
+              {activeTab === 'client-contact' && <ClientContactManager />}
             </AnimatePresence>
           </div>
         </main>
