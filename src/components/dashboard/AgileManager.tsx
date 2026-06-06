@@ -1009,7 +1009,7 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
       await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title, description: desc, type, priority, points, status,
+          title, description: desc, type, priority, points: type === 'epic' ? 0 : points, status,
           reporter, functionalArea: area,
           functionalRequirements: funcReqs,
           acceptanceCriteria: acceptance,
@@ -1036,7 +1036,7 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
     setType(newType as any);
   };
 
-  const editTitles = { story: 'Editar História', task: 'Editar Tarefa', bug: 'Editar Bug', epic: 'Editar Épico' };
+  const editTitles = { story: 'Editar História', task: 'Editar Tarefa', bug: 'Editar Bug', epic: 'Editar Demanda' };
 
   return (
     <Modal isOpen onClose={onClose} title={`${feature.key || '—'} — ${editTitles[type as keyof typeof editTitles] || 'Editar Ticket'}`} size="2xl">
@@ -1234,37 +1234,115 @@ function AiPromptCopyButton({ typeId, label, icon, prompt }: { typeId: string; l
 // ─── ImportTicketModal ────────────────────────────────────────────────────────
 
 function parseImportText(raw: string) {
-  const cleanValue = (v: string) => {
-    // remove valores que são só placeholders do template (linhas de traço, colchetes ou vazios)
-    const stripped = v.replace(/^[-=\s]+$/gm, '').replace(/^\[.*\]$/gm, '').trim();
-    return stripped;
-  };
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const labelVariants = {
+    title: ['título', 'titulo', 'title', 'nome', 'demanda'],
+    type: ['tipo', 'type'],
+    priority: ['prioridade', 'priority'],
+    points: ['story points', 'story point', 'pontos', 'points'],
+    reporter: ['relator', 'reporter', 'solicitante', 'quem solicitou'],
+    area: ['tela / funcionalidade', 'tela', 'funcionalidade', 'área funcional', 'area funcional'],
+    deadline: ['prazo', 'deadline', 'data limite'],
+    desc: ['descrição', 'descricao', 'narrativa', 'como usuário, eu quero', 'como usuario, eu quero', 'como usuário', 'como usuario', 'contexto', 'description', 'passos para reproduzir'],
+    funcReqs: ['requisitos funcionais', 'requisitos', 'functional requirements', 'comportamento atual'],
+    acceptance: ['critérios de aceite', 'criterios de aceite', 'critério de aceite', 'criterio de aceite', 'acceptance criteria', 'comportamento esperado'],
+    objective: ['objetivo de negócio', 'objetivo de negocio', 'business objective', 'objetivo', 'resultado', 'visão', 'visao'],
+    activities: ['atividades', 'subtarefas', 'checklist', 'escopo'],
+  } as const;
 
-  const get = (labels: string[]) => {
+  const buildLabelMatcher = (label: string) => `${escapeRegex(label)}(?:\\s*\\([^\\n)]*\\))?`;
+  const allLabels = Array.from(new Set(Object.values(labelVariants).flat())).sort((a, b) => b.length - a.length);
+  const nextLabelPattern = allLabels.map(buildLabelMatcher).join('|');
+
+  let normalized = raw
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00A0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n[ \t]+/g, '\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  for (const label of allLabels) {
+    const matcher = buildLabelMatcher(label);
+    normalized = normalized.replace(
+      new RegExp(`([^\\n])\\s+(${matcher}\\s*[:\\-])`, 'giu'),
+      '$1\n$2'
+    );
+  }
+  normalized = normalized.replace(/\n{3,}/g, '\n\n');
+
+  const cleanValue = (value: string) => value
+    .replace(/^[-=\s]+$/gm, '')
+    .replace(/^\[.*?\]$/gm, '')
+    .replace(/^Ex:.*$/gim, '')
+    .replace(/^Contexto do .*?:.*$/gim, '')
+    .replace(/={3,}/g, '')
+    .replace(/-{3,}/g, '')
+    .replace(/MODELO DE IMPORTAÇÃO[\s\S]*?Preencha todos os campos/gi, '')
+    .replace(/FIM DO MODELO[\s\S]*/gi, '')
+    .trim();
+
+  const get = (labels: readonly string[]) => {
     for (const label of labels) {
-      const re = new RegExp(`(?:^|\\n)\\s*${label}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${
-        ['título','tipo','prioridade','sprint','story points','pontos','relator','tela','funcionalidade',
-         'prazo','descrição','narrativa','como usuário','contexto','requisitos funcionais','critérios de aceite',
-         'critério de aceite','objetivo','atividades','subtarefas','passos para reproduzir','comportamento atual',
-         'comportamento esperado','escopo','resultado','visão'].join('|')
-      })\\s*[:\\-]|$)`, 'im');
-      const m = raw.match(re);
-      if (m) return cleanValue(m[1].trim());
+      const re = new RegExp(
+        `(?:^|\\n)\\s*${buildLabelMatcher(label)}\\s*[:\\-]\\s*([\\s\\S]*?)(?=\\n\\s*(?:${nextLabelPattern})\\s*[:\\-]|\\n={3,}|$)`,
+        'iu'
+      );
+      const match = normalized.match(re);
+      if (!match) continue;
+      const value = cleanValue(match[1] || '');
+      if (value) return value;
     }
     return '';
   };
 
-  const title    = get(['título', 'title', 'nome', 'demanda']);
-  const rawType  = get(['tipo', 'type']).toLowerCase();
-  const type     = rawType.includes('bug') ? 'bug' : rawType.includes('épic') || rawType.includes('epic') ? 'epic' : rawType.includes('tare') || rawType.includes('task') ? 'task' : 'story';
-  const rawPrio  = get(['prioridade', 'priority']).toLowerCase();
-  const priority = rawPrio.includes('crít') || rawPrio.includes('critical') ? 'critical' : rawPrio.includes('alta') || rawPrio.includes('high') ? 'high' : rawPrio.includes('baixa') || rawPrio.includes('low') ? 'low' : 'medium';
-  const pointsRaw = get(['story points', 'pontos', 'points']);
-  const points   = parseInt(pointsRaw) || 1;
-  const reporter = get(['relator', 'reporter', 'solicitante', 'quem solicitou']);
-  const area     = get(['tela', 'funcionalidade', 'tela / funcionalidade', 'área funcional']);
-  const rawDeadline = get(['prazo', 'deadline', 'data limite']);
-  // Converte dd/mm/aaaa → yyyy-MM-dd; descarta texto livre como "A definir"
+  const inferLeadingTitle = () => {
+    const firstLine = normalized
+      .split('\n')
+      .map(line => line.trim())
+      .find(line => line && !/^(=|-){3,}$/.test(line) && !/MODELO DE IMPORTAÇÃO|Develoi Hub|FIM DO MODELO/i.test(line));
+
+    if (!firstLine) return '';
+
+    const inlineLabelRe = new RegExp(`^(.*?)(?=\\s+(?:${nextLabelPattern})\\s*[:\\-]|$)`, 'iu');
+    const match = firstLine.match(inlineLabelRe);
+    return cleanValue((match?.[1] || firstLine).trim());
+  };
+
+  const rawType = get(labelVariants.type).toLowerCase();
+  const rawPrio = get(labelVariants.priority).toLowerCase();
+  const rawActs = get(labelVariants.activities);
+  const desc = get(labelVariants.desc);
+  const funcReqs = get(labelVariants.funcReqs);
+  const acceptance = get(labelVariants.acceptance);
+  const objective = get(labelVariants.objective);
+
+  const type = (() => {
+    if (rawType.includes('bug')) return 'bug';
+    if (rawType.includes('demand') || rawType.includes('épic') || rawType.includes('epic') || rawType.includes('epico')) return 'epic';
+    if (rawType.includes('tare') || rawType.includes('task')) return 'task';
+    if (rawType.includes('hist') || rawType.includes('story')) return 'story';
+    if (/comportamento atual|comportamento esperado|passos para reproduzir/i.test(normalized)) return 'bug';
+    if (/atividades|subtarefas|checklist/i.test(normalized) && !/critérios de aceite|criterios de aceite|como usuário|como usuario/i.test(normalized)) return 'task';
+    if (/visão estratégica|visao estrategica|histórias planejadas|historias planejadas|tipo:\s*demanda|tipo:\s*épico|tipo:\s*epico/i.test(normalized)) return 'epic';
+    return 'story';
+  })();
+
+  const priority = rawPrio.includes('crít') || rawPrio.includes('crit') || rawPrio.includes('critical')
+    ? 'critical'
+    : rawPrio.includes('alta') || rawPrio.includes('high')
+      ? 'high'
+      : rawPrio.includes('baixa') || rawPrio.includes('low')
+        ? 'low'
+        : 'medium';
+
+  const pointsRaw = get(labelVariants.points);
+  const pointsValue = parseInt(pointsRaw.match(/\d+/)?.[0] || '', 10);
+  const points = type === 'epic' ? 0 : (Number.isFinite(pointsValue) ? pointsValue : 1);
+  const title = get(labelVariants.title) || inferLeadingTitle();
+  const reporter = get(labelVariants.reporter);
+  const area = get(labelVariants.area);
+  const rawDeadline = get(labelVariants.deadline);
   const deadline = (() => {
     const m = rawDeadline.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/);
     if (m) return `${m[3]}-${m[2]}-${m[1]}`;
@@ -1273,16 +1351,47 @@ function parseImportText(raw: string) {
     return '';
   })();
 
-  const desc      = get(['descrição', 'narrativa', 'como usuário', 'contexto', 'description', 'passos para reproduzir']);
-  const funcReqs  = get(['requisitos funcionais', 'requisitos', 'functional requirements', 'comportamento atual']);
-  const acceptance= get(['critérios de aceite', 'critério de aceite', 'acceptance criteria', 'comportamento esperado']);
-  const objective = get(['objetivo', 'objetivo de negócio', 'resultado', 'visão', 'business objective']);
-  const rawActs   = get(['atividades', 'subtarefas', 'checklist', 'escopo']);
   const activities: { id: string; text: string; done: boolean }[] = rawActs
-    ? rawActs.split('\n').map(l => l.replace(/^[-•*\d.]+\s*/, '').trim()).filter(Boolean).map(text => ({ id: uuidv4(), text, done: false }))
+    ? rawActs
+      .split(/\n|(?=\s*[-•*]\s)|(?=\s*\d+\.\s)/)
+      .map(line => line.replace(/^[-•*\d.]+\s*/, '').trim())
+      .filter(Boolean)
+      .map(text => ({ id: uuidv4(), text, done: false }))
     : [];
 
   return { title, type, priority, points, reporter, area, deadline, desc, funcReqs, acceptance, objective, activities };
+}
+
+function extractPdfPageText(items: any[]) {
+  const lines: string[] = [];
+  let currentLine: string[] = [];
+  let lastY: number | null = null;
+
+  const flushLine = () => {
+    if (currentLine.length === 0) return;
+    lines.push(currentLine.join(' ').replace(/\s+/g, ' ').trim());
+    currentLine = [];
+  };
+
+  for (const item of items) {
+    const text = typeof item?.str === 'string' ? item.str.replace(/\s+/g, ' ').trim() : '';
+    if (!text) continue;
+
+    const itemY = Array.isArray(item.transform) ? Number(item.transform[5]) : lastY;
+    if (lastY !== null && itemY !== null && Math.abs(itemY - lastY) > 2) {
+      flushLine();
+    }
+
+    currentLine.push(text);
+    lastY = itemY;
+
+    if (item.hasEOL) {
+      flushLine();
+    }
+  }
+
+  flushLine();
+  return lines.join('\n');
 }
 
 function ImportTicketModal({ projectId, sprints, onClose, onSuccess }: {
@@ -1429,22 +1538,22 @@ ATIVIDADES:
 ========================================`,
 
     epic: `========================================
-  MODELO DE IMPORTAÇÃO — ÉPICO
+  MODELO DE IMPORTAÇÃO — DEMANDA
   Develoi Hub | Preencha todos os campos
 ========================================
 
 Título: [Ex: Módulo de Relatórios Gerenciais]
 
-Tipo: Épico
+Tipo: Demanda
 Prioridade: [Baixa | Média | Alta | Crítica]
-Relator: [Nome do responsável pelo épico]
+Relator: [Nome do responsável pela demanda]
 Prazo: [dd/mm/aaaa — data estimada de conclusão]
 
 ----------------------------------------
 DESCRIÇÃO (visão estratégica):
 ----------------------------------------
-[Qual é a iniciativa ou objetivo maior que este épico representa?
-Qual problema de negócio ou oportunidade ele resolve?]
+[Qual é a iniciativa ou objetivo maior que esta demanda representa?
+Qual problema de negócio ou oportunidade ela resolve?]
 
 Ex: Criar um módulo centralizado de relatórios gerenciais que permita
 à diretoria acompanhar KPIs de vendas, produção e financeiro em tempo
@@ -1453,7 +1562,7 @@ real, eliminando a dependência de planilhas manuais.
 ----------------------------------------
 OBJETIVO:
 ----------------------------------------
-[Quais métricas ou resultados este épico deve alcançar?]
+[Quais métricas ou resultados esta demanda deve alcançar?]
 
 Ex: Reduzir em 80% o tempo gasto na geração de relatórios mensais.
 Aumentar a precisão dos dados de 70% para 99%.
@@ -1590,28 +1699,28 @@ ATIVIDADES:
 Contexto do bug que encontrei: [DESCREVA AQUI O BUG]`,
     },
     epic: {
-      label: 'Épico',
+      label: 'Demanda',
       color: 'bg-purple-50 border-purple-200 text-purple-800',
-      prompt: `Você é um Product Manager especialista em metodologias ágeis (SAFe/Scrum). Preciso que você estruture um épico completo para o nosso sistema de gestão de projetos.
+      prompt: `Você é um Product Manager especialista em metodologias ágeis (SAFe/Scrum). Preciso que você estruture uma demanda macro completa para o nosso sistema de gestão de projetos.
 
-Por favor, gere o épico no seguinte formato exato (mantenha os rótulos e separadores idênticos):
+Por favor, gere a demanda no seguinte formato exato (mantenha os rótulos e separadores idênticos):
 
-Título: [Nome estratégico do épico]
+Título: [Nome estratégico da demanda]
 
-Tipo: Épico
+Tipo: Demanda
 Prioridade: [Baixa | Média | Alta | Crítica]
-Relator: [Nome do responsável pelo épico]
+Relator: [Nome do responsável pela demanda]
 Prazo: [dd/mm/aaaa — data estimada de conclusão]
 
 ----------------------------------------
 DESCRIÇÃO (visão estratégica):
 ----------------------------------------
-[Qual é a iniciativa ou objetivo maior que este épico representa? Qual problema de negócio ou oportunidade ele resolve?]
+[Qual é a iniciativa ou objetivo maior que esta demanda representa? Qual problema de negócio ou oportunidade ela resolve?]
 
 ----------------------------------------
 OBJETIVO:
 ----------------------------------------
-[Quais métricas ou resultados este épico deve alcançar? Quais indicadores de sucesso?]
+[Quais métricas ou resultados esta demanda deve alcançar? Quais indicadores de sucesso?]
 
 ----------------------------------------
 REQUISITOS FUNCIONAIS:
@@ -1627,7 +1736,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
 
   const downloadTemplate = (templateType: string) => {
     const content = TEMPLATES[templateType];
-    const names: Record<string, string> = { story: 'modelo-historia', task: 'modelo-tarefa', bug: 'modelo-bug', epic: 'modelo-epico' };
+    const names: Record<string, string> = { story: 'modelo-historia', task: 'modelo-tarefa', bug: 'modelo-bug', epic: 'modelo-demanda' };
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -1684,10 +1793,8 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          const pageText = content.items
-            .map((item: any) => ('str' in item ? item.str : ''))
-            .join(' ');
-          fullText += pageText + '\n';
+          const pageText = extractPdfPageText(content.items as any[]);
+          fullText += pageText + '\n\n';
         }
         setRawText(fullText.trim());
       } catch (err) {
@@ -1736,7 +1843,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
         body: JSON.stringify({
           id: uuidv4(), key, projectId,
           sprintId: sprintId || null,
-          title, description: desc, type, priority, points,
+          title, description: desc, type, priority, points: type === 'epic' ? 0 : points,
           status: 'todo', reporter,
           functionalArea: area,
           functionalRequirements: funcReqs,
@@ -1778,7 +1885,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
                 { id: 'story', label: 'História',  icon: <CheckCircle2 className="w-4 h-4" /> },
                 { id: 'task',  label: 'Tarefa',    icon: <Briefcase className="w-4 h-4" /> },
                 { id: 'bug',   label: 'Bug',       icon: <AlertCircle className="w-4 h-4" /> },
-                { id: 'epic',  label: 'Épico',     icon: <Rocket className="w-4 h-4" /> },
+                { id: 'epic',  label: 'Demanda',   icon: <Rocket className="w-4 h-4" /> },
               ] as const).map(t => (
                 <AiPromptCopyButton key={t.id} typeId={t.id} label={t.label} icon={t.icon} prompt={AI_PROMPTS[t.id].prompt} />
               ))}
@@ -1794,7 +1901,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
                 { id: 'story', label: 'História',  icon: <CheckCircle2 className="w-4 h-4" />, color: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
                 { id: 'task',  label: 'Tarefa',    icon: <Briefcase className="w-4 h-4" />,    color: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
                 { id: 'bug',   label: 'Bug',       icon: <AlertCircle className="w-4 h-4" />,  color: 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' },
-                { id: 'epic',  label: 'Épico',     icon: <Rocket className="w-4 h-4" />,       color: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' },
+                { id: 'epic',  label: 'Demanda',   icon: <Rocket className="w-4 h-4" />,       color: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' },
               ] as const).map(t => (
                 <button
                   key={t.id}
@@ -1886,7 +1993,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
               ← Voltar e editar texto
             </button>
             <span className={cn('text-xs font-black px-3 py-1 rounded-full border', cfg.badge)}>
-              {cfg.label} detectado
+              {cfg.detectedLabel}
             </span>
           </div>
 
@@ -1955,11 +2062,11 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
 // ─── TYPE_CONFIG — rótulos e cores dos tipos ──────────────────────────────────
 
 const TYPE_CONFIG = {
-  story: { label: 'História',  color: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  task:  { label: 'Tarefa',    color: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
-  bug:   { label: 'Bug',       color: 'bg-rose-500',    badge: 'bg-rose-50 text-rose-700 border-rose-200' },
-  epic:  { label: 'Épico',     color: 'bg-purple-500',  badge: 'bg-purple-50 text-purple-700 border-purple-200' },
-};
+  story: { label: 'História', detectedLabel: 'História detectada', color: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  task:  { label: 'Tarefa',   detectedLabel: 'Tarefa detectada',   color: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+  bug:   { label: 'Bug',      detectedLabel: 'Bug detectado',      color: 'bg-rose-500',    badge: 'bg-rose-50 text-rose-700 border-rose-200' },
+  epic:  { label: 'Demanda',  detectedLabel: 'Demanda detectada',  color: 'bg-purple-500',  badge: 'bg-purple-50 text-purple-700 border-purple-200' },
+} as const;
 
 // ─── TypeSelector — botões visuais de seleção de tipo ────────────────────────
 
@@ -1968,7 +2075,7 @@ function TypeSelector({ value, onChange }: { value: string; onChange: (v: string
     { id: 'story', label: 'História',  icon: <CheckCircle2 className="w-5 h-5" />, desc: 'Funcionalidade do ponto de vista do usuário' },
     { id: 'task',  label: 'Tarefa',    icon: <Briefcase className="w-5 h-5" />,    desc: 'Trabalho técnico ou operacional' },
     { id: 'bug',   label: 'Bug',       icon: <AlertCircle className="w-5 h-5" />,  desc: 'Defeito ou comportamento incorreto' },
-    { id: 'epic',  label: 'Épico',     icon: <Rocket className="w-5 h-5" />,       desc: 'Conjunto de histórias / objetivo grande' },
+    { id: 'epic',  label: 'Demanda',   icon: <Rocket className="w-5 h-5" />,       desc: 'Iniciativa maior para agrupar histórias e tarefas' },
   ];
 
   return (
@@ -2032,7 +2139,7 @@ function StoryFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcce
       <FSection icon={<Target className="w-4 h-4" />} label="Objetivo de Negócio" />
       <Textarea label="Objetivo" placeholder="Qual o valor desta história para o negócio?" value={objective} onChange={(e: any) => setObjective(e.target.value)} rows={2} />
 
-      <FSection icon={<Link2 className="w-4 h-4" />} label="Épico / Demanda Pai" />
+      <FSection icon={<Link2 className="w-4 h-4" />} label="Demanda Pai" />
       <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
     </>
   );
@@ -2098,8 +2205,8 @@ function EpicFields({ desc, setDesc, objective, setObjective, funcReqs, setFuncR
     <>
       <FSection icon={<Rocket className="w-4 h-4" />} label="Visão e Objetivo Estratégico" />
       <Textarea
-        label="Descrição do Épico"
-        placeholder="Qual é a iniciativa ou objetivo maior que este épico representa? Qual problema de negócio resolve?"
+        label="Descrição da Demanda"
+        placeholder="Qual é a iniciativa ou objetivo maior que esta demanda representa? Qual problema de negócio resolve?"
         value={desc}
         onChange={(e: any) => setDesc(e.target.value)}
         rows={4}
@@ -2108,7 +2215,7 @@ function EpicFields({ desc, setDesc, objective, setObjective, funcReqs, setFuncR
       <FSection icon={<Target className="w-4 h-4" />} label="Resultado Esperado" />
       <Textarea
         label="Resultado / Valor de Negócio"
-        placeholder="Quais métricas ou resultados este épico deve alcançar?"
+        placeholder="Quais métricas ou resultados esta demanda deve alcançar?"
         value={objective}
         onChange={(e: any) => setObjective(e.target.value)}
         rows={3}
@@ -2117,7 +2224,7 @@ function EpicFields({ desc, setDesc, objective, setObjective, funcReqs, setFuncR
       <FSection icon={<ClipboardList className="w-4 h-4" />} label="Escopo / Histórias Planejadas" />
       <Textarea
         label="Escopo (histórias previstas)"
-        placeholder={"Liste as histórias que fazem parte deste épico:\n- Como usuário, quero X\n- Como admin, quero Y"}
+        placeholder={"Liste as histórias que fazem parte desta demanda:\n- Como usuário, quero X\n- Como admin, quero Y"}
         value={funcReqs}
         onChange={(e: any) => setFuncReqs(e.target.value)}
         rows={5}
@@ -2165,7 +2272,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
         body: JSON.stringify({
           id: uuidv4(), key, projectId,
           sprintId: sprintId || null,
-          title, description: desc, type, priority, points,
+          title, description: desc, type, priority, points: type === 'epic' ? 0 : points,
           status: 'todo',
           reporter,
           functionalArea: area,
@@ -2184,7 +2291,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   };
 
   const cfg = TYPE_CONFIG[type];
-  const modalTitles = { story: 'Nova História', task: 'Nova Tarefa', bug: 'Novo Bug', epic: 'Novo Épico' };
+  const modalTitles = { story: 'Nova História', task: 'Nova Tarefa', bug: 'Novo Bug', epic: 'Nova Demanda' };
 
   return (
     <Modal isOpen onClose={onClose} title={modalTitles[type]} size="2xl">

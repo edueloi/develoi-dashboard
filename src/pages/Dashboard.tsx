@@ -1131,7 +1131,7 @@ function NewFeatureModal({ projectId, onClose }: { projectId: string; onClose: (
             <option value="task">Tarefa</option>
             <option value="story">História de Usuário</option>
             <option value="bug">Bug / Defeito</option>
-            <option value="epic">Épico</option>
+            <option value="epic">Demanda</option>
           </Select>
           <Input label="Pontos (Story Points)" type="number" min="1" value={points} onChange={e => setPoints(Number(e.target.value))} />
           <Input label="Prazo Estimado" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
@@ -1189,7 +1189,7 @@ function EditFeatureModal({ projectId, feature, onClose }: { projectId: string; 
             <option value="task">Tarefa</option>
             <option value="story">História</option>
             <option value="bug">Bug</option>
-            <option value="epic">Épico</option>
+            <option value="epic">Demanda</option>
           </Select>
           <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
             <option value="low">Baixa</option>
