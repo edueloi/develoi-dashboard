@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as pdfjsLib from 'pdfjs-dist';
-// worker inline para não precisar de CDN separado
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString();
 import {
   Plus, ChevronDown, ChevronRight, Play, CheckCircle2,
   AlertCircle, Rocket, Briefcase, Calendar, Star, MoreVertical,
