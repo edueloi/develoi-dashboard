@@ -40,6 +40,12 @@ export interface Feature {
   testCases?: string;
   testEvidence?: string;
   testObservations?: string;
+  // campos novos
+  functionalArea?: string;
+  acceptanceCriteria?: string;
+  functionalRequirements?: string;
+  linkedDemandId?: string;
+  linkedDemandTitle?: string;
 }
 
 export interface Sprint {

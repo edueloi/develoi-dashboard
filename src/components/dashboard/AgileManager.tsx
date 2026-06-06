@@ -5,7 +5,8 @@ import {
   AlertCircle, Rocket, Briefcase, Calendar, Star, MoreVertical,
   Trash2, Edit2, History, BarChart2, Loader2,
   Archive, X, Kanban, GripVertical, ArrowRight, CheckSquare,
-  Square, ListTodo, Pencil,
+  Square, ListTodo, Pencil, Link2, Search, FileText, ClipboardList,
+  Target, User, Tag, Layers,
 } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -540,8 +541,21 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
         </div>
 
         <div className="shrink-0">{TYPE_ICONS[feature.type || 'task']}</div>
-        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0">{feature.key || '—'}</span>
-        <span className="text-sm font-bold text-slate-700 truncate flex-1 group-hover:text-indigo-900">{feature.title}</span>
+        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0 w-20 truncate">{feature.key || '—'}</span>
+
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-bold text-slate-700 truncate block group-hover:text-indigo-900">{feature.title}</span>
+          <div className="flex items-center gap-2 mt-0.5">
+            {feature.functionalArea && (
+              <span className="text-[10px] text-slate-400 truncate max-w-[160px]">{feature.functionalArea}</span>
+            )}
+            {feature.linkedDemandId && (
+              <span className="inline-flex items-center gap-0.5 text-[10px] text-indigo-400 font-bold">
+                <Link2 className="w-2.5 h-2.5" /> Vinculado
+              </span>
+            )}
+          </div>
+        </div>
 
         <div className="flex items-center gap-2 shrink-0">
           <Badge color={PRIORITY_COLORS[feature.priority || 'medium']} size="xs" pill>
@@ -550,8 +564,8 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500">
             {feature.points || 0}
           </div>
-          <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black">
-            {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
+          <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black" title={feature.reporter || feature.assignedTo || 'U'}>
+            {(feature.reporter || feature.assignedTo || 'U')[0].toUpperCase()}
           </div>
           {/* Edit */}
           <button
@@ -752,48 +766,228 @@ function stringifyActivities(acts: Activity[]): string {
   return JSON.stringify(acts);
 }
 
-// ─── EditFeatureModal ─────────────────────────────────────────────────────────
+// ─── FeatureFormBody — campos compartilhados entre New e Edit ────────────────
 
-function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; onClose: () => void; onSuccess: () => void }) {
-  const [title,    setTitle]    = useState(feature.title);
-  const [desc,     setDesc]     = useState(feature.description || '');
-  const [type,     setType]     = useState(feature.type || 'task');
-  const [priority, setPriority] = useState(feature.priority || 'medium');
-  const [points,   setPoints]   = useState(feature.points || 0);
-  const [status,   setStatus]   = useState(feature.status || 'todo');
-  const [activities, setActivities] = useState<Activity[]>(parseActivities((feature as any).activities));
+function ActivitiesField({ activities, setActivities }: {
+  activities: Activity[];
+  setActivities: React.Dispatch<React.SetStateAction<Activity[]>>;
+}) {
   const [newActivity, setNewActivity] = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [draggedIdx, setDraggedIdx]   = useState<number | null>(null);
   const [actToDelete, setActToDelete] = useState<string | null>(null);
-  const [draggedActIndex, setDraggedActIndex] = useState<number | null>(null);
+  const doneCount = activities.filter(a => a.done).length;
 
-  const handleDragStart = (index: number) => setDraggedActIndex(index);
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (draggedActIndex === null || draggedActIndex === index) return;
-    setActivities(prev => {
-      const items = [...prev];
-      const draggedItem = items[draggedActIndex];
-      items.splice(draggedActIndex, 1);
-      items.splice(index, 0, draggedItem);
-      return items;
-    });
-    setDraggedActIndex(index);
-  };
-
-  const addActivity = () => {
+  const add = () => {
     const text = newActivity.trim();
     if (!text) return;
-    setActivities(prev => [...prev, { id: uuidv4(), text, done: false }]);
+    setActivities(p => [...p, { id: uuidv4(), text, done: false }]);
     setNewActivity('');
   };
 
-  const toggleActivity = (id: string) =>
-    setActivities(prev => prev.map(a => a.id === id ? { ...a, done: !a.done } : a));
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === idx) return;
+    setActivities(prev => {
+      const items = [...prev];
+      const dragged = items[draggedIdx];
+      items.splice(draggedIdx, 1);
+      items.splice(idx, 0, dragged);
+      return items;
+    });
+    setDraggedIdx(idx);
+  };
 
-  const removeActivity = (id: string) =>
-    setActivities(prev => prev.filter(a => a.id !== id));
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500">
+          Atividades / Subtarefas
+          {activities.length > 0 && <span className="ml-2 text-indigo-500">{doneCount}/{activities.length}</span>}
+        </label>
+      </div>
+      {activities.length > 0 && (
+        <div className="mb-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(doneCount / activities.length) * 100}%` }} />
+        </div>
+      )}
+      <div className="space-y-1.5 mb-2">
+        {activities.map((act, idx) => (
+          <div
+            key={act.id}
+            draggable
+            onDragStart={() => setDraggedIdx(idx)}
+            onDragOver={e => handleDragOver(e, idx)}
+            onDragEnd={() => setDraggedIdx(null)}
+            className={cn('flex items-center gap-2 group/act px-2 py-1.5 rounded-xl transition-all border',
+              draggedIdx === idx ? 'opacity-50 border-indigo-200 bg-white shadow-sm' : 'border-transparent hover:bg-slate-50 hover:border-slate-100')}
+          >
+            <div className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing px-1">
+              <GripVertical className="w-4 h-4" />
+            </div>
+            <button type="button" onClick={() => setActivities(p => p.map(a => a.id === act.id ? { ...a, done: !a.done } : a))} className="shrink-0">
+              {act.done ? <CheckSquare className="w-4 h-4 text-emerald-500" /> : <Square className="w-4 h-4 text-slate-300" />}
+            </button>
+            <input
+              type="text"
+              value={act.text}
+              onChange={e => setActivities(p => p.map(a => a.id === act.id ? { ...a, text: e.target.value } : a))}
+              className={cn('text-sm flex-1 bg-transparent border-none outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1.5 py-0.5 transition-all',
+                act.done ? 'line-through text-slate-400' : 'text-slate-700')}
+            />
+            <button type="button" onClick={() => setActToDelete(act.id)} className="opacity-0 group-hover/act:opacity-100 p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input type="text" value={newActivity} onChange={e => setNewActivity(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
+          placeholder="Nova atividade... (Enter para adicionar)"
+          className="flex-1 h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
+        />
+        <button type="button" onClick={add} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors">
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+      {!!actToDelete && (
+        <ConfirmModal isOpen onClose={() => setActToDelete(null)}
+          onConfirm={() => { setActivities(p => p.filter(a => a.id !== actToDelete)); setActToDelete(null); }}
+          title="Excluir Subtarefa" message="Excluir esta subtarefa?" confirmLabel="EXCLUIR" variant="danger" />
+      )}
+    </div>
+  );
+}
+
+// ─── LinkedDemandPicker ───────────────────────────────────────────────────────
+
+function LinkedDemandPicker({ projectId, value, onChange }: {
+  projectId: string;
+  value: { id: string; title: string } | null;
+  onChange: (v: { id: string; title: string } | null) => void;
+}) {
+  const [open, setOpen]       = useState(false);
+  const [query, setQuery]     = useState('');
+  const [features, setFeats]  = useState<Feature[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/projects/${projectId}/features`)
+      .then(r => r.json())
+      .then(d => setFeats(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, [projectId]);
+
+  const filtered = features.filter(f =>
+    !query || f.title.toLowerCase().includes(query.toLowerCase()) || (f.key || '').toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 12);
+
+  return (
+    <div className="relative">
+      <label className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500 block mb-1.5 flex items-center gap-1.5">
+        <Link2 className="w-3.5 h-3.5 text-indigo-400" /> Vincular a Demanda / Ticket Existente
+      </label>
+      {value ? (
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-indigo-300 bg-indigo-50">
+          <Link2 className="w-4 h-4 text-indigo-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-indigo-700 truncate">{value.title}</p>
+            <p className="text-[10px] text-indigo-400 font-bold">ID: {value.id.slice(0, 8)}...</p>
+          </div>
+          <button type="button" onClick={() => onChange(null)} className="text-indigo-400 hover:text-rose-500 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-slate-300 text-sm text-slate-400 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all"
+        >
+          <Search className="w-4 h-4" />
+          Buscar e vincular uma demanda existente...
+        </button>
+      )}
+
+      {open && (
+        <div className="absolute z-50 top-full mt-2 w-full bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="p-3 border-b border-slate-100">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
+              <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Buscar por título ou código..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className="flex-1 text-sm bg-transparent outline-none text-slate-700"
+              />
+            </div>
+          </div>
+          <div className="max-h-56 overflow-y-auto py-1.5">
+            {filtered.length === 0 ? (
+              <p className="text-center text-xs text-slate-400 py-4">Nenhuma demanda encontrada.</p>
+            ) : (
+              filtered.map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => { onChange({ id: f.id, title: f.title }); setOpen(false); setQuery(''); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 transition-colors text-left"
+                >
+                  <div className="shrink-0">{TYPE_ICONS[f.type || 'task']}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800 truncate">{f.title}</p>
+                    <p className="text-[10px] font-black text-indigo-500 uppercase">{f.key || '—'}</p>
+                  </div>
+                  <Badge color={PRIORITY_COLORS[f.priority || 'medium']} size="xs" pill>
+                    {PRIORITY_LABELS[f.priority || 'medium']}
+                  </Badge>
+                </button>
+              ))
+            )}
+          </div>
+          <div className="p-2 border-t border-slate-100">
+            <button type="button" onClick={() => setOpen(false)} className="w-full py-2 text-xs font-black text-slate-400 hover:text-slate-600 transition-colors">CANCELAR</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FormSection helper ───────────────────────────────────────────────────────
+
+function FSection({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <span className="text-indigo-400">{icon}</span>
+      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">{label}</span>
+      <div className="flex-1 h-px bg-slate-100" />
+    </div>
+  );
+}
+
+// ─── EditFeatureModal ─────────────────────────────────────────────────────────
+
+function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; onClose: () => void; onSuccess: () => void }) {
+  const [title,       setTitle]       = useState(feature.title);
+  const [desc,        setDesc]        = useState(feature.description || '');
+  const [type,        setType]        = useState(feature.type || 'task');
+  const [priority,    setPriority]    = useState(feature.priority || 'medium');
+  const [points,      setPoints]      = useState(feature.points || 0);
+  const [status,      setStatus]      = useState(feature.status || 'todo');
+  const [reporter,    setReporter]    = useState(feature.reporter || '');
+  const [area,        setArea]        = useState(feature.functionalArea || '');
+  const [funcReqs,    setFuncReqs]    = useState(feature.functionalRequirements || '');
+  const [acceptance,  setAcceptance]  = useState(feature.acceptanceCriteria || '');
+  const [objective,   setObjective]   = useState(feature.businessRules || '');
+  const [deadline,    setDeadline]    = useState(feature.deadline ? feature.deadline.slice(0, 10) : '');
+  const [activities,  setActivities]  = useState<Activity[]>(parseActivities(feature.activities));
+  const [linkedDemand, setLinkedDemand] = useState<{ id: string; title: string } | null>(
+    feature.linkedDemandId ? { id: feature.linkedDemandId, title: feature.linkedDemandTitle || '' } : null
+  );
+  const [loading,       setLoading]       = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -801,7 +995,17 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
     try {
       await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: desc, type, priority, points, status, activities: stringifyActivities(activities) }),
+        body: JSON.stringify({
+          title, description: desc, type, priority, points, status,
+          reporter, functionalArea: area,
+          functionalRequirements: funcReqs,
+          acceptanceCriteria: acceptance,
+          businessRules: objective,
+          deadline: deadline || null,
+          activities: stringifyActivities(activities),
+          linkedDemandId: linkedDemand?.id || null,
+          linkedDemandTitle: linkedDemand?.title || null,
+        }),
       });
       onSuccess();
     } catch (err) { console.error(err); } finally { setLoading(false); }
@@ -815,17 +1019,18 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const doneCount = activities.filter(a => a.done).length;
-
   return (
-    <Modal isOpen={true} onClose={onClose} title={`${feature.key || 'TASK'} — Editar Ticket`} size="xl">
+    <Modal isOpen onClose={onClose} title={`${feature.key || 'TASK'} — Editar Ticket`} size="2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} />
+
+        {/* Identificação */}
+        <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
+        <Input label="Título *" required value={title} onChange={e => setTitle(e.target.value)} />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Select label="Tipo" value={type} onChange={e => setType(e.target.value as any)}>
-            <option value="task">Tarefa</option>
             <option value="story">História</option>
+            <option value="task">Tarefa</option>
             <option value="bug">Bug</option>
             <option value="epic">Épico</option>
           </Select>
@@ -845,120 +1050,62 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
         </div>
 
-        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} rows={2} />
-
-        {/* Activities / Subtarefas */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500">
-              Atividades / Subtarefas
-              {activities.length > 0 && (
-                <span className="ml-2 text-indigo-500">{doneCount}/{activities.length}</span>
-              )}
-            </label>
-          </div>
-
-          {activities.length > 0 && (
-            <div className="mb-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(doneCount / activities.length) * 100}%` }} />
-            </div>
-          )}
-
-          <div className="space-y-1.5 mb-3">
-            {activities.map((act, index) => (
-              <div
-                key={act.id}
-                draggable
-                onDragStart={() => handleDragStart(index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragEnd={() => setDraggedActIndex(null)}
-                className={cn(
-                  "flex items-center gap-2 group/act px-2 py-1.5 rounded-xl transition-all border",
-                  draggedActIndex === index ? "opacity-50 border-indigo-200 bg-white shadow-sm" : "border-transparent hover:bg-slate-50 hover:border-slate-100"
-                )}
-              >
-                <div className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing px-1">
-                  <GripVertical className="w-4 h-4" />
-                </div>
-                <button type="button" onClick={() => toggleActivity(act.id)} className="shrink-0">
-                  {act.done
-                    ? <CheckSquare className="w-4 h-4 text-emerald-500" />
-                    : <Square className="w-4 h-4 text-slate-300" />
-                  }
-                </button>
-                <input
-                  type="text"
-                  value={act.text}
-                  onChange={(e) => setActivities(prev => prev.map(a => a.id === act.id ? { ...a, text: e.target.value } : a))}
-                  className={cn(
-                    'text-sm flex-1 bg-transparent border-none outline-none focus:ring-1 focus:ring-indigo-400 rounded px-1.5 py-0.5 transition-all',
-                    act.done ? 'line-through text-slate-400' : 'text-slate-700'
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setActToDelete(act.id)}
-                  className="opacity-0 group-hover/act:opacity-100 p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-all"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newActivity}
-              onChange={e => setNewActivity(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addActivity(); } }}
-              placeholder="Nova atividade... (Enter para adicionar)"
-              className="flex-1 h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
-            />
-            <button
-              type="button"
-              onClick={addActivity}
-              className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
+          <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+          <Input label="Prazo" type="date" iconLeft={<Calendar className="w-4 h-4" />} value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
 
-        <div className="flex gap-3 pt-1">
+        {/* Descrição / Contexto */}
+        <FSection icon={<FileText className="w-4 h-4" />} label="Descrição e Contexto" />
+        <Textarea label="Descrição / Contexto" placeholder="Descreva o problema, contexto e proposta de solução..." value={desc} onChange={e => setDesc(e.target.value)} rows={4} />
+
+        {/* Requisitos */}
+        <FSection icon={<ClipboardList className="w-4 h-4" />} label="Requisitos Funcionais" />
+        <Textarea
+          label="Requisitos Funcionais"
+          placeholder={"Liste um por linha:\n- O sistema deverá alterar o label X para Y\n- As alterações devem refletir em todos os pontos"}
+          value={funcReqs}
+          onChange={e => setFuncReqs(e.target.value)}
+          rows={5}
+        />
+
+        {/* Critérios de Aceite */}
+        <FSection icon={<CheckCircle2 className="w-4 h-4" />} label="Critérios de Aceite" />
+        <Textarea
+          label="Critérios de Aceite"
+          placeholder={"Liste um por linha:\n- O sistema deve exibir X corretamente na Grid Inicial\n- O sistema deve manter funcionamento normal dos filtros"}
+          value={acceptance}
+          onChange={e => setAcceptance(e.target.value)}
+          rows={5}
+        />
+
+        {/* Objetivo */}
+        <FSection icon={<Target className="w-4 h-4" />} label="Objetivo" />
+        <Textarea label="Objetivo" placeholder="Qual o objetivo desta demanda para o negócio?" value={objective} onChange={e => setObjective(e.target.value)} rows={2} />
+
+        {/* Atividades */}
+        <FSection icon={<CheckSquare className="w-4 h-4" />} label="Atividades / Subtarefas" />
+        <ActivitiesField activities={activities} setActivities={setActivities} />
+
+        {/* Vínculo */}
+        <FSection icon={<Link2 className="w-4 h-4" />} label="Vínculo" />
+        <LinkedDemandPicker projectId={feature.projectId} value={linkedDemand} onChange={setLinkedDemand} />
+
+        {/* Ações */}
+        <div className="flex gap-3 pt-2">
           <Button type="submit" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
-          <button
-            type="button"
-            onClick={() => setConfirmDelete(true)}
-            className="px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all shrink-0"
-          >
+          <button type="button" onClick={() => setConfirmDelete(true)}
+            className="px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all shrink-0">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </form>
 
       {confirmDelete && (
-        <ConfirmModal
-          isOpen={true}
-          onClose={() => setConfirmDelete(false)}
-          onConfirm={handleDelete}
-          title="Excluir Ticket"
-          message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
-          confirmLabel="EXCLUIR"
-          variant="danger"
-        />
-      )}
-
-      {!!actToDelete && (
-        <ConfirmModal
-          isOpen={true}
-          onClose={() => setActToDelete(null)}
-          onConfirm={() => { removeActivity(actToDelete); setActToDelete(null); }}
-          title="Excluir Subtarefa"
-          message="Tem certeza que deseja excluir esta subtarefa? Esta ação não pode ser desfeita."
-          confirmLabel="EXCLUIR"
-          variant="danger"
-        />
+        <ConfirmModal isOpen onClose={() => setConfirmDelete(false)} onConfirm={handleDelete}
+          title="Excluir Ticket" message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
+          confirmLabel="EXCLUIR" variant="danger" />
       )}
     </Modal>
   );
@@ -1044,25 +1191,25 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   projectId: string; defaultSprintId: string; sprints: Sprint[];
   onClose: () => void; onSuccess: () => void;
 }) {
-  const [title,    setTitle]    = useState('');
-  const [desc,     setDesc]     = useState('');
-  const [type,     setType]     = useState<'story' | 'task' | 'bug' | 'epic'>('task');
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
-  const [points,   setPoints]   = useState(1);
-  const [sprintId, setSprintId] = useState(defaultSprintId);
+  const [title,      setTitle]      = useState('');
+  const [desc,       setDesc]       = useState('');
+  const [type,       setType]       = useState<'story' | 'task' | 'bug' | 'epic'>('story');
+  const [priority,   setPriority]   = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
+  const [points,     setPoints]     = useState(1);
+  const [sprintId,   setSprintId]   = useState(defaultSprintId);
+  const [reporter,   setReporter]   = useState('');
+  const [area,       setArea]       = useState('');
+  const [funcReqs,   setFuncReqs]   = useState('');
+  const [acceptance, setAcceptance] = useState('');
+  const [objective,  setObjective]  = useState('');
+  const [deadline,   setDeadline]   = useState('');
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [newActivity, setNewActivity] = useState('');
-  const [loading,  setLoading]  = useState(false);
-
-  const addActivity = () => {
-    const text = newActivity.trim();
-    if (!text) return;
-    setActivities(prev => [...prev, { id: uuidv4(), text, done: false }]);
-    setNewActivity('');
-  };
+  const [linkedDemand, setLinkedDemand] = useState<{ id: string; title: string } | null>(null);
+  const [loading,    setLoading]    = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) return;
     setLoading(true);
     try {
       const key = `${projectId.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1071,8 +1218,17 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
         body: JSON.stringify({
           id: uuidv4(), key, projectId,
           sprintId: sprintId || null,
-          title, description: desc, type, priority, points, status: 'todo',
+          title, description: desc, type, priority, points,
+          status: 'todo',
+          reporter,
+          functionalArea: area,
+          functionalRequirements: funcReqs,
+          acceptanceCriteria: acceptance,
+          businessRules: objective,
+          deadline: deadline || null,
           activities: stringifyActivities(activities),
+          linkedDemandId: linkedDemand?.id || null,
+          linkedDemandTitle: linkedDemand?.title || null,
         }),
       });
       onSuccess();
@@ -1081,67 +1237,84 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Novo Ticket" size="lg">
+    <Modal isOpen onClose={onClose} title="Nova História / Ticket" size="2xl">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Implementar login social" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select label="Sprint" value={sprintId} onChange={e => setSprintId(e.target.value)}>
-            <option value="">Backlog (sem sprint)</option>
-            {sprints.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.status === 'active' ? 'Ativa' : s.status === 'planned' ? 'Planejada' : 'Concluída'})
-              </option>
-            ))}
-          </Select>
+        {/* Identificação */}
+        <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
+        <Input label="Título *" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: [CINF-2383] Alteração de Labels na tela de Aviso Embarque" />
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Select label="Tipo" value={type} onChange={e => setType(e.target.value as any)}>
-            <option value="task">Tarefa</option>
             <option value="story">História</option>
+            <option value="task">Tarefa</option>
             <option value="bug">Bug</option>
             <option value="epic">Épico</option>
           </Select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
           <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
             <option value="low">Baixa</option>
             <option value="medium">Média</option>
             <option value="high">Alta</option>
             <option value="critical">Crítica</option>
           </Select>
+          <Select label="Sprint" value={sprintId} onChange={e => setSprintId(e.target.value)}>
+            <option value="">Backlog</option>
+            {sprints.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.name} ({s.status === 'active' ? 'Ativa' : 'Planejada'})
+              </option>
+            ))}
+          </Select>
           <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
         </div>
 
-        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} rows={2} placeholder="O que deve ser desenvolvido?" />
-
-        {/* Activities */}
-        <div>
-          <label className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500 block mb-2">
-            Atividades / Subtarefas {activities.length > 0 && <span className="text-indigo-500">({activities.length})</span>}
-          </label>
-          <div className="space-y-1.5 mb-2">
-            {activities.map(act => (
-              <div key={act.id} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-xl">
-                <Square className="w-4 h-4 text-slate-300 shrink-0" />
-                <span className="text-sm text-slate-700 flex-1">{act.text}</span>
-                <button type="button" onClick={() => setActivities(p => p.filter(a => a.id !== act.id))} className="text-slate-300 hover:text-rose-500 transition-colors">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text" value={newActivity} onChange={e => setNewActivity(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addActivity(); } }}
-              placeholder="Nova atividade... (Enter para adicionar)"
-              className="flex-1 h-9 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
-            />
-            <button type="button" onClick={addActivity} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black hover:bg-indigo-100 transition-colors">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
+          <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+          <Input label="Prazo" type="date" iconLeft={<Calendar className="w-4 h-4" />} value={deadline} onChange={e => setDeadline(e.target.value)} />
         </div>
+
+        {/* Descrição */}
+        <FSection icon={<FileText className="w-4 h-4" />} label="Descrição e Contexto" />
+        <Textarea
+          label="Descrição / Proposta de Contexto"
+          placeholder="Ex: Eu como usuário desejo que o sistema atualize a nomenclatura de campos específicos em todas as telas e funcionalidades relacionadas..."
+          value={desc}
+          onChange={e => setDesc(e.target.value)}
+          rows={4}
+        />
+
+        {/* Requisitos */}
+        <FSection icon={<ClipboardList className="w-4 h-4" />} label="Requisitos Funcionais" />
+        <Textarea
+          label="Requisitos Funcionais"
+          placeholder={"Liste um por linha:\n- O sistema deverá alterar a nomenclatura dos campos abaixo\n- DATA Entrada Dossiê ICMS → Data Entrada ICMS/EXONERAÇÃO\n- Data Deferimento Dossiê ICMS → Data Deferimento ICMS/EXONERAÇÃO"}
+          value={funcReqs}
+          onChange={e => setFuncReqs(e.target.value)}
+          rows={6}
+        />
+
+        {/* Critérios de Aceite */}
+        <FSection icon={<CheckCircle2 className="w-4 h-4" />} label="Critérios de Aceite" />
+        <Textarea
+          label="Critérios de Aceite"
+          placeholder={"Liste um por linha:\n- O sistema deverá alterar o label corretamente na Grid Inicial\n- O sistema deverá alterar o label corretamente na funcionalidade Personalizar\n- O sistema não deverá alterar o conteúdo gravado nos campos"}
+          value={acceptance}
+          onChange={e => setAcceptance(e.target.value)}
+          rows={6}
+        />
+
+        {/* Objetivo */}
+        <FSection icon={<Target className="w-4 h-4" />} label="Objetivo" />
+        <Textarea label="Objetivo" placeholder="Qual o objetivo desta demanda para o negócio?" value={objective} onChange={e => setObjective(e.target.value)} rows={2} />
+
+        {/* Atividades */}
+        <FSection icon={<CheckSquare className="w-4 h-4" />} label="Atividades / Subtarefas" />
+        <ActivitiesField activities={activities} setActivities={setActivities} />
+
+        {/* Vínculo */}
+        <FSection icon={<Link2 className="w-4 h-4" />} label="Vincular a Demanda Existente" />
+        <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
 
         <Button type="submit" loading={loading} fullWidth size="lg">CRIAR TICKET</Button>
       </form>
