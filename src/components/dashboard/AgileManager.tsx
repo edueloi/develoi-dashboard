@@ -106,7 +106,8 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
   const [sprints, setSprints]             = useState<Sprint[]>([]);
   const [loading, setLoading]             = useState(true);
   const [newSprintOpen, setNewSprintOpen] = useState(false);
-  const [newTicketSprint, setNewTicketSprint] = useState<string | null>(null); // sprintId or '' for backlog
+  const [newTicketSprint, setNewTicketSprint] = useState<string | null>(null);
+  const [importOpen, setImportOpen]       = useState(false);
 
   const fetchAll = async () => {
     try {
@@ -181,6 +182,7 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
             onRefresh={fetchAll}
             onCreateSprint={() => setNewSprintOpen(true)}
             onCreateTicket={(sprintId) => setNewTicketSprint(sprintId ?? '')}
+            onImport={() => setImportOpen(true)}
           />
         ) : (
           <ActiveBoardView
@@ -203,6 +205,14 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
             onSuccess={fetchAll}
           />
         )}
+        {importOpen && (
+          <ImportTicketModal
+            projectId={projectId}
+            sprints={sprints.filter(s => s.status !== 'completed')}
+            onClose={() => setImportOpen(false)}
+            onSuccess={fetchAll}
+          />
+        )}
       </div>
     </DragDropContext>
   );
@@ -210,9 +220,10 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
 
 // ─── BacklogView ──────────────────────────────────────────────────────────────
 
-function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, onCreateTicket }: {
+function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, onCreateTicket, onImport }: {
   projectId: string; features: Feature[]; sprints: Sprint[];
   onRefresh: () => void; onCreateSprint: () => void; onCreateTicket: (sprintId?: string) => void;
+  onImport: () => void;
 }) {
   const backlogFeatures = features.filter(f => !f.sprintId);
   const sprintGroups = sprints
@@ -257,6 +268,7 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" iconLeft={<Plus className="w-4 h-4" />} onClick={onCreateSprint}>CRIAR SPRINT</Button>
+          <Button variant="outline" iconLeft={<Upload className="w-4 h-4" />} onClick={onImport}>IMPORTAR</Button>
           <Button iconLeft={<Rocket className="w-4 h-4" />} onClick={() => onCreateTicket(undefined)}>NOVO TICKET</Button>
         </div>
       </div>
@@ -1171,6 +1183,258 @@ function NewSprintModal({ projectId, onClose, onSuccess }: { projectId: string; 
         <Textarea label="Objetivo" value={goal} onChange={e => setGoal(e.target.value)} placeholder="O que pretendemos alcançar?" rows={3} />
         <Button type="submit" loading={loading} fullWidth size="lg">CRIAR SPRINT</Button>
       </form>
+    </Modal>
+  );
+}
+
+// ─── ImportTicketModal ────────────────────────────────────────────────────────
+
+function parseImportText(raw: string) {
+  const get = (labels: string[]) => {
+    for (const label of labels) {
+      const re = new RegExp(`(?:^|\\n)\\s*${label}\\s*[:\\-]?\\s*([\\s\\S]*?)(?=\\n\\s*(?:${
+        ['título','tipo','prioridade','sprint','story points','pontos','relator','tela','funcionalidade',
+         'prazo','descrição','narrativa','como usuário','contexto','requisitos funcionais','critérios de aceite',
+         'critério de aceite','objetivo','atividades','subtarefas','passos para reproduzir','comportamento atual',
+         'comportamento esperado','escopo','resultado','visão'].join('|')
+      })\\s*[:\\-]|$)`, 'im');
+      const m = raw.match(re);
+      if (m) return m[1].trim();
+    }
+    return '';
+  };
+
+  const title    = get(['título', 'title', 'nome', 'demanda']);
+  const rawType  = get(['tipo', 'type']).toLowerCase();
+  const type     = rawType.includes('bug') ? 'bug' : rawType.includes('épic') || rawType.includes('epic') ? 'epic' : rawType.includes('tare') || rawType.includes('task') ? 'task' : 'story';
+  const rawPrio  = get(['prioridade', 'priority']).toLowerCase();
+  const priority = rawPrio.includes('crít') || rawPrio.includes('critical') ? 'critical' : rawPrio.includes('alta') || rawPrio.includes('high') ? 'high' : rawPrio.includes('baixa') || rawPrio.includes('low') ? 'low' : 'medium';
+  const pointsRaw = get(['story points', 'pontos', 'points']);
+  const points   = parseInt(pointsRaw) || 1;
+  const reporter = get(['relator', 'reporter', 'solicitante', 'quem solicitou']);
+  const area     = get(['tela', 'funcionalidade', 'tela / funcionalidade', 'área funcional']);
+  const deadline = get(['prazo', 'deadline', 'data limite']);
+
+  const desc      = get(['descrição', 'narrativa', 'como usuário', 'contexto', 'description', 'passos para reproduzir']);
+  const funcReqs  = get(['requisitos funcionais', 'requisitos', 'functional requirements', 'comportamento atual']);
+  const acceptance= get(['critérios de aceite', 'critério de aceite', 'acceptance criteria', 'comportamento esperado']);
+  const objective = get(['objetivo', 'objetivo de negócio', 'resultado', 'visão', 'business objective']);
+  const rawActs   = get(['atividades', 'subtarefas', 'checklist', 'escopo']);
+  const activities: { id: string; text: string; done: boolean }[] = rawActs
+    ? rawActs.split('\n').map(l => l.replace(/^[-•*\d.]+\s*/, '').trim()).filter(Boolean).map(text => ({ id: uuidv4(), text, done: false }))
+    : [];
+
+  return { title, type, priority, points, reporter, area, deadline, desc, funcReqs, acceptance, objective, activities };
+}
+
+function ImportTicketModal({ projectId, sprints, onClose, onSuccess }: {
+  projectId: string; sprints: Sprint[]; onClose: () => void; onSuccess: () => void;
+}) {
+  const [step, setStep]         = useState<'input' | 'preview'>('input');
+  const [rawText, setRawText]   = useState('');
+  const [fileName, setFileName] = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [sprintId, setSprintId] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Parsed preview state
+  const [title,      setTitle]      = useState('');
+  const [type,       setType]       = useState<any>('story');
+  const [priority,   setPriority]   = useState<any>('medium');
+  const [points,     setPoints]     = useState(1);
+  const [reporter,   setReporter]   = useState('');
+  const [area,       setArea]       = useState('');
+  const [deadline,   setDeadline]   = useState('');
+  const [desc,       setDesc]       = useState('');
+  const [funcReqs,   setFuncReqs]   = useState('');
+  const [acceptance, setAcceptance] = useState('');
+  const [objective,  setObjective]  = useState('');
+  const [activities, setActivities] = useState<Activity[]>([]);
+
+  const handleFile = (file: File) => {
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = e => setRawText((e.target?.result as string) || '');
+    reader.readAsText(file, 'utf-8');
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  };
+
+  const handleParse = () => {
+    const parsed = parseImportText(rawText);
+    setTitle(parsed.title);
+    setType(parsed.type);
+    setPriority(parsed.priority);
+    setPoints(parsed.points);
+    setReporter(parsed.reporter);
+    setArea(parsed.area);
+    setDeadline(parsed.deadline);
+    setDesc(parsed.desc);
+    setFuncReqs(parsed.funcReqs);
+    setAcceptance(parsed.acceptance);
+    setObjective(parsed.objective);
+    setActivities(parsed.activities);
+    setStep('preview');
+  };
+
+  const handleCreate = async () => {
+    if (!title.trim()) return;
+    setLoading(true);
+    try {
+      const key = `${projectId.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      await fetch(`/api/projects/${projectId}/features`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: uuidv4(), key, projectId,
+          sprintId: sprintId || null,
+          title, description: desc, type, priority, points,
+          status: 'todo', reporter,
+          functionalArea: area,
+          functionalRequirements: funcReqs,
+          acceptanceCriteria: acceptance,
+          businessRules: objective,
+          deadline: deadline || null,
+          activities: stringifyActivities(activities),
+          linkedDemandId: null, linkedDemandTitle: null,
+        }),
+      });
+      onSuccess();
+      onClose();
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  };
+
+  const cfg = TYPE_CONFIG[type as keyof typeof TYPE_CONFIG];
+
+  return (
+    <Modal isOpen onClose={onClose} title={step === 'input' ? 'Importar História / Ticket' : 'Revisar e Criar Ticket'} size="2xl">
+      {step === 'input' ? (
+        <div className="space-y-5">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex gap-3">
+            <Sparkles className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-black text-indigo-800">Importar via texto ou arquivo</p>
+              <p className="text-xs text-indigo-600 mt-0.5">Cole um texto estruturado ou faça upload de um arquivo <strong>.txt</strong> ou <strong>.md</strong>. O sistema vai identificar automaticamente os campos: título, tipo, descrição, requisitos, critérios de aceite, objetivo e atividades.</p>
+            </div>
+          </div>
+
+          {/* Área de upload */}
+          <div
+            onDrop={handleDrop}
+            onDragOver={e => e.preventDefault()}
+            onClick={() => fileRef.current?.click()}
+            className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all"
+          >
+            <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-bold text-slate-600">
+              {fileName ? <span className="text-indigo-600">{fileName}</span> : 'Arraste um arquivo ou clique para selecionar'}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Suporte: .txt, .md (UTF-8)</p>
+            <input ref={fileRef} type="file" accept=".txt,.md,.text" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs font-black text-slate-400 uppercase">ou cole o texto</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          <Textarea
+            label="Texto da história / demanda"
+            placeholder={`Título: Alteração de Labels na tela de Aviso Embarque\nTipo: História\nPrioridade: Alta\nStory Points: 3\nRelator: João Silva\nTela: Aviso Embarque\n\nDescrição:\nEu como usuário desejo que o sistema atualize a nomenclatura...\n\nRequisitos Funcionais:\n- O sistema deverá alterar o label X para Y\n- A alteração deve refletir em todas as telas\n\nCritérios de Aceite:\n- O label deve aparecer como Y na Grid Inicial\n- O filtro deve continuar funcionando\n\nObjetivo:\nPadronizar terminologia com o processo ICMS/EXONERAÇÃO\n\nAtividades:\n- Alterar label na tela principal\n- Alterar label no relatório\n- Validar com QA`}
+            value={rawText}
+            onChange={(e: any) => setRawText(e.target.value)}
+            rows={14}
+          />
+
+          <div className="flex gap-3">
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              iconLeft={<Sparkles className="w-4 h-4" />}
+              onClick={handleParse}
+              disabled={!rawText.trim()}
+            >
+              ANALISAR E PREENCHER CAMPOS
+            </Button>
+            <button type="button" onClick={onClose} className="px-5 py-3 rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-sm transition-colors">
+              CANCELAR
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <button type="button" onClick={() => setStep('input')} className="text-xs font-black text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1">
+              ← Voltar e editar texto
+            </button>
+            <span className={cn('text-xs font-black px-3 py-1 rounded-full border', cfg.badge)}>
+              {cfg.label} detectado
+            </span>
+          </div>
+
+          {/* Tipo */}
+          <TypeSelector value={type} onChange={setType} />
+
+          {/* Campos básicos */}
+          <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
+          <Input label="Título *" required value={title} onChange={e => setTitle(e.target.value)} />
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value)}>
+              <option value="low">Baixa</option>
+              <option value="medium">Média</option>
+              <option value="high">Alta</option>
+              <option value="critical">Crítica</option>
+            </Select>
+            <Select label="Sprint" value={sprintId} onChange={e => setSprintId(e.target.value)}>
+              <option value="">Backlog</option>
+              {sprints.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+            {type !== 'epic' && (
+              <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
+            )}
+            <Input label="Prazo" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Input label="Relator" iconLeft={<User className="w-4 h-4" />} value={reporter} onChange={e => setReporter(e.target.value)} />
+            <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} value={area} onChange={e => setArea(e.target.value)} />
+          </div>
+
+          {/* Campos por tipo */}
+          {type === 'story' && (
+            <StoryFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
+              acceptance={acceptance} setAcceptance={setAcceptance} objective={objective} setObjective={setObjective}
+              linkedDemand={null} setLinkedDemand={() => {}} projectId={projectId} />
+          )}
+          {type === 'task' && (
+            <TaskFields desc={desc} setDesc={setDesc} activities={activities} setActivities={setActivities}
+              linkedDemand={null} setLinkedDemand={() => {}} projectId={projectId} />
+          )}
+          {type === 'bug' && (
+            <BugFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
+              acceptance={acceptance} setAcceptance={setAcceptance} activities={activities} setActivities={setActivities} />
+          )}
+          {type === 'epic' && (
+            <EpicFields desc={desc} setDesc={setDesc} objective={objective} setObjective={setObjective}
+              funcReqs={funcReqs} setFuncReqs={setFuncReqs} />
+          )}
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" loading={loading} fullWidth size="lg" onClick={handleCreate}>
+              CRIAR TICKET
+            </Button>
+            <button type="button" onClick={onClose} className="px-5 py-3 rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-sm transition-colors">
+              CANCELAR
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }
