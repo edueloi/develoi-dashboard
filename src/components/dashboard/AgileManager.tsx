@@ -1237,6 +1237,195 @@ function ImportTicketModal({ projectId, sprints, onClose, onSuccess }: {
   const [sprintId, setSprintId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const TEMPLATES: Record<string, string> = {
+    story: `========================================
+  MODELO DE IMPORTAÇÃO — HISTÓRIA
+  Develoi Hub | Preencha todos os campos
+========================================
+
+Título: [Ex: Alteração de Labels na tela de Aviso Embarque]
+
+Tipo: História
+Prioridade: [Baixa | Média | Alta | Crítica]
+Story Points: [número ex: 3]
+Relator: [Nome de quem solicitou]
+Tela: [Nome da tela ou módulo]
+Prazo: [dd/mm/aaaa — opcional]
+
+----------------------------------------
+DESCRIÇÃO (narrativa do usuário):
+----------------------------------------
+Eu como [perfil do usuário] desejo [o que quer] para que [qual benefício/motivo].
+
+Ex: Eu como analista de comércio exterior desejo que o sistema atualize
+a nomenclatura dos campos de ICMS para que os termos sejam consistentes
+com os processos de ICMS/EXONERAÇÃO.
+
+----------------------------------------
+REQUISITOS FUNCIONAIS:
+----------------------------------------
+- [Requisito 1: O sistema deverá fazer X]
+- [Requisito 2: O sistema deverá fazer Y]
+- [Requisito 3: A alteração deve refletir em todas as telas relacionadas]
+
+----------------------------------------
+CRITÉRIOS DE ACEITE:
+----------------------------------------
+- [Critério 1: O label X deve aparecer como Y na Grid Inicial]
+- [Critério 2: O filtro deve continuar funcionando normalmente]
+- [Critério 3: Nenhum dado salvo deve ser alterado]
+
+----------------------------------------
+OBJETIVO:
+----------------------------------------
+[Descreva o valor de negócio desta história. Ex: Padronizar a terminologia
+com o processo de ICMS/EXONERAÇÃO para reduzir erros operacionais.]
+
+========================================
+  FIM DO MODELO — Salve como .txt e importe
+========================================`,
+
+    task: `========================================
+  MODELO DE IMPORTAÇÃO — TAREFA
+  Develoi Hub | Preencha todos os campos
+========================================
+
+Título: [Ex: Configurar integração com API de pagamentos]
+
+Tipo: Tarefa
+Prioridade: [Baixa | Média | Alta | Crítica]
+Story Points: [número ex: 5]
+Relator: [Nome de quem solicitou]
+Tela: [Nome da tela ou módulo — opcional]
+Prazo: [dd/mm/aaaa — opcional]
+
+----------------------------------------
+DESCRIÇÃO:
+----------------------------------------
+[Descreva o que precisa ser feito em detalhes.
+O que deve ser implementado, alterado ou configurado?]
+
+Ex: Configurar o endpoint de webhook da API do Stripe para receber
+notificações de pagamento e atualizar o status do pedido automaticamente.
+
+----------------------------------------
+ATIVIDADES:
+----------------------------------------
+- [Subtarefa 1: Criar endpoint /webhook/stripe]
+- [Subtarefa 2: Validar assinatura do payload]
+- [Subtarefa 3: Atualizar status do pedido no banco]
+- [Subtarefa 4: Testar com eventos simulados]
+- [Subtarefa 5: Deploy em produção]
+
+========================================
+  FIM DO MODELO — Salve como .txt e importe
+========================================`,
+
+    bug: `========================================
+  MODELO DE IMPORTAÇÃO — BUG
+  Develoi Hub | Preencha todos os campos
+========================================
+
+Título: [Ex: Filtro de datas não retorna resultados corretos]
+
+Tipo: Bug
+Prioridade: [Baixa | Média | Alta | Crítica]
+Story Points: [número ex: 2]
+Relator: [Nome de quem reportou]
+Tela: [Nome da tela onde o bug ocorre]
+Prazo: [dd/mm/aaaa — opcional]
+
+----------------------------------------
+DESCRIÇÃO (passos para reproduzir):
+----------------------------------------
+1. [Acesse a tela X]
+2. [Selecione o filtro de data: De 01/01/2026 Até 31/01/2026]
+3. [Clique em Pesquisar]
+4. [Observe que os resultados incluem registros fora do período]
+
+----------------------------------------
+COMPORTAMENTO ATUAL:
+----------------------------------------
+[Descreva o que acontece atualmente — o bug em si.]
+
+Ex: O sistema retorna registros de fevereiro mesmo com o filtro
+configurado apenas para janeiro de 2026.
+
+----------------------------------------
+COMPORTAMENTO ESPERADO:
+----------------------------------------
+[Descreva o que deveria acontecer corretamente.]
+
+Ex: O sistema deve retornar apenas registros cujo campo "Data de Emissão"
+esteja dentro do intervalo selecionado: 01/01/2026 a 31/01/2026.
+
+----------------------------------------
+ATIVIDADES:
+----------------------------------------
+- [Cenário 1: Filtrar por mês de janeiro e verificar resultados]
+- [Cenário 2: Filtrar por um dia específico e verificar]
+- [Cenário 3: Verificar se o bug ocorre em outros filtros de data]
+
+========================================
+  FIM DO MODELO — Salve como .txt e importe
+========================================`,
+
+    epic: `========================================
+  MODELO DE IMPORTAÇÃO — ÉPICO
+  Develoi Hub | Preencha todos os campos
+========================================
+
+Título: [Ex: Módulo de Relatórios Gerenciais]
+
+Tipo: Épico
+Prioridade: [Baixa | Média | Alta | Crítica]
+Relator: [Nome do responsável pelo épico]
+Prazo: [dd/mm/aaaa — data estimada de conclusão]
+
+----------------------------------------
+DESCRIÇÃO (visão estratégica):
+----------------------------------------
+[Qual é a iniciativa ou objetivo maior que este épico representa?
+Qual problema de negócio ou oportunidade ele resolve?]
+
+Ex: Criar um módulo centralizado de relatórios gerenciais que permita
+à diretoria acompanhar KPIs de vendas, produção e financeiro em tempo
+real, eliminando a dependência de planilhas manuais.
+
+----------------------------------------
+OBJETIVO:
+----------------------------------------
+[Quais métricas ou resultados este épico deve alcançar?]
+
+Ex: Reduzir em 80% o tempo gasto na geração de relatórios mensais.
+Aumentar a precisão dos dados de 70% para 99%.
+Permitir acesso mobile para gestores externos.
+
+----------------------------------------
+REQUISITOS FUNCIONAIS:
+----------------------------------------
+- [História 1: Como diretor, quero ver o dashboard de vendas em tempo real]
+- [História 2: Como gerente, quero exportar relatórios em Excel e PDF]
+- [História 3: Como analista, quero criar filtros personalizados por período]
+- [História 4: Como admin, quero configurar permissões de acesso por cargo]
+
+========================================
+  FIM DO MODELO — Salve como .txt e importe
+========================================`,
+  };
+
+  const downloadTemplate = (templateType: string) => {
+    const content = TEMPLATES[templateType];
+    const names: Record<string, string> = { story: 'modelo-historia', task: 'modelo-tarefa', bug: 'modelo-bug', epic: 'modelo-epico' };
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `${names[templateType]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Parsed preview state
   const [title,      setTitle]      = useState('');
   const [type,       setType]       = useState<any>('story');
@@ -1313,12 +1502,38 @@ function ImportTicketModal({ projectId, sprints, onClose, onSuccess }: {
     <Modal isOpen onClose={onClose} title={step === 'input' ? 'Importar História / Ticket' : 'Revisar e Criar Ticket'} size="2xl">
       {step === 'input' ? (
         <div className="space-y-5">
+          {/* Info */}
           <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex gap-3">
             <Sparkles className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-black text-indigo-800">Importar via texto ou arquivo</p>
-              <p className="text-xs text-indigo-600 mt-0.5">Cole um texto estruturado ou faça upload de um arquivo <strong>.txt</strong> ou <strong>.md</strong>. O sistema vai identificar automaticamente os campos: título, tipo, descrição, requisitos, critérios de aceite, objetivo e atividades.</p>
+              <p className="text-sm font-black text-indigo-800">Importar via arquivo .txt ou texto colado</p>
+              <p className="text-xs text-indigo-600 mt-0.5">Baixe o modelo do tipo desejado, preencha e importe. O sistema identifica os campos automaticamente.</p>
             </div>
+          </div>
+
+          {/* Download de modelos */}
+          <div>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500 mb-2">Baixar modelo (.txt)</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {([
+                { id: 'story', label: 'História',  icon: <CheckCircle2 className="w-4 h-4" />, color: 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' },
+                { id: 'task',  label: 'Tarefa',    icon: <Briefcase className="w-4 h-4" />,    color: 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' },
+                { id: 'bug',   label: 'Bug',       icon: <AlertCircle className="w-4 h-4" />,  color: 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100' },
+                { id: 'epic',  label: 'Épico',     icon: <Rocket className="w-4 h-4" />,       color: 'bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100' },
+              ] as const).map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => downloadTemplate(t.id)}
+                  className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-black transition-all ${t.color}`}
+                >
+                  {t.icon}
+                  {t.label}
+                  <Upload className="w-3 h-3 opacity-60 rotate-180" />
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1.5">Clique no tipo para baixar o modelo preenchido com os campos corretos.</p>
           </div>
 
           {/* Área de upload */}
@@ -1326,28 +1541,28 @@ function ImportTicketModal({ projectId, sprints, onClose, onSuccess }: {
             onDrop={handleDrop}
             onDragOver={e => e.preventDefault()}
             onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all"
+            className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all"
           >
-            <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+            <Upload className="w-7 h-7 text-slate-400 mx-auto mb-2" />
             <p className="text-sm font-bold text-slate-600">
-              {fileName ? <span className="text-indigo-600">{fileName}</span> : 'Arraste um arquivo ou clique para selecionar'}
+              {fileName ? <span className="text-indigo-600">{fileName}</span> : 'Arraste o arquivo .txt ou clique para selecionar'}
             </p>
-            <p className="text-xs text-slate-400 mt-1">Suporte: .txt, .md (UTF-8)</p>
+            <p className="text-xs text-slate-400 mt-1">Formato: .txt (UTF-8)</p>
             <input ref={fileRef} type="file" accept=".txt,.md,.text" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs font-black text-slate-400 uppercase">ou cole o texto</span>
+            <span className="text-xs font-black text-slate-400 uppercase">ou cole o texto abaixo</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
           <Textarea
             label="Texto da história / demanda"
-            placeholder={`Título: Alteração de Labels na tela de Aviso Embarque\nTipo: História\nPrioridade: Alta\nStory Points: 3\nRelator: João Silva\nTela: Aviso Embarque\n\nDescrição:\nEu como usuário desejo que o sistema atualize a nomenclatura...\n\nRequisitos Funcionais:\n- O sistema deverá alterar o label X para Y\n- A alteração deve refletir em todas as telas\n\nCritérios de Aceite:\n- O label deve aparecer como Y na Grid Inicial\n- O filtro deve continuar funcionando\n\nObjetivo:\nPadronizar terminologia com o processo ICMS/EXONERAÇÃO\n\nAtividades:\n- Alterar label na tela principal\n- Alterar label no relatório\n- Validar com QA`}
+            placeholder="Cole aqui o conteúdo do arquivo modelo preenchido..."
             value={rawText}
             onChange={(e: any) => setRawText(e.target.value)}
-            rows={14}
+            rows={10}
           />
 
           <div className="flex gap-3">
