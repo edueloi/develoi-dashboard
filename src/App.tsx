@@ -19,6 +19,7 @@ import BlogPostPage from './pages/BlogPostPage';
 import ProjetosPage from './pages/ProjetosPage';
 import ProjetoPostPage from './pages/ProjetoPostPage';
 import ContactPage from './pages/ContactPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui';
@@ -62,6 +63,7 @@ function AnimatedRoutes() {
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/projetos" element={<ProjetosPage />} />
         <Route path="/projetos/:slug" element={<ProjetoPostPage />} />
+        <Route path="/privacidade" element={<PrivacyPolicy />} />
         {[
           '/dashboard',
           '/dashboard/resumo',

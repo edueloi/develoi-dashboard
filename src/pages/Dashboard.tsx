@@ -9,7 +9,7 @@ import {
   TrendingUp, Share2, MoreHorizontal, Link2, History,
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
-  ShoppingBag, BarChart2, PhoneCall, UserCircle,
+  ShoppingBag, BarChart2, PhoneCall, UserCircle, Zap,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -677,7 +677,7 @@ export default function Dashboard() {
               )}
 
               {activeTab === 'summary' && selectedProject && (
-                <ProjectSummary project={selectedProject} />
+                <ProjectSummary project={selectedProject} goTo={goTo} />
               )}
 
               {activeTab === 'projects' && (
@@ -807,99 +807,300 @@ function EmptyProjectState({ onAction }: { onAction: () => void }) {
 
 // ─── ProjectSummary ───────────────────────────────────────────────────────────
 
-function ProjectSummary({ project }: { project: Project }) {
+function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: ActiveTab) => void }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  const prog = project.progress ?? 0;
+  const statusConfig = {
+    active:    { label: 'Ativo',     dotColor: '#22c55e', barColor: '#15803D', bg: 'rgba(21,128,61,0.1)',  text: '#15803D' },
+    completed: { label: 'Concluído', dotColor: '#60a5fa', barColor: '#2563EB', bg: 'rgba(37,99,235,0.1)', text: '#2563EB' },
+    'on-hold': { label: 'Em Espera', dotColor: '#fbbf24', barColor: '#C49A2A', bg: 'rgba(196,154,42,0.1)', text: '#C49A2A' },
+  };
+  const sc = statusConfig[project.status as keyof typeof statusConfig] ?? statusConfig['on-hold'];
+
+  const quickLinks = [
+    { icon: ListTodo,     label: 'Backlog',     tab: 'backlog'   as const },
+    { icon: Kanban,       label: 'Quadro',      tab: 'board'     as const },
+    { icon: Calendar,     label: 'Cronograma',  tab: 'timeline'  as const },
+    { icon: ShieldCheck,  label: 'Qualidade',   tab: 'tests'     as const },
+    { icon: MessageSquare,label: 'Chat',        tab: 'chat'      as const },
+  ];
+
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-12">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h2 className="text-3xl font-black text-zinc-900 tracking-tight">{project.name}</h2>
-            <Badge color={project.status === 'active' ? 'success' : 'warning'} dot>
-              {project.status === 'active' ? 'Ativo' : project.status === 'completed' ? 'Concluído' : 'Em Espera'}
-            </Badge>
-          </div>
-          <p className="text-sm font-medium text-zinc-400">Gestão de ecossistema digital • Develoi Hub</p>
-        </div>
-        <Button variant="outline" iconLeft={<Settings className="w-4 h-4" />} onClick={() => setIsEditModalOpen(true)}>
-          CONFIGURAÇÕES DO PROJETO
-        </Button>
-      </div>
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-12">
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <PanelCard 
-            title="Descrição do Projeto" 
-            icon={Briefcase}
-            className="h-full"
-          >
-            <p className="text-zinc-600 leading-relaxed font-medium">
-              {project.description || 'Nenhuma descrição detalhada fornecida para este projeto.'}
-            </p>
-          </PanelCard>
+      {/* ── HERO DO PROJETO ── */}
+      <div className="relative rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)', boxShadow: '0 12px 48px rgba(13,31,78,0.2)' }}>
+        <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.2) 60%, transparent)' }} />
+        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl opacity-20" style={{ background: '#C49A2A' }} />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <PanelCard title="Metas & Objetivos" icon={Target}>
-              <ul className="space-y-3">
-                {project.goals && project.goals.length > 0 ? project.goals.map((goal, i) => (
-                  <li key={i} className="flex items-start gap-3 group">
-                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 group-hover:scale-150 transition-transform" />
-                    <span className="text-sm font-bold text-zinc-700 leading-tight">{goal}</span>
-                  </li>
-                )) : <li className="text-sm text-zinc-400 italic">Nenhuma meta definida.</li>}
-              </ul>
-            </PanelCard>
-
-            <PanelCard title="Financeiro & Orçamento" icon={TrendingUp}>
-              <div className="text-sm font-bold text-zinc-700 whitespace-pre-wrap leading-relaxed bg-zinc-50 p-4 rounded-2xl border border-zinc-100">
-                {project.financials || 'Informações financeiras não disponíveis.'}
-              </div>
-            </PanelCard>
-          </div>
-
-          <PanelCard title="História & Contexto" icon={History}>
-            <div className="text-sm font-medium text-zinc-600 leading-relaxed whitespace-pre-wrap">
-              {project.history || 'O histórico deste projeto ainda não foi registrado.'}
+        <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center gap-6 justify-between">
+          <div className="flex items-start gap-5">
+            {/* Avatar */}
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl flex-shrink-0"
+              style={{ background: 'rgba(196,154,42,0.15)', color: '#C49A2A', border: '1px solid rgba(196,154,42,0.25)' }}
+            >
+              {project.name[0]}
             </div>
-          </PanelCard>
-        </div>
-
-        <div className="space-y-6">
-          <PanelCard title="Detalhes Rápidos" noPadding>
-            <div className="p-6 space-y-4">
-              <div className="flex justify-between items-center py-2 border-b border-zinc-50">
-                <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Cliente</span>
-                <span className="text-sm font-black text-zinc-900">{project.clientName || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between items-center py-2 border-b border-zinc-50">
-                <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Prazo Final</span>
-                <span className="text-sm font-black text-zinc-900">
-                  {project.deadline ? format(new Date(project.deadline), 'dd/MM/yyyy') : 'Não definido'}
+            <div>
+              <div className="flex items-center gap-3 mb-1 flex-wrap">
+                <h2 className="text-2xl font-black text-white tracking-tight leading-tight">{project.name}</h2>
+                <span
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+                  style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.text}25` }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: sc.dotColor }} />
+                  {sc.label}
                 </span>
               </div>
-              
-              <div className="pt-4">
-                <ProgressBar 
-                  progress={project.progress ?? 0} 
-                  color="bg-gradient-to-r from-amber-400 to-amber-600"
-                  size="lg"
+              <p className="text-sm mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                Cliente: <span className="font-bold text-white/75">{project.clientName || 'N/A'}</span>
+                {project.deadline && (
+                  <> &bull; Prazo: <span className="font-bold text-white/75">{format(new Date(project.deadline), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</span></>
+                )}
+              </p>
+              {/* Progresso inline */}
+              <div className="flex items-center gap-3">
+                <div className="w-40 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${prog}%` }}
+                    transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                    className="h-full rounded-full"
+                    style={{ background: sc.barColor }}
+                  />
+                </div>
+                <span className="text-sm font-black" style={{ color: sc.barColor }}>{prog}%</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>concluído</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Botão de configuração */}
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+            style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}
+          >
+            <Settings className="w-4 h-4" /> Configurar Projeto
+          </button>
+        </div>
+
+        {/* Atalhos rápidos */}
+        <div className="relative z-10 px-8 pb-5 flex items-center gap-2 flex-wrap">
+          {quickLinks.map(ql => (
+            <button
+              key={ql.tab}
+              onClick={() => goTo(ql.tab)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:bg-white/10"
+              style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <ql.icon className="w-3 h-3" /> {ql.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── CORPO ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Coluna principal */}
+        <div className="lg:col-span-2 space-y-5">
+
+          {/* Descrição */}
+          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+            <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
+                <Briefcase className="w-4 h-4" style={{ color: '#0D1F4E' }} />
+              </div>
+              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Descrição do Projeto</p>
+            </div>
+            <div className="px-6 py-5">
+              {project.description ? (
+                <p className="text-sm text-slate-600 leading-relaxed">{project.description}</p>
+              ) : (
+                <div className="flex items-center gap-3 py-4 px-4 rounded-xl border border-dashed" style={{ borderColor: 'rgba(13,31,78,0.1)' }}>
+                  <Pencil className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                  <p className="text-sm text-slate-400 italic">Nenhuma descrição ainda. <button onClick={() => setIsEditModalOpen(true)} className="text-[#0D1F4E] font-bold underline underline-offset-2">Adicionar descrição</button></p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Metas + Financeiro */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            {/* Metas */}
+            <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+              <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.1)' }}>
+                  <Target className="w-4 h-4" style={{ color: '#C49A2A' }} />
+                </div>
+                <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Metas & Objetivos</p>
+                {project.goals && project.goals.length > 0 && (
+                  <span className="ml-auto text-[10px] font-black px-2 py-0.5 rounded-lg" style={{ background: 'rgba(196,154,42,0.1)', color: '#C49A2A' }}>
+                    {project.goals.length}
+                  </span>
+                )}
+              </div>
+              <div className="px-5 py-4">
+                {project.goals && project.goals.length > 0 ? (
+                  <ul className="space-y-3">
+                    {project.goals.map((goal, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <div className="mt-1.5 w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 text-[9px] font-black" style={{ background: 'rgba(196,154,42,0.1)', color: '#C49A2A' }}>
+                          {i + 1}
+                        </div>
+                        <span className="text-sm text-slate-700 leading-snug font-medium">{goal}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-slate-400 italic py-2">Nenhuma meta definida.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Financeiro */}
+            <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+              <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(21,128,61,0.08)' }}>
+                  <TrendingUp className="w-4 h-4" style={{ color: '#15803D' }} />
+                </div>
+                <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Financeiro & Orçamento</p>
+              </div>
+              <div className="px-5 py-4">
+                {project.financials ? (
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">{project.financials}</p>
+                ) : (
+                  <p className="text-sm text-slate-400 italic py-2">Informações financeiras não disponíveis.</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* História */}
+          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+            <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.08)' }}>
+                <History className="w-4 h-4 text-blue-600" />
+              </div>
+              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>História & Contexto</p>
+            </div>
+            <div className="px-6 py-5">
+              {project.history ? (
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{project.history}</p>
+              ) : (
+                <p className="text-sm text-slate-400 italic">O histórico deste projeto ainda não foi registrado.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna lateral */}
+        <div className="space-y-5">
+
+          {/* Detalhes rápidos */}
+          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
+                <Eye className="w-4 h-4" style={{ color: '#0D1F4E' }} />
+              </div>
+              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Detalhes Rápidos</p>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {[
+                { label: 'Cliente',    value: project.clientName || 'N/A',    icon: Users },
+                { label: 'Status',     value: sc.label,                        icon: AlertCircle, valueColor: sc.text },
+                { label: 'Progresso',  value: `${prog}%`,                      icon: TrendingUp,  valueColor: sc.barColor },
+                { label: 'Prazo Final',value: project.deadline ? format(new Date(project.deadline), 'dd/MM/yyyy') : 'Não definido', icon: Calendar },
+                { label: 'Visibilidade',value: project.visibility === 'private' ? 'Privado' : 'Público', icon: Eye },
+              ].map(row => (
+                <div key={row.label} className="flex items-center justify-between px-5 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <row.icon className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">{row.label}</span>
+                  </div>
+                  <span className="text-sm font-black" style={{ color: (row as any).valueColor || '#0D1F4E' }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+            {/* Barra de progresso visual */}
+            <div className="px-5 pb-5 pt-2">
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(13,31,78,0.06)' }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${prog}%` }}
+                  transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-full rounded-full"
+                  style={{ background: sc.barColor }}
                 />
               </div>
             </div>
-          </PanelCard>
+          </div>
 
-          <div className="p-8 rounded-2xl relative overflow-hidden group" style={{ background: 'linear-gradient(135deg, #0D1F4E 0%, #1A3070 100%)', boxShadow: '0 12px 40px rgba(13,31,78,0.25)' }}>
-            <div className="absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 blur-3xl opacity-30" style={{ background: 'var(--brand-gold)' }} />
-            <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2))' }} />
-            <div className="relative z-10 space-y-4">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--brand-gold)' }}>
-                <Rocket className="w-5 h-5" style={{ color: '#0D1F4E' }} />
+          {/* Ações rápidas */}
+          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.09)' }}>
+                <Zap className="w-4 h-4 text-violet-600" />
               </div>
-              <h4 className="text-lg font-black text-white leading-tight">Pronto para a próxima fase?</h4>
-              <p className="text-sm font-medium leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                Acompanhe as entregas e valide as funcionalidades no Quadro Kanban.
+              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Ações do Projeto</p>
+            </div>
+            <div className="p-4 space-y-2">
+              {quickLinks.map(ql => (
+                <button
+                  key={ql.tab}
+                  onClick={() => {
+                    goTo(ql.tab);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-left transition-all hover:-translate-y-px hover:shadow-sm"
+                  style={{ background: 'rgba(240,242,248,0.5)', color: '#0D1F4E', border: '1px solid rgba(13,31,78,0.07)' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.18)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.07)'; }}
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.08)' }}>
+                    <ql.icon className="w-3.5 h-3.5" style={{ color: '#0D1F4E' }} />
+                  </div>
+                  {ql.label}
+                  <ArrowRight className="w-3.5 h-3.5 ml-auto text-slate-300" />
+                </button>
+              ))}
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-left transition-all hover:-translate-y-px hover:shadow-sm mt-1"
+                style={{ background: 'rgba(13,31,78,0.05)', color: '#0D1F4E', border: '1px solid rgba(13,31,78,0.1)' }}
+              >
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.08)' }}>
+                  <Settings className="w-3.5 h-3.5" style={{ color: '#0D1F4E' }} />
+                </div>
+                Configurar Projeto
+                <ArrowRight className="w-3.5 h-3.5 ml-auto text-slate-300" />
+              </button>
+            </div>
+          </div>
+
+          {/* Banner CTA */}
+          <div className="p-6 rounded-2xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 8px 32px rgba(13,31,78,0.2)' }}>
+            <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.1))' }} />
+            <div className="absolute top-0 right-0 w-24 h-24 rounded-full -mr-12 -mt-12 blur-2xl opacity-25" style={{ background: '#C49A2A' }} />
+            <div className="relative z-10">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: '#C49A2A' }}>
+                <Rocket className="w-5 h-5" style={{ color: '#06112B' }} />
+              </div>
+              <h4 className="text-base font-black text-white leading-tight mb-2">Próxima fase pronta?</h4>
+              <p className="text-xs leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                Valide as entregas e gerencie as funcionalidades no Quadro Kanban.
               </p>
+              <button
+                onClick={() => goTo('board')}
+                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest transition-all hover:gap-2.5"
+                style={{ color: '#C49A2A' }}
+              >
+                Abrir Quadro <ArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
@@ -1030,6 +1231,7 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
   const [allowedUsers, setAllowedUsers] = useState<string[]>(project.allowedUsers || []);
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState<'geral' | 'detalhes' | 'acesso'>('geral');
 
   useEffect(() => {
     fetch('/api/users').then(r => r.json()).then(setMembers).catch(console.error);
@@ -1054,76 +1256,207 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
     }
   };
 
+  const sections = [
+    { key: 'geral'    as const, label: 'Geral',    icon: Briefcase },
+    { key: 'detalhes' as const, label: 'Detalhes', icon: Target },
+    { key: 'acesso'   as const, label: 'Acesso',   icon: Eye },
+  ];
+
+  const statusOptions = [
+    { value: 'active',    label: 'Ativo',     dot: '#22c55e' },
+    { value: 'completed', label: 'Concluído', dot: '#60a5fa' },
+    { value: 'on-hold',   label: 'Em Espera', dot: '#fbbf24' },
+  ];
+
   return (
-    <Modal isOpen={true} onClose={onClose} title="Editar Projeto" size="md">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} />
-          <Input label="Cliente" required value={client} onChange={e => setClient(e.target.value)} />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Select label="Status" value={status} onChange={e => setStatus(e.target.value as any)}>
-            <option value="active">Ativo</option>
-            <option value="completed">Concluído</option>
-            <option value="on-hold">Em Espera</option>
-          </Select>
-          <Input label="Progresso (%)" type="number" min="0" max="100" value={progress} onChange={e => setProgress(Number(e.target.value))} />
-          <Input label="Prazo Final" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+    <Modal isOpen={true} onClose={onClose} title="" size="lg">
+      <form onSubmit={handleSubmit}>
+
+        {/* Header do modal */}
+        <div className="relative rounded-2xl overflow-hidden mb-6 p-6" style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)' }}>
+          <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.2))' }} />
+          <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+          <div className="relative z-10 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl flex-shrink-0" style={{ background: 'rgba(196,154,42,0.15)', color: '#C49A2A' }}>
+              {project.name[0]}
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] mb-1" style={{ color: 'rgba(196,154,42,0.7)' }}>Configurações do Projeto</p>
+              <h3 className="text-lg font-black text-white tracking-tight leading-tight">{project.name}</h3>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Cliente: {project.clientName || 'N/A'}</p>
+            </div>
+          </div>
         </div>
 
-        <Select label="Visibilidade" value={visibility} onChange={e => setVisibility(e.target.value as any)}>
-          <option value="public">Público</option>
-          <option value="private">Privado</option>
-        </Select>
+        {/* Tabs de seção */}
+        <div className="flex gap-1 mb-6 p-1 rounded-2xl border" style={{ background: 'rgba(240,242,248,0.6)', borderColor: 'rgba(13,31,78,0.08)' }}>
+          {sections.map(s => (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setActiveSection(s.key)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+              style={activeSection === s.key
+                ? { background: 'white', color: '#0D1F4E', boxShadow: '0 2px 8px rgba(13,31,78,0.1)' }
+                : { color: '#94a3b8' }
+              }
+            >
+              <s.icon className="w-3.5 h-3.5" /> {s.label}
+            </button>
+          ))}
+        </div>
 
-        {visibility === 'private' && (
-          <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Quem pode ver?</p>
-            <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto p-4 bg-slate-50/50 rounded-3xl border border-slate-100 custom-scrollbar">
-              {members.map(member => (
-                <button 
-                  key={member.uid} 
-                  type="button" 
-                  onClick={() => toggleUser(member.uid)} 
-                  className={cn(
-                    "flex items-center gap-3 p-2.5 rounded-2xl border transition-all text-left group/user",
-                    allowedUsers.includes(member.uid) 
-                      ? "bg-amber-50 border-amber-200 shadow-sm" 
-                      : "bg-white border-slate-100 hover:border-slate-300"
-                  )}
-                >
-                  <div className="w-8 h-8 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border-2 border-white shadow-sm">
-                    {member.photoURL ? (
-                      <img src={member.photoURL} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-slate-400">
-                        {member.displayName?.[0]}
-                      </div>
-                    )}
-                  </div>
-                  <span className={cn(
-                    "text-xs font-bold truncate",
-                    allowedUsers.includes(member.uid) ? "text-amber-700" : "text-slate-600"
-                  )}>
-                    {member.displayName}
-                  </span>
-                </button>
-              ))}
+        {/* ── SEÇÃO GERAL ── */}
+        {activeSection === 'geral' && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: PsiFlux" />
+              <Input label="Cliente" required value={client} onChange={e => setClient(e.target.value)} placeholder="Ex: João Silva" />
+            </div>
+
+            <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Qual o objetivo principal deste projeto?" rows={3} />
+
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Status Atual</p>
+              <div className="grid grid-cols-3 gap-3">
+                {statusOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setStatus(opt.value as any)}
+                    className="flex items-center gap-2 p-3 rounded-xl border text-left transition-all"
+                    style={status === opt.value
+                      ? { background: 'rgba(13,31,78,0.06)', borderColor: '#0D1F4E', boxShadow: '0 2px 8px rgba(13,31,78,0.1)' }
+                      : { background: 'white', borderColor: 'rgba(13,31,78,0.1)' }
+                    }
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: opt.dot }} />
+                    <span className="text-xs font-black" style={{ color: status === opt.value ? '#0D1F4E' : '#94a3b8' }}>{opt.label}</span>
+                    {status === opt.value && <CheckCircle2 className="w-3.5 h-3.5 ml-auto" style={{ color: '#0D1F4E' }} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="Prazo Final" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Progresso: <span className="text-[#0D1F4E]">{progress}%</span></p>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={progress}
+                  onChange={e => setProgress(Number(e.target.value))}
+                  className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                  style={{ background: `linear-gradient(to right, #0D1F4E ${progress}%, #e2e8f0 ${progress}%)` }}
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[9px] text-slate-300 font-bold">0%</span>
+                  <span className="text-[9px] text-slate-300 font-bold">100%</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        <Textarea label="Descrição" value={desc} onChange={e => setDesc(e.target.value)} rows={2} />
+        {/* ── SEÇÃO DETALHES ── */}
+        {activeSection === 'detalhes' && (
+          <div className="space-y-5">
+            <Textarea label="Metas (uma por linha)" value={goals} onChange={e => setGoals(e.target.value)} placeholder="Criar landing page de alta conversão&#10;Integrar com CRM&#10;Lançar em produção até junho" rows={5} />
+            <Textarea label="Financeiro & Orçamento" value={financials} onChange={e => setFinancials(e.target.value)} placeholder="Valor total: R$ 12.000&#10;Pago: R$ 6.000 (50%)&#10;Parcela final: após entrega" rows={4} />
+            <Textarea label="História & Contexto" value={history} onChange={e => setHistory(e.target.value)} placeholder="Como este projeto surgiu? Quais são as expectativas do cliente?" rows={4} />
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Textarea label="Metas (Uma por linha)" value={goals} onChange={e => setGoals(e.target.value)} rows={3} />
-          <Textarea label="Financeiro" value={financials} onChange={e => setFinancials(e.target.value)} rows={3} />
+        {/* ── SEÇÃO ACESSO ── */}
+        {activeSection === 'acesso' && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Visibilidade do Projeto</p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'public', label: 'Público', desc: 'Todos os membros podem ver', icon: Eye },
+                  { value: 'private', label: 'Privado', desc: 'Apenas membros selecionados', icon: ShieldCheck },
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setVisibility(opt.value as any)}
+                    className="flex flex-col items-start gap-2 p-4 rounded-xl border text-left transition-all"
+                    style={visibility === opt.value
+                      ? { background: 'rgba(13,31,78,0.06)', borderColor: '#0D1F4E', boxShadow: '0 2px 8px rgba(13,31,78,0.1)' }
+                      : { background: 'white', borderColor: 'rgba(13,31,78,0.1)' }
+                    }
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <opt.icon className="w-4 h-4" style={{ color: visibility === opt.value ? '#0D1F4E' : '#94a3b8' }} />
+                      {visibility === opt.value && <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#0D1F4E' }} />}
+                    </div>
+                    <span className="text-sm font-black" style={{ color: visibility === opt.value ? '#0D1F4E' : '#94a3b8' }}>{opt.label}</span>
+                    <span className="text-[10px] text-slate-400 leading-snug">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {visibility === 'private' && (
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">
+                  Membros com acesso ({allowedUsers.length} selecionado{allowedUsers.length !== 1 ? 's' : ''})
+                </p>
+                <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto custom-scrollbar p-1">
+                  {members.map(member => {
+                    const selected = allowedUsers.includes(member.uid);
+                    return (
+                      <button
+                        key={member.uid}
+                        type="button"
+                        onClick={() => toggleUser(member.uid)}
+                        className="flex items-center gap-3 p-3 rounded-xl border text-left transition-all"
+                        style={selected
+                          ? { background: 'rgba(196,154,42,0.08)', borderColor: 'rgba(196,154,42,0.3)' }
+                          : { background: 'white', borderColor: 'rgba(13,31,78,0.08)' }
+                        }
+                      >
+                        <div className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 border-2" style={{ borderColor: selected ? '#C49A2A' : 'transparent' }}>
+                          {member.photoURL ? (
+                            <img src={member.photoURL} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] font-black" style={{ background: 'rgba(13,31,78,0.07)', color: '#0D1F4E' }}>
+                              {member.displayName?.[0]}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate" style={{ color: selected ? '#C49A2A' : '#64748b' }}>{member.displayName}</p>
+                          <p className="text-[9px] text-slate-300 truncate">{member.email}</p>
+                        </div>
+                        {selected && <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#C49A2A' }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Footer de ação */}
+        <div className="flex gap-3 mt-7 pt-5" style={{ borderTop: '1px solid rgba(13,31,78,0.07)' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl text-sm font-bold border transition-all hover:bg-slate-50"
+            style={{ color: '#64748b', borderColor: 'rgba(13,31,78,0.1)' }}
+          >
+            Cancelar
+          </button>
+          <Button type="submit" loading={loading} fullWidth size="lg">
+            SALVAR ALTERAÇÕES
+          </Button>
         </div>
-
-        <Textarea label="História & Contexto" value={history} onChange={e => setHistory(e.target.value)} rows={2} />
-
-        <Button type="submit" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
       </form>
     </Modal>
   );
