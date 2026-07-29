@@ -3,13 +3,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, Plus, Edit2, Trash2, DollarSign, CheckCircle2, XCircle,
   Clock, AlertCircle, Search, Filter, Users, ShoppingBag, BarChart2, Eye,
-  ChevronDown, ChevronRight, Banknote, CreditCard, Landmark, Phone,
+  ChevronDown, ChevronRight, Banknote, CreditCard, Landmark, Phone, UserPlus,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, Badge, EmptyState,
 } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 import type { Sale, SaleStatus, Product } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -32,9 +33,11 @@ const ORIGIN_OPTIONS = ['WhatsApp', 'Instagram', 'Indicação', 'Site', 'LinkedI
 export function SalesManager() {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
+  const navigate = useNavigate();
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [users, setUsers] = useState<{ uid: string; displayName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | SaleStatus>('all');
@@ -46,12 +49,14 @@ export function SalesManager() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [salesRes, productsRes] = await Promise.all([
+      const [salesRes, productsRes, usersRes] = await Promise.all([
         fetch('/api/sales'),
         fetch('/api/products'),
+        fetch('/api/users'),
       ]);
       setSales(await salesRes.json());
       setProducts(await productsRes.json());
+      setUsers((await usersRes.json()).map((u: any) => ({ uid: u.uid, displayName: u.displayName })));
     } catch {
       toast('Erro ao carregar vendas', 'error');
     } finally {
@@ -319,6 +324,7 @@ export function SalesManager() {
         <SaleFormModal
           sale={editingSale}
           products={products}
+          users={users}
           onClose={() => setIsFormOpen(false)}
           onSaved={(s) => {
             if (editingSale) {
@@ -333,7 +339,11 @@ export function SalesManager() {
       )}
 
       {viewingSale && (
-        <SaleDetailModal sale={viewingSale} onClose={() => setViewingSale(null)} />
+        <SaleDetailModal
+          sale={viewingSale}
+          onClose={() => setViewingSale(null)}
+          onConverted={() => { setViewingSale(null); navigate('/dashboard/clientes'); }}
+        />
       )}
 
       {deletingId && (
@@ -356,11 +366,13 @@ export function SalesManager() {
 function SaleFormModal({
   sale,
   products,
+  users,
   onClose,
   onSaved,
 }: {
   sale: Sale | null;
   products: Product[];
+  users: { uid: string; displayName: string }[];
   onClose: () => void;
   onSaved: (s: Sale) => void;
 }) {
@@ -372,6 +384,7 @@ function SaleFormModal({
   const [status, setStatus] = useState<SaleStatus>(sale?.status ?? 'lead');
   const [paymentMethod, setPaymentMethod] = useState(sale?.paymentMethod ?? '');
   const [origin, setOrigin] = useState(sale?.origin ?? '');
+  const [soldById, setSoldById] = useState(sale?.soldById ?? '');
   const [notes, setNotes] = useState(sale?.notes ?? '');
   const [loading, setLoading] = useState(false);
 
@@ -388,6 +401,7 @@ function SaleFormModal({
     e.preventDefault();
     setLoading(true);
     try {
+      const soldByName = users.find(u => u.uid === soldById)?.displayName;
       const body: Partial<Sale> = {
         id: sale?.id ?? uuidv4(),
         clientName,
@@ -400,6 +414,8 @@ function SaleFormModal({
         status,
         paymentMethod: (paymentMethod as any) || undefined,
         origin: origin || undefined,
+        soldById: soldById || undefined,
+        soldByName: soldById ? soldByName : undefined,
         notes: notes || undefined,
         createdAt: sale?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -491,6 +507,12 @@ function SaleFormModal({
           </Select>
         </div>
 
+        {/* Linha 4.5 — vendedor (para cálculo de comissão) */}
+        <Select label="Vendedor" value={soldById} onChange={e => setSoldById(e.target.value)}>
+          <option value="">Não definido</option>
+          {users.map(u => <option key={u.uid} value={u.uid}>{u.displayName}</option>)}
+        </Select>
+
         {/* Linha 5 — observações */}
         <Textarea
           label="Observações"
@@ -510,9 +532,29 @@ function SaleFormModal({
 
 // ─── SaleDetailModal ──────────────────────────────────────────────────────────
 
-function SaleDetailModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
+function SaleDetailModal({ sale, onClose, onConverted }: { sale: Sale; onClose: () => void; onConverted: () => void }) {
   const { isDark } = useTheme();
+  const { show: toast } = useToast();
   const cfg = STATUS_CONFIG[sale.status];
+  const [converting, setConverting] = useState(false);
+
+  const handleConvert = async () => {
+    setConverting(true);
+    try {
+      const r = await fetch(`/api/sales/${sale.id}/convert-to-client`, { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) {
+        toast(data.error === 'Esta venda já foi convertida em cliente' ? data.error : 'Erro ao converter em cliente', 'error');
+        return;
+      }
+      toast('Cliente criado com sucesso!', 'success');
+      onConverted();
+    } catch {
+      toast('Erro ao converter em cliente', 'error');
+    } finally {
+      setConverting(false);
+    }
+  };
 
   return (
     <Modal isOpen onClose={onClose} title="Detalhe da Venda" size="sm">
@@ -548,6 +590,17 @@ function SaleDetailModal({ sale, onClose }: { sale: Sale; onClose: () => void })
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Observações</p>
             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{sale.notes}</p>
           </div>
+        )}
+
+        {sale.status === 'won' && (
+          <Button
+            fullWidth
+            iconLeft={<UserPlus className="w-4 h-4" />}
+            onClick={handleConvert}
+            loading={converting}
+          >
+            CONVERTER EM CLIENTE
+          </Button>
         )}
 
         {sale.clientPhone && (

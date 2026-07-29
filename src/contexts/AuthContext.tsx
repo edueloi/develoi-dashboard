@@ -5,6 +5,7 @@ interface UserProfile {
   displayName: string;
   email: string;
   photoURL: string | null;
+  bio: string | null;
   role: 'admin' | 'developer' | string;
   active: boolean;
   createdAt?: string;

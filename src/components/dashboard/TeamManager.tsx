@@ -81,28 +81,26 @@ export function TeamManager() {
   const viewingMember = members.find(m => m.id === viewingId);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div className="bg-white rounded-[24px] p-6 flex items-start gap-5 flex-1 border shadow-sm" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.03)' }}>
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--bg-tertiary)' }}>
-            <Users className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'var(--bg-tertiary)' }}>
+            <Users className="w-4 h-4" style={{ color: 'var(--brand-navy)' }} />
           </div>
           <div>
-            <p className="text-sm font-black uppercase tracking-tight" style={{ color: 'var(--brand-navy)' }}>Equipe Develoi</p>
-            <p className="text-xs font-medium leading-relaxed mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <p className="text-sm font-black tracking-tight" style={{ color: 'var(--brand-navy)' }}>Equipe Develoi</p>
+            <p className="text-[11px] font-medium leading-relaxed mt-0.5" style={{ color: 'var(--text-secondary)' }}>
               Gerencie os perfis da equipe. Use os toggles <Globe className="w-3 h-3 inline" /> / <Lock className="w-3 h-3 inline" /> para controlar o que aparece no site público.
               Campos internos ficam visíveis apenas aqui no dashboard.
             </p>
           </div>
         </div>
-        <button
-          onClick={openNew}
-          className="flex items-center gap-2 text-white text-xs font-bold px-6 py-3.5 rounded-xl transition-all hover:-translate-y-0.5"
-          style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
-        >
-          <UserPlus className="w-4 h-4" /> ADICIONAR TALENTO
-        </button>
+        {members.length > 0 && (
+          <Button onClick={openNew} size="sm" iconLeft={<UserPlus className="w-3.5 h-3.5" />}>
+            ADICIONAR MEMBRO
+          </Button>
+        )}
       </div>
 
       {/* Grid de cards */}
@@ -111,8 +109,8 @@ export function TeamManager() {
           icon={Users}
           title="Equipe vazia"
           description="Ainda não há membros cadastrados para exibição no site."
-          action={<Button variant="outline" onClick={openNew}>Adicionar o primeiro membro</Button>}
-          className="py-24"
+          action={<Button onClick={openNew} size="sm" iconLeft={<UserPlus className="w-3.5 h-3.5" />}>ADICIONAR MEMBRO</Button>}
+          className="py-12"
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">

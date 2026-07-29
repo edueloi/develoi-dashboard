@@ -633,7 +633,7 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
         icon={Kanban}
         title="Nenhuma Sprint Ativa"
         description="Vá para o Backlog e inicie uma sprint para visualizar o quadro kanban."
-        className="py-40"
+        className="py-10"
       />
     );
   }
@@ -648,46 +648,46 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-amber-100 animate-pulse">
-            <Rocket className="w-6 h-6" />
+    <div className="space-y-4">
+      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-white shadow-sm">
+            <Rocket className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">{activeSprint.name}</h2>
+            <h2 className="text-base font-black text-slate-900 tracking-tight">{activeSprint.name}</h2>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
               <Calendar className="w-3 h-3" />
               {activeSprint.startDate ? format(new Date(activeSprint.startDate), 'dd MMM') : '?'} — {activeSprint.endDate ? format(new Date(activeSprint.endDate), 'dd MMM') : '?'}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4">
           <div className="text-center">
             <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Concluído</p>
-            <p className="text-xl font-black text-emerald-600">
+            <p className="text-base font-black text-emerald-600">
               {Math.round((sprintFeatures.filter(f => f.status === 'done').length / (sprintFeatures.length || 1)) * 100)}%
             </p>
           </div>
-          <div className="h-10 w-px bg-slate-100" />
+          <div className="h-7 w-px bg-slate-100" />
           <div className="text-center">
             <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Pontos Totais</p>
-            <p className="text-xl font-black text-slate-900">{sprintFeatures.reduce((a, f) => a + (f.points || 0), 0)}</p>
+            <p className="text-base font-black text-slate-900">{sprintFeatures.reduce((a, f) => a + (f.points || 0), 0)}</p>
           </div>
           <Button variant="outline" size="sm" iconLeft={<BarChart2 className="w-4 h-4" />} onClick={() => setReportOpen(true)}>RELATÓRIO</Button>
         </div>
       </div>
 
-      <div className="flex gap-6 overflow-x-auto pb-6 -mx-6 px-6 custom-scrollbar">
+      <div className="flex gap-3 overflow-x-auto pb-3 custom-scrollbar">
         {columns.map(col => (
           <DroppableComponent key={col.id} droppableId={col.id}>
             {(provided: any) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="min-w-[280px] w-[280px] flex flex-col gap-3">
-                <div className="flex items-center justify-between px-4 py-3 bg-white/70 border border-slate-200 rounded-2xl">
+              <div {...provided.droppableProps} ref={provided.innerRef} className="min-w-[250px] w-[250px] flex flex-col gap-2">
+                <div className="flex items-center justify-between px-3 py-2 bg-white/70 border border-slate-200 rounded-lg">
                   <Badge color={col.color as any} dot pill size="sm">{col.label}</Badge>
                   <span className="text-[10px] font-black text-slate-400">{sprintFeatures.filter(f => f.status === col.id).length}</span>
                 </div>
-                <div className="space-y-3 min-h-[500px]">
+                <div className="space-y-2 min-h-[360px]">
                   {sprintFeatures.filter(f => f.status === col.id).map((f, i) => (
                     <DraggableComponent key={f.id} draggableId={f.id} index={i}>
                       {(prov: any) => <BoardCard provided={prov} feature={f} onRefresh={onRefresh} />}

@@ -23,7 +23,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-3xl border border-dashed border-zinc-200 bg-zinc-50/70 px-6 py-10 text-center",
+        "flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/70 px-4 py-6 text-center",
         className
       )}
       {...props}
@@ -31,11 +31,11 @@ export function EmptyState({
       {Icon && (
         <div
           className={cn(
-            "flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-white",
+            "flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white",
             iconWrapClassName
           )}
         >
-          <Icon size={24} className={cn("text-zinc-400", iconClassName)} />
+          <Icon size={18} className={cn("text-zinc-400", iconClassName)} />
         </div>
       )}
 

@@ -131,6 +131,7 @@ export type ActiveTab =
   | 'sales'
   | 'products'
   | 'client-contact'
+  | 'clients'
   | 'profile';
 
 // ─── Produtos / Planos ────────────────────────────────────────────────────────
@@ -167,7 +168,46 @@ export interface Sale {
   paymentMethod?: SalePaymentMethod;
   notes?: string;
   origin?: string;
+  soldById?: string;
+  soldByName?: string;
   closedAt?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ─── Clientes ─────────────────────────────────────────────────────────────────
+
+export type ClientStatus = 'active' | 'paused' | 'cancelled';
+export type BillingCycle = 'monthly' | 'yearly' | 'custom' | 'one_time';
+export type CommissionType = 'percentage' | 'fixed';
+
+export interface ClientProjectLink {
+  projectId: string;
+  project?: { id: string; name: string };
+}
+
+export interface Client {
+  id: string;
+  userId?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  birthDate?: string;
+  status: ClientStatus;
+  saleId?: string;
+  billingValue: number;
+  billingCycle: BillingCycle;
+  dueDay?: number;
+  nextDueDate?: string;
+  reminderDaysBefore: number;
+  graceDaysAfter: number;
+  soldById?: string;
+  soldByName?: string;
+  commissionType?: CommissionType;
+  commissionValue?: number;
+  notes?: string;
+  projects?: ClientProjectLink[];
   createdAt: string;
   updatedAt?: string;
 }

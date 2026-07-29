@@ -11,6 +11,7 @@ const footerLinks = [
   { label: 'Valores', href: '/valores' },
   { label: 'Dúvidas', href: '/duvidas' },
   { label: 'Contato', href: '/#contato' },
+  { label: 'Política de Privacidade', href: '/privacidade' },
 ];
 
 export default function Footer() {
@@ -106,6 +107,9 @@ export default function Footer() {
         
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-[11px] dash-text-2 font-black uppercase tracking-widest opacity-40">
           <p>© {new Date().getFullYear()} Develoi. Soluções Digitais.</p>
+          <a href="/privacidade" className="hover:opacity-70 transition-opacity duration-200">
+            Política de Privacidade
+          </a>
           <p className="flex items-center gap-2">
             DESIGNED WITH <span className="text-rose-500 animate-pulse">♥</span> BY DEVELOI
           </p>

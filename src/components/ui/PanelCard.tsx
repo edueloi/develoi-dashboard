@@ -32,7 +32,7 @@ export function PanelCard({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-3xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm",
+        "overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm",
         className
       )}
       {...props}
@@ -40,19 +40,19 @@ export function PanelCard({
       {hasHeader && (
         <div
           className={cn(
-            "flex flex-col gap-4 border-b border-zinc-100 dark:border-white/10 px-4 py-5 sm:px-6 sm:py-6 lg:flex-row lg:items-center lg:justify-between",
+            "flex flex-col gap-3 border-b border-zinc-100 dark:border-white/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between",
             headerClassName
           )}
         >
-          <div className="flex min-w-0 items-start gap-4">
+          <div className="flex min-w-0 items-start gap-3">
             {Icon && (
               <div
                 className={cn(
-                  "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10",
+                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10",
                   iconWrapClassName
                 )}
               >
-                <Icon size={20} className={cn("text-amber-600 dark:text-amber-400", iconClassName)} />
+                <Icon size={16} className={cn("text-amber-600 dark:text-amber-400", iconClassName)} />
               </div>
             )}
 
@@ -72,7 +72,7 @@ export function PanelCard({
         </div>
       )}
 
-      <div className={cn(!noPadding && "p-4 sm:p-6", contentClassName)}>{children}</div>
+      <div className={cn(!noPadding && "p-4", contentClassName)}>{children}</div>
     </section>
   );
 }

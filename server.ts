@@ -168,10 +168,14 @@ async function startServer() {
       const token = authHeader.split(" ")[1];
       const user = await prisma.user.findFirst({ where: { token } });
       if (!user) return res.status(401).json({ error: "Token inválido" });
-      const { displayName, photoURL } = req.body;
+      const { displayName, photoURL, bio } = req.body;
       const updated = await prisma.user.update({
         where: { uid: user.uid },
-        data: { displayName: displayName ?? user.displayName, photoURL: photoURL ?? null },
+        data: {
+          displayName: displayName ?? user.displayName,
+          photoURL: photoURL ?? null,
+          bio: bio ?? null,
+        },
       });
       const { passwordHash, ...userWithoutPass } = updated;
       res.json(userWithoutPass);
@@ -285,6 +289,16 @@ async function startServer() {
     });
 
     // ─── Features ───────────────────────────────────────────────────────────────
+    // Lista features de vários projetos de uma vez (usado na Visão Geral, cross-projeto)
+    app.get("/api/features", async (req, res) => {
+      try {
+        const projectIds = String(req.query.projectIds || "").split(",").filter(Boolean);
+        if (projectIds.length === 0) return res.json([]);
+        const features = await prisma.feature.findMany({ where: { projectId: { in: projectIds } } });
+        res.json(features);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
     app.get("/api/projects/:projectId/features", async (req, res) => {
       try {
         const features = await prisma.feature.findMany({ where: { projectId: req.params.projectId } });
@@ -602,6 +616,96 @@ async function startServer() {
     app.delete("/api/sales/:id", async (req, res) => {
       try {
         await prisma.sale.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/sales/:id/convert-to-client", async (req, res) => {
+      try {
+        const sale = await prisma.sale.findUnique({ where: { id: req.params.id } });
+        if (!sale) return res.status(404).json({ error: "Venda não encontrada" });
+
+        const existing = await prisma.client.findFirst({ where: { saleId: sale.id } });
+        if (existing) return res.status(409).json({ error: "Esta venda já foi convertida em cliente", client: existing });
+
+        const client = await prisma.client.create({
+          data: {
+            name: sale.clientName,
+            email: sale.clientEmail,
+            phone: sale.clientPhone,
+            saleId: sale.id,
+            billingValue: sale.value,
+            soldById: sale.soldById,
+            soldByName: sale.soldByName,
+          }
+        });
+        res.json(client);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ─── Clients ───────────────────────────────────────────────────────────────
+    app.get("/api/clients", async (req, res) => {
+      try {
+        const clients = await prisma.client.findMany({
+          orderBy: { createdAt: 'desc' },
+          include: { projects: { include: { project: { select: { id: true, name: true } } } } },
+        });
+        res.json(clients);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/clients", async (req, res) => {
+      try {
+        const { projects, ...data } = req.body;
+        const client = await prisma.client.create({
+          data: {
+            ...data,
+            birthDate: data.birthDate ? new Date(data.birthDate) : null,
+            nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : null,
+          }
+        });
+        res.json(client);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.patch("/api/clients/:id", async (req, res) => {
+      try {
+        const { projects, ...data } = req.body;
+        const client = await prisma.client.update({
+          where: { id: req.params.id },
+          data: {
+            ...data,
+            birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
+            nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : undefined,
+          }
+        });
+        res.json(client);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.delete("/api/clients/:id", async (req, res) => {
+      try {
+        await prisma.client.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/clients/:id/projects", async (req, res) => {
+      try {
+        const { projectId } = req.body;
+        const link = await prisma.clientProject.create({
+          data: { clientId: req.params.id, projectId },
+          include: { project: { select: { id: true, name: true } } },
+        });
+        res.json(link);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.delete("/api/clients/:id/projects/:projectId", async (req, res) => {
+      try {
+        await prisma.clientProject.delete({
+          where: { clientId_projectId: { clientId: req.params.id, projectId: req.params.projectId } }
+        });
         res.json({ success: true });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });

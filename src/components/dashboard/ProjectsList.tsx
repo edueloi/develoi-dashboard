@@ -306,47 +306,48 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
 
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       onClick={() => onSelect(project)}
-      className="group relative rounded-3xl border cursor-pointer flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1"
+      className="group relative rounded-2xl border cursor-pointer flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-0.5 h-full min-w-0"
       style={{
         background: 'white',
         borderColor: 'rgba(13,31,78,0.1)',
-        boxShadow: '0 2px 16px rgba(13,31,78,0.06)',
+        boxShadow: '0 2px 12px rgba(13,31,78,0.05)',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(13,31,78,0.14)';
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(13,31,78,0.12)';
         (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)';
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 16px rgba(13,31,78,0.06)';
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)';
         (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.1)';
       }}
     >
-      {/* Top banner com gradiente */}
-      <div className="relative px-6 pt-6 pb-10" style={{ background: headerGradient }}>
+      {/* Top banner compacto */}
+      <div className="relative px-4 pt-4 pb-6" style={{ background: headerGradient }}>
         {/* Dots decorativos */}
         <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-        <div className="relative z-10 flex items-start justify-between">
+        <div className="relative z-10 flex items-start justify-between gap-2">
           {/* Avatar do projeto */}
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg flex-shrink-0" style={{ background: 'rgba(255,255,255,0.12)', color: '#C49A2A', backdropFilter: 'blur(4px)' }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0" style={{ background: 'rgba(255,255,255,0.12)', color: '#C49A2A', backdropFilter: 'blur(4px)' }}>
             {project.name[0]}
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
             <button
               onClick={e => { e.stopPropagation(); onEdit(project); }}
-              className="p-2 rounded-xl transition-all hover:bg-white/20"
+              className="p-1.5 rounded-lg transition-all hover:bg-white/20"
               title="Editar projeto"
             >
               <Settings className="w-3.5 h-3.5 text-white/70" />
             </button>
             <button
               onClick={e => { e.stopPropagation(); onDelete(project); }}
-              className="p-2 rounded-xl transition-all hover:bg-red-500/20"
+              className="p-1.5 rounded-lg transition-all hover:bg-red-500/20"
               title="Remover projeto"
             >
               <Trash2 className="w-3.5 h-3.5 text-white/70" />
@@ -355,82 +356,82 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
         </div>
 
         {/* Status badge */}
-        <div className="relative z-10 mt-4">
+        <div className="relative z-10 mt-3">
           <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest"
             style={{ background: 'rgba(255,255,255,0.12)', color: 'white', backdropFilter: 'blur(4px)' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.dotColor }} />
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: s.dotColor }} />
             {s.label}
           </span>
         </div>
       </div>
 
       {/* Conteúdo principal — levemente sobrepostos ao banner */}
-      <div className="-mt-5 mx-4 px-5 pt-5 pb-6 flex flex-col flex-1 rounded-2xl border bg-white z-10 relative" style={{ borderColor: 'rgba(13,31,78,0.07)' }}>
+      <div className="-mt-4 mx-3 px-4 pt-4 pb-5 flex flex-col flex-1 min-w-0 rounded-2xl border bg-white z-10 relative" style={{ borderColor: 'rgba(13,31,78,0.07)' }}>
         {/* Nome e descrição */}
-        <h3 className="font-black text-base leading-tight tracking-tight mb-1.5 group-hover:text-[#C49A2A] transition-colors" style={{ color: '#0D1F4E' }}>
+        <h3 className="font-black text-sm leading-tight tracking-tight mb-1.5 truncate group-hover:text-[#C49A2A] transition-colors" style={{ color: '#0D1F4E' }} title={project.name}>
           {project.name}
         </h3>
-        <p className="text-xs leading-relaxed mb-5 line-clamp-2" style={{ color: '#64748b' }}>
+        <p className="text-xs leading-relaxed mb-4 line-clamp-2 min-h-[2.2em]" style={{ color: '#64748b' }}>
           {project.description || 'Nenhuma descrição adicionada para este projeto.'}
         </p>
 
         {/* Progress */}
-        <div className="mb-5 p-4 rounded-2xl border space-y-2.5" style={{ background: 'rgba(240,242,248,0.5)', borderColor: 'rgba(13,31,78,0.06)' }}>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Progresso</span>
-            <span className="text-sm font-black" style={{ color: s.barColor }}>{prog}%</span>
+        <div className="mb-4 p-3 rounded-xl border space-y-2" style={{ background: 'rgba(240,242,248,0.5)', borderColor: 'rgba(13,31,78,0.06)' }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate">Progresso</span>
+            <span className="text-xs font-black flex-shrink-0" style={{ color: s.barColor }}>{prog}%</span>
           </div>
-          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${prog}%` }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: index * 0.06 + 0.3 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: index * 0.04 + 0.2 }}
               className="h-full rounded-full"
               style={{ background: s.barColor }}
             />
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest truncate">
               {prog === 0 ? 'Não iniciado' : prog < 30 ? 'Iniciando' : prog < 70 ? 'Em andamento' : prog < 100 ? 'Quase lá' : 'Concluído'}
             </span>
             {prog === 100 && (
-              <CheckCircle2 className="w-3.5 h-3.5" style={{ color: '#15803D' }} />
+              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#15803D' }} />
             )}
           </div>
         </div>
 
         {/* Rodapé com meta-info */}
-        <div className="flex items-center justify-between mt-auto pt-4" style={{ borderTop: '1px solid rgba(13,31,78,0.06)' }}>
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
+        <div className="flex items-center justify-between gap-2 mt-auto pt-3" style={{ borderTop: '1px solid rgba(13,31,78,0.06)' }}>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.07)' }}>
               <Users className="w-3 h-3" style={{ color: '#0D1F4E' }} />
             </div>
-            <span className="text-xs font-bold text-slate-500 truncate max-w-[100px]">{project.clientName || 'Geral'}</span>
+            <span className="text-[11px] font-bold text-slate-500 truncate">{project.clientName || 'Geral'}</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {project.deadline && (
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-slate-300" />
-                <span className="text-[10px] font-bold text-slate-400">
+              <div className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-300 flex-shrink-0" />
+                <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">
                   {format(new Date(project.deadline), 'dd MMM', { locale: ptBR })}
                 </span>
               </div>
             )}
             {project.visibility === 'private' && (
-              <span title="Projeto privado"><Lock className="w-3 h-3 text-slate-300" /></span>
+              <span title="Projeto privado"><Lock className="w-3 h-3 text-slate-300 flex-shrink-0" /></span>
             )}
           </div>
         </div>
 
         {/* Hover CTA */}
         <motion.div
-          className="absolute bottom-5 right-5 w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0"
+          className="absolute bottom-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0"
           style={{ background: '#0D1F4E', boxShadow: '0 4px 14px rgba(13,31,78,0.3)' }}
         >
-          <ArrowRight className="w-4 h-4" />
+          <ArrowRight className="w-3.5 h-3.5" />
         </motion.div>
       </div>
     </motion.div>
@@ -524,7 +525,8 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+            className="grid gap-4"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}
           >
             {filtered.map((project, i) => (
               <ProjectCard

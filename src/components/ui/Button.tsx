@@ -43,10 +43,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizes: Record<string, string> = {
-      xs: "h-7 min-w-[74px] px-2.5 text-[11px] rounded-[20px]",
-      sm: "h-8 min-w-[82px] px-3 text-[12px] rounded-[20px]",
-      md: "h-9 min-w-[90px] px-4 text-[13px] rounded-[20px]",
-      lg: "h-10 min-w-[110px] px-5 text-[14px] rounded-[20px]",
+      xs: "h-6 min-w-[68px] px-2 text-[10px] rounded-lg",
+      sm: "h-7 min-w-[76px] px-2.5 text-[11px] rounded-lg",
+      md: "h-8 min-w-[84px] px-3 text-[12px] rounded-lg",
+      lg: "h-9 min-w-[96px] px-4 text-[13px] rounded-xl",
     };
 
     const spinnerSize = size === "lg" ? 16 : size === "md" ? 15 : 13;
@@ -135,10 +135,10 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     };
 
     const sizes: Record<string, string> = {
-      xs: "h-7 w-7 rounded-[10px]",
-      sm: "h-8 w-8 rounded-[10px]",
-      md: "h-9 w-9 rounded-[12px]",
-      lg: "h-10 w-10 rounded-[12px]",
+      xs: "h-6 w-6 rounded-lg",
+      sm: "h-7 w-7 rounded-lg",
+      md: "h-8 w-8 rounded-lg",
+      lg: "h-9 w-9 rounded-xl",
     };
 
     const spinnerSize = size === "lg" ? 16 : size === "md" ? 15 : 13;

@@ -56,24 +56,24 @@ export function ChatRoom({ projectId }: { projectId: string }) {
   };
 
   return (
-    <div className="bg-white h-[calc(100vh-220px)] min-h-[500px] rounded-[32px] border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+    <div className="bg-white h-[calc(100vh-150px)] min-h-[360px] rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="px-8 py-6 border-b border-slate-100 flex items-center gap-4 bg-gradient-to-r from-indigo-600 to-violet-600">
-        <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-          <MessageSquare className="w-6 h-6 text-white" />
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3 bg-slate-900">
+        <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+          <MessageSquare className="w-4 h-4 text-white" />
         </div>
         <div>
           <p className="text-white font-black text-base tracking-tight">Hub de Comunicação</p>
           <p className="text-indigo-100 text-[10px] font-bold uppercase tracking-widest">Sincronização em tempo real</p>
         </div>
-        <div className="ml-auto flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-sm">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-          <span className="text-white text-[10px] font-black tracking-widest uppercase">LIVE</span>
+        <div className="ml-auto flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-md">
+          <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
+          <span className="text-white text-[9px] font-black tracking-wider uppercase">Online</span>
         </div>
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto space-y-6 bg-slate-50/40 custom-scrollbar">
+      <div ref={scrollRef} className="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/40 custom-scrollbar">
         {messages.length === 0 && (
           <div className="h-full flex items-center justify-center">
             <EmptyState 
@@ -101,7 +101,7 @@ export function ChatRoom({ projectId }: { projectId: string }) {
                   </span>
                 </div>
                 <div className={cn(
-                  "px-5 py-3.5 rounded-3xl text-sm leading-relaxed shadow-sm transition-all hover:shadow-md",
+                  "px-3 py-2 rounded-xl text-xs leading-relaxed shadow-sm transition-all hover:shadow-md",
                   isMe
                     ? "bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-tr-none"
                     : "bg-white text-slate-700 border border-slate-200 rounded-tl-none"
@@ -115,9 +115,9 @@ export function ChatRoom({ projectId }: { projectId: string }) {
       </div>
 
       {/* Input Area */}
-      <div className="p-6 bg-white border-t border-slate-100">
-        <form onSubmit={sendMessage} className="flex gap-4 items-center max-w-5xl mx-auto">
-          <div className="w-11 h-11 rounded-2xl bg-indigo-50 flex items-center justify-center text-sm font-black text-indigo-600 flex-shrink-0 border border-indigo-100 shadow-sm">
+      <div className="p-3 bg-white border-t border-slate-100">
+        <form onSubmit={sendMessage} className="flex gap-2 items-center max-w-5xl mx-auto">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-xs font-black text-indigo-600 flex-shrink-0 border border-indigo-100">
             {profile?.displayName?.[0]?.toUpperCase() ?? 'U'}
           </div>
           
@@ -127,7 +127,7 @@ export function ChatRoom({ projectId }: { projectId: string }) {
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Escreva algo brilhante..."
               wrapperClassName="w-full"
-              className="py-3 px-6 h-12"
+              className="py-2 px-3 h-9 text-xs"
               onKeyPress={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -140,9 +140,9 @@ export function ChatRoom({ projectId }: { projectId: string }) {
           <Button
             type="submit"
             disabled={!newMessage.trim()}
-            className="h-12 w-12 p-0 flex items-center justify-center rounded-2xl shadow-xl shadow-indigo-100"
+            className="h-9 w-9 min-w-0 p-0 flex items-center justify-center rounded-lg shadow-sm"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-4 h-4" />
           </Button>
         </form>
       </div>

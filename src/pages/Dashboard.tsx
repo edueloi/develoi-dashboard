@@ -60,6 +60,7 @@ import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
 import { PostCreatorTab } from '../components/dashboard/PostCreatorTab';
 import { SalesManager } from '../components/dashboard/SalesManager';
+import { ClientsManager } from '../components/dashboard/ClientsManager';
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
@@ -96,6 +97,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   sales:           '/dashboard/vendas',
   products:        '/dashboard/produtos',
   'client-contact':'/dashboard/contatos',
+  clients:         '/dashboard/clientes',
   'profile':       '/dashboard/perfil',
 };
 
@@ -122,6 +124,7 @@ export default function Dashboard() {
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [allFeatures, setAllFeatures] = useState<Feature[]>([]);
 
   // Restore selected project from URL param ?projeto=ID
   const searchParams = new URLSearchParams(location.search);
@@ -160,6 +163,24 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [profile]);
 
+  const projectIdsKey = projects.map(p => p.id).sort().join(',');
+
+  useEffect(() => {
+    if (!projectIdsKey) { setAllFeatures([]); return; }
+    const fetchFeatures = async () => {
+      try {
+        const response = await fetch(`/api/features?projectIds=${projectIdsKey}`);
+        const data = await response.json();
+        setAllFeatures(data);
+      } catch (error) {
+        handleApiError(error, OperationType.LIST, 'features');
+      }
+    };
+    fetchFeatures();
+    const interval = setInterval(fetchFeatures, 5000);
+    return () => clearInterval(interval);
+  }, [projectIdsKey]);
+
   const goTo = (tab: ActiveTab, project?: Project | null) => {
     const proj = project !== undefined ? project : selectedProject;
     const path = TAB_TO_PATH[tab];
@@ -189,10 +210,11 @@ export default function Dashboard() {
     sales:           'Controle de Vendas',
     products:        'Produtos & Planos',
     'client-contact':'Contato com Clientes',
+    clients:         'Clientes',
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact', 'clients', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -207,13 +229,13 @@ export default function Dashboard() {
       {/* Sidebar — navy sólido */}
       <aside className={`
         fixed lg:sticky top-0 left-0 h-screen z-40 lg:z-auto
-        w-64 flex flex-col
+        w-60 flex flex-col
         transition-transform duration-300 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `} style={{ background: '#06112B' }}>
 
         {/* Logo */}
-        <div className="flex items-center justify-between px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="flex items-center justify-between px-4 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -235,7 +257,7 @@ export default function Dashboard() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-3 px-2.5 space-y-0.5 custom-scrollbar">
           <NavSection label="Geral">
             <NavItem icon={LayoutDashboard} label="Visão Geral" active={activeTab === 'overview'} onClick={() => goTo('overview')} />
             {selectedProject && <NavItem icon={Briefcase} label="Resumo Projeto" active={activeTab === 'summary'} onClick={() => goTo('summary')} />}
@@ -266,6 +288,7 @@ export default function Dashboard() {
 
           <NavSection label="Comercial">
             <NavItem icon={BarChart2} label="Vendas" active={activeTab === 'sales'} onClick={() => goTo('sales')} />
+            <NavItem icon={Users} label="Clientes" active={activeTab === 'clients'} onClick={() => goTo('clients')} />
             <NavItem icon={ShoppingBag} label="Produtos & Planos" active={activeTab === 'products'} onClick={() => goTo('products')} />
             <NavItem icon={PhoneCall} label="Contato com Clientes" active={activeTab === 'client-contact'} onClick={() => goTo('client-contact')} />
           </NavSection>
@@ -281,7 +304,7 @@ export default function Dashboard() {
         </nav>
 
         {/* User footer */}
-        <div className="p-4" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex items-center gap-3 mb-3">
             {profile?.photoURL ? (
               <img src={profile.photoURL} alt="" className="w-9 h-9 rounded-xl object-cover ring-2 ring-white/10" />
@@ -322,7 +345,7 @@ export default function Dashboard() {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top header */}
-        <header className="bg-white dark:bg-[#111827] border-b border-slate-200/80 dark:border-white/5 px-4 lg:px-6 py-3.5 flex items-center gap-4 flex-shrink-0 shadow-sm">
+        <header className="bg-white dark:bg-[#111827] border-b border-slate-200/80 dark:border-white/5 px-3 sm:px-4 lg:px-5 py-2.5 flex items-center gap-3 flex-shrink-0 shadow-sm">
           <button
             onClick={() => setSidebarOpen(true)}
             className="lg:hidden p-2 rounded-xl border border-slate-200 text-slate-500 hover:text-[#0D1F4E] transition-colors"
@@ -365,7 +388,7 @@ export default function Dashboard() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
-          <div className="p-4 lg:p-6 pb-12">
+          <div className="p-3 sm:p-4 lg:p-5 pb-8">
             <AnimatePresence mode="wait">
               {activeTab === 'overview' && (
                 <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-6">
@@ -474,129 +497,126 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* ── LINHA PRINCIPAL: Projetos recentes + Entregas ── */}
+                  {/* ── LINHA PRINCIPAL: Minhas tarefas + Prazos próximos ── */}
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
-                    {/* Projetos recentes — col span 3 */}
+                    {/* Minhas tarefas pendentes — col span 3 */}
                     <div className="lg:col-span-3 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
                       <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.08)' }}>
-                            <FolderOpen className="w-4 h-4" style={{ color: '#0D1F4E' }} />
+                            <ListTodo className="w-4 h-4" style={{ color: '#0D1F4E' }} />
                           </div>
                           <div>
-                            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Projetos Recentes</p>
-                            <p className="text-[10px] text-slate-400">Últimos atualizados</p>
+                            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Minhas Tarefas Pendentes</p>
+                            <p className="text-[10px] text-slate-400">Atribuídas a você, em todos os projetos</p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => goTo('projects')}
-                          className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 transition-colors hover:opacity-70"
-                          style={{ color: '#0D1F4E' }}
-                        >
-                          Ver todos <ArrowRight className="w-3 h-3" />
-                        </button>
                       </div>
                       <div className="divide-y divide-slate-100 dark:divide-white/5">
-                        {projects.length === 0 ? (
-                          <div className="px-6 py-10 text-center">
-                            <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(13,31,78,0.06)' }}>
-                              <FolderOpen className="w-5 h-5 text-slate-300" />
-                            </div>
-                            <p className="text-sm text-slate-400 font-medium">Nenhum projeto criado ainda.</p>
-                            <button onClick={() => setIsNewProjectModalOpen(true)} className="mt-3 text-xs font-bold text-[#0D1F4E] underline underline-offset-2">Criar primeiro projeto</button>
-                          </div>
-                        ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 5).map((proj, i) => (
-                          <button
-                            key={proj.id}
-                            onClick={() => { setSelectedProject(proj); goTo('summary', proj); }}
-                            className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left group/row"
-                          >
-                            <div
-                              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-xs flex-shrink-0"
-                              style={{ background: ['#0D1F4E','#C49A2A','#15803D','#2563EB','#7C3AED'][i % 5] }}
-                            >
-                              {proj.name[0]}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{proj.name}</p>
-                              <p className="text-[11px] text-slate-400 truncate">{proj.clientName || 'Cliente'}</p>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <div className="hidden sm:block w-20">
-                                <div className="flex justify-between mb-1">
-                                  <span className="text-[10px] font-bold text-slate-400">{proj.progress ?? 0}%</span>
+                        {(() => {
+                          const myTasks = allFeatures
+                            .filter(f => f.status !== 'done' && f.assignedTo === profile?.uid)
+                            .sort((a, b) => {
+                              const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+                              const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+                              return da - db;
+                            })
+                            .slice(0, 6);
+                          const statusLabel: Record<string, string> = { todo: 'A Fazer', 'in-progress': 'Em Progresso', review: 'Em Revisão', testing: 'Em Teste' };
+                          if (myTasks.length === 0) {
+                            return (
+                              <div className="px-6 py-10 text-center">
+                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(13,31,78,0.06)' }}>
+                                  <CheckCircle2 className="w-5 h-5 text-slate-300" />
                                 </div>
-                                <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                                  <div
-                                    className="h-full rounded-full transition-all"
-                                    style={{ width: `${proj.progress ?? 0}%`, background: proj.status === 'completed' ? '#15803D' : '#C49A2A' }}
-                                  />
-                                </div>
+                                <p className="text-sm text-slate-400 font-medium">Nenhuma tarefa pendente atribuída a você.</p>
                               </div>
-                              <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wide ${
-                                proj.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
-                                proj.status === 'completed' ? 'bg-blue-50 text-blue-600' :
-                                'bg-yellow-50 text-yellow-600'
-                              }`}>
-                                {proj.status === 'active' ? 'Ativo' : proj.status === 'completed' ? 'Entregue' : 'Espera'}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
+                            );
+                          }
+                          return myTasks.map((task) => {
+                            const proj = projects.find(p => p.id === task.projectId);
+                            return (
+                              <button
+                                key={task.id}
+                                onClick={() => proj && goTo('board', proj)}
+                                className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left group/row"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{task.title}</p>
+                                  <p className="text-[11px] text-slate-400 truncate">{proj?.name ?? 'Projeto'}</p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {task.deadline && (
+                                    <span className="text-[10px] font-bold text-slate-400 hidden sm:flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      {format(new Date(task.deadline), 'dd MMM', { locale: ptBR })}
+                                    </span>
+                                  )}
+                                  <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wide ${
+                                    task.status === 'todo' ? 'bg-slate-100 text-slate-500' :
+                                    task.status === 'in-progress' ? 'bg-yellow-50 text-yellow-600' :
+                                    task.status === 'review' ? 'bg-purple-50 text-purple-600' :
+                                    'bg-blue-50 text-blue-600'
+                                  }`}>
+                                    {statusLabel[task.status] ?? task.status}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
 
-                    {/* Próximas entregas — col span 2 */}
+                    {/* Prazos próximos — col span 2 */}
                     <div className="lg:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
                       <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                         <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.1)' }}>
-                          <Calendar className="w-4 h-4" style={{ color: '#C49A2A' }} />
+                          <Clock className="w-4 h-4" style={{ color: '#C49A2A' }} />
                         </div>
                         <div>
-                          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Próximos da Entrega</p>
-                          <p className="text-[10px] text-slate-400">Projetos mais avançados</p>
+                          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Prazos Próximos</p>
+                          <p className="text-[10px] text-slate-400">Tarefas com entrega mais próxima</p>
                         </div>
                       </div>
-                      <div className="p-6 space-y-5 flex-1">
-                        {projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 5).length === 0 ? (
-                          <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                            <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(196,154,42,0.08)' }}>
-                              <Calendar className="w-5 h-5" style={{ color: '#C49A2A' }} />
-                            </div>
-                            <p className="text-sm text-slate-400">Sem projetos em andamento.</p>
-                          </div>
-                        ) : projects.filter(p => p.status === 'active' && (p.progress ?? 0) > 0).sort((a,b) => (b.progress ?? 0) - (a.progress ?? 0)).slice(0, 5).map((item, i) => {
-                          const color = ['#15803D', '#C49A2A', '#2563EB', '#8B5CF6', '#DC2626'][i % 5];
-                          return (
-                            <div key={item.id}>
-                              <div className="flex items-center justify-between mb-2">
-                                <p className="text-xs font-bold truncate max-w-[130px]" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{item.name}</p>
-                                <span className="text-[10px] font-black" style={{ color }}>{item.progress}%</span>
+                      <div className="p-6 space-y-4 flex-1">
+                        {(() => {
+                          const upcoming = allFeatures
+                            .filter(f => f.status !== 'done' && f.deadline)
+                            .sort((a, b) => new Date(a.deadline as string).getTime() - new Date(b.deadline as string).getTime())
+                            .slice(0, 6);
+                          if (upcoming.length === 0) {
+                            return (
+                              <div className="flex flex-col items-center justify-center h-full py-8 text-center">
+                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(196,154,42,0.08)' }}>
+                                  <Clock className="w-5 h-5" style={{ color: '#C49A2A' }} />
+                                </div>
+                                <p className="text-sm text-slate-400">Nenhum prazo definido nas tarefas.</p>
                               </div>
-                              <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${item.progress}%` }}
-                                  transition={{ duration: 0.8, delay: 0.3 + i * 0.07 }}
-                                  className="h-full rounded-full"
-                                  style={{ background: color }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Atalho para criar projeto */}
-                      <div className="px-6 pb-5">
-                        <button
-                          onClick={() => setIsNewProjectModalOpen(true)}
-                          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90"
-                          style={{ background: 'rgba(13,31,78,0.06)', color: '#0D1F4E', border: '1px dashed rgba(13,31,78,0.15)' }}
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Novo Projeto
-                        </button>
+                            );
+                          }
+                          return upcoming.map((task) => {
+                            const proj = projects.find(p => p.id === task.projectId);
+                            const isOverdue = new Date(task.deadline as string).getTime() < Date.now();
+                            return (
+                              <button
+                                key={task.id}
+                                onClick={() => proj && goTo('board', proj)}
+                                className="w-full flex items-center gap-3 text-left"
+                              >
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOverdue ? 'bg-red-500' : 'bg-amber-400'}`} />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-bold truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{task.title}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{proj?.name ?? 'Projeto'}</p>
+                                </div>
+                                <span className={`text-[10px] font-black flex-shrink-0 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
+                                  {format(new Date(task.deadline as string), 'dd MMM', { locale: ptBR })}
+                                </span>
+                              </button>
+                            );
+                          });
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -633,41 +653,6 @@ export default function Dashboard() {
                             <item.icon className="w-5 h-5" style={{ color: item.color }} />
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#0D1F4E' }}>{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* ── INICIADOS RECENTEMENTE ── */}
-                  <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
-                    <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.08)' }}>
-                        <History className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Iniciados Recentemente</p>
-                        <p className="text-[10px] text-slate-400">Novos projetos no ecossistema</p>
-                      </div>
-                    </div>
-                    <div className="divide-y divide-slate-100 dark:divide-white/5">
-                      {projects.length === 0 ? (
-                        <div className="px-6 py-8 text-center text-sm text-slate-400">Nenhum projeto ainda.</div>
-                      ) : [...projects].sort((a,b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()).slice(0, 4).map((item) => (
-                        <button key={item.id} onClick={() => { setSelectedProject(item); goTo('summary', item); }} className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.status === 'active' ? 'bg-emerald-500' : item.status === 'completed' ? 'bg-blue-500' : 'bg-yellow-500'}`} />
-                          <p className="text-sm font-medium flex-1 truncate" style={{ color: isDark ? '#fff' : '#1e293b' }}>{item.name}</p>
-                          <span className="text-[10px] font-black text-slate-400 hidden sm:block truncate max-w-[100px]">{item.clientName}</span>
-                          {item.deadline && (
-                            <span className="text-[10px] font-bold text-slate-300 hidden md:flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {format(new Date(item.deadline), 'dd MMM', { locale: ptBR })}
-                            </span>
-                          )}
-                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wide flex-shrink-0 ${
-                            item.status === 'active' ? 'bg-emerald-50 text-emerald-600' :
-                            item.status === 'completed' ? 'bg-blue-50 text-blue-600' :
-                            'bg-yellow-50 text-yellow-600'
-                          }`}>{item.status === 'active' ? 'Ativo' : item.status === 'completed' ? 'Entregue' : 'Espera'}</span>
                         </button>
                       ))}
                     </div>
@@ -730,6 +715,7 @@ export default function Dashboard() {
               {activeTab === 'sales' && <SalesManager />}
               {activeTab === 'products' && <ProductsManager />}
               {activeTab === 'client-contact' && <ClientContactManager />}
+              {activeTab === 'clients' && <ClientsManager />}
               {activeTab === 'profile' && <MyProfile />}
             </AnimatePresence>
           </div>
@@ -760,7 +746,7 @@ function NavItem({ icon: Icon, label, active, onClick, badge }: {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 group text-left"
+      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-150 group text-left"
       style={{
         background: active ? 'rgba(196,154,42,0.15)' : 'transparent',
         color: active ? 'var(--brand-gold)' : 'rgba(255,255,255,0.5)',
@@ -772,7 +758,7 @@ function NavItem({ icon: Icon, label, active, onClick, badge }: {
         className="w-4 h-4 flex-shrink-0 transition-colors"
         style={{ color: active ? 'var(--brand-gold)' : 'rgba(255,255,255,0.35)' }}
       />
-      <span className="text-sm flex-1 truncate font-medium">{label}</span>
+      <span className="text-[13px] flex-1 truncate font-medium">{label}</span>
       {badge && (
         <span className="w-5 h-5 text-[#0D1F4E] text-[9px] font-black rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--brand-gold)' }}>
           {badge > 9 ? '9+' : badge}
@@ -787,18 +773,18 @@ function NavItem({ icon: Icon, label, active, onClick, badge }: {
 
 function EmptyProjectState({ onAction }: { onAction: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5" style={{ background: 'rgba(13,31,78,0.08)' }}>
-        <Briefcase className="w-8 h-8" style={{ color: '#0D1F4E' }} />
+    <div className="flex flex-col items-center justify-center py-10 sm:py-12 bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: 'rgba(13,31,78,0.08)' }}>
+        <Briefcase className="w-5 h-5" style={{ color: '#0D1F4E' }} />
       </div>
-      <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white mb-1.5">Nenhum Projeto Selecionado</h3>
-      <p className="text-slate-400 text-sm mb-7 max-w-xs text-center">Crie um novo projeto ou selecione um existente para começar.</p>
+      <h3 className="text-sm font-black tracking-tight text-slate-900 dark:text-white mb-1">Selecione um projeto</h3>
+      <p className="text-slate-400 text-xs mb-4 max-w-xs text-center">Crie seu primeiro projeto para usar o quadro, backlog e chat.</p>
       <button
         onClick={onAction}
-        className="flex items-center gap-2 text-white text-sm font-bold px-6 py-3 rounded-xl transition-all hover:opacity-90"
+        className="flex items-center gap-1.5 text-white text-xs font-bold px-3 py-2 rounded-lg transition-all hover:opacity-90"
         style={{ background: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
       >
-        <Plus className="w-4 h-4" /> CRIAR PRIMEIRO PROJETO
+        <Plus className="w-3.5 h-3.5" /> CRIAR PROJETO
       </button>
     </div>
   );
