@@ -4,7 +4,7 @@ import {
   Settings, Trash2, Users, Calendar, Rocket, Briefcase, ArrowRight,
   BookOpen, ChevronDown, ChevronUp, Monitor, Globe, Kanban, MessageSquare,
   ShieldCheck, FileText, TrendingUp, Clock, CheckCircle2, AlertCircle,
-  Zap, List, BarChart2, Star, Lock, Unlock, Info, ExternalLink
+  Zap, List, BarChart2, Star, Lock, Unlock, Info, ExternalLink, Image as ImageIcon
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -304,6 +304,8 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
     project.status === 'completed' ? 'linear-gradient(135deg, #1e3a5f, #2563EB)' :
                                      'linear-gradient(135deg, #78350f, #C49A2A)';
 
+  const bannerImage = project.coverImage || project.previewImage;
+
   return (
     <motion.div
       layout
@@ -327,9 +329,9 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
       }}
     >
       {/* Top banner compacto */}
-      <div className="relative px-4 pt-4 pb-6 bg-cover bg-center" style={{ background: project.coverImage ? undefined : headerGradient, backgroundImage: project.coverImage ? `linear-gradient(rgba(6,17,43,0.55), rgba(6,17,43,0.55)), url(${project.coverImage})` : undefined }}>
+      <div className="relative px-4 pt-4 pb-6 bg-cover bg-center" style={{ background: bannerImage ? undefined : headerGradient, backgroundImage: bannerImage ? `linear-gradient(rgba(6,17,43,0.55), rgba(6,17,43,0.55)), url(${bannerImage})` : undefined }}>
         {/* Dots decorativos */}
-        {!project.coverImage && (
+        {!bannerImage && (
           <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
         )}
         <div className="relative z-10 flex items-start justify-between gap-2">
@@ -428,6 +430,12 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
             )}
             {project.visibility === 'private' && (
               <span title="Projeto privado"><Lock className="w-3 h-3 text-slate-300 flex-shrink-0" /></span>
+            )}
+            {!!project.imageCount && (
+              <span title={`${project.imageCount} imagem${project.imageCount > 1 ? 's' : ''}`} className="flex items-center gap-0.5 text-slate-300">
+                <ImageIcon className="w-3 h-3" />
+                <span className="text-[10px] font-bold">{project.imageCount}</span>
+              </span>
             )}
             {project.projectUrl && (
               <a

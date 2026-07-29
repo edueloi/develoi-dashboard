@@ -16,6 +16,17 @@ export interface Project {
   projectUrl?: string;
   coverImage?: string;
   logoUrl?: string;
+  previewImage?: string | null;
+  imageCount?: number;
+}
+
+export interface ProjectImage {
+  id: string;
+  projectId: string;
+  url: string;
+  caption?: string | null;
+  order: number;
+  createdAt: string;
 }
 
 export interface Feature {

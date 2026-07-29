@@ -58,7 +58,7 @@ import { TimelineView } from '../components/dashboard/TimelineView';
 import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 
 // Types
-import type { Project, Feature, Message, ActiveTab } from '../components/dashboard/types';
+import type { Project, Feature, Message, ActiveTab, ProjectImage as ProjectImageType } from '../components/dashboard/types';
 import { PostCreatorTab } from '../components/dashboard/PostCreatorTab';
 import { SalesManager } from '../components/dashboard/SalesManager';
 import { ClientsManager } from '../components/dashboard/ClientsManager';
@@ -830,12 +830,16 @@ function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: Activ
 
         <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center gap-6 justify-between">
           <div className="flex items-start gap-5">
-            {/* Avatar */}
+            {/* Avatar / Logo */}
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl flex-shrink-0"
+              className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl flex-shrink-0 overflow-hidden"
               style={{ background: 'rgba(196,154,42,0.15)', color: '#C49A2A', border: '1px solid rgba(196,154,42,0.25)' }}
             >
-              {project.name[0]}
+              {project.logoUrl ? (
+                <img src={project.logoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                project.name[0]
+              )}
             </div>
             <div>
               <div className="flex items-center gap-3 mb-1 flex-wrap">
@@ -871,14 +875,27 @@ function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: Activ
             </div>
           </div>
 
-          {/* Botão de configuração */}
-          <button
-            onClick={() => setIsEditModalOpen(true)}
-            className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
-            style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <Settings className="w-4 h-4" /> Configurar Projeto
-          </button>
+          {/* Ações */}
+          <div className="flex-shrink-0 flex items-center gap-2">
+            {project.projectUrl && (
+              <a
+                href={project.projectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+                style={{ background: 'rgba(196,154,42,0.15)', color: '#C49A2A', border: '1px solid rgba(196,154,42,0.3)' }}
+              >
+                <ExternalLink className="w-4 h-4" /> Ver Site
+              </a>
+            )}
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+              style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}
+            >
+              <Settings className="w-4 h-4" /> Configurar Projeto
+            </button>
+          </div>
         </div>
 
         {/* Atalhos rápidos */}
@@ -921,6 +938,9 @@ function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: Activ
               )}
             </div>
           </div>
+
+          {/* Galeria de imagens */}
+          <ProjectGallery projectId={project.id} />
 
           {/* Metas + Financeiro */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1152,6 +1172,147 @@ function ImageUploadField({ label, value, onChange, shape = 'banner' }: {
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+const MAX_PROJECT_IMAGES = 8;
+
+function ProjectGallery({ projectId }: { projectId: string }) {
+  const [images, setImages] = useState<ProjectImageType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const fetchImages = async () => {
+    try {
+      const r = await fetch(`/api/projects/${projectId}/images`);
+      const data = await r.json();
+      setImages(Array.isArray(data) ? data : []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchImages(); }, [projectId]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (images.length >= MAX_PROJECT_IMAGES) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await fetch(`/api/projects/${projectId}/images`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: reader.result as string }),
+        });
+        await fetchImages();
+      } catch (err) { console.error(err); }
+      finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleCaptionChange = async (id: string, caption: string) => {
+    setImages(prev => prev.map(img => img.id === id ? { ...img, caption } : img));
+  };
+
+  const handleCaptionBlur = async (id: string, caption: string) => {
+    await fetch(`/api/projects/${projectId}/images/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caption }),
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    await fetch(`/api/projects/${projectId}/images/${id}`, { method: 'DELETE' });
+    setImages(prev => prev.filter(img => img.id !== id));
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
+      <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
+          <Image className="w-4 h-4" style={{ color: '#0D1F4E' }} />
+        </div>
+        <p className="text-sm font-black flex-1" style={{ color: '#0D1F4E' }}>Imagens do Projeto</p>
+        <span className="text-[10px] font-black px-2 py-0.5 rounded-lg" style={{ background: 'rgba(13,31,78,0.06)', color: '#64748b' }}>
+          {images.length}/{MAX_PROJECT_IMAGES}
+        </span>
+      </div>
+      <div className="p-5">
+        {images.length === 0 && (
+          <p className="text-sm text-slate-400 italic mb-4">Nenhuma imagem adicionada ainda.</p>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          {images.map((img, i) => (
+            <div key={img.id} className="group relative rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(13,31,78,0.08)' }}>
+              <button type="button" onClick={() => setViewerIndex(i)} className="block w-full aspect-square">
+                <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(img.id)}
+                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <input
+                type="text"
+                value={img.caption || ''}
+                onChange={e => handleCaptionChange(img.id, e.target.value)}
+                onBlur={e => handleCaptionBlur(img.id, e.target.value)}
+                placeholder="Adicionar descrição..."
+                className="w-full text-[11px] px-2 py-1.5 outline-none border-t bg-white text-slate-600 placeholder:text-slate-300"
+                style={{ borderColor: 'rgba(13,31,78,0.06)' }}
+              />
+            </div>
+          ))}
+
+          {images.length < MAX_PROJECT_IMAGES && (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-xl border-2 border-dashed transition-all disabled:opacity-50"
+              style={{ borderColor: 'rgba(13,31,78,0.15)', color: '#94a3b8' }}
+            >
+              {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+              <span className="text-[10px] font-bold">{uploading ? 'Enviando...' : 'Adicionar foto'}</span>
+            </button>
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+      </div>
+
+      {viewerIndex !== null && images[viewerIndex] && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-6" onClick={() => setViewerIndex(null)}>
+          <button onClick={() => setViewerIndex(null)} className="absolute top-5 right-5 p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all">
+            <X className="w-6 h-6" />
+          </button>
+          <div className="max-w-3xl w-full" onClick={e => e.stopPropagation()}>
+            <img src={images[viewerIndex].url} alt="" className="w-full max-h-[75vh] object-contain rounded-xl" />
+            {images[viewerIndex].caption && (
+              <p className="text-white/80 text-sm text-center mt-4">{images[viewerIndex].caption}</p>
+            )}
+            {images.length > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-4">
+                <button onClick={() => setViewerIndex(v => (v! - 1 + images.length) % images.length)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all">
+                  Anterior
+                </button>
+                <span className="text-white/50 text-xs">{viewerIndex + 1} / {images.length}</span>
+                <button onClick={() => setViewerIndex(v => (v! + 1) % images.length)} className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-all">
+                  Próxima
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

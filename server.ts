@@ -252,8 +252,19 @@ async function startServer() {
     app.get("/api/projects", async (req, res) => {
       try {
         const { userId, isAdmin } = req.query;
-        const projects = await prisma.project.findMany({ orderBy: { createdAt: 'desc' } });
-        const filtered = isAdmin === 'true' ? projects : projects.filter(p => {
+        const projects = await prisma.project.findMany({
+          orderBy: { createdAt: 'desc' },
+          include: {
+            images: { orderBy: { order: 'asc' }, take: 1, select: { url: true } },
+            _count: { select: { images: true } },
+          },
+        });
+        const withGallery = projects.map(({ images, _count, ...p }) => ({
+          ...p,
+          previewImage: images[0]?.url ?? null,
+          imageCount: _count.images,
+        }));
+        const filtered = isAdmin === 'true' ? withGallery : withGallery.filter(p => {
           if (p.visibility === 'public') return true;
           const allowed = p.allowedUsers as string[] | null;
           return allowed?.includes(userId as string);
@@ -284,6 +295,52 @@ async function startServer() {
     app.delete("/api/projects/:id", async (req, res) => {
       try {
         await prisma.project.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ─── Project Images (galeria, máx. 8 por projeto) ────────────────────────────
+    const MAX_PROJECT_IMAGES = 8;
+
+    app.get("/api/projects/:projectId/images", async (req, res) => {
+      try {
+        const images = await prisma.projectImage.findMany({
+          where: { projectId: req.params.projectId },
+          orderBy: { order: 'asc' },
+        });
+        res.json(images);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/projects/:projectId/images", async (req, res) => {
+      try {
+        const { url, caption } = req.body;
+        if (!url) return res.status(400).json({ error: "Imagem obrigatória" });
+        const count = await prisma.projectImage.count({ where: { projectId: req.params.projectId } });
+        if (count >= MAX_PROJECT_IMAGES) {
+          return res.status(400).json({ error: `Limite de ${MAX_PROJECT_IMAGES} imagens por projeto` });
+        }
+        const image = await prisma.projectImage.create({
+          data: { projectId: req.params.projectId, url, caption: caption || null, order: count },
+        });
+        res.json(image);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.patch("/api/projects/:projectId/images/:id", async (req, res) => {
+      try {
+        const { caption } = req.body;
+        const image = await prisma.projectImage.update({
+          where: { id: req.params.id },
+          data: { caption: caption ?? null },
+        });
+        res.json(image);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.delete("/api/projects/:projectId/images/:id", async (req, res) => {
+      try {
+        await prisma.projectImage.delete({ where: { id: req.params.id } });
         res.json({ success: true });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });

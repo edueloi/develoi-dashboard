@@ -43,6 +43,19 @@ model Project {
   sprints      Sprint[]
   messages     Message[]
   clients      ClientProject[]
+  images       ProjectImage[]
+}
+
+model ProjectImage {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  url       String   @db.LongText
+  caption   String?  @db.VarChar(255)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
 }
 
 model Feature {
