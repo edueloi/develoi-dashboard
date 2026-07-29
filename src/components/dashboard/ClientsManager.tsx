@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Plus, Edit2, Trash2, DollarSign, CheckCircle2, AlertCircle,
-  Search, Clock, ShieldAlert, Cake, Phone, FolderOpen, X,
+  Clock, ShieldAlert, Cake, Phone, FolderOpen, X,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState,
+  FilterLine, FilterLineSearch, FilterLineSection, FilterLineItem, DatePicker,
 } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -193,29 +194,28 @@ export function ClientsManager() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3 flex flex-col sm:flex-row gap-2">
-        <div className="flex-1 min-w-[180px] relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar cliente..."
-            className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] transition-colors"
-            style={{ color: isDark ? '#fff' : '#1e293b' }}
-          />
-        </div>
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value as any)}
-          className="h-9 px-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none font-medium"
-          style={{ color: isDark ? '#fff' : '#1e293b' }}
-        >
-          <option value="all">Todos os status</option>
-          {(Object.keys(STATUS_CONFIG) as ClientStatus[]).map(s => (
-            <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-          ))}
-        </select>
-      </div>
+      <FilterLine className="rounded-xl p-2.5">
+        <FilterLineSection grow>
+          <FilterLineItem grow minWidth={180}>
+            <FilterLineSearch value={search} onChange={setSearch} placeholder="Buscar cliente..." />
+          </FilterLineItem>
+        </FilterLineSection>
+        <FilterLineSection align="right">
+          <FilterLineItem>
+            <Select
+              aria-label="Filtrar por status"
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value as 'all' | ClientStatus)}
+              size="sm"
+              className="min-w-[160px]"
+              options={[
+                { value: 'all', label: 'Todos os status' },
+                ...(Object.keys(STATUS_CONFIG) as ClientStatus[]).map(s => ({ value: s, label: STATUS_CONFIG[s].label })),
+              ]}
+            />
+          </FilterLineItem>
+        </FilterLineSection>
+      </FilterLine>
 
       {/* Lista */}
       {loading ? (
@@ -378,7 +378,7 @@ function ClientFormModal({
   const [status, setStatus] = useState<ClientStatus>(client?.status ?? 'active');
   const [billingValue, setBillingValue] = useState(client?.billingValue ?? 0);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(client?.billingCycle ?? 'monthly');
-  const [nextDueDate, setNextDueDate] = useState(client?.nextDueDate?.slice(0, 10) ?? '');
+  const [dueDay, setDueDay] = useState(client?.dueDay ?? 10);
   const [reminderDaysBefore, setReminderDaysBefore] = useState(client?.reminderDaysBefore ?? 5);
   const [graceDaysAfter, setGraceDaysAfter] = useState(client?.graceDaysAfter ?? 7);
   const [soldById, setSoldById] = useState(client?.soldById ?? '');
@@ -401,7 +401,7 @@ function ClientFormModal({
         status,
         billingValue: Number(billingValue),
         billingCycle,
-        nextDueDate: nextDueDate || undefined,
+        dueDay: billingCycle === 'one_time' ? undefined : Number(dueDay),
         reminderDaysBefore: Number(reminderDaysBefore),
         graceDaysAfter: Number(graceDaysAfter),
         soldById: soldById || undefined,
@@ -433,7 +433,10 @@ function ClientFormModal({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@email.com" />
-          <Input label="Data de Nascimento" type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} />
+          <div className="flex flex-col gap-1.5">
+            <label className="ds-label">Data de Nascimento</label>
+            <DatePicker value={birthDate || null} onChange={value => setBirthDate(value ?? '')} />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -451,13 +454,20 @@ function ClientFormModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input label="Próximo Vencimento" type="date" value={nextDueDate} onChange={e => setNextDueDate(e.target.value)} />
+          <Input
+            label="Dia do Vencimento"
+            type="number" min="1" max="31"
+            value={dueDay}
+            onChange={e => setDueDay(Number(e.target.value))}
+            disabled={billingCycle === 'one_time'}
+            hint={billingCycle === 'one_time' ? undefined : 'O próximo vencimento é calculado e renovado automaticamente.'}
+          />
           <Input label="Avisar (dias antes)" type="number" min="0" value={reminderDaysBefore} onChange={e => setReminderDaysBefore(Number(e.target.value))} />
           <Input label="Tolerância pós-venc. (dias)" type="number" min="0" value={graceDaysAfter} onChange={e => setGraceDaysAfter(Number(e.target.value))} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Select label="Vendedor" value={soldById} onChange={e => setSoldById(e.target.value)}>
+          <Select label="Vendedor" value={soldById} onChange={e => setSoldById(e.target.value)} size="sm">
             <option value="">Não definido</option>
             {users.map(u => <option key={u.uid} value={u.uid}>{u.displayName}</option>)}
           </Select>

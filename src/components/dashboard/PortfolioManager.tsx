@@ -34,7 +34,7 @@ export function PortfolioManager({ projects }: { projects: Project[] }) {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <StatGrid cols={3}>
         <StatCard 
           title="Total de Projetos" 
@@ -59,13 +59,13 @@ export function PortfolioManager({ projects }: { projects: Project[] }) {
         />
       </StatGrid>
 
-      <div className="bg-indigo-50 border border-indigo-100 rounded-[24px] p-6 flex items-start gap-5">
-        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
-          <Globe className="w-5 h-5 text-indigo-600" />
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+          <Globe className="w-4 h-4 text-[#0D1F4E]" />
         </div>
         <div>
-          <p className="text-sm font-black text-indigo-900 uppercase tracking-tight">Gerenciamento de Vitrine</p>
-          <p className="text-xs text-indigo-600/80 mt-1 font-medium leading-relaxed">
+          <p className="text-sm font-black text-[#0D1F4E] tracking-tight">Vitrine do Portfólio</p>
+          <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed">
             Configure quais ecossistemas estarão visíveis no portfólio oficial. 
             Projetos <strong>Públicos</strong> ganham destaque automático no site da Develoi.
           </p>
@@ -77,10 +77,10 @@ export function PortfolioManager({ projects }: { projects: Project[] }) {
           icon={Briefcase}
           title="Nenhum projeto disponível"
           description="Você precisa criar um projeto antes de gerenciar sua visibilidade no portfólio."
-          className="py-24"
+          className="py-12"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-6">
           {localProjects.map(project => {
             const isPublic = project.visibility === 'public';
             const s = statusMap[project.status] ?? statusMap['on-hold'];
@@ -101,7 +101,11 @@ export function PortfolioManager({ projects }: { projects: Project[] }) {
                   isPublic ? "border-emerald-100 shadow-emerald-100/20" : "border-slate-200"
                 )}
               >
-                <div className="flex items-center justify-between mt-2 pt-6 border-t border-slate-50">
+                <div className="grid grid-cols-2 gap-2 mt-1 mb-3 text-[11px] text-slate-500">
+                  <span className="truncate">Cliente: <strong className="text-slate-700">{project.clientName || 'Interno'}</strong></span>
+                  <span className="text-right">Progresso: <strong className="text-slate-700">{project.progress ?? 0}%</strong></span>
+                </div>
+                <div className="flex items-center justify-between mt-2 pt-3 border-t border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center",
@@ -110,7 +114,7 @@ export function PortfolioManager({ projects }: { projects: Project[] }) {
                       {isPublic ? <Eye className="w-4 h-4 text-emerald-500" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
                     </div>
                     <span className={cn(
-                      "text-xs font-black uppercase tracking-widest",
+                      "text-[10px] font-black uppercase tracking-wider",
                       isPublic ? "text-emerald-600" : "text-slate-400"
                     )}>
                       {isPublic ? 'Visível na Vitrine' : 'Acesso Restrito'}
@@ -120,12 +124,9 @@ export function PortfolioManager({ projects }: { projects: Project[] }) {
                   <Button
                     onClick={() => toggleVisibility(project)}
                     loading={saving === project.id}
-                    variant={isPublic ? 'outline' : 'primary'}
+                    variant={isPublic ? 'danger' : 'primary'}
                     size="sm"
-                    className={cn(
-                      "font-black tracking-widest",
-                      isPublic ? "border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200" : "bg-indigo-600 shadow-indigo-100"
-                    )}
+                    className="font-black tracking-wider"
                   >
                     {isPublic ? 'REMOVER' : 'PUBLICAR AGORA'}
                   </Button>

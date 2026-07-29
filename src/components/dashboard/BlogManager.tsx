@@ -118,10 +118,10 @@ export function BlogManager() {
   const handleBackFromEditor = () => { setEditingPost(null); setTab("posts"); };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Sub-nav */}
       {tab !== "editor" && (
-        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-2xl p-1.5 w-fit shadow-sm flex-wrap">
+        <div className="flex max-w-full overflow-x-auto items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
           {([
             { id: "overview", label: "Visão Geral", icon: BarChart2 },
             { id: "posts",    label: "Posts",       icon: FileText },
@@ -132,9 +132,9 @@ export function BlogManager() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
                 tab === id
-                  ? "bg-indigo-600 text-white shadow-md"
+                  ? "bg-[#0D1F4E] text-white shadow-sm"
                   : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
@@ -195,7 +195,7 @@ function BlogOverview({ onNewPost }: { onNewPost: () => void }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <StatGrid cols={4}>
         <StatCard title="Total de Posts" value={stats.totalPosts} icon={FileText} color="info" delay={0.1} />
         <StatCard title="Publicados" value={stats.publishedPosts} icon={Globe} color="success" delay={0.2} />
@@ -203,7 +203,7 @@ function BlogOverview({ onNewPost }: { onNewPost: () => void }) {
         <StatCard title="Assinantes" value={stats.activeSubscribers} icon={Mail} color="info" delay={0.4} />
       </StatGrid>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <PanelCard title="Posts Mais Vistos" icon={TrendingUp} description="Top 5 artigos por visualizações">
           {stats.topPosts.length === 0 ? (
             <p className="text-sm text-slate-400 text-center py-8">Nenhum post publicado ainda.</p>
@@ -250,11 +250,11 @@ function BlogOverview({ onNewPost }: { onNewPost: () => void }) {
               </div>
             ))}
           </div>
-          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
             <span className="text-xs text-slate-500 font-medium">Assinantes ativos</span>
             <span className="text-sm font-black text-indigo-700">{stats.activeSubscribers} / {stats.totalSubscribers}</span>
           </div>
-          <Button onClick={onNewPost} className="w-full mt-4" iconLeft={<Plus className="w-4 h-4" />}>
+          <Button onClick={onNewPost} size="sm" className="w-full mt-3" iconLeft={<Plus className="w-3.5 h-3.5" />}>
             NOVO POST
           </Button>
         </PanelCard>
@@ -350,9 +350,9 @@ function BlogPostsList({ onNew, onEdit }: { onNew: () => void; onEdit: (p: BlogP
         ) : (
           <div className="space-y-2">
             {posts.map(post => (
-              <div key={post.id} className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-2xl hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group">
+              <div key={post.id} className="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-xl hover:border-[#0D1F4E]/20 hover:bg-slate-50 transition-all group">
                 {/* Cover thumb */}
-                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 flex items-center justify-center">
                   {post.coverImage ? (
                     <img src={post.coverImage} alt={post.title} className="w-full h-full object-cover" />
                   ) : (

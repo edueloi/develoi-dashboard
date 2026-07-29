@@ -100,16 +100,16 @@ export function CasesManager() {
   ] as const;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Sub Nav */}
-      <div className="flex gap-1 bg-white border border-slate-200 rounded-2xl p-1 w-fit shadow-sm">
+      <div className="flex max-w-full overflow-x-auto gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
               activeTab === tab.id
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                ? 'bg-[#0D1F4E] text-white shadow-sm'
                 : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
@@ -158,26 +158,26 @@ function CasesOverview({ onNew }: { onNew: () => void }) {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Total de Cases', value: stats?.total ?? '—', icon: FileText, color: 'indigo' },
           { label: 'Publicados', value: stats?.published ?? '—', icon: Globe, color: 'emerald' },
           { label: 'Visualizações', value: stats?.totalViews ?? '—', icon: Eye, color: 'blue' },
           { label: 'Curtidas', value: stats?.totalLikes ?? '—', icon: Heart, color: 'pink' },
         ].map((s, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-${s.color}-50`}>
-              <s.icon className={`w-5 h-5 text-${s.color}-600`} />
+          <div key={i} className="bg-white rounded-xl border border-slate-200 p-3 shadow-sm">
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 bg-${s.color}-50`}>
+              <s.icon className={`w-4 h-4 text-${s.color}-600`} />
             </div>
-            <p className="text-2xl font-black text-slate-900">{s.value}</p>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</p>
+            <p className="text-lg font-black text-slate-900">{s.value}</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-indigo-600" /> Cases Mais Vistos
           </h3>
@@ -202,17 +202,17 @@ function CasesOverview({ onNew }: { onNew: () => void }) {
           )}
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 shadow-lg text-white flex flex-col justify-between">
+        <div className="bg-[#0D1F4E] rounded-xl p-4 shadow-sm text-white flex flex-col justify-between">
           <div>
             <Star className="w-8 h-8 text-white/70 mb-3" />
-            <h3 className="text-xl font-black mb-2">Criar Novo Case</h3>
+            <h3 className="text-base font-black mb-1">Criar Novo Case</h3>
             <p className="text-indigo-200 text-sm leading-relaxed">
               Mostre ao mundo os resultados incríveis que a Develoi entrega. Cada case é uma história de sucesso.
             </p>
           </div>
           <button
             onClick={onNew}
-            className="mt-6 bg-white text-indigo-700 font-black text-sm px-6 py-3 rounded-xl hover:bg-indigo-50 transition-colors w-fit"
+            className="mt-4 bg-white text-[#0D1F4E] font-black text-xs px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors w-fit"
           >
             + NOVO CASE
           </button>
@@ -273,16 +273,16 @@ function CasesList({ onEdit }: { onEdit: (c: Case) => void }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       {/* Toolbar */}
-      <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3">
+      <div className="p-3 border-b border-slate-100 flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar cases..."
-            className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            className="w-full h-9 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0D1F4E] focus:ring-2 focus:ring-[#0D1F4E]/10"
           />
         </div>
         <div className="flex gap-2">
@@ -290,8 +290,8 @@ function CasesList({ onEdit }: { onEdit: (c: Case) => void }) {
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 text-xs font-bold rounded-xl border transition-all ${
-                statusFilter === s ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
+              className={`px-2.5 py-2 text-[10px] font-bold rounded-lg border transition-all ${
+                statusFilter === s ? 'bg-[#0D1F4E] text-white border-[#0D1F4E]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#0D1F4E]/30'
               }`}
             >
               {s === 'all' ? 'Todos' : STATUS_LABELS[s]}
@@ -311,7 +311,7 @@ function CasesList({ onEdit }: { onEdit: (c: Case) => void }) {
       ) : (
         <div className="divide-y divide-slate-50">
           {cases.map(c => (
-            <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors group">
+            <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group">
               {c.coverImage ? (
                 <img src={c.coverImage} alt="" className="w-14 h-10 object-cover rounded-lg border border-slate-100 flex-shrink-0" />
               ) : (

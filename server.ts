@@ -320,19 +320,80 @@ async function startServer() {
       return clean;
     };
 
+    const STATUS_LABELS: Record<string, string> = {
+      todo: 'A Fazer', 'in-progress': 'Em Desenvolvimento', review: 'Em Revisão', testing: 'Em Teste', done: 'Concluído',
+    };
+
+    // Registra uma entrada automática de atividade (mudança de status/atribuição) no histórico do ticket.
+    async function logFeatureActivity(featureId: string, text: string, actorId?: string, actorName?: string) {
+      await prisma.featureComment.create({
+        data: { featureId, type: 'activity', text, authorId: actorId || null, authorName: actorName || 'Sistema' },
+      });
+    }
+
     app.post("/api/projects/:projectId/features", async (req, res) => {
       try {
-        const body = sanitizeFeature({ ...req.body, projectId: req.params.projectId });
+        const { actorId, actorName, ...rest } = req.body;
+        const body = sanitizeFeature({ ...rest, projectId: req.params.projectId });
         const feature = await prisma.feature.create({ data: body });
+        await logFeatureActivity(feature.id, `criou o ticket`, actorId, actorName);
         res.json(feature);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.patch("/api/projects/:projectId/features/:id", async (req, res) => {
       try {
-        const body = sanitizeFeature(req.body);
+        const { actorId, actorName, ...rest } = req.body;
+        const before = await prisma.feature.findUnique({ where: { id: req.params.id } });
+        const body = sanitizeFeature(rest);
         const feature = await prisma.feature.update({ where: { id: req.params.id }, data: body });
+
+        if (before) {
+          if ('status' in body && body.status !== before.status) {
+            await logFeatureActivity(
+              feature.id,
+              `moveu de "${STATUS_LABELS[before.status] ?? before.status}" para "${STATUS_LABELS[body.status] ?? body.status}"`,
+              actorId, actorName
+            );
+          }
+          if ('assignedTo' in body && body.assignedTo !== before.assignedTo) {
+            await logFeatureActivity(
+              feature.id,
+              body.assignedTo ? `atribuiu para ${body.assignedTo}` : `removeu a atribuição`,
+              actorId, actorName
+            );
+          }
+        }
         res.json(feature);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ─── Feature Comments (comentários + linha do tempo de atividade) ────────────
+    app.get("/api/projects/:projectId/features/:id/comments", async (req, res) => {
+      try {
+        const comments = await prisma.featureComment.findMany({
+          where: { featureId: req.params.id },
+          orderBy: { createdAt: 'asc' },
+        });
+        res.json(comments);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/projects/:projectId/features/:id/comments", async (req, res) => {
+      try {
+        const { text, authorId, authorName } = req.body;
+        if (!text || !text.trim()) return res.status(400).json({ error: "Comentário vazio" });
+        const comment = await prisma.featureComment.create({
+          data: { featureId: req.params.id, type: 'comment', text: text.trim(), authorId, authorName },
+        });
+        res.json(comment);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.delete("/api/projects/:projectId/features/:id/comments/:commentId", async (req, res) => {
+      try {
+        await prisma.featureComment.delete({ where: { id: req.params.commentId } });
+        res.json({ success: true });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
@@ -667,8 +728,46 @@ async function startServer() {
     });
 
     // ─── Clients ───────────────────────────────────────────────────────────────
+
+    // Calcula a próxima data de vencimento a partir de um dia-do-mês fixo,
+    // avançando ciclo(s) inteiros a partir de `from` até cair no futuro.
+    function computeNextDueDate(dueDay: number, billingCycle: string, from: Date): Date {
+      const clampDay = (year: number, month: number) => {
+        const lastDay = new Date(year, month + 1, 0).getDate();
+        return Math.min(dueDay, lastDay);
+      };
+      let year = from.getFullYear();
+      let month = from.getMonth();
+      let candidate = new Date(year, month, clampDay(year, month));
+      const stepMonths = billingCycle === 'yearly' ? 12 : 1; // custom/one_time tratados como mensal p/ rollover
+      while (candidate <= from) {
+        month += stepMonths;
+        year += Math.floor(month / 12);
+        month = month % 12;
+        candidate = new Date(year, month, clampDay(year, month));
+      }
+      return candidate;
+    }
+
+    // Avança nextDueDate de clientes ativos cujo vencimento já passou, com base em dueDay.
+    async function rolloverOverdueClients() {
+      const now = new Date();
+      const candidates = await prisma.client.findMany({
+        where: {
+          status: 'active',
+          dueDay: { not: null },
+          nextDueDate: { lt: now },
+        },
+      });
+      for (const c of candidates) {
+        const newDate = computeNextDueDate(c.dueDay as number, c.billingCycle, c.nextDueDate as Date);
+        await prisma.client.update({ where: { id: c.id }, data: { nextDueDate: newDate } });
+      }
+    }
+
     app.get("/api/clients", async (req, res) => {
       try {
+        await rolloverOverdueClients();
         const clients = await prisma.client.findMany({
           orderBy: { createdAt: 'desc' },
           include: { projects: { include: { project: { select: { id: true, name: true } } } } },
@@ -680,11 +779,18 @@ async function startServer() {
     app.post("/api/clients", async (req, res) => {
       try {
         const { projects, ...data } = req.body;
+        const dueDay = data.dueDay ? Number(data.dueDay) : null;
+        const nextDueDate = data.nextDueDate
+          ? new Date(data.nextDueDate)
+          : dueDay
+            ? computeNextDueDate(dueDay, data.billingCycle ?? 'monthly', new Date(Date.now() - 86400000))
+            : null;
         const client = await prisma.client.create({
           data: {
             ...data,
+            dueDay,
             birthDate: data.birthDate ? new Date(data.birthDate) : null,
-            nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : null,
+            nextDueDate,
           }
         });
         res.json(client);
@@ -694,12 +800,25 @@ async function startServer() {
     app.patch("/api/clients/:id", async (req, res) => {
       try {
         const { projects, ...data } = req.body;
+        const dueDay = 'dueDay' in data ? (data.dueDay ? Number(data.dueDay) : null) : undefined;
+
+        let nextDueDate: Date | null | undefined = data.nextDueDate ? new Date(data.nextDueDate) : undefined;
+        // Se o dia de vencimento mudou e nenhuma data explícita foi enviada, recalcula.
+        if (nextDueDate === undefined && dueDay !== undefined && dueDay !== null) {
+          const current = await prisma.client.findUnique({ where: { id: req.params.id } });
+          if (current && current.dueDay !== dueDay) {
+            const cycle = data.billingCycle ?? current.billingCycle;
+            nextDueDate = computeNextDueDate(dueDay, cycle, new Date(Date.now() - 86400000));
+          }
+        }
+
         const client = await prisma.client.update({
           where: { id: req.params.id },
           data: {
             ...data,
+            dueDay,
             birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
-            nextDueDate: data.nextDueDate ? new Date(data.nextDueDate) : undefined,
+            nextDueDate,
           }
         });
         res.json(client);

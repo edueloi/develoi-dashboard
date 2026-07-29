@@ -29,15 +29,15 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const variants: Record<string, string> = {
       primary:
-        "bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700 shadow-sm shadow-indigo-500/20",
+        "bg-[#0D1F4E] border-[#0D1F4E] text-white hover:bg-[#132b67] hover:border-[#132b67] shadow-sm shadow-[#0D1F4E]/20",
       secondary:
-        "bg-violet-600 border-violet-600 text-white hover:bg-violet-700 hover:border-violet-700",
+        "bg-zinc-700 border-zinc-700 text-white hover:bg-zinc-800 hover:border-zinc-800",
       success:
         "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700",
       danger:
         "bg-red-600 border-red-600 text-white hover:bg-red-700 hover:border-red-700",
       outline:
-        "bg-white dark:bg-transparent border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-white/70 hover:bg-zinc-50 dark:hover:bg-white/5 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-indigo-400",
+        "bg-white dark:bg-transparent border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-white/70 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-[#0D1F4E]/40 dark:hover:border-white/30 hover:text-[#0D1F4E] dark:hover:text-white",
       ghost:
         "bg-transparent border-transparent text-zinc-600 dark:text-white/50 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white",
     };
@@ -58,7 +58,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(
           "relative inline-flex max-w-full items-center justify-center gap-1.5 whitespace-nowrap border-2",
           "font-semibold leading-none select-none transition-all duration-150 active:scale-[0.98]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/50 focus-visible:ring-offset-1",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/25 focus-visible:ring-offset-1",
           "disabled:pointer-events-none disabled:opacity-50",
           "[&_svg]:shrink-0 [&_svg]:pointer-events-none",
           fullWidth && "w-full",
@@ -121,15 +121,15 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
   ) => {
     const variants: Record<string, string> = {
       primary:
-        "bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700 shadow-sm shadow-indigo-500/20",
+        "bg-[#0D1F4E] border-[#0D1F4E] text-white hover:bg-[#132b67] hover:border-[#132b67] shadow-sm shadow-[#0D1F4E]/20",
       secondary:
-        "bg-violet-600 border-violet-600 text-white hover:bg-violet-700 hover:border-violet-700",
+        "bg-zinc-700 border-zinc-700 text-white hover:bg-zinc-800 hover:border-zinc-800",
       success:
         "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700",
       danger:
         "bg-red-600 border-red-600 text-white hover:bg-red-700 hover:border-red-700",
       outline:
-        "bg-white dark:bg-transparent border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-white/70 hover:bg-zinc-50 dark:hover:bg-white/5 hover:border-indigo-400 dark:hover:border-indigo-500/50 hover:text-indigo-600 dark:hover:text-indigo-400",
+        "bg-white dark:bg-transparent border-zinc-300 dark:border-white/20 text-zinc-700 dark:text-white/70 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-[#0D1F4E]/40 dark:hover:border-white/30 hover:text-[#0D1F4E] dark:hover:text-white",
       ghost:
         "bg-transparent border-transparent text-zinc-600 dark:text-white/50 hover:bg-zinc-100 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-white",
     };
@@ -149,7 +149,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
         disabled={disabled || loading}
         className={cn(
           "inline-flex items-center justify-center shrink-0 border-2 transition-all duration-150 active:scale-90",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300/50 focus-visible:ring-offset-1",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/25 focus-visible:ring-offset-1",
           "disabled:pointer-events-none disabled:opacity-50",
           "[&_svg]:shrink-0 [&_svg]:pointer-events-none",
           variants[variant],

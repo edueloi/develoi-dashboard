@@ -248,9 +248,9 @@ export function ClientContactManager() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
+          <h2 className="text-lg font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
             Contato com Clientes
           </h2>
           <p className="text-sm text-slate-400 mt-0.5">Minha lista de prospecção e mensagens prontas</p>
@@ -280,7 +280,7 @@ export function ClientContactManager() {
             initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
             className="bg-white dark:bg-white/5 rounded-xl p-3 shadow-sm border border-slate-200/60 dark:border-white/10 flex flex-col items-center text-center"
           >
-            <p className="text-2xl font-black" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight mt-0.5">{s.label}</p>
           </motion.div>
         ))}
@@ -295,7 +295,7 @@ export function ClientContactManager() {
           <button
             key={id}
             onClick={() => setTabView(id)}
-            className={`relative px-5 py-2.5 text-sm font-bold transition-all ${
+            className={`relative px-3 py-2 text-xs font-bold transition-all ${
               tabView === id
                 ? 'text-[#0D1F4E] dark:text-white'
                 : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
@@ -319,13 +319,13 @@ export function ClientContactManager() {
         {tabView === 'contacts' ? (
           <motion.div key="contacts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             {/* Filtros */}
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-2.5 flex flex-wrap gap-2 items-center">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   value={contactSearch} onChange={e => setContactSearch(e.target.value)}
                   placeholder="Nome, telefone ou cidade..."
-                  className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E]"
+                  className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E]"
                   style={{ color: isDark ? '#fff' : '#1e293b' }}
                 />
               </div>
@@ -349,7 +349,7 @@ export function ClientContactManager() {
                 description="Adicione clientes e prospects para acompanhar sua prospecção."
                 action={<Button onClick={() => setIsContactFormOpen(true)}>ADICIONAR CONTATO</Button>} />
             ) : (
-              <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
                 {/* Header tabela */}
                 <div className="hidden md:grid px-6 py-3 border-b border-slate-100 dark:border-white/5 text-[10px] font-black text-slate-400 uppercase tracking-widest"
                   style={{ gridTemplateColumns: '2fr 1.2fr 0.8fr 1fr 0.7fr auto' }}>
@@ -364,7 +364,7 @@ export function ClientContactManager() {
                     return (
                       <motion.div key={contact.id}
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                        className="grid grid-cols-1 md:px-6 px-4 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group items-center gap-2"
+                        className="grid grid-cols-1 md:px-4 px-3 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group items-center gap-2"
                         style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1.2fr) minmax(0,0.8fr) minmax(0,1fr) minmax(0,0.7fr) auto' }}
                       >
                         {/* Nome */}
@@ -472,9 +472,9 @@ export function ClientContactManager() {
                   return (
                     <motion.div key={msg.id}
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
-                      className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-all"
+                      className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-all"
                     >
-                      <div className="p-5 flex flex-col gap-3 flex-1">
+                      <div className="p-4 flex flex-col gap-3 flex-1">
                         {/* Categoria + ações */}
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest"

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { cn } from "../../lib/utils";
+import { Button } from "./Button";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal — Design System
@@ -150,7 +151,7 @@ export const Modal: React.FC<ModalProps> = ({
                 "w-full bg-white dark:bg-[#111118] relative flex flex-col pointer-events-auto overflow-hidden",
                 // Mobile styles
                 isBottomSheet && [
-                  "rounded-t-[2rem] sm:rounded-3xl",
+                  "rounded-t-2xl sm:rounded-xl",
                   "max-h-[92dvh] sm:max-h-[88vh]",
                   "shadow-[0_-12px_48px_rgba(0,0,0,0.12)]",
                 ],
@@ -159,10 +160,10 @@ export const Modal: React.FC<ModalProps> = ({
                 ],
                 // Desktop styles
                 !isBottomSheet && !isMobileFullscreen && [
-                  "rounded-3xl",
+                  "rounded-xl",
                   "max-h-[90dvh] sm:max-h-[88vh]",
                 ],
-                "sm:rounded-3xl sm:shadow-[0_25px_60px_rgba(0,0,0,0.15)] sm:border sm:border-zinc-200/60 dark:sm:border-white/10",
+                "sm:rounded-xl sm:shadow-[0_20px_48px_rgba(0,0,0,0.14)] sm:border sm:border-zinc-200/60 dark:sm:border-white/10",
                 sizeClasses[size],
                 className
               )}
@@ -179,9 +180,9 @@ export const Modal: React.FC<ModalProps> = ({
                 <div
                   className={cn(
                     "flex items-center justify-between shrink-0",
-                    "px-5 sm:px-7",
+                    "px-4 sm:px-5",
                     "border-b border-zinc-100 dark:border-white/10",
-                    isBottomSheet ? "pt-5 pb-4 sm:py-5" : "py-4 sm:py-5"
+                    isBottomSheet ? "pt-4 pb-3 sm:py-3" : "py-3"
                   )}
                 >
                   <div className="text-sm sm:text-[15px] font-black text-zinc-900 dark:text-white uppercase tracking-wide truncate pr-4 font-display">
@@ -200,7 +201,7 @@ export const Modal: React.FC<ModalProps> = ({
               )}
 
               {/* Body — scrollável */}
-              <div className="flex-1 overflow-y-auto overscroll-contain w-full p-5 sm:p-7 relative scroll-smooth">
+              <div className="flex-1 overflow-y-auto overscroll-contain w-full p-4 sm:p-5 relative scroll-smooth">
                 {/* Botão fechar flutuante (quando sem título) */}
                 {!title && !hideCloseButton && (
                   <button
@@ -219,7 +220,7 @@ export const Modal: React.FC<ModalProps> = ({
                 <div
                   className={cn(
                     "shrink-0 border-t border-zinc-100 dark:border-white/10",
-                    "px-5 py-4 sm:px-7 sm:py-5",
+                    "px-4 py-3 sm:px-5 sm:py-3",
                     // Safe area para dispositivos com home bar
                     "pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-5"
                   )}
@@ -296,12 +297,6 @@ export function ConfirmModal({
   variant = "danger",
   loading = false,
 }: ConfirmModalProps) {
-  const btnVariantMap = {
-    danger:  "bg-red-500 hover:bg-red-600 text-white",
-    primary: "bg-amber-500 hover:bg-amber-600 text-white",
-    success: "bg-emerald-500 hover:bg-emerald-600 text-white",
-  };
-
   return (
     <Modal
       isOpen={isOpen}
@@ -311,23 +306,18 @@ export function ConfirmModal({
       mobileStyle="center"
       footer={
         <ModalFooter>
-          <button
-            onClick={onClose}
-            className="h-10 px-4 rounded-[10px] border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-sm font-bold text-zinc-700 dark:text-white/70 hover:bg-zinc-50 dark:hover:bg-white/10 transition-all w-full sm:w-auto"
-          >
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             {cancelLabel}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={onConfirm}
             disabled={loading}
-            className={cn(
-              "h-10 px-5 rounded-[10px] text-sm font-bold transition-all w-full sm:w-auto",
-              "disabled:opacity-50 disabled:cursor-not-allowed active:scale-95",
-              btnVariantMap[variant]
-            )}
+            variant={variant}
+            loading={loading}
+            className="w-full sm:w-auto"
           >
-            {loading ? "Aguarde..." : confirmLabel}
-          </button>
+            {confirmLabel}
+          </Button>
         </ModalFooter>
       }
     >

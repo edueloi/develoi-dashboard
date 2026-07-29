@@ -5,7 +5,7 @@ import {
   ShieldCheck, Trash2, User, UserPlus, Users, X,
   Crown, Code2, Palette, TestTube, Eye
 } from 'lucide-react';
-import { Badge, EmptyState, Input, StatCard, StatGrid } from '../ui';
+import { Badge, Button, ConfirmModal, EmptyState, Input, StatCard, StatGrid } from '../ui';
 import type { BadgeColor } from '../ui/Badge';
 import { cn } from '../../lib/utils';
 
@@ -507,22 +507,18 @@ export function MembersArea() {
   const actives = members.filter(m => m.active !== false).length;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
       {/* stats + botão */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-3">
         <StatGrid cols={3} className="flex-1">
           <StatCard title="Membros Ativos" value={actives} icon={Users} color="success" delay={0.1} />
           <StatCard title="Total de Membros" value={members.length} icon={User} color="info" delay={0.2} />
           <StatCard title="Admins" value={admins} icon={ShieldCheck} color="purple" delay={0.3} />
         </StatGrid>
 
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 text-white text-xs font-black px-5 py-3 rounded-xl transition-all hover:-translate-y-0.5 shrink-0"
-          style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
-        >
-          <UserPlus className="w-4 h-4" /> NOVO MEMBRO
-        </button>
+        <Button size="sm" onClick={() => setShowAdd(true)} iconLeft={<UserPlus className="w-3.5 h-3.5" />}>
+          NOVO MEMBRO
+        </Button>
       </div>
 
       {/* legenda de roles */}
@@ -533,7 +529,7 @@ export function MembersArea() {
           return (
             <div
               key={r.value}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-bold"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border text-[11px] font-bold"
               style={{ borderColor: 'var(--border-color)' }}
             >
               <Icon className="w-3 h-3 text-slate-400" />
@@ -545,7 +541,7 @@ export function MembersArea() {
       </div>
 
       {/* cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-12">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pb-6">
         {members.map((m, i) => (
           <motion.div key={m.uid} transition={{ delay: i * 0.04 }}>
             <MemberCard
@@ -562,7 +558,7 @@ export function MembersArea() {
               icon={Users}
               title="Ainda não há membros"
               description="Convide sua equipe ou seus clientes para colaborarem nos projetos."
-              className="py-24"
+              className="py-12"
             />
           </div>
         )}
@@ -576,9 +572,7 @@ export function MembersArea() {
         {editTarget && (
           <EditMemberModal key="edit" member={editTarget} onClose={() => setEditTarget(null)} onSuccess={fetchMembers} />
         )}
-        {deleteTarget && (
-          <ConfirmDeleteModal key="delete" member={deleteTarget} onConfirm={handleDelete} onClose={() => setDeleteTarget(null)} />
-        )}
+        {deleteTarget && <ConfirmModal key="delete" isOpen title="Remover membro" message={`Remover ${deleteTarget.displayName} do sistema? Esta ação não pode ser desfeita.`} confirmLabel="REMOVER" variant="danger" onConfirm={handleDelete} onClose={() => setDeleteTarget(null)} />}
       </AnimatePresence>
     </motion.div>
   );

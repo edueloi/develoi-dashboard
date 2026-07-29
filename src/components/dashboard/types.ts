@@ -48,6 +48,16 @@ export interface Feature {
   linkedDemandTitle?: string;
 }
 
+export interface FeatureComment {
+  id: string;
+  featureId: string;
+  type: 'comment' | 'activity';
+  authorId?: string | null;
+  authorName?: string | null;
+  text: string;
+  createdAt: string;
+}
+
 export interface Sprint {
   id: string;
   projectId: string;

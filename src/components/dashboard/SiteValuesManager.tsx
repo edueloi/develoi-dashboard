@@ -47,21 +47,21 @@ export function SiteValuesManager() {
   );
 
   return (
-    <div className="space-y-8 pb-12">
-      <div className="bg-indigo-50 border border-indigo-100 rounded-[24px] p-6 flex items-start gap-5">
-        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-5 h-5 text-indigo-600" />
+    <div className="space-y-4 pb-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start gap-3">
+        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
+          <ShieldCheck className="w-4 h-4 text-[#0D1F4E]" />
         </div>
         <div>
-          <p className="text-sm font-black text-indigo-900 uppercase tracking-tight">Cultura & DNA</p>
-          <p className="text-xs text-indigo-600/80 mt-1 font-medium leading-relaxed">
+          <p className="text-sm font-black text-[#0D1F4E] tracking-tight">Cultura & DNA</p>
+          <p className="text-[11px] text-slate-500 mt-0.5 font-medium leading-relaxed">
             Configure as diretrizes estratégicas da Develoi. 
             Estes pilares são a base do nosso site oficial e transmitem nossa essência ao mercado.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <PanelCard 
           title="Nossa Missão" 
           description="O propósito central — por que existimos."
@@ -115,9 +115,9 @@ export function SiteValuesManager() {
             className="border-none bg-zinc-50/30"
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {data.values.map((v, i) => (
-              <div key={i} className="group p-6 bg-slate-50/50 rounded-3xl border border-slate-100 hover:border-amber-200 hover:bg-white hover:shadow-xl hover:shadow-amber-100/20 transition-all relative">
+              <div key={i} className="group p-4 bg-slate-50/50 rounded-xl border border-slate-100 hover:border-amber-200 hover:bg-white hover:shadow-sm transition-all relative">
                 <button 
                   onClick={() => setData(d => ({ ...d, values: d.values.filter((_, idx) => idx !== i) }))} 
                   className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
@@ -146,14 +146,14 @@ export function SiteValuesManager() {
         )}
       </PanelCard>
 
-      <div className="flex items-center justify-end gap-6 pt-6 border-t border-slate-100">
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
         {saved && (
           <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
             <CheckCircle2 className="w-4 h-4" />
             <span className="text-xs font-black uppercase tracking-widest">Atualizado com sucesso</span>
           </motion.div>
         )}
-        <Button onClick={handleSave} loading={saving} size="lg" className="min-w-[200px]" iconLeft={<Save className="w-5 h-5" />}>
+        <Button onClick={handleSave} loading={saving} className="min-w-[160px]" iconLeft={<Save className="w-4 h-4" />}>
           SALVAR ALTERAÇÕES
         </Button>
       </div>

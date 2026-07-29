@@ -82,15 +82,15 @@ export function TestModule({ projectId }: { projectId: string }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-40">
-        <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mb-4" />
+      <div className="flex flex-col items-center justify-center py-16">
+        <Loader2 className="w-7 h-7 text-[#0D1F4E] animate-spin mb-3" />
         <p className="text-sm font-black text-slate-400 uppercase tracking-widest">Carregando...</p>
       </div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
       {/* Stats */}
       <StatGrid cols={3}>
         <StatCard title="Aguardando Teste" value={pending.length} icon={Clock}       color="warning" delay={0.1} />
@@ -104,14 +104,14 @@ export function TestModule({ projectId }: { projectId: string }) {
       </StatGrid>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl w-fit">
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit">
         {(['pending', 'done'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              'px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all',
-              tab === t ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              'px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all',
+              tab === t ? 'bg-white text-[#0D1F4E] shadow-sm' : 'text-slate-500 hover:text-slate-700'
             )}
           >
             {t === 'pending' ? `Pendentes (${pending.length})` : `Validados (${done.length})`}
@@ -123,9 +123,9 @@ export function TestModule({ projectId }: { projectId: string }) {
       {tab === 'pending' && (
         pending.length === 0 ? (
           <EmptyState icon={ShieldCheck} title="Tudo em conformidade"
-            description="Nenhuma funcionalidade aguarda teste no momento." className="py-24" />
+            description="Nenhuma funcionalidade aguarda teste no momento." className="py-12" />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {pending.map((f, i) => (
               <TestCard
                 key={f.id}
@@ -141,9 +141,9 @@ export function TestModule({ projectId }: { projectId: string }) {
 
       {tab === 'done' && (
         done.length === 0 ? (
-          <EmptyState icon={CheckCircle2} title="Nenhum item validado ainda" description="" className="py-24" />
+          <EmptyState icon={CheckCircle2} title="Nenhum item validado ainda" description="" className="py-12" />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {done.map((f, i) => (
               <DoneCard key={f.id} feature={f} index={i} onOpen={() => setActiveFeature(f)} />
             ))}
@@ -181,16 +181,16 @@ function TestCard({ feature, index, isTester, onOpen }: {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-[2rem] border border-amber-200 shadow-sm hover:shadow-xl hover:shadow-amber-50 transition-all overflow-hidden"
+      className="bg-white rounded-xl border border-amber-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
     >
       {/* Top accent */}
       <div className="h-1 bg-gradient-to-r from-amber-400 to-orange-400" />
 
-      <div className="p-6 space-y-5">
+      <div className="p-4 space-y-4">
         {/* Header */}
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 bg-amber-50 border border-amber-100 rounded-2xl flex items-center justify-center shrink-0">
-            <ClipboardCheck className="w-5 h-5 text-amber-600" />
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 bg-amber-50 border border-amber-100 rounded-lg flex items-center justify-center shrink-0">
+            <ClipboardCheck className="w-4 h-4 text-amber-600" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
@@ -258,13 +258,13 @@ function DoneCard({ feature, index, onOpen }: { feature: Feature; index: number;
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-[2rem] border border-emerald-200 shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all"
+      className="bg-white rounded-xl border border-emerald-200 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all"
       onClick={onOpen}
     >
       <div className="h-1 bg-gradient-to-r from-emerald-400 to-teal-400" />
-      <div className="p-6 flex items-center gap-4">
-        <div className="w-10 h-10 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+      <div className="p-4 flex items-center gap-3">
+        <div className="w-8 h-8 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-center shrink-0">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-black text-slate-900 text-sm truncate">{feature.title}</h3>

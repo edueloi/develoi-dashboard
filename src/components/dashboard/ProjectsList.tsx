@@ -440,6 +440,53 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+function ProjectGridCard({ project, index, onSelect, onEdit, onDelete }: {
+  project: Project;
+  index: number;
+  onSelect: (project: Project) => void;
+  onEdit: (project: Project) => void;
+  onDelete: (project: Project) => void;
+}) {
+  const config = {
+    active: { label: 'Em andamento', color: '#15803D', bg: 'rgba(21,128,61,0.10)' },
+    completed: { label: 'Concluído', color: '#2563EB', bg: 'rgba(37,99,235,0.10)' },
+    'on-hold': { label: 'Em espera', color: '#C49A2A', bg: 'rgba(196,154,42,0.12)' },
+  }[project.status] ?? { label: 'Em espera', color: '#C49A2A', bg: 'rgba(196,154,42,0.12)' };
+  const progress = project.progress ?? 0;
+
+  return (
+    <motion.article initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03 }} onClick={() => onSelect(project)} className="group flex min-w-0 cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#0D1F4E]/30 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-[#0D1F4E]">{project.name.slice(0, 1).toUpperCase()}</span>
+            <span className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">{project.category || 'Projeto digital'}</span>
+          </div>
+          <h3 className="truncate text-sm font-black tracking-tight text-[#0D1F4E]" title={project.name}>{project.name}</h3>
+        </div>
+        <span className="shrink-0 rounded-md px-2 py-1 text-[9px] font-black uppercase tracking-wider" style={{ background: config.bg, color: config.color }}>{config.label}</span>
+      </div>
+      <p className="mt-2 min-h-[2.5rem] text-xs leading-relaxed text-slate-500 line-clamp-2">{project.description || 'Sem descrição cadastrada.'}</p>
+      <div className="mt-4 rounded-lg bg-slate-50 p-3">
+        <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400"><span>Progresso</span><span style={{ color: config.color }}>{progress}%</span></div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200"><motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ delay: index * 0.03 + 0.15 }} className="h-full rounded-full" style={{ background: config.color }} /></div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
+        <span className="flex min-w-0 items-center gap-1.5 truncate"><Users className="h-3.5 w-3.5 text-slate-400" />{project.clientName || 'Interno'}</span>
+        <span className="flex items-center justify-end gap-1.5 truncate">{project.deadline ? <><Calendar className="h-3.5 w-3.5 text-slate-400" />{format(new Date(project.deadline), 'dd/MM/yy', { locale: ptBR })}</> : <><Clock className="h-3.5 w-3.5 text-slate-400" />Sem prazo</>}</span>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400">{project.visibility === 'private' ? <Lock className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}{project.visibility === 'private' ? 'Privado' : 'Visível'}</span>
+        <div className="flex items-center gap-1" onClick={event => event.stopPropagation()}>
+          <button onClick={() => onEdit(project)} aria-label="Editar projeto" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-[#0D1F4E]"><Settings className="h-3.5 w-3.5" /></button>
+          <button onClick={() => onDelete(project)} aria-label="Remover projeto" className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
+          <span className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#0D1F4E] text-white"><ArrowRight className="h-3.5 w-3.5" /></span>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
 export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed' | 'on-hold'>('all');
@@ -471,10 +518,16 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
   ];
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-4 pb-6">
 
       {/* Manual do sistema — accordion */}
-      <SystemManual />
+      <div className="flex flex-col gap-2 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-black tracking-tight text-[#0D1F4E]">Projetos</h2>
+          <p className="text-xs text-slate-400">Abra um projeto para acessar o resumo, backlog e quadro Kanban.</p>
+        </div>
+        <span className="text-xs font-bold text-slate-500">{counts.active} ativo{counts.active === 1 ? '' : 's'} de {counts.all}</span>
+      </div>
 
       {/* Filtros rápidos */}
       <div className="flex flex-wrap items-center gap-2">
@@ -482,7 +535,7 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 border"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all duration-200 border"
             style={filter === f.key
               ? { background: f.color, color: 'white', borderColor: f.color, boxShadow: `0 4px 14px ${f.color}35` }
               : { background: 'white', color: '#64748b', borderColor: 'rgba(13,31,78,0.1)' }
@@ -516,7 +569,7 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
               icon={Briefcase}
               title="Nenhum projeto encontrado"
               description="Crie um novo projeto ou ajuste o filtro acima."
-              className="py-28"
+              className="py-12"
             />
           </motion.div>
         ) : (
@@ -525,11 +578,10 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid gap-4"
-            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}
+            className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
           >
             {filtered.map((project, i) => (
-              <ProjectCard
+              <ProjectGridCard
                 key={project.id}
                 project={project}
                 index={i}

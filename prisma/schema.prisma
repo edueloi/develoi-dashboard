@@ -71,6 +71,21 @@ model Feature {
   linkedDemandId          String?
   linkedDemandTitle       String?  @db.VarChar(512)
   createdAt               DateTime @default(now())
+
+  comments FeatureComment[]
+}
+
+model FeatureComment {
+  id         String   @id @default(uuid())
+  featureId  String
+  feature    Feature  @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  type       String   @default("comment") // comment | activity
+  authorId   String?
+  authorName String?
+  text       String   @db.Text
+  createdAt  DateTime @default(now())
+
+  @@index([featureId])
 }
 
 model Sprint {

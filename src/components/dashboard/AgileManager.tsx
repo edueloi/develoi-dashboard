@@ -7,9 +7,9 @@ import {
   Archive, X, Kanban, GripVertical, ArrowRight, CheckSquare,
   Square, ListTodo, Pencil, Link2, Search, FileText, ClipboardList,
   Target, User, Tag, Layers, Upload, Sparkles, Copy, Check as CheckIcon,
-  Bot,
+  Bot, MessageSquare, Send, Activity,
 } from 'lucide-react';
-import { format, addDays, isBefore, isSameDay } from 'date-fns';
+import { format, addDays, isBefore, isSameDay, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../lib/utils';
@@ -17,7 +17,8 @@ import {
   Badge, Button, Modal, ConfirmModal, ProgressBar,
   Input, Select, Textarea, EmptyState,
 } from '../ui';
-import type { Feature, Sprint } from './types';
+import type { Feature, Sprint, FeatureComment } from './types';
+import { useAuth } from '../../contexts/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const DraggableComponent = Draggable as any;
@@ -103,6 +104,7 @@ interface AgileManagerProps {
 }
 
 export function AgileManager({ projectId, view }: AgileManagerProps) {
+  const { profile } = useAuth();
   const [features, setFeatures]           = useState<Feature[]>([]);
   const [sprints, setSprints]             = useState<Sprint[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -148,7 +150,7 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
     if (kanbanCols.includes(destId)) {
       await fetch(`/api/projects/${projectId}/features/${draggableId}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: destId }),
+        body: JSON.stringify({ status: destId, actorId: profile?.uid, actorName: profile?.displayName }),
       });
       fetchAll();
       return;
@@ -255,12 +257,12 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-[2rem] border border-slate-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-            <History className="w-5 h-5" />
+          <div className="w-8 h-8 bg-[#0D1F4E] rounded-lg flex items-center justify-center text-white shadow-sm">
+            <History className="w-4 h-4" />
           </div>
           <div>
             <h2 className="text-lg font-black text-slate-900 tracking-tight">Planejamento Ágil</h2>
@@ -268,9 +270,9 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
           </div>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" iconLeft={<Plus className="w-4 h-4" />} onClick={onCreateSprint}>CRIAR SPRINT</Button>
-          <Button variant="outline" iconLeft={<Upload className="w-4 h-4" />} onClick={onImport}>IMPORTAR</Button>
-          <Button iconLeft={<Rocket className="w-4 h-4" />} onClick={() => onCreateTicket(undefined)}>NOVO TICKET</Button>
+          <Button size="sm" variant="outline" iconLeft={<Plus className="w-3.5 h-3.5" />} onClick={onCreateSprint}>SPRINT</Button>
+          <Button size="sm" variant="outline" iconLeft={<Upload className="w-3.5 h-3.5" />} onClick={onImport}>IMPORTAR</Button>
+          <Button size="sm" iconLeft={<Rocket className="w-3.5 h-3.5" />} onClick={() => onCreateTicket(undefined)}>NOVO TICKET</Button>
         </div>
       </div>
 
@@ -296,13 +298,13 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
               ref={provided.innerRef}
               {...provided.droppableProps}
               className={cn(
-                'rounded-[2.5rem] border border-dashed overflow-hidden transition-colors',
+                'rounded-xl border border-dashed overflow-hidden transition-colors',
                 snapshot.isDraggingOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-300 bg-slate-50/50'
               )}
             >
-              <div className="p-6 border-b border-slate-200 bg-white/50 flex items-center justify-between">
+              <div className="p-3 border-b border-slate-200 bg-white/50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-slate-200 rounded-xl flex items-center justify-center">
+                  <div className="w-7 h-7 bg-slate-200 rounded-lg flex items-center justify-center">
                     <Briefcase className="w-4 h-4 text-slate-500" />
                   </div>
                   <h3 className="font-black text-slate-600 uppercase tracking-widest text-xs">Backlog do Produto</h3>
@@ -315,9 +317,9 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
                   <Plus className="w-3.5 h-3.5" /> Adicionar
                 </button>
               </div>
-              <div className="p-2 space-y-1 min-h-[60px]">
+              <div className="p-2 space-y-2 min-h-[72px]">
                 {backlogFeatures.length === 0 ? (
-                  <div className="py-10 text-center">
+                  <div className="py-6 text-center">
                     <p className="text-sm font-bold text-slate-400">Backlog vazio — arraste tickets das sprints ou adicione novos.</p>
                   </div>
                 ) : (
@@ -376,20 +378,20 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={cn(
-              'rounded-[2.5rem] border transition-all duration-300 bg-white shadow-sm',
+              'rounded-xl border transition-all duration-300 bg-white shadow-sm',
               sprint.status === 'active' ? 'border-indigo-400 ring-4 ring-indigo-500/5' : 'border-slate-200',
               snapshot.isDraggingOver && 'border-indigo-400 bg-indigo-50/20'
             )}
           >
             {/* Header */}
-            <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3 flex-1 cursor-pointer" onClick={() => setExpanded(!expanded)}>
                 <button className="p-1.5 hover:bg-slate-50 rounded-lg transition-colors">
                   {expanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
                 </button>
-                <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center text-white',
+                <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center text-white',
                   sprint.status === 'active' ? 'bg-indigo-600' : sprint.status === 'completed' ? 'bg-slate-400' : 'bg-slate-200 text-slate-500')}>
-                  <cfg.icon className="w-5 h-5" />
+                  <cfg.icon className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -474,10 +476,10 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="px-4 pb-4 space-y-1 min-h-[56px]">
+                  <div className="px-3 pb-3 space-y-2 min-h-[56px]">
                     <div className="h-px bg-slate-100 mx-2 mb-2" />
                     {features.length === 0 ? (
-                      <div className="py-6 text-center border-2 border-dashed border-slate-100 rounded-2xl">
+                      <div className="py-5 text-center border-2 border-dashed border-slate-100 rounded-xl">
                         <p className="text-xs font-bold text-slate-400">Arraste tickets do backlog ou clique em <strong>+</strong> para adicionar.</p>
                       </div>
                     ) : (
@@ -544,8 +546,8 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
         ref={provided.innerRef}
         {...provided.draggableProps}
         className={cn(
-          'group flex items-center gap-3 px-3 py-2.5 bg-white border rounded-2xl transition-all cursor-default',
-          isDragging ? 'shadow-2xl border-indigo-400 rotate-1 scale-105' : 'border-transparent hover:border-slate-200 hover:bg-slate-50/60'
+          'group flex items-center gap-3 px-3 py-2.5 bg-white border rounded-lg transition-all cursor-default',
+          isDragging ? 'shadow-xl border-[#0D1F4E]/40 rotate-1 scale-[1.02]' : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50/60'
         )}
       >
         {/* drag handle */}
@@ -980,9 +982,105 @@ function FSection({ icon, label }: { icon: React.ReactNode; label: string }) {
   );
 }
 
+// ─── CommentsPanel — comentários + linha do tempo de atividade do ticket ─────
+
+function CommentsPanel({ projectId, featureId }: { projectId: string; featureId: string }) {
+  const { profile } = useAuth();
+  const [items, setItems] = useState<FeatureComment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const fetchComments = async () => {
+    try {
+      const r = await fetch(`/api/projects/${projectId}/features/${featureId}/comments`);
+      const data = await r.json();
+      setItems(Array.isArray(data) ? data : []);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    fetchComments();
+    const t = setInterval(fetchComments, 8000);
+    return () => clearInterval(t);
+  }, [featureId]);
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setSending(true);
+    try {
+      await fetch(`/api/projects/${projectId}/features/${featureId}/comments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: trimmed, authorId: profile?.uid, authorName: profile?.displayName }),
+      });
+      setText('');
+      await fetchComments();
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
+  };
+
+  if (loading) {
+    return <div className="py-6 text-center"><Loader2 className="w-5 h-5 text-indigo-400 animate-spin mx-auto" /></div>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="max-h-72 overflow-y-auto space-y-2.5 pr-1">
+        {items.length === 0 ? (
+          <p className="text-xs text-slate-400 text-center py-4">Nenhuma atividade ainda.</p>
+        ) : (
+          items.map(item => (
+            item.type === 'activity' ? (
+              <div key={item.id} className="flex items-center gap-2 text-[11px] text-slate-400 px-1">
+                <Activity className="w-3 h-3 text-indigo-300 shrink-0" />
+                <span><strong className="text-slate-500 font-bold">{item.authorName || 'Alguém'}</strong> {item.text}</span>
+                <span className="ml-auto shrink-0">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: ptBR })}</span>
+              </div>
+            ) : (
+              <div key={item.id} className="flex gap-2.5 px-1">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shrink-0">
+                  {(item.authorName || 'U')[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0 bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-xs font-black text-slate-700">{item.authorName || 'Usuário'}</span>
+                    <span className="text-[10px] text-slate-400">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: ptBR })}</span>
+                  </div>
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap break-words">{item.text}</p>
+                </div>
+              </div>
+            )
+          ))
+        )}
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+          placeholder="Escreva um comentário..."
+          className="flex-1 h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
+        />
+        <button
+          type="button"
+          onClick={handleSend}
+          disabled={sending || !text.trim()}
+          className="px-4 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-40"
+        >
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── EditFeatureModal ─────────────────────────────────────────────────────────
 
 function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; onClose: () => void; onSuccess: () => void }) {
+  const { profile } = useAuth();
   const [title,       setTitle]       = useState(feature.title);
   const [desc,        setDesc]        = useState(feature.description || '');
   const [type,        setType]        = useState(feature.type || 'task');
@@ -1018,6 +1116,8 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           activities: stringifyActivities(activities),
           linkedDemandId: linkedDemand?.id || null,
           linkedDemandTitle: linkedDemand?.title || null,
+          actorId: profile?.uid,
+          actorName: profile?.displayName,
         }),
       });
       onSuccess();
@@ -1104,6 +1204,11 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           </button>
         </div>
       </form>
+
+      <div className="pt-2">
+        <FSection icon={<MessageSquare className="w-4 h-4" />} label="Comentários & Atividade" />
+        <CommentsPanel projectId={feature.projectId} featureId={feature.id} />
+      </div>
 
       {confirmDelete && (
         <ConfirmModal isOpen onClose={() => setConfirmDelete(false)} onConfirm={handleDelete}

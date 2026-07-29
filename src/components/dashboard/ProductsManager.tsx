@@ -108,11 +108,11 @@ export function ProductsManager() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
+          <h2 className="text-lg font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
             Produtos & Planos
           </h2>
           <p className="text-sm text-slate-400 mt-0.5">Gerencie o que você vende</p>
@@ -139,14 +139,14 @@ export function ProductsManager() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className="bg-white dark:bg-white/5 rounded-2xl p-4 shadow-sm border border-slate-200/60 dark:border-white/10"
+            className="bg-white dark:bg-white/5 rounded-xl p-3 shadow-sm border border-slate-200/60 dark:border-white/10"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: s.bg }}>
                 <s.icon className="w-4 h-4" style={{ color: s.color }} />
               </div>
               <div>
-                <p className="text-xl font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
+                <p className="text-lg font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.label}</p>
               </div>
             </div>
@@ -155,14 +155,14 @@ export function ProductsManager() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 flex flex-wrap gap-3">
+      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3 flex flex-wrap gap-2">
         <div className="flex-1 min-w-[180px] relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar produto..."
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] transition-colors"
+            className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] transition-colors"
             style={{ color: isDark ? '#fff' : '#1e293b' }}
           />
         </div>
@@ -209,13 +209,13 @@ export function ProductsManager() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ delay: i * 0.04 }}
-                className={`bg-white dark:bg-white/5 rounded-2xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${
+                className={`bg-white dark:bg-white/5 rounded-xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${
                   product.active
                     ? 'border-slate-200/60 dark:border-white/10'
                     : 'border-slate-100 dark:border-white/5 opacity-60'
                 }`}
               >
-                <div className="p-5">
+                <div className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span

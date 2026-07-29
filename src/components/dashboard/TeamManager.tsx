@@ -73,7 +73,7 @@ export function TeamManager() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center py-24">
+    <div className="flex items-center justify-center py-12">
       <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
     </div>
   );
@@ -113,7 +113,7 @@ export function TeamManager() {
           className="py-12"
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 pb-6">
           {members.map(m => (
             <AdminMemberCard
               key={m.id}
@@ -183,10 +183,10 @@ function AdminMemberCard({ member: m, deleting, onEdit, onView, onDelete }: {
   return (
     <>
       <div
-        className="bg-white rounded-2xl border transition-all overflow-hidden group hover:-translate-y-1"
+        className="bg-white rounded-xl border transition-all overflow-hidden group hover:-translate-y-0.5"
         style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.06)' }}
       >
-        <div className="p-6">
+        <div className="p-4">
           {/* Topo: foto + ações */}
           <div className="flex justify-between items-start mb-5">
             <div className="relative w-16 h-16">

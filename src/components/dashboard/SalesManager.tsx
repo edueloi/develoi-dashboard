@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  TrendingUp, Plus, Edit2, Trash2, DollarSign, CheckCircle2, XCircle,
-  Clock, AlertCircle, Search, Filter, Users, ShoppingBag, BarChart2, Eye,
+  TrendingUp, Plus, Edit2, Trash2, CheckCircle2, XCircle,
+  Clock, AlertCircle, Search, Filter, Users, BarChart2, Eye,
   ChevronDown, ChevronRight, Banknote, CreditCard, Landmark, Phone, UserPlus,
 } from 'lucide-react';
 import {
@@ -90,86 +90,39 @@ export function SalesManager() {
 
   // Métricas
   const totalRevenue = sales.filter(s => s.status === 'won').reduce((a, s) => a + s.value, 0);
-  const totalLeads = sales.filter(s => s.status === 'lead' || s.status === 'negotiation').length;
   const totalWon = sales.filter(s => s.status === 'won').length;
   const conversionRate = sales.length > 0
     ? Math.round((totalWon / sales.length) * 100)
     : 0;
 
-  // Produto mais vendido
-  const productSalesCount: Record<string, number> = {};
-  sales.filter(s => s.status === 'won').forEach(s => {
-    productSalesCount[s.productName] = (productSalesCount[s.productName] ?? 0) + 1;
-  });
-  const topProduct = Object.entries(productSalesCount).sort((a, b) => b[1] - a[1])[0];
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
+          <h2 className="text-lg font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
             Controle de Vendas
           </h2>
           <p className="text-sm text-slate-400 mt-0.5">Acompanhe leads, negociações e fechamentos</p>
         </div>
-        <Button
-          iconLeft={<Plus className="w-4 h-4" />}
-          onClick={() => { setEditingSale(null); setIsFormOpen(true); }}
-        >
-          NOVA VENDA
-        </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          {
-            label: 'Receita Fechada',
-            value: totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-            icon: DollarSign, color: '#15803D', bg: 'rgba(21,128,61,0.08)',
-            sub: 'vendas ganhas',
-          },
-          {
-            label: 'Em Negociação',
-            value: totalLeads,
-            icon: Clock, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)',
-            sub: 'leads + negoc.',
-          },
-          {
-            label: 'Taxa de Conversão',
-            value: `${conversionRate}%`,
-            icon: TrendingUp, color: '#2563EB', bg: 'rgba(37,99,235,0.08)',
-            sub: 'do total',
-          },
-          {
-            label: 'Produto Top',
-            value: topProduct ? topProduct[0] : '—',
-            icon: ShoppingBag, color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)',
-            sub: topProduct ? `${topProduct[1]} venda${topProduct[1] !== 1 ? 's' : ''}` : 'sem dados',
-          },
-        ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06 }}
-            className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-slate-200/60 dark:border-white/10"
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-lg font-black" style={{ color: '#15803D' }}>
+              {totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            </p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Receita fechada &bull; {conversionRate}% conversão</p>
+          </div>
+          <Button
+            iconLeft={<Plus className="w-4 h-4" />}
+            onClick={() => { setEditingSale(null); setIsFormOpen(true); }}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: s.bg }}>
-                <s.icon className="w-5 h-5" style={{ color: s.color }} />
-              </div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.sub}</span>
-            </div>
-            <p className="text-xl font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">{s.label}</p>
-          </motion.div>
-        ))}
+            NOVA VENDA
+          </Button>
+        </div>
       </div>
 
       {/* Pipeline por status */}
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
         {(Object.keys(STATUS_CONFIG) as SaleStatus[]).map(st => {
           const count = sales.filter(s => s.status === st).length;
           const revenue = sales.filter(s => s.status === st).reduce((a, s) => a + s.value, 0);
@@ -178,7 +131,7 @@ export function SalesManager() {
             <button
               key={st}
               onClick={() => setFilterStatus(filterStatus === st ? 'all' : st)}
-              className={`rounded-2xl p-3 border text-left transition-all ${
+              className={`rounded-xl p-2.5 border text-left transition-all ${
                 filterStatus === st
                   ? 'shadow-md'
                   : 'bg-white dark:bg-white/5 border-slate-200/60 dark:border-white/10 hover:shadow-sm'
@@ -186,7 +139,7 @@ export function SalesManager() {
               style={filterStatus === st ? { background: cfg.bg, borderColor: cfg.color } : {}}
             >
               <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: cfg.color }}>{cfg.label}</p>
-              <p className="text-xl font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{count}</p>
+              <p className="text-lg font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{count}</p>
               <p className="text-[10px] text-slate-400 font-medium truncate">
                 {revenue > 0 ? revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
               </p>
@@ -196,14 +149,14 @@ export function SalesManager() {
       </div>
 
       {/* Filtros */}
-      <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 flex flex-wrap gap-3">
+      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3 flex flex-wrap gap-2">
         <div className="flex-1 min-w-[180px] relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar cliente ou produto..."
-            className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] transition-colors"
+            className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] transition-colors"
             style={{ color: isDark ? '#fff' : '#1e293b' }}
           />
         </div>
@@ -229,7 +182,7 @@ export function SalesManager() {
           action={<Button onClick={() => setIsFormOpen(true)}>REGISTRAR VENDA</Button>}
         />
       ) : (
-        <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
           <div className="divide-y divide-slate-100 dark:divide-white/5">
             <AnimatePresence>
               {filtered.map((sale, i) => {
@@ -242,7 +195,7 @@ export function SalesManager() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group"
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group"
                   >
                     {/* Status icon */}
                     <div

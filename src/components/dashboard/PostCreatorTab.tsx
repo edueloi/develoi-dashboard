@@ -7,7 +7,7 @@ import {
   Upload, MousePointer2, AlignLeft, AlignCenter, AlignRight,
   Copy, Layers, Send, Instagram, X, ChevronLeft, Hexagon, Sparkles, Zap
 } from 'lucide-react';
-import { Button, Input, Textarea, Select, Badge, PanelCard } from '../ui';
+import { Button, Input, Textarea, Select, Badge, Modal, PanelCard } from '../ui';
 import { v4 as uuidv4 } from 'uuid';
 
 type PostFormat = 'instagram' | 'facebook' | 'stories';
@@ -368,13 +368,13 @@ export function PostCreatorTab() {
   }, [selectedId, elements]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 -mx-4 lg:-mx-6 -my-4 lg:-my-6">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 -mx-3 sm:-mx-4 lg:-mx-5 -my-3 sm:-my-4 lg:-my-5">
       
       {/* Header Toolbar */}
-      <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 flex-shrink-0 z-10 shadow-sm">
-        <div className="flex items-center gap-6">
+      <header className="min-h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-3 sm:px-4 flex-shrink-0 z-10 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <div className="w-8 h-8 bg-[#0D1F4E] rounded-lg flex items-center justify-center shadow-sm">
               <Palette className="w-4 h-4 text-white" />
             </div>
             <span className="font-black text-slate-800 dark:text-white tracking-tight">Criador PRO</span>
@@ -382,7 +382,7 @@ export function PostCreatorTab() {
 
           <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
 
-          <div className="hidden md:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+          <div className="hidden md:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab('templates')}
               className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'templates' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
@@ -404,7 +404,7 @@ export function PostCreatorTab() {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {activeTab === 'editor' && (
             <>
               <input 
@@ -414,9 +414,9 @@ export function PostCreatorTab() {
                 className="font-bold text-sm bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-indigo-500 rounded-lg px-3 py-1.5 w-40 md:w-64 text-slate-800 dark:text-white"
                 placeholder="Nome do Projeto"
               />
-              <Button variant="outline" onClick={handleSave} className="hidden md:flex"><Save className="w-4 h-4 mr-2" /> Salvar Projeto</Button>
-              <Button onClick={() => handleExport('jpeg')} loading={isExporting} className="hidden md:flex bg-slate-900 text-white hover:bg-slate-800"><Download className="w-4 h-4 mr-2" /> Baixar Imagem</Button>
-              <Button onClick={() => setIsPublishModalOpen(true)} className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 border-none text-white shadow-lg shadow-pink-500/20">
+              <Button size="sm" variant="outline" onClick={handleSave} className="hidden md:flex"><Save className="w-3.5 h-3.5 mr-1.5" /> Salvar</Button>
+              <Button size="sm" onClick={() => handleExport('jpeg')} loading={isExporting} className="hidden md:flex"><Download className="w-3.5 h-3.5 mr-1.5" /> Baixar</Button>
+              <Button size="sm" onClick={() => setIsPublishModalOpen(true)}>
                 <Instagram className="w-4 h-4 md:mr-2" /> <span className="hidden md:inline">Postar</span>
               </Button>
             </>
@@ -426,22 +426,22 @@ export function PostCreatorTab() {
 
       {/* ─── TAB: TEMPLATES (MODELOS PRONTOS) ────────────────────────────────── */}
       {activeTab === 'templates' && (
-        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 lg:p-12">
+        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 lg:p-6">
           <div className="max-w-6xl mx-auto">
             <div className="mb-10 text-center">
               <h1 className="text-3xl md:text-5xl font-black text-slate-800 dark:text-white mb-4 tracking-tight">Comece com um modelo incrível</h1>
               <p className="text-slate-500 dark:text-slate-400 text-lg">Escolha um design profissional e pronto para usar, ou comece do zero.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               
               {/* Criar do Zero */}
               <div 
                 onClick={startNewProject}
-                className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-500 dark:hover:border-indigo-500 p-8 flex flex-col items-center justify-center text-center cursor-pointer group transition-all h-[340px]"
+                className="bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#0D1F4E] p-5 flex flex-col items-center justify-center text-center cursor-pointer group transition-all h-[260px]"
               >
-                <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <Plus className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="w-12 h-12 bg-slate-100 dark:bg-indigo-500/10 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                  <Plus className="w-6 h-6 text-[#0D1F4E] dark:text-indigo-400" />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white">Design em Branco</h3>
                 <p className="text-sm text-slate-500 mt-2">Comece do zero com a sua criatividade livre.</p>
@@ -452,9 +452,9 @@ export function PostCreatorTab() {
                 <div 
                   key={template.id}
                   onClick={() => loadTemplate(template)}
-                  className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer group hover:shadow-2xl hover:shadow-indigo-500/10 transition-all flex flex-col h-[340px] relative"
+                  className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer group hover:shadow-md transition-all flex flex-col h-[260px] relative"
                 >
-                  <div className="h-48 w-full relative flex-shrink-0" style={{ backgroundColor: template.bgColor }}>
+                  <div className="h-36 w-full relative flex-shrink-0" style={{ backgroundColor: template.bgColor }}>
                     {/* Abstract CSS preview of the template colors */}
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white to-transparent"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -464,7 +464,7 @@ export function PostCreatorTab() {
                     </div>
                   </div>
                   
-                  <div className="p-6 flex-1 flex flex-col">
+                  <div className="p-4 flex-1 flex flex-col">
                     <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-2">{template.name}</h3>
                     <div className="flex items-center gap-2 mt-auto">
                       <Badge color="info">{template.format}</Badge>
@@ -481,7 +481,7 @@ export function PostCreatorTab() {
 
       {/* ─── TAB: HISTORY ──────────────────────────────────────────────────────── */}
       {activeTab === 'history' && (
-        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-6 lg:p-12">
+        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 p-4 lg:p-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-10">
               <div>
@@ -490,7 +490,7 @@ export function PostCreatorTab() {
               </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
               {projects.length === 0 ? (
                 <div className="col-span-full py-32 flex flex-col items-center justify-center text-slate-400">
                   <History className="w-16 h-16 mb-4 opacity-30" />
@@ -499,7 +499,7 @@ export function PostCreatorTab() {
                 </div>
               ) : (
                 projects.map(project => (
-                  <div key={project.id} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden group hover:shadow-xl hover:shadow-indigo-500/10 transition-all flex flex-col">
+                  <div key={project.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden group hover:shadow-md transition-all flex flex-col">
                     <div 
                       className="aspect-square bg-slate-100 flex items-center justify-center overflow-hidden cursor-pointer relative"
                       onClick={() => loadProject(project)}
@@ -515,7 +515,7 @@ export function PostCreatorTab() {
                         </Button>
                       </div>
                     </div>
-                    <div className="p-5 flex-1 flex flex-col">
+                    <div className="p-4 flex-1 flex flex-col">
                       <h3 className="font-bold text-sm text-slate-800 dark:text-white truncate" title={project.name}>{project.name}</h3>
                       <div className="flex items-center justify-between mt-3">
                         <span className="text-[10px] uppercase font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-1 rounded-md">{project.format}</span>
@@ -891,8 +891,8 @@ export function PostCreatorTab() {
 
       {/* Modal de Publicação do Instagram */}
       {isPublishModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative">
+        <Modal isOpen onClose={() => setIsPublishModalOpen(false)} title="Publicar no Instagram" size="lg">
+          <div className="space-y-4">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-gradient-to-r from-purple-600/10 to-pink-600/10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 flex items-center justify-center">
@@ -942,7 +942,7 @@ export function PostCreatorTab() {
               </Button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );
