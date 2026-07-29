@@ -13,6 +13,9 @@ export interface Project {
   goals?: string[];
   financials?: string;
   history?: string;
+  projectUrl?: string;
+  coverImage?: string;
+  logoUrl?: string;
 }
 
 export interface Feature {

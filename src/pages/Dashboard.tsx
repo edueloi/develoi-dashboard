@@ -9,7 +9,7 @@ import {
   TrendingUp, Share2, MoreHorizontal, Link2, History,
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
-  ShoppingBag, BarChart2, PhoneCall, UserCircle, Zap,
+  ShoppingBag, BarChart2, PhoneCall, UserCircle, Zap, Camera, Loader2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -39,7 +39,8 @@ import {
   Select,
   Textarea,
   EmptyState,
-  Column
+  Column,
+  Combobox
 } from '../components/ui';
 
 // Dashboard feature components
@@ -362,17 +363,23 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-3">
             {!hideSelectorTabs.includes(activeTab) && projects.length > 0 && (
-              <select
-                value={selectedProject?.id}
-                onChange={(e) => {
-                  const proj = projects.find(p => p.id === e.target.value) || null;
-                  setSelectedProject(proj);
-                  goTo(activeTab, proj);
-                }}
-                className="text-xs font-bold bg-white border border-slate-200 text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:border-[#0D1F4E] transition-colors max-w-[200px]"
-              >
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              <div className="hidden sm:flex items-center gap-2 min-w-0">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Projeto</span>
+                <Combobox
+                  size="sm"
+                  className="w-56"
+                  placeholder="Selecionar projeto..."
+                  searchPlaceholder="Buscar projeto..."
+                  emptyMessage="Nenhum projeto encontrado."
+                  value={selectedProject?.id}
+                  options={projects.map(p => ({ value: p.id, label: p.name, subtitle: p.clientName || 'Sem cliente' }))}
+                  onChange={(v) => {
+                    const proj = projects.find(p => p.id === v) || null;
+                    setSelectedProject(proj);
+                    goTo(activeTab, proj);
+                  }}
+                />
+              </div>
             )}
             {activeTab === 'projects' && (
               <button
@@ -1099,6 +1106,56 @@ function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: Activ
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
+function ImageUploadField({ label, value, onChange, shape = 'banner' }: {
+  label: string; value: string; onChange: (v: string) => void; shape?: 'banner' | 'square';
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => { onChange(reader.result as string); setUploading(false); };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div>
+      <label className="block text-[10px] font-black uppercase tracking-[0.18em] mb-1.5 ml-1" style={{ color: '#64748b' }}>{label}</label>
+      <div className="flex items-center gap-3">
+        <div className={cn(
+          'relative shrink-0 overflow-hidden border bg-slate-50 flex items-center justify-center',
+          shape === 'banner' ? 'w-24 h-14 rounded-xl' : 'w-14 h-14 rounded-xl'
+        )} style={{ borderColor: 'rgba(13,31,78,0.1)' }}>
+          {value ? (
+            <img src={value} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <Image className="w-4 h-4 text-slate-300" />
+          )}
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all disabled:opacity-50"
+          style={{ borderColor: 'rgba(13,31,78,0.12)', color: '#0D1F4E', background: 'white' }}
+        >
+          {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+          {uploading ? 'Carregando...' : value ? 'Trocar imagem' : 'Enviar imagem'}
+        </button>
+        {value && (
+          <button type="button" onClick={() => onChange('')} className="p-2 rounded-xl text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function NewProjectModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
   const [client, setClient] = useState('');
@@ -1107,6 +1164,9 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
   const [goals, setGoals] = useState('');
   const [financials, setFinancials] = useState('');
   const [history, setHistory] = useState('');
+  const [projectUrl, setProjectUrl] = useState('');
+  const [coverImage, setCoverImage] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [allowedUsers, setAllowedUsers] = useState<string[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -1125,7 +1185,12 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
       await fetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: uuidv4(), name, clientName: client, description: desc, deadline, visibility, allowedUsers: visibility === 'private' ? allowedUsers : [], status: 'active', progress: 0, goals: goals.split('\n').filter(g => g.trim()), financials, history }),
+        body: JSON.stringify({
+          id: uuidv4(), name, clientName: client, description: desc, deadline, visibility,
+          allowedUsers: visibility === 'private' ? allowedUsers : [], status: 'active', progress: 0,
+          goals: goals.split('\n').filter(g => g.trim()), financials, history,
+          projectUrl: projectUrl || null, coverImage: coverImage || null, logoUrl: logoUrl || null,
+        }),
       });
       onClose();
     } catch (error) {
@@ -1197,6 +1262,13 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
 
         <Textarea label="História & Contexto" value={history} onChange={e => setHistory(e.target.value)} placeholder="Conte um pouco sobre como este projeto surgiu..." rows={2} />
 
+        <Input label="URL do Projeto" iconLeft={<Link2 className="w-4 h-4" />} value={projectUrl} onChange={e => setProjectUrl(e.target.value)} placeholder="https://meuprojeto.com.br" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ImageUploadField label="Capa do Projeto" value={coverImage} onChange={setCoverImage} shape="banner" />
+          <ImageUploadField label="Logo do Projeto" value={logoUrl} onChange={setLogoUrl} shape="square" />
+        </div>
+
         <Button type="submit" loading={loading} fullWidth size="lg">CRIAR PROJETO</Button>
       </form>
     </Modal>
@@ -1213,6 +1285,9 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
   const [goals, setGoals] = useState(project.goals?.join('\n') || '');
   const [financials, setFinancials] = useState(project.financials || '');
   const [history, setHistory] = useState(project.history || '');
+  const [projectUrl, setProjectUrl] = useState(project.projectUrl || '');
+  const [coverImage, setCoverImage] = useState(project.coverImage || '');
+  const [logoUrl, setLogoUrl] = useState(project.logoUrl || '');
   const [visibility, setVisibility] = useState<'public' | 'private'>(project.visibility || 'public');
   const [allowedUsers, setAllowedUsers] = useState<string[]>(project.allowedUsers || []);
   const [members, setMembers] = useState<any[]>([]);
@@ -1232,7 +1307,11 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
       await fetch(`/api/projects/${project.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, clientName: client, description: desc, deadline, status, progress, visibility, allowedUsers: visibility === 'private' ? allowedUsers : [], goals: goals.split('\n').filter(g => g.trim()), financials, history }),
+        body: JSON.stringify({
+          name, clientName: client, description: desc, deadline, status, progress, visibility,
+          allowedUsers: visibility === 'private' ? allowedUsers : [], goals: goals.split('\n').filter(g => g.trim()), financials, history,
+          projectUrl: projectUrl || null, coverImage: coverImage || null, logoUrl: logoUrl || null,
+        }),
       });
       onClose();
     } catch (error) {
@@ -1343,6 +1422,13 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
                   <span className="text-[9px] text-slate-300 font-bold">100%</span>
                 </div>
               </div>
+            </div>
+
+            <Input label="URL do Projeto" iconLeft={<Link2 className="w-4 h-4" />} value={projectUrl} onChange={e => setProjectUrl(e.target.value)} placeholder="https://meuprojeto.com.br" />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ImageUploadField label="Capa do Projeto" value={coverImage} onChange={setCoverImage} shape="banner" />
+              <ImageUploadField label="Logo do Projeto" value={logoUrl} onChange={setLogoUrl} shape="square" />
             </div>
           </div>
         )}

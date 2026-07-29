@@ -35,6 +35,9 @@ model Project {
   goals        Json?
   financials   String?   @db.Text
   history      String?   @db.Text
+  projectUrl   String?
+  coverImage   String?   @db.LongText
+  logoUrl      String?   @db.LongText
   createdAt    DateTime  @default(now())
   features     Feature[]
   sprints      Sprint[]

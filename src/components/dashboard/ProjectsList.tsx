@@ -4,7 +4,7 @@ import {
   Settings, Trash2, Users, Calendar, Rocket, Briefcase, ArrowRight,
   BookOpen, ChevronDown, ChevronUp, Monitor, Globe, Kanban, MessageSquare,
   ShieldCheck, FileText, TrendingUp, Clock, CheckCircle2, AlertCircle,
-  Zap, List, BarChart2, Star, Lock, Unlock, Info
+  Zap, List, BarChart2, Star, Lock, Unlock, Info, ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -327,13 +327,19 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
       }}
     >
       {/* Top banner compacto */}
-      <div className="relative px-4 pt-4 pb-6" style={{ background: headerGradient }}>
+      <div className="relative px-4 pt-4 pb-6 bg-cover bg-center" style={{ background: project.coverImage ? undefined : headerGradient, backgroundImage: project.coverImage ? `linear-gradient(rgba(6,17,43,0.55), rgba(6,17,43,0.55)), url(${project.coverImage})` : undefined }}>
         {/* Dots decorativos */}
-        <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+        {!project.coverImage && (
+          <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+        )}
         <div className="relative z-10 flex items-start justify-between gap-2">
-          {/* Avatar do projeto */}
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0" style={{ background: 'rgba(255,255,255,0.12)', color: '#C49A2A', backdropFilter: 'blur(4px)' }}>
-            {project.name[0]}
+          {/* Avatar / logo do projeto */}
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0 overflow-hidden" style={{ background: 'rgba(255,255,255,0.12)', color: '#C49A2A', backdropFilter: 'blur(4px)' }}>
+            {project.logoUrl ? (
+              <img src={project.logoUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              project.name[0]
+            )}
           </div>
 
           {/* Actions */}
@@ -422,6 +428,18 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
             )}
             {project.visibility === 'private' && (
               <span title="Projeto privado"><Lock className="w-3 h-3 text-slate-300 flex-shrink-0" /></span>
+            )}
+            {project.projectUrl && (
+              <a
+                href={project.projectUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                title="Abrir projeto"
+                className="text-slate-300 hover:text-[#0D1F4E] transition-colors"
+              >
+                <ExternalLink className="w-3 h-3" />
+              </a>
             )}
           </div>
         </div>
