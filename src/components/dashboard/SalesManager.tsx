@@ -10,7 +10,6 @@ import {
 } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useNavigate } from 'react-router-dom';
 import type { Sale, SaleStatus, Product } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -33,7 +32,6 @@ const ORIGIN_OPTIONS = ['WhatsApp', 'Instagram', 'Indicação', 'Site', 'LinkedI
 export function SalesManager() {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
-  const navigate = useNavigate();
 
   const [sales, setSales] = useState<Sale[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -327,13 +325,18 @@ export function SalesManager() {
           users={users}
           onClose={() => setIsFormOpen(false)}
           onSaved={(s) => {
+            const wasWon = editingSale?.status === 'won';
             if (editingSale) {
               setSales(prev => prev.map(x => x.id === s.id ? s : x));
             } else {
               setSales(prev => [s, ...prev]);
             }
             setIsFormOpen(false);
-            toast(editingSale ? 'Venda atualizada!' : 'Venda registrada!', 'success');
+            if (s.status === 'won' && !wasWon) {
+              toast('Venda fechada! Cliente criado automaticamente.', 'success');
+            } else {
+              toast(editingSale ? 'Venda atualizada!' : 'Venda registrada!', 'success');
+            }
           }}
         />
       )}
@@ -342,7 +345,6 @@ export function SalesManager() {
         <SaleDetailModal
           sale={viewingSale}
           onClose={() => setViewingSale(null)}
-          onConverted={() => { setViewingSale(null); navigate('/dashboard/clientes'); }}
         />
       )}
 
@@ -532,29 +534,9 @@ function SaleFormModal({
 
 // ─── SaleDetailModal ──────────────────────────────────────────────────────────
 
-function SaleDetailModal({ sale, onClose, onConverted }: { sale: Sale; onClose: () => void; onConverted: () => void }) {
+function SaleDetailModal({ sale, onClose }: { sale: Sale; onClose: () => void }) {
   const { isDark } = useTheme();
-  const { show: toast } = useToast();
   const cfg = STATUS_CONFIG[sale.status];
-  const [converting, setConverting] = useState(false);
-
-  const handleConvert = async () => {
-    setConverting(true);
-    try {
-      const r = await fetch(`/api/sales/${sale.id}/convert-to-client`, { method: 'POST' });
-      const data = await r.json();
-      if (!r.ok) {
-        toast(data.error === 'Esta venda já foi convertida em cliente' ? data.error : 'Erro ao converter em cliente', 'error');
-        return;
-      }
-      toast('Cliente criado com sucesso!', 'success');
-      onConverted();
-    } catch {
-      toast('Erro ao converter em cliente', 'error');
-    } finally {
-      setConverting(false);
-    }
-  };
 
   return (
     <Modal isOpen onClose={onClose} title="Detalhe da Venda" size="sm">
@@ -593,14 +575,12 @@ function SaleDetailModal({ sale, onClose, onConverted }: { sale: Sale; onClose: 
         )}
 
         {sale.status === 'won' && (
-          <Button
-            fullWidth
-            iconLeft={<UserPlus className="w-4 h-4" />}
-            onClick={handleConvert}
-            loading={converting}
-          >
-            CONVERTER EM CLIENTE
-          </Button>
+          <div className="flex items-center gap-2 px-4 py-3 rounded-2xl" style={{ background: 'rgba(21,128,61,0.08)' }}>
+            <UserPlus className="w-4 h-4 flex-shrink-0" style={{ color: '#15803D' }} />
+            <p className="text-xs font-bold" style={{ color: '#15803D' }}>
+              Cliente criado automaticamente ao fechar a venda.
+            </p>
+          </div>
         )}
 
         {sale.clientPhone && (

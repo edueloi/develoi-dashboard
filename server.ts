@@ -594,11 +594,33 @@ async function startServer() {
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // Cria o Client vinculado a uma venda "won", se ainda não existir.
+    async function ensureClientForWonSale(saleId: string) {
+      const sale = await prisma.sale.findUnique({ where: { id: saleId } });
+      if (!sale || sale.status !== 'won') return;
+
+      const existing = await prisma.client.findFirst({ where: { saleId: sale.id } });
+      if (existing) return;
+
+      await prisma.client.create({
+        data: {
+          name: sale.clientName,
+          email: sale.clientEmail,
+          phone: sale.clientPhone,
+          saleId: sale.id,
+          billingValue: sale.value,
+          soldById: sale.soldById,
+          soldByName: sale.soldByName,
+        }
+      });
+    }
+
     app.post("/api/sales", async (req, res) => {
       try {
         const sale = await prisma.sale.create({
           data: { ...req.body, closedAt: req.body.closedAt ? new Date(req.body.closedAt) : null }
         });
+        if (sale.status === 'won') await ensureClientForWonSale(sale.id);
         res.json(sale);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
@@ -609,6 +631,7 @@ async function startServer() {
           where: { id: req.params.id },
           data: { ...req.body, closedAt: req.body.closedAt ? new Date(req.body.closedAt) : undefined }
         });
+        if (sale.status === 'won') await ensureClientForWonSale(sale.id);
         res.json(sale);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
