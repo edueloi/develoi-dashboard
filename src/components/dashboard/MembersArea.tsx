@@ -2,10 +2,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import {
   AlertTriangle, Check, Edit2, KeyRound, Lock, Mail,
-  ShieldCheck, Trash2, User, UserPlus, Users, X,
+  ShieldCheck, Trash2, User, UserPlus, Users,
   Crown, Code2, Palette, TestTube, Eye
 } from 'lucide-react';
-import { Badge, Button, ConfirmModal, EmptyState, Input, StatCard, StatGrid } from '../ui';
+import { Badge, Button, ConfirmModal, EmptyState, Input, Modal, StatCard, StatGrid } from '../ui';
 import type { BadgeColor } from '../ui/Badge';
 import { cn } from '../../lib/utils';
 
@@ -61,7 +61,7 @@ function RolePicker({ value, onChange }: { value: string; onChange: (v: string) 
       <label className="block text-xs font-bold uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>
         Permissão / Cargo
       </label>
-      <div className="grid grid-cols-1 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {ROLES.map(r => {
           const Icon = r.icon;
           const active = value === r.value;
@@ -71,22 +71,22 @@ function RolePicker({ value, onChange }: { value: string; onChange: (v: string) 
               type="button"
               onClick={() => onChange(r.value)}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all',
+                'flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-left transition-all min-w-0',
                 active ? 'border-[var(--brand-gold)] bg-amber-50' : 'border-slate-100 hover:border-slate-200 bg-white'
               )}
             >
               <div
-                className={cn('w-8 h-8 rounded-lg flex items-center justify-center shrink-0', !active && 'bg-slate-100 text-slate-400')}
+                className={cn('w-7 h-7 rounded-lg flex items-center justify-center shrink-0', !active && 'bg-slate-100 text-slate-400')}
                 style={active ? { background: 'var(--brand-navy)', color: 'white' } : {}}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className={cn('text-sm font-bold', active ? 'text-slate-800' : 'text-slate-600')}>{r.label}</div>
-                <div className="text-xs text-slate-400 truncate">{r.desc}</div>
+                <div className={cn('text-sm font-bold truncate', active ? 'text-slate-800' : 'text-slate-600')}>{r.label}</div>
+                <div className="text-[11px] text-slate-400 truncate">{r.desc}</div>
               </div>
               <div className={cn(
-                'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                'w-4.5 h-4.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
                 active ? 'border-[var(--brand-gold)] bg-[var(--brand-gold)]' : 'border-slate-200'
               )}>
                 {active && <Check className="w-3 h-3 text-white" />}
@@ -95,47 +95,6 @@ function RolePicker({ value, onChange }: { value: string; onChange: (v: string) 
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// ─── modal de confirmação de deleção ────────────────────────────────────────
-function ConfirmDeleteModal({ member, onConfirm, onClose }: { member: Member; onConfirm: () => void; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 16 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center z-10"
-      >
-        <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
-          <AlertTriangle className="w-8 h-8 text-red-500" />
-        </div>
-        <h3 className="text-lg font-black mb-2" style={{ color: 'var(--brand-navy)' }}>Remover membro?</h3>
-        <p className="text-sm text-slate-500 mb-6">
-          Você está prestes a remover <strong className="text-slate-700">{member.displayName}</strong> do sistema. Esta ação não pode ser desfeita.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 py-3 rounded-xl text-sm font-black text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-          >
-            Sim, remover
-          </button>
-        </div>
-      </motion.div>
     </div>
   );
 }
@@ -163,83 +122,56 @@ function AddMemberModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg my-4 z-10 overflow-hidden"
-      >
-        <div className="px-8 pt-8 pb-6 border-b border-slate-100">
-          <button onClick={onClose} className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
-            <X className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: 'var(--brand-navy)' }}>
-              <UserPlus className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black" style={{ color: 'var(--brand-navy)' }}>Novo Membro</h2>
-              <p className="text-xs text-slate-400 mt-0.5">Preencha os dados para criar o acesso</p>
-            </div>
+    <Modal isOpen onClose={onClose} title="Novo Membro" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-sm text-red-600">{error}</p>
           </div>
-        </div>
+        )}
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          {error && (
-            <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
-              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
+        <Input
+          label="Nome completo"
+          required
+          iconLeft={<User className="w-4 h-4" />}
+          placeholder="Ex: Carlos Eduardo"
+          value={form.displayName}
+          onChange={e => setForm({ ...form, displayName: e.target.value })}
+        />
 
-          <Input
-            label="Nome completo"
-            required
-            iconLeft={<User className="w-4 h-4" />}
-            placeholder="Ex: Carlos Eduardo"
-            value={form.displayName}
-            onChange={e => setForm({ ...form, displayName: e.target.value })}
-          />
+        <Input
+          label="E-mail de acesso"
+          required
+          type="email"
+          iconLeft={<Mail className="w-4 h-4" />}
+          placeholder="carlos@develoi.com.br"
+          value={form.email}
+          onChange={e => setForm({ ...form, email: e.target.value })}
+        />
 
-          <Input
-            label="E-mail de acesso"
-            required
-            type="email"
-            iconLeft={<Mail className="w-4 h-4" />}
-            placeholder="carlos@develoi.com.br"
-            value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })}
-          />
+        <Input
+          label="Senha inicial"
+          required
+          type="password"
+          iconLeft={<Lock className="w-4 h-4" />}
+          placeholder="••••••••"
+          value={form.password}
+          onChange={e => setForm({ ...form, password: e.target.value })}
+        />
 
-          <Input
-            label="Senha inicial"
-            required
-            type="password"
-            iconLeft={<Lock className="w-4 h-4" />}
-            placeholder="••••••••"
-            value={form.password}
-            onChange={e => setForm({ ...form, password: e.target.value })}
-          />
+        <RolePicker value={form.role} onChange={v => setForm({ ...form, role: v })} />
 
-          <RolePicker value={form.role} onChange={v => setForm({ ...form, role: v })} />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 text-white font-black rounded-xl text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2 disabled:opacity-60 transition-all mt-2"
-            style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
-          >
-            {loading ? 'CADASTRANDO...' : <><UserPlus className="w-4 h-4" /> CADASTRAR MEMBRO</>}
-          </button>
-        </form>
-      </motion.div>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3.5 text-white font-black rounded-xl text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2 disabled:opacity-60 transition-all mt-2"
+          style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
+        >
+          {loading ? 'CADASTRANDO...' : <><UserPlus className="w-4 h-4" /> CADASTRAR MEMBRO</>}
+        </button>
+      </form>
+    </Modal>
   );
 }
 
@@ -280,120 +212,100 @@ function EditMemberModal({ member, onClose, onSuccess }: { member: Member; onClo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg my-4 z-10 overflow-hidden"
-      >
-        <div className="px-8 pt-8 pb-6 border-b border-slate-100">
-          <button onClick={onClose} className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
-            <X className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-4">
-            <Avatar member={member} size="md" />
-            <div>
-              <h2 className="text-xl font-black" style={{ color: 'var(--brand-navy)' }}>Editar Membro</h2>
-              <p className="text-xs text-slate-400 mt-0.5">{member.email}</p>
-            </div>
+    <Modal isOpen onClose={onClose} title="Editar Membro" size="md">
+      <div className="flex items-center gap-3 mb-5 -mt-1">
+        <Avatar member={member} size="sm" />
+        <p className="text-xs text-slate-400 truncate">{member.email}</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+            <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+            <p className="text-sm text-red-600">{error}</p>
           </div>
+        )}
+
+        <Input
+          label="Nome completo"
+          required
+          iconLeft={<User className="w-4 h-4" />}
+          value={form.displayName}
+          onChange={e => setForm({ ...form, displayName: e.target.value })}
+        />
+
+        <Input
+          label="E-mail"
+          required
+          type="email"
+          iconLeft={<Mail className="w-4 h-4" />}
+          value={form.email}
+          onChange={e => setForm({ ...form, email: e.target.value })}
+        />
+
+        <RolePicker value={form.role} onChange={v => setForm({ ...form, role: v })} />
+
+        {/* toggle alterar senha */}
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              setChangePassword(v => !v);
+              setForm(f => ({ ...f, newPassword: '', confirmPassword: '' }));
+              setError('');
+            }}
+            className={cn(
+              'flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border-2 w-full transition-all',
+              changePassword ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+            )}
+          >
+            <KeyRound className="w-4 h-4" />
+            {changePassword ? 'Cancelar alteração de senha' : 'Alterar senha do membro'}
+          </button>
+
+          <AnimatePresence>
+            {changePassword && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <Input
+                    label="Nova senha"
+                    required
+                    type="password"
+                    iconLeft={<Lock className="w-4 h-4" />}
+                    placeholder="••••••••"
+                    value={form.newPassword}
+                    onChange={e => setForm({ ...form, newPassword: e.target.value })}
+                  />
+                  <Input
+                    label="Confirmar senha"
+                    required
+                    type="password"
+                    iconLeft={<Lock className="w-4 h-4" />}
+                    placeholder="••••••••"
+                    value={form.confirmPassword}
+                    onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-5">
-          {error && (
-            <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
-              <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
-
-          <Input
-            label="Nome completo"
-            required
-            iconLeft={<User className="w-4 h-4" />}
-            value={form.displayName}
-            onChange={e => setForm({ ...form, displayName: e.target.value })}
-          />
-
-          <Input
-            label="E-mail"
-            required
-            type="email"
-            iconLeft={<Mail className="w-4 h-4" />}
-            value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })}
-          />
-
-          <RolePicker value={form.role} onChange={v => setForm({ ...form, role: v })} />
-
-          {/* toggle alterar senha */}
-          <div>
-            <button
-              type="button"
-              onClick={() => {
-                setChangePassword(v => !v);
-                setForm(f => ({ ...f, newPassword: '', confirmPassword: '' }));
-                setError('');
-              }}
-              className={cn(
-                'flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold border-2 w-full transition-all',
-                changePassword ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
-              )}
-            >
-              <KeyRound className="w-4 h-4" />
-              {changePassword ? 'Cancelar alteração de senha' : 'Alterar senha do membro'}
-            </button>
-
-            <AnimatePresence>
-              {changePassword && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <Input
-                      label="Nova senha"
-                      required
-                      type="password"
-                      iconLeft={<Lock className="w-4 h-4" />}
-                      placeholder="••••••••"
-                      value={form.newPassword}
-                      onChange={e => setForm({ ...form, newPassword: e.target.value })}
-                    />
-                    <Input
-                      label="Confirmar senha"
-                      required
-                      type="password"
-                      iconLeft={<Lock className="w-4 h-4" />}
-                      placeholder="••••••••"
-                      value={form.confirmPassword}
-                      onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 text-white font-black rounded-xl text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2 disabled:opacity-60 transition-all mt-2"
-            style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
-          >
-            {loading ? 'SALVANDO...' : <><Check className="w-4 h-4" /> SALVAR ALTERAÇÕES</>}
-          </button>
-        </form>
-      </motion.div>
-    </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-3.5 text-white font-black rounded-xl text-xs uppercase tracking-[0.15em] flex items-center justify-center gap-2 disabled:opacity-60 transition-all mt-2"
+          style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 12px rgba(13,31,78,0.2)' }}
+        >
+          {loading ? 'SALVANDO...' : <><Check className="w-4 h-4" /> SALVAR ALTERAÇÕES</>}
+        </button>
+      </form>
+    </Modal>
   );
 }
 
@@ -421,52 +333,50 @@ function MemberCard({ member, onDelete, onEdit }: { member: Member; onDelete: ()
       <div className="h-[3px] w-full shrink-0" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.1))' }} />
 
       {/* ações hover */}
-      <div className="absolute top-5 right-5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <button
           onClick={onEdit}
           title="Editar membro"
-          className="p-2 text-slate-400 hover:text-[var(--brand-navy)] hover:bg-slate-100 rounded-xl transition-all"
+          className="p-1.5 text-slate-400 hover:text-[var(--brand-navy)] hover:bg-slate-100 rounded-lg transition-all"
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={onDelete}
           title="Remover membro"
-          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      <div className="p-6 flex-1 flex flex-col">
+      <div className="p-4 flex-1 flex flex-col min-w-0">
         {/* avatar + role badge */}
-        <div className="flex items-start gap-4 mb-5">
-          <Avatar member={member} size="md" />
-          <div className="flex-1 min-w-0 pt-1">
-            <h3 className="font-black text-base leading-tight truncate mb-2" style={{ color: 'var(--brand-navy)' }}>
+        <div className="flex items-start gap-3 mb-4 min-w-0">
+          <Avatar member={member} size="sm" />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-black text-sm leading-tight truncate mb-1.5" style={{ color: 'var(--brand-navy)' }}>
               {member.displayName}
             </h3>
             <div className="flex items-center gap-1.5">
-              <Icon className="w-3 h-3 text-slate-400" />
+              <Icon className="w-3 h-3 text-slate-400 shrink-0" />
               <Badge color={cfg.color} dot pill>{cfg.short}</Badge>
             </div>
           </div>
         </div>
 
         {/* email */}
-        <div className="flex items-center gap-2.5 pt-4 border-t border-slate-100">
-          <div className="w-7 h-7 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
-            <Mail className="w-3.5 h-3.5 text-slate-400" />
-          </div>
+        <div className="flex items-center gap-2 pt-3 border-t border-slate-100 min-w-0">
+          <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           <span className="text-xs font-medium text-slate-500 truncate">{member.email}</span>
         </div>
       </div>
 
       {/* rodapé */}
-      <div className="px-6 pb-5">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50">
-          <Icon className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-xs text-slate-500">{cfg.desc}</span>
+      <div className="px-4 pb-4">
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 min-w-0">
+          <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <span className="text-[11px] text-slate-500 truncate">{cfg.desc}</span>
         </div>
       </div>
     </motion.div>
@@ -541,7 +451,7 @@ export function MembersArea() {
       </div>
 
       {/* cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pb-6">
+      <div className="grid gap-3 pb-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
         {members.map((m, i) => (
           <motion.div key={m.uid} transition={{ delay: i * 0.04 }}>
             <MemberCard
