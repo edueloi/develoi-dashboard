@@ -509,15 +509,13 @@ async function startServer() {
     });
 
     app.post("/api/projects/:projectId/sprints/:id/start", async (req, res) => {
-      await prisma.sprint.updateMany({
-        where: { projectId: req.params.projectId, status: 'active' },
-        data: { status: 'completed' }
-      });
-      const sprint = await prisma.sprint.update({
-        where: { id: req.params.id },
-        data: { status: 'active', startDate: new Date() }
-      });
-      res.json(sprint);
+      try {
+        const sprint = await prisma.sprint.update({
+          where: { id: req.params.id },
+          data: { status: 'active', startDate: new Date() }
+        });
+        res.json(sprint);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/projects/:projectId/sprints/:id/finish", async (req, res) => {

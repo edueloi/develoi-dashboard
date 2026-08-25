@@ -2372,7 +2372,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
     setLoading(true);
     try {
       const key = `${projectId.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-      await fetch(`/api/projects/${projectId}/features`, {
+      const res = await fetch(`/api/projects/${projectId}/features`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: uuidv4(), key, projectId,
@@ -2390,9 +2390,13 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
           linkedDemandTitle: linkedDemand?.title || null,
         }),
       });
+      if (!res.ok) throw new Error('Falha ao salvar');
       onSuccess();
       onClose();
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err) {
+      console.error(err);
+      alert('Não deu para salvar essa tarefa agora. Confira sua internet e tente de novo.');
+    } finally { setLoading(false); }
   };
 
   const cfg = TYPE_CONFIG[type];
