@@ -2395,7 +2395,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Não deu para salvar essa tarefa agora. Confira sua internet e tente de novo.');
+      alert('Não deu para salvar essa tarefa agora. Tente de novo em instantes.');
     } finally { setLoading(false); }
   };
 

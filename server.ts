@@ -373,7 +373,10 @@ async function startServer() {
       ];
       const clean: any = {};
       for (const k of allowed) { if (k in body) clean[k] = body[k]; }
-      if (clean.deadline && isNaN(new Date(clean.deadline).getTime())) clean.deadline = null;
+      if (clean.deadline) {
+        const parsed = new Date(clean.deadline);
+        clean.deadline = isNaN(parsed.getTime()) ? null : parsed;
+      }
       return clean;
     };
 
