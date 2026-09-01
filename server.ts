@@ -467,11 +467,17 @@ async function startServer() {
     // ─── Sprints ────────────────────────────────────────────────────────────────
     app.get("/api/projects/:projectId/sprints", async (req, res) => {
       try {
+        const { userId, isAdmin } = req.query;
         const sprints = await prisma.sprint.findMany({
           where: { projectId: req.params.projectId },
           orderBy: { createdAt: 'desc' }
         });
-        res.json(sprints);
+        const filtered = isAdmin === 'true' ? sprints : sprints.filter(s => {
+          const allowed = s.allowedUsers as string[] | null;
+          if (!allowed || allowed.length === 0) return true;
+          return allowed.includes(userId as string);
+        });
+        res.json(filtered);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 

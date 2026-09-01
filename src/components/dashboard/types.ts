@@ -80,6 +80,7 @@ export interface Sprint {
   startDate?: string;
   endDate?: string;
   status: 'planned' | 'active' | 'completed';
+  allowedUsers?: string[] | null;
   createdAt: string;
 }
 

@@ -105,16 +105,17 @@ model FeatureComment {
 }
 
 model Sprint {
-  id          String    @id @default(uuid())
-  name        String
-  goal        String?   @db.Text
-  startDate   DateTime?
-  endDate     DateTime?
-  status      String    @default("planned")
-  projectId   String
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  features    Feature[]
-  createdAt   DateTime  @default(now())
+  id           String    @id @default(uuid())
+  name         String
+  goal         String?   @db.Text
+  startDate    DateTime?
+  endDate      DateTime?
+  status       String    @default("planned")
+  allowedUsers Json?
+  projectId    String
+  project      Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  features     Feature[]
+  createdAt    DateTime  @default(now())
 }
 
 model Message {

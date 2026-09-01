@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
 import { EmptyState } from '../ui';
 import type { Feature, Sprint } from './types';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -203,6 +204,7 @@ function GanttHeader({ zoom, columns, colW }: { zoom: ZoomLevel; columns: Date[]
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TimelineView({ projectId }: { projectId: string }) {
+  const { profile, isAdmin } = useAuth();
   const [sprints,  setSprints]  = useState<Sprint[]>([]);
   const [features, setFeatures] = useState<Feature[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -237,14 +239,14 @@ export function TimelineView({ projectId }: { projectId: string }) {
       try {
         const [fr, sr] = await Promise.all([
           fetch(`/api/projects/${projectId}/features`),
-          fetch(`/api/projects/${projectId}/sprints`),
+          fetch(`/api/projects/${projectId}/sprints?userId=${profile?.uid || ''}&isAdmin=${isAdmin}`),
         ]);
         setFeatures(await fr.json());
         setSprints(await sr.json());
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     })();
-  }, [projectId]);
+  }, [projectId, profile?.uid, isAdmin]);
 
   const colW   = COL_W[zoom];
   const viewEnd = useMemo(() => {

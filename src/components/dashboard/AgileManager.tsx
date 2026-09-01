@@ -7,7 +7,7 @@ import {
   Archive, X, Kanban, GripVertical, ArrowRight, CheckSquare,
   Square, ListTodo, Pencil, Link2, Search, FileText, ClipboardList,
   Target, User, Tag, Layers, Upload, Sparkles, Copy, Check as CheckIcon,
-  Bot, MessageSquare, Send, Activity,
+  Bot, MessageSquare, Send, Activity, Lock, Users as UsersIcon,
 } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -104,7 +104,7 @@ interface AgileManagerProps {
 }
 
 export function AgileManager({ projectId, view }: AgileManagerProps) {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [features, setFeatures]           = useState<Feature[]>([]);
   const [sprints, setSprints]             = useState<Sprint[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -116,7 +116,7 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
     try {
       const [fr, sr] = await Promise.all([
         fetch(`/api/projects/${projectId}/features`),
-        fetch(`/api/projects/${projectId}/sprints`),
+        fetch(`/api/projects/${projectId}/sprints?userId=${profile?.uid || ''}&isAdmin=${isAdmin}`),
       ]);
       const [feats, sprintsData] = await Promise.all([fr.json(), sr.json()]);
       setFeatures(Array.isArray(feats) ? feats : []);
@@ -182,6 +182,7 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
             projectId={projectId}
             features={features}
             sprints={sprints}
+            isAdmin={isAdmin}
             onRefresh={fetchAll}
             onCreateSprint={() => setNewSprintOpen(true)}
             onCreateTicket={(sprintId) => setNewTicketSprint(sprintId ?? '')}
@@ -223,8 +224,8 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
 
 // ─── BacklogView ──────────────────────────────────────────────────────────────
 
-function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, onCreateTicket, onImport }: {
-  projectId: string; features: Feature[]; sprints: Sprint[];
+function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreateSprint, onCreateTicket, onImport }: {
+  projectId: string; features: Feature[]; sprints: Sprint[]; isAdmin: boolean;
   onRefresh: () => void; onCreateSprint: () => void; onCreateTicket: (sprintId?: string) => void;
   onImport: () => void;
 }) {
@@ -283,6 +284,7 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
             key={sprint.id}
             sprint={sprint}
             features={sf}
+            isAdmin={isAdmin}
             onRefresh={onRefresh}
             onStart={() => handleStart(sprint.id)}
             onFinish={() => handleFinish(sprint.id)}
@@ -343,16 +345,18 @@ function BacklogView({ projectId, features, sprints, onRefresh, onCreateSprint, 
 
 // ─── SprintSection ────────────────────────────────────────────────────────────
 
-function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelete, onAddTicket }: {
-  sprint: Sprint; features: Feature[]; onRefresh: () => void;
+function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish, onDelete, onAddTicket }: {
+  sprint: Sprint; features: Feature[]; isAdmin: boolean; onRefresh: () => void;
   onStart: () => void; onFinish: () => void; onDelete: () => void; onAddTicket: () => void;
 }) {
   const [expanded, setExpanded]         = useState(sprint.status !== 'completed');
   const [menuOpen, setMenuOpen]         = useState(false);
   const [editing, setEditing]           = useState(false);
+  const [managingAccess, setManagingAccess] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isRestricted = Array.isArray(sprint.allowedUsers) && sprint.allowedUsers.length > 0;
 
   // Close menu on outside click
   useEffect(() => {
@@ -397,6 +401,11 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
                   <div className="flex items-center gap-2">
                     <h3 className="font-black text-slate-900 tracking-tight">{sprint.name}</h3>
                     <Badge color={cfg.color} size="sm" pill>{cfg.label}</Badge>
+                    {isRestricted && (
+                      <span title="Só pessoas escolhidas podem ver esta sprint" className="flex items-center gap-1 text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 uppercase tracking-widest">
+                        <Lock className="w-3 h-3" /> Restrita
+                      </span>
+                    )}
                   </div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                     {features.length} {features.length === 1 ? 'ticket' : 'tickets'} · {features.reduce((a, f) => a + (f.points || 0), 0)} pts
@@ -431,6 +440,16 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
                       >
                         <Plus className="w-4 h-4 text-slate-400" /> Adicionar Ticket
                       </button>
+
+                      {/* Quem pode ver — só quem é administrador pode mexer nisso */}
+                      {isAdmin && (
+                        <button
+                          onClick={() => { setManagingAccess(true); setMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <Lock className="w-4 h-4 text-slate-400" /> Quem Pode Ver
+                        </button>
+                      )}
 
                       <div className="h-px bg-slate-100 my-1" />
 
@@ -502,6 +521,10 @@ function SprintSection({ sprint, features, onRefresh, onStart, onFinish, onDelet
 
       {editing && (
         <EditSprintModal sprint={sprint} onClose={() => setEditing(false)} onSuccess={onRefresh} />
+      )}
+
+      {managingAccess && (
+        <SprintVisibilityModal sprint={sprint} onClose={() => setManagingAccess(false)} onSuccess={onRefresh} />
       )}
 
       <ConfirmModal
@@ -1252,6 +1275,108 @@ function EditSprintModal({ sprint, onClose, onSuccess }: { sprint: Sprint; onClo
         <Textarea label="Objetivo da Sprint" value={goal} onChange={e => setGoal(e.target.value)} rows={3} placeholder="O que queremos alcançar nesta sprint?" />
         <Button type="submit" loading={loading} fullWidth size="lg">SALVAR</Button>
       </form>
+    </Modal>
+  );
+}
+
+// ─── SprintVisibilityModal ────────────────────────────────────────────────────
+
+interface TeamMemberOption { uid: string; displayName: string; email: string; photoURL?: string | null; active?: boolean; }
+
+function SprintVisibilityModal({ sprint, onClose, onSuccess }: { sprint: Sprint; onClose: () => void; onSuccess: () => void }) {
+  const [members, setMembers] = useState<TeamMemberOption[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [restricted, setRestricted] = useState(Array.isArray(sprint.allowedUsers) && sprint.allowedUsers.length > 0);
+  const [selected, setSelected] = useState<Set<string>>(new Set(sprint.allowedUsers || []));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(data => setMembers(Array.isArray(data) ? data : []))
+      .catch(() => setMembers([]))
+      .finally(() => setLoadingMembers(false));
+  }, []);
+
+  const toggle = (uid: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(uid) ? next.delete(uid) : next.add(uid);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await fetch(`/api/projects/${sprint.projectId}/sprints/${sprint.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ allowedUsers: restricted ? Array.from(selected) : null }),
+      });
+      onSuccess();
+      onClose();
+    } catch (err) { console.error(err); } finally { setSaving(false); }
+  };
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Quem Pode Ver Esta Sprint" size="md">
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setRestricted(false)}
+            className={cn('p-3 rounded-2xl border-2 text-left transition-all',
+              !restricted ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300')}
+          >
+            <p className="text-sm font-black text-slate-900">Todo Mundo</p>
+            <p className="text-xs text-slate-500 mt-0.5">Qualquer pessoa da equipe pode ver</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setRestricted(true)}
+            className={cn('p-3 rounded-2xl border-2 text-left transition-all',
+              restricted ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300')}
+          >
+            <p className="text-sm font-black text-slate-900">Só Quem Eu Escolher</p>
+            <p className="text-xs text-slate-500 mt-0.5">Só as pessoas marcadas abaixo veem</p>
+          </button>
+        </div>
+
+        {restricted && (
+          <div>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Marque quem pode ver</p>
+            {loadingMembers ? (
+              <div className="py-6 flex justify-center"><Loader2 className="w-5 h-5 text-indigo-500 animate-spin" /></div>
+            ) : members.length === 0 ? (
+              <p className="text-sm text-slate-400 py-4 text-center">Nenhuma pessoa cadastrada em Membros ainda.</p>
+            ) : (
+              <div className="max-h-64 overflow-y-auto space-y-1 border border-slate-100 rounded-2xl p-2">
+                {members.map(m => (
+                  <button
+                    key={m.uid}
+                    type="button"
+                    onClick={() => toggle(m.uid)}
+                    className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                  >
+                    {selected.has(m.uid) ? <CheckSquare className="w-4 h-4 text-indigo-600 shrink-0" /> : <Square className="w-4 h-4 text-slate-300 shrink-0" />}
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-700 truncate">{m.displayName || m.email}</p>
+                      <p className="text-xs text-slate-400 truncate">{m.email}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <Button onClick={handleSave} loading={saving} fullWidth size="lg" disabled={restricted && selected.size === 0}>
+          SALVAR
+        </Button>
+        {restricted && selected.size === 0 && (
+          <p className="text-xs text-amber-600 text-center -mt-3">Marque pelo menos uma pessoa.</p>
+        )}
+      </div>
     </Modal>
   );
 }
