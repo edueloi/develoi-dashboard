@@ -157,6 +157,8 @@ export type ActiveTab =
   | 'products'
   | 'client-contact'
   | 'clients'
+  | 'receivables'
+  | 'payables'
   | 'profile';
 
 // ─── Produtos / Planos ────────────────────────────────────────────────────────
@@ -219,6 +221,7 @@ export interface Client {
   phone?: string;
   document?: string;
   birthDate?: string;
+  startDate?: string;
   status: ClientStatus;
   saleId?: string;
   billingValue: number;
@@ -235,6 +238,28 @@ export interface Client {
   projects?: ClientProjectLink[];
   createdAt: string;
   updatedAt?: string;
+}
+
+// ─── Contas a Pagar ───────────────────────────────────────────────────────────
+
+export type PayableType = 'fixed' | 'product' | 'reimbursement';
+export type PayableStatus = 'pending' | 'paid';
+
+export interface Payable {
+  id: string;
+  description: string;
+  type: PayableType;
+  projectId?: string;
+  project?: { id: string; name: string };
+  amount: number;
+  dueDate?: string;
+  paidDate?: string;
+  status: PayableStatus;
+  reimbursed: boolean;
+  notes?: string;
+  createdById?: string;
+  createdByName?: string;
+  createdAt: string;
 }
 
 // ─── Mensagens Prontas / Contato ──────────────────────────────────────────────

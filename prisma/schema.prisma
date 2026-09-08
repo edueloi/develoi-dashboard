@@ -43,6 +43,7 @@ model Project {
   sprints      Sprint[]
   messages     Message[]
   clients      ClientProject[]
+  payables     Payable[]
   images       ProjectImage[]
 }
 
@@ -338,6 +339,7 @@ model Client {
   phone              String?
   document           String?   // CPF/CNPJ opcional
   birthDate          DateTime?
+  startDate          DateTime? // data de início de uso do sistema/serviço
   status             String    @default("active") // active | paused | cancelled
   saleId             String?   // venda de origem (Sale.id), opcional
   billingValue       Float     @default(0)
@@ -355,6 +357,23 @@ model Client {
   updatedAt          DateTime  @updatedAt
 
   projects ClientProject[]
+}
+
+model Payable {
+  id            String    @id @default(uuid())
+  description   String
+  type          String    @default("fixed") // fixed (custo fixo da empresa) | product (custo de um sistema/produto) | reimbursement (reembolso)
+  projectId     String?   // qual sistema/produto, quando type = "product"
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  amount        Float     @default(0)
+  dueDate       DateTime?
+  paidDate      DateTime?
+  status        String    @default("pending") // pending | paid
+  reimbursed    Boolean   @default(false)      // usado quando type = "reimbursement"
+  notes         String?   @db.Text
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime  @default(now())
 }
 
 model ClientProject {

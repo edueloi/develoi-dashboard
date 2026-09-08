@@ -10,6 +10,7 @@ import {
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
   ShoppingBag, BarChart2, PhoneCall, UserCircle, Zap, Camera, Loader2,
+  DollarSign, Wallet,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -62,6 +63,8 @@ import type { Project, Feature, Message, ActiveTab, ProjectImage as ProjectImage
 import { PostCreatorTab } from '../components/dashboard/PostCreatorTab';
 import { SalesManager } from '../components/dashboard/SalesManager';
 import { ClientsManager } from '../components/dashboard/ClientsManager';
+import { ReceivablesManager } from '../components/dashboard/ReceivablesManager';
+import { PayablesManager } from '../components/dashboard/PayablesManager';
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
@@ -99,6 +102,8 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   products:        '/dashboard/produtos',
   'client-contact':'/dashboard/contatos',
   clients:         '/dashboard/clientes',
+  receivables:     '/dashboard/contas-a-receber',
+  payables:        '/dashboard/contas-a-pagar',
   'profile':       '/dashboard/perfil',
 };
 
@@ -212,10 +217,12 @@ export default function Dashboard() {
     products:        'Produtos & Planos',
     'client-contact':'Contato com Clientes',
     clients:         'Clientes',
+    receivables:     'Contas a Receber',
+    payables:        'Contas a Pagar',
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact', 'clients', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -292,6 +299,11 @@ export default function Dashboard() {
             <NavItem icon={Users} label="Clientes" active={activeTab === 'clients'} onClick={() => goTo('clients')} />
             <NavItem icon={ShoppingBag} label="Produtos & Planos" active={activeTab === 'products'} onClick={() => goTo('products')} />
             <NavItem icon={PhoneCall} label="Contato com Clientes" active={activeTab === 'client-contact'} onClick={() => goTo('client-contact')} />
+          </NavSection>
+
+          <NavSection label="Financeiro">
+            <NavItem icon={DollarSign} label="Contas a Receber" active={activeTab === 'receivables'} onClick={() => goTo('receivables')} />
+            <NavItem icon={Wallet} label="Contas a Pagar" active={activeTab === 'payables'} onClick={() => goTo('payables')} />
           </NavSection>
 
           <NavSection label="Sistema">
@@ -723,6 +735,8 @@ export default function Dashboard() {
               {activeTab === 'products' && <ProductsManager />}
               {activeTab === 'client-contact' && <ClientContactManager />}
               {activeTab === 'clients' && <ClientsManager />}
+              {activeTab === 'receivables' && <ReceivablesManager />}
+              {activeTab === 'payables' && <PayablesManager />}
               {activeTab === 'profile' && <MyProfile />}
             </AnimatePresence>
           </div>

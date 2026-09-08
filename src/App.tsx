@@ -85,6 +85,8 @@ function AnimatedRoutes() {
           '/dashboard/produtos',
           '/dashboard/contatos',
           '/dashboard/clientes',
+          '/dashboard/contas-a-receber',
+          '/dashboard/contas-a-pagar',
           '/dashboard/perfil',
         ].map(path => (
           <Route

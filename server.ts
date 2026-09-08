@@ -854,6 +854,7 @@ async function startServer() {
             ...data,
             dueDay,
             birthDate: data.birthDate ? new Date(data.birthDate) : null,
+            startDate: data.startDate ? new Date(data.startDate) : null,
             nextDueDate,
           }
         });
@@ -882,6 +883,7 @@ async function startServer() {
             ...data,
             dueDay,
             birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
+            startDate: data.startDate ? new Date(data.startDate) : undefined,
             nextDueDate,
           }
         });
@@ -912,6 +914,54 @@ async function startServer() {
         await prisma.clientProject.delete({
           where: { clientId_projectId: { clientId: req.params.id, projectId: req.params.projectId } }
         });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ─── Contas a Pagar (Payables) ────────────────────────────────────────────────
+    app.get("/api/payables", async (req, res) => {
+      try {
+        const payables = await prisma.payable.findMany({
+          orderBy: { dueDate: 'asc' },
+          include: { project: { select: { id: true, name: true } } },
+        });
+        res.json(payables);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/payables", async (req, res) => {
+      try {
+        const payable = await prisma.payable.create({
+          data: {
+            ...req.body,
+            dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
+            paidDate: req.body.paidDate ? new Date(req.body.paidDate) : null,
+          },
+          include: { project: { select: { id: true, name: true } } },
+        });
+        res.json(payable);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.patch("/api/payables/:id", async (req, res) => {
+      try {
+        const { dueDate, paidDate, ...rest } = req.body;
+        const payable = await prisma.payable.update({
+          where: { id: req.params.id },
+          data: {
+            ...rest,
+            dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
+            paidDate: paidDate !== undefined ? (paidDate ? new Date(paidDate) : null) : undefined,
+          },
+          include: { project: { select: { id: true, name: true } } },
+        });
+        res.json(payable);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.delete("/api/payables/:id", async (req, res) => {
+      try {
+        await prisma.payable.delete({ where: { id: req.params.id } });
         res.json({ success: true });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
