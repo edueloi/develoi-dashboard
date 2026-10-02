@@ -139,7 +139,7 @@ export async function sendMessage(phone: string, text: string): Promise<boolean>
 
 // "Já sou cliente": fatura e extrato por CPF/CNPJ. Quem sabe consultar é o Asaas; o bot só conduz a conversa.
 export type ClientAction = "invoice" | "statement";
-export interface ClientActionResult { status: "sent" | "not_found" | "no_open" | "error"; text?: string }
+export interface ClientActionResult { status: "sent" | "not_found" | "no_open" | "error"; text?: string; file?: { buffer: Buffer; fileName: string } }
 type ClientActionHandler = (kind: ClientAction, documentDigits: string) => Promise<ClientActionResult>;
 let clientActionHandler: ClientActionHandler | null = null;
 export function registerClientActionHandler(fn: ClientActionHandler) { clientActionHandler = fn; }
@@ -700,6 +700,12 @@ async function handleDocumentReply(state: any, sock: any, key: string, text: str
     return;
   }
   await botSay(state, sock, result.text);
+  if (result.file) {
+    try {
+      await sock.sendMessage(state.remoteJid, { document: result.file.buffer, mimetype: "application/pdf", fileName: result.file.fileName, caption: "📎 Extrato em PDF" });
+      if (state.conversationId) await recordMsg(state.conversationId, "bot", `📎 ${result.file.fileName}`);
+    } catch (e) { console.error("[whatsapp] não consegui enviar o PDF do extrato:", e); }
+  }
   await botSay(state, sock, "Posso ajudar em algo mais? Digite *0* para voltar ao menu inicial. 😊");
 }
 

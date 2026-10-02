@@ -13,6 +13,7 @@ import { money, parseDay, fmtDate, startOfToday, Stat, RowMenu } from './finance
 import { clientState, dueText, ReceiveModal, buildWhatsAppLink } from './ReceivablesManager';
 import { AsaasWebhookStatus } from './AsaasWebhookStatus';
 import { BoxsysSection } from './BoxsysSection';
+import { BoxsysImportModal } from './BoxsysImport';
 import { useLiveEvents } from '../../lib/liveEvents';
 import { ClientFormModal, CYCLE_LABEL } from './ClientForm';
 
@@ -52,6 +53,7 @@ export function ClientsManager() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [formState, setFormState] = useState<{ open: boolean; client: Client | null }>({ open: false, client: null });
+  const [importOpen, setImportOpen] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [receiveOf, setReceiveOf] = useState<Client | null>(null);
   const [deleting, setDeleting] = useState<Client | null>(null);
@@ -140,7 +142,10 @@ export function ClientsManager() {
           <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Clientes</h2>
           <p className="text-xs text-slate-400 mt-0.5">Quem são, desde quando assinam, quanto pagam e quando vence</p>
         </div>
-        <Button iconLeft={<Plus className="w-4 h-4" />} onClick={openNew}>NOVO CLIENTE</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>IMPORTAR DO BOXSYS</Button>
+          <Button iconLeft={<Plus className="w-4 h-4" />} onClick={openNew}>NOVO CLIENTE</Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
@@ -227,6 +232,8 @@ export function ClientsManager() {
           })}
         </div>
       )}
+
+      {importOpen && <BoxsysImportModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); fetchData(); }} />}
 
       {formState.open && (
         <ClientFormModal

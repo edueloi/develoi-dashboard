@@ -2,10 +2,10 @@
 // e usa o bot do WhatsApp para mandar a fatura (link de pagamento) e o comprovante/extrato.
 import type { Express, Request, Response } from "express";
 import { prisma } from "./db.js";
-import { getSessionInfo, sendMessage, registerClientActionHandler } from "./wa.js";
+import { getSessionInfo, sendMessage, sendDocument, registerClientActionHandler } from "./wa.js";
 import type { ClientAction, ClientActionResult } from "./baileysManager.js";
 import { registerClientPayment } from "./clientBilling.js";
-import { sendThanksAndReceipt } from "./receipts.js";
+import { sendThanksAndReceipt, buildStatementPdf } from "./receipts.js";
 import { loadSubscriptionInfo, assinaturaTexto, nomeCurto } from "./clientInfo.js";
 import { brtTodayUtc } from "./time.js";
 
@@ -200,7 +200,14 @@ async function statementText(clientId: string) {
   );
   if (charge) parts.push(`⏳ *Em aberto:* ${money(charge.value)} — vence em ${fmtDay(charge.dueDate)}${charge.invoiceUrl ? `\n💳 ${charge.invoiceUrl}` : ""}`);
   else if (c.nextDueDate) parts.push(`📅 Próximo vencimento: ${fmtDay(c.nextDueDate)} — ${money(c.billingValue)}`);
-  return { client: c, text: parts.join("\n\n") };
+  const pdf = await buildStatementPdf({
+    clientName: c.name, document: c.document, subscription: assinaturaTexto(info).replace(/^assinatura/, "Assinatura"),
+    payments: c.payments.map(p => ({ paidAt: p.paidAt, amount: p.amount, method: p.method })), total,
+    open: charge ? { value: charge.value, dueDate: charge.dueDate } : null,
+    nextDue: !charge && c.nextDueDate ? { date: c.nextDueDate, value: c.billingValue } : null,
+  }).catch(() => null);
+  const file = pdf ? { buffer: pdf, fileName: `Extrato - ${firstName(c.name)}.pdf` } : undefined;
+  return { client: c, text: parts.join("\n\n"), file };
 }
 
 export async function sendStatement(clientId: string): Promise<boolean> {
@@ -208,7 +215,9 @@ export async function sendStatement(clientId: string): Promise<boolean> {
   if (!s) throw new AsaasError("Cliente não encontrado.");
   if (!s.client.phone) throw new AsaasError("O cliente não tem WhatsApp cadastrado.");
   if (!(await clientBotReady())) throw new AsaasError("O bot precisa estar ativado e com o WhatsApp conectado.");
-  return sendMessage(s.client.phone, s.text);
+  const ok = await sendMessage(s.client.phone, s.text);
+  if (ok && s.file) await sendDocument(s.client.phone, s.file.buffer, s.file.fileName, "📎 Extrato de pagamentos em PDF");
+  return ok;
 }
 
 // "Já sou cliente": a pessoa informa o CPF/CNPJ do cadastro e o bot responde na própria conversa.
@@ -220,7 +229,7 @@ async function handleClientAction(kind: ClientAction, documentDigits: string): P
 
   if (kind === "statement") {
     const s = await statementText(hit.id);
-    return s ? { status: "sent", text: s.text } : { status: "error" };
+    return s ? { status: "sent", text: s.text, file: s.file } : { status: "error" };
   }
 
   const inv = await composeInvoice(hit.id);

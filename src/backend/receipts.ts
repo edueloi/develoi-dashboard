@@ -255,3 +255,74 @@ export function registerReceiptRoutes(app: Express) {
     try { res.json({ sent: await sendReceiptPdf({ receivableId: req.params.id }) }); } catch (e) { fail(res, e, 400); }
   });
 }
+
+// ─── Extrato de pagamentos em PDF ────────────────────────────────────────────
+export interface StatementData {
+  clientName: string;
+  document?: string | null;
+  subscription: string;
+  payments: { paidAt: Date; amount: number; method?: string | null }[];
+  total: number;
+  open?: { value: number; dueDate: Date } | null;
+  nextDue?: { date: Date; value: number } | null;
+}
+
+export function buildStatementPdf(data: StatementData): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 56, info: { Title: `Extrato - ${data.clientName}`, Author: COMPANY.name } });
+    const chunks: Buffer[] = [];
+    doc.on("data", c => chunks.push(c));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    const W = doc.page.width, M = 56, inner = W - M * 2;
+    const INK = "#1F2937", MUTED = "#6B7280", LINE = "#D1D5DB";
+
+    if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, M, 50, { width: 120 });
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(10).text(COMPANY.name, M, 56, { width: inner, align: "right" });
+    doc.fillColor(MUTED).font("Helvetica").fontSize(9).text(`CNPJ ${COMPANY.cnpj}`, M, 70, { width: inner, align: "right" });
+    doc.text(`WhatsApp ${COMPANY.phone}`, M, 83, { width: inner, align: "right" });
+    doc.moveTo(M, 112).lineTo(W - M, 112).lineWidth(0.7).strokeColor(LINE).stroke();
+
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(18).text("EXTRATO DE PAGAMENTOS", M, 138);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(9.5).text(`Emitido em ${new Date().toLocaleString("pt-BR", { timeZone: TZ })}`, M, 162);
+
+    let y = 192;
+    const info: [string, string][] = [["Cliente", data.clientName], ...(data.document ? [["CPF/CNPJ", fmtDoc(data.document)] as [string, string]] : []), ["Assinatura", data.subscription]];
+    info.forEach(([k, v]) => {
+      doc.fillColor(MUTED).font("Helvetica").fontSize(9.5).text(k, M, y, { width: 100 });
+      doc.fillColor(INK).font("Helvetica").fontSize(10.5).text(v, M + 110, y - 1, { width: inner - 110 });
+      y = Math.max(y + 20, doc.y + 6);
+    });
+
+    // Tabela de pagamentos
+    y += 14;
+    doc.fillColor(MUTED).font("Helvetica-Bold").fontSize(9);
+    doc.text("DATA", M, y, { width: 110 }); doc.text("FORMA", M + 120, y, { width: 160 }); doc.text("VALOR", M, y, { width: inner, align: "right" });
+    y += 16;
+    doc.moveTo(M, y - 4).lineTo(W - M, y - 4).lineWidth(0.5).strokeColor(LINE).stroke();
+    if (!data.payments.length) {
+      doc.fillColor(MUTED).font("Helvetica").fontSize(10.5).text("Nenhum pagamento registrado ainda.", M, y + 4);
+      y += 30;
+    }
+    for (const p of data.payments) {
+      doc.fillColor(INK).font("Helvetica").fontSize(10.5);
+      doc.text(day(p.paidAt), M, y, { width: 110 }); doc.text(p.method || "—", M + 120, y, { width: 160 }); doc.text(money(p.amount), M, y, { width: inner, align: "right" });
+      y += 24;
+      doc.moveTo(M, y - 6).lineTo(W - M, y - 6).lineWidth(0.5).strokeColor(LINE).stroke();
+    }
+    y += 8;
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(11).text("Total dos últimos pagamentos", M, y, { width: 250 }).text(money(data.total), M, y, { width: inner, align: "right" });
+    y += 36;
+    if (data.open) {
+      doc.fillColor(INK).font("Helvetica-Bold").fontSize(10.5).text(`Em aberto: ${money(data.open.value)} — vence em ${day(data.open.dueDate)}`, M, y);
+    } else if (data.nextDue) {
+      doc.fillColor(INK).font("Helvetica").fontSize(10.5).text(`Próximo vencimento: ${day(data.nextDue.date)} — ${money(data.nextDue.value)}`, M, y);
+    }
+
+    doc.page.margins.bottom = 0;
+    doc.fillColor("#9CA3AF").font("Helvetica").fontSize(8)
+      .text("Documento informativo gerado eletronicamente. Não substitui recibo ou nota fiscal.", M, doc.page.height - 56, { width: inner, align: "center", lineBreak: false });
+    doc.end();
+  });
+}

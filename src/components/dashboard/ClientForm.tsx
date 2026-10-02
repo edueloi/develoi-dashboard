@@ -36,12 +36,14 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
   const [notes, setNotes] = useState(client?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [makeStore, setMakeStore] = useState(false);
-  const [store, setStore] = useState({ storeName: '', subdomain: '', planId: '', trialDays: '', sendAccess: true });
-  const [plans, setPlans] = useState<{ id: number; name: string }[]>([]);
+  const [store, setStore] = useState({ storeName: '', subdomain: '', planId: '', trialDays: '14', sendAccess: true });
   const [access, setAccess] = useState<Access | null>(null);
+  // com a loja de teste, a primeira cobrança é no fim do teste
   useEffect(() => {
-    if (makeStore && plans.length === 0) fetch('/api/boxsys/plans').then(r => r.json()).then(d => setPlans(Array.isArray(d) ? d : [])).catch(() => {});
-  }, [makeStore, plans.length]);
+    if (client || !makeStore) return;
+    const days = Number(store.trialDays) || 0;
+    if (days > 0) setNextDueDate(format(new Date(Date.now() + days * 86400000), 'yyyy-MM-dd'));
+  }, [makeStore, store.trialDays, client]);
 
   const due = nextDueDate ? new Date(nextDueDate + 'T12:00:00') : null;
   const dueHint = !due ? null
@@ -193,13 +195,14 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
             </label>
             {makeStore && (
               <div className="space-y-4">
+                <p className="text-xs text-slate-500 bg-slate-50 dark:bg-white/5 rounded-lg px-3 py-2">
+                  A loja nasce em teste de <b>{store.trialDays || 14} dias</b>. O <b>próximo vencimento</b> foi ajustado para o fim do teste e a cobrança de <b>R$ {billingValue || '0,00'}</b> por mês começa ali.
+                </p>
                 {!email.trim() && <p className="text-xs text-amber-600">Preencha o <b>E-mail</b> acima: ele será o usuário de login da loja.</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input label="Nome da loja" value={store.storeName} onChange={e => setStore({ ...store, storeName: e.target.value })} placeholder={name || 'Igual ao nome do cliente'} />
                   <Input label="Endereço (opcional)" value={store.subdomain} onChange={e => setStore({ ...store, subdomain: e.target.value })} placeholder="minhaloja" />
-                  <Select label="Plano no BoxSys (opcional)" value={store.planId} onChange={e => setStore({ ...store, planId: e.target.value })}
-                    options={[{ value: '', label: 'Sem plano' }, ...plans.map(p => ({ value: String(p.id), label: p.name }))]} />
-                  <Input label="Dias de teste (opcional)" type="number" min="1" value={store.trialDays} onChange={e => setStore({ ...store, trialDays: e.target.value })} />
+                  <Input label="Dias de teste" type="number" min="1" value={store.trialDays} onChange={e => setStore({ ...store, trialDays: e.target.value })} />
                 </div>
                 <label className={`flex items-center gap-2 text-sm ${phone.trim() ? '' : 'opacity-40'}`}>
                   <input type="checkbox" className="w-4 h-4 accent-indigo-600" disabled={!phone.trim()} checked={store.sendAccess && !!phone.trim()} onChange={e => setStore({ ...store, sendAccess: e.target.checked })} />

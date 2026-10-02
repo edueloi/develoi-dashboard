@@ -95,7 +95,7 @@ export function registerBoxsysRoutes(app: Express) {
         subdomain: subdomain ? String(subdomain).trim() : undefined,
         whatsapp: c.phone ? String(c.phone).replace(/\D/g, "") : undefined,
         planId: planId ? Number(planId) : undefined,
-        trialDays: trialDays ? Number(trialDays) : undefined,
+        trialDays: Number(trialDays) > 0 ? Number(trialDays) : 14, // teste padrão de 14 dias
         subscriptionAmount: c.billingValue || undefined, // só informativo: a cobrança é feita pelo Develoi
       });
 
@@ -140,6 +140,62 @@ export function registerBoxsysRoutes(app: Express) {
       } catch (e) { fail(res, e); }
     });
   }
+
+  // Lojas que já existem no BoxSys, cruzadas com os clientes daqui (vinculada / sugestão por e-mail)
+  app.get("/api/boxsys/tenants", async (_req, res) => {
+    try {
+      const tenants = await boxsys<any[]>("/tenants");
+      const clients = await prisma.client.findMany({ select: { id: true, name: true, email: true, boxsysTenantId: true } });
+      res.json(tenants.map(t => {
+        const linked = clients.find(c => c.boxsysTenantId === String(t.id));
+        const email = String(t.owner?.email || "").toLowerCase();
+        const match = !linked && email ? clients.find(c => !c.boxsysTenantId && c.email?.toLowerCase() === email) : undefined;
+        return { ...t, linkedClient: linked ? { id: linked.id, name: linked.name } : null, suggestedClient: match ? { id: match.id, name: match.name } : null };
+      }));
+    } catch (e) { fail(res, e); }
+  });
+
+  // Traz lojas do BoxSys para cá: cria o cliente (ou vincula a um já existente) com o estado atual da loja.
+  // items: [{ tenantId, clientId? }]
+  app.post("/api/boxsys/import", async (req, res) => {
+    try {
+      const items: { tenantId: string | number; clientId?: string }[] = Array.isArray(req.body?.items) ? req.body.items : [];
+      if (!items.length) throw new BoxsysError("Escolha ao menos uma loja.");
+      const tenants = await boxsys<any[]>("/tenants");
+      let created = 0, linked = 0;
+      for (const it of items) {
+        const t = tenants.find(x => String(x.id) === String(it.tenantId));
+        if (!t) continue;
+        const already = await prisma.client.findFirst({ where: { boxsysTenantId: String(t.id) } });
+        if (already) continue;
+        const isActive = t.status === "active";
+        const link = {
+          boxsysTenantId: String(t.id), boxsysSubdomain: t.subdomain ?? null, boxsysUrl: t.accessUrl ?? null,
+          boxsysStatus: isActive ? "active" : "suspended", boxsysSyncedAt: new Date(), boxsysError: null,
+        };
+        if (it.clientId) {
+          await prisma.client.update({ where: { id: it.clientId }, data: link });
+          linked++;
+        } else {
+          const trialEnd = t.trialEndsAt ? new Date(t.trialEndsAt) : null;
+          await prisma.client.create({
+            data: {
+              name: String(t.name || t.owner?.name || "Loja BoxSys").trim(),
+              email: t.owner?.email ?? null,
+              status: isActive ? "active" : "paused",
+              billingValue: Number(t.subscriptionAmount) || 0,
+              startDate: t.createdAt ? new Date(t.createdAt) : null,
+              nextDueDate: trialEnd && trialEnd.getTime() > Date.now() ? trialEnd : null,
+              notes: "Importado do Store BoxSys.",
+              ...link,
+            },
+          });
+          created++;
+        }
+      }
+      res.json({ created, linked });
+    } catch (e) { fail(res, e); }
+  });
 
   // Só desfaz o vínculo aqui; a loja continua existindo no BoxSys
   app.delete("/api/clients/:id/boxsys", async (req, res) => {
