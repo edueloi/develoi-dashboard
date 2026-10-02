@@ -58,6 +58,9 @@ import { AgileManager } from '../components/dashboard/AgileManager';
 import { TimelineView } from '../components/dashboard/TimelineView';
 import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 import { WhatsappInbox } from '../components/dashboard/WhatsappInbox';
+import { WhatsappNewConversation } from '../components/dashboard/WhatsappNewConversation';
+import { useWaCounts } from '../lib/useWaCounts';
+import { Bot as WaBotIcon, Clock as WaClockIcon, UserCheck as WaUserIcon, CheckCircle2 as WaDoneIcon, SendHorizonal as WaSendIcon } from 'lucide-react';
 import { TeamNoticesTab } from '../components/dashboard/TeamNoticesTab';
 import { WebhooksTab } from '../components/dashboard/WebhooksTab';
 
@@ -101,6 +104,11 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   cases:           '/dashboard/cases',
   bot:             '/dashboard/bot',
   'wa-inbox':      '/dashboard/atendimento',
+  'wa-bot':        '/dashboard/atendimento/bot',
+  'wa-queue':      '/dashboard/atendimento/fila',
+  'wa-active':     '/dashboard/atendimento/em-andamento',
+  'wa-closed':     '/dashboard/atendimento/finalizados',
+  'wa-new':        '/dashboard/atendimento/nova',
   'team-notices':  '/dashboard/avisos',
   webhooks:        '/dashboard/webhooks',
   posts:           '/dashboard/postagens',
@@ -130,6 +138,7 @@ export default function Dashboard() {
   const location = useLocation();
 
   const activeTab = pathToTab(location.pathname);
+  const waCounts = useWaCounts();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -226,12 +235,17 @@ export default function Dashboard() {
     receivables:     'Contas a Receber',
     payables:        'Contas a Pagar',
     'wa-inbox':      'Atendimento WhatsApp',
+    'wa-bot':        'Atendimento · Bot',
+    'wa-queue':      'Atendimento · Fila',
+    'wa-active':     'Atendimento · Em atendimento',
+    'wa-closed':     'Atendimento · Finalizados',
+    'wa-new':        'Atendimento · Iniciar conversa',
     'team-notices':  'Avisos da equipe',
     webhooks:        'Webhooks',
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -315,9 +329,16 @@ export default function Dashboard() {
             <NavItem icon={Wallet} label="Contas a Pagar" active={activeTab === 'payables'} onClick={() => goTo('payables')} />
           </NavSection>
 
+          <NavSection label="Atendimento WhatsApp">
+            <NavItem icon={WaBotIcon} label="Bot" active={activeTab === 'wa-bot'} onClick={() => goTo('wa-bot')} badge={waCounts.bot || undefined} />
+            <NavItem icon={WaClockIcon} label="Fila de espera" active={activeTab === 'wa-queue' || activeTab === 'wa-inbox'} onClick={() => goTo('wa-queue')} badge={waCounts.waiting || undefined} />
+            <NavItem icon={WaUserIcon} label="Em atendimento" active={activeTab === 'wa-active'} onClick={() => goTo('wa-active')} badge={waCounts.active || undefined} />
+            <NavItem icon={WaDoneIcon} label="Finalizados" active={activeTab === 'wa-closed'} onClick={() => goTo('wa-closed')} />
+            <NavItem icon={WaSendIcon} label="Iniciar conversa" active={activeTab === 'wa-new'} onClick={() => goTo('wa-new')} />
+          </NavSection>
+
           <NavSection label="Sistema">
             <NavItem icon={Image} label="Criador de Postagens" active={activeTab === 'posts'} onClick={() => goTo('posts')} />
-            <NavItem icon={MessageCircle} label="Atendimento WhatsApp" active={activeTab === 'wa-inbox'} onClick={() => goTo('wa-inbox')} />
             <NavItem icon={Webhook} label="Webhooks" active={activeTab === 'webhooks'} onClick={() => goTo('webhooks')} />
             <NavItem icon={Bell} label="Avisos da equipe" active={activeTab === 'team-notices'} onClick={() => goTo('team-notices')} />
             <NavItem icon={MessageSquare} label="Bot de Atendimento" active={activeTab === 'bot'} onClick={() => goTo('bot')} />
@@ -742,7 +763,11 @@ export default function Dashboard() {
               {activeTab === 'blog' && <BlogManager />}
               {activeTab === 'cases' && <CasesManager />}
               {activeTab === 'bot' && <BotConfigTab />}
-              {activeTab === 'wa-inbox' && <WhatsappInbox />}
+              {(activeTab === 'wa-inbox' || activeTab === 'wa-queue') && <WhatsappInbox view="waiting" />}
+              {activeTab === 'wa-bot' && <WhatsappInbox view="bot" />}
+              {activeTab === 'wa-active' && <WhatsappInbox view="active" />}
+              {activeTab === 'wa-closed' && <WhatsappInbox view="closed" />}
+              {activeTab === 'wa-new' && <WhatsappNewConversation />}
               {activeTab === 'team-notices' && <TeamNoticesTab />}
               {activeTab === 'webhooks' && <WebhooksTab />}
               {activeTab === 'posts' && <PostCreatorTab />}

@@ -239,6 +239,19 @@ export const botController = {
     }
   },
 
+  // Quantas conversas há em cada etapa (números do menu lateral)
+  async getConversationCounts(_req: Request, res: Response) {
+    try {
+      const rows = await prisma.wppConversation.groupBy({ by: ["status"], _count: { _all: true } });
+      const out: Record<string, number> = { bot: 0, waiting: 0, active: 0, closed: 0 };
+      for (const r of rows) out[r.status] = r._count._all;
+      res.json(out);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Erro ao contar conversas." });
+    }
+  },
+
   async getConversationMessages(req: Request, res: Response) {
     try {
       const messages = await prisma.wppConversationMessage.findMany({

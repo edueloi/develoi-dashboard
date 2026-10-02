@@ -1,43 +1,54 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   MessageCircle, Clock, UserCheck, CheckCircle2, Send, ArrowRightLeft, ChevronLeft, Search, Inbox, Bot, Users, Plus, Check,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea } from '../ui';
+import { Button, Modal, Select, Textarea } from '../ui';
 import { AttendantsModal } from './AttendantsModal';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLiveEvents } from '../../lib/liveEvents';
 
-type ConvStatus = 'bot' | 'waiting' | 'active' | 'closed';
+export type ConvStatus = 'bot' | 'waiting' | 'active' | 'closed';
 
 interface Sector { id: string; name: string }
 interface WaMessage { id: string; fromRole: 'client' | 'attendant' | 'bot' | 'system'; body: string; sentAt: string }
 interface Conversation {
   id: string; clientPhone: string; clientName?: string | null; attendantId?: string | null; attendantName?: string | null;
-  status: ConvStatus; firstMessage?: string | null; subject?: string | null; clientDocument?: string | null; linkedClientId?: string | null; queuedAt: string; updatedAt: string; sector?: Sector | null; lastMessage?: WaMessage | null;
+  status: ConvStatus; firstMessage?: string | null; subject?: string | null; clientDocument?: string | null; linkedClientId?: string | null;
+  queuedAt: string; updatedAt: string; sector?: Sector | null; lastMessage?: WaMessage | null;
 }
 
 const NAVY = '#0D1F4E';
 const GOLD = '#C49A2A';
 
-const TABS: { key: ConvStatus; label: string; icon: any }[] = [
-  { key: 'bot', label: 'Bot', icon: Bot },
-  { key: 'waiting', label: 'Fila', icon: Clock },
-  { key: 'active', label: 'Em atendimento', icon: UserCheck },
-  { key: 'closed', label: 'Finalizadas', icon: CheckCircle2 },
-];
+// Cada etapa do atendimento tem a sua tela (submenu "Atendimento WhatsApp")
+export const WA_PATHS: Record<ConvStatus | 'new', string> = {
+  bot: '/dashboard/atendimento/bot',
+  waiting: '/dashboard/atendimento/fila',
+  active: '/dashboard/atendimento/em-andamento',
+  closed: '/dashboard/atendimento/finalizados',
+  new: '/dashboard/atendimento/nova',
+};
+
+const VIEW_INFO: Record<ConvStatus, { title: string; hint: string; icon: any; empty: string }> = {
+  bot: { title: 'Conversas com o bot', hint: 'Clientes que estão no menu do bot. Você pode assumir quando quiser.', icon: Bot, empty: 'Ninguém está com o bot agora' },
+  waiting: { title: 'Fila de espera', hint: 'Clientes aguardando um atendente. Quem espera há mais tempo aparece primeiro.', icon: Clock, empty: 'Fila vazia' },
+  active: { title: 'Em atendimento', hint: 'Conversas que estão sendo atendidas agora.', icon: UserCheck, empty: 'Nenhuma conversa em atendimento' },
+  closed: { title: 'Finalizados', hint: 'Histórico das conversas encerradas.', icon: CheckCircle2, empty: 'Nenhuma conversa finalizada' },
+};
 
 // O WhatsApp pode identificar o contato por um ID interno (14+ dígitos) em vez do telefone
-const isRealPhone = (p: string) => p.replace(/\D/g, '').length <= 13;
+export const isRealPhone = (p: string) => p.replace(/\D/g, '').length <= 13;
 
-function formatPhone(p: string) {
+export function formatPhone(p: string) {
   const d = p.replace(/\D/g, '');
   if (d.length === 13) return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
   if (d.length === 12) return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 8)}-${d.slice(8)}`;
   return p;
 }
-const personLabel = (c: { clientName?: string | null; clientPhone: string }) => c.clientName || (isRealPhone(c.clientPhone) ? formatPhone(c.clientPhone) : 'Cliente');
+export const personLabel = (c: { clientName?: string | null; clientPhone: string }) => c.clientName || (isRealPhone(c.clientPhone) ? formatPhone(c.clientPhone) : 'Cliente');
 
 function waitingFor(iso: string) {
   const min = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
@@ -62,20 +73,25 @@ function dayLabel(iso: string) {
 }
 const sameDay = (a: string, b: string) => new Date(a).toDateString() === new Date(b).toDateString();
 
-export function WhatsappInbox() {
+export function WhatsappInbox({ view }: { view: ConvStatus }) {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
   const { profile } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const myId = profile?.uid;
   const myName = profile?.displayName || 'Atendente';
+  const info = VIEW_INFO[view];
 
-  const [tab, setTab] = useState<ConvStatus>('waiting');
+  const go = (target: ConvStatus | 'new', id?: string) => navigate(WA_PATHS[target] + (id ? `?c=${id}` : ''));
+
   const [sectorFilter, setSectorFilter] = useState('');
   const [search, setSearch] = useState('');
   const [onlyMine, setOnlyMine] = useState(false);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [all, setAll] = useState<Conversation[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(location.search).get('c'));
   const [messages, setMessages] = useState<WaMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -85,9 +101,6 @@ export function WhatsappInbox() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [closingMsg, setClosingMsg] = useState('Atendimento finalizado. Agradecemos o contato! Qualquer dúvida, é só chamar. 😊');
   const [attendantsOpen, setAttendantsOpen] = useState(false);
-  const [newOpen, setNewOpen] = useState(false);
-  const [newForm, setNewForm] = useState({ phone: '', name: '', sectorId: '', message: '' });
-  const [starting, setStarting] = useState(false);
   const lastWaiting = useRef<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -97,15 +110,17 @@ export function WhatsappInbox() {
 
   const loadList = useCallback(async () => {
     try {
-      const r = await fetch('/api/admin/bot/conversations?status=bot,waiting,active,closed');
+      // a conversa aberta pode ter mudado de etapa (ex.: acabou de ser aceita), então busca também pelo id
+      const r = await fetch(`/api/admin/bot/conversations?status=${view}`);
       if (!r.ok) return;
       const data: Conversation[] = await r.json();
       setAll(data);
-      const waiting = data.filter(c => c.status === 'waiting').length;
-      if (lastWaiting.current !== null && waiting > lastWaiting.current) toast('Nova conversa na fila de atendimento', 'info');
-      lastWaiting.current = waiting;
-    } catch {}
-  }, [toast]);
+      if (view === 'waiting') {
+        if (lastWaiting.current !== null && data.length > lastWaiting.current) toast('Nova conversa na fila de atendimento', 'info');
+        lastWaiting.current = data.length;
+      }
+    } catch {} finally { setLoading(false); }
+  }, [toast, view]);
 
   const loadMessages = useCallback(async (id: string) => {
     try {
@@ -128,22 +143,15 @@ export function WhatsappInbox() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length, selectedId]);
 
-  const counts = useMemo(() => ({
-    bot: all.filter(c => c.status === 'bot').length,
-    waiting: all.filter(c => c.status === 'waiting').length,
-    active: all.filter(c => c.status === 'active').length,
-    closed: all.filter(c => c.status === 'closed').length,
-  }), [all]);
-
   const list = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let rows = all.filter(c => c.status === tab);
+    let rows = all;
     if (sectorFilter) rows = rows.filter(c => c.sector?.id === sectorFilter);
-    if (onlyMine && tab === 'active') rows = rows.filter(c => c.attendantId === myId);
+    if (onlyMine && view === 'active') rows = rows.filter(c => c.attendantId === myId);
     if (q) rows = rows.filter(c => (c.clientName || '').toLowerCase().includes(q) || c.clientPhone.includes(q.replace(/\D/g, '') || '§'));
-    if (tab === 'waiting') rows = [...rows].sort((a, b) => new Date(a.queuedAt).getTime() - new Date(b.queuedAt).getTime()); // quem espera há mais tempo primeiro
+    if (view === 'waiting') rows = [...rows].sort((a, b) => new Date(a.queuedAt).getTime() - new Date(b.queuedAt).getTime()); // quem espera há mais tempo primeiro
     return rows;
-  }, [all, tab, sectorFilter, onlyMine, search, myId]);
+  }, [all, view, sectorFilter, onlyMine, search, myId]);
 
   const selected = all.find(c => c.id === selectedId) || null;
   const canReply = selected?.status === 'active' && (selected.attendantId === myId || !selected.attendantId);
@@ -158,9 +166,8 @@ export function WhatsappInbox() {
   async function accept(c: Conversation) {
     try {
       await post(`/api/admin/bot/conversations/${c.id}/accept`, { attendantId: myId, attendantName: myName });
-      setTab('active'); setSelectedId(c.id);
       toast('Atendimento iniciado', 'success');
-      loadList();
+      go('active', c.id); // abre direto na tela "Em atendimento"
     } catch (e: any) { toast(e.message, 'error'); loadList(); }
   }
 
@@ -179,7 +186,7 @@ export function WhatsappInbox() {
     if (!selected || !transferSector) return;
     try {
       await post(`/api/admin/bot/conversations/${selected.id}/transfer`, { sectorId: transferSector, reason: transferReason.trim(), byName: myName });
-      toast('Conversa transferida', 'success');
+      toast('Conversa transferida para a fila do outro setor', 'success');
       setTransferOpen(false); setTransferSector(''); setTransferReason(''); setSelectedId(null);
       loadList();
     } catch (e: any) { toast(e.message, 'error'); }
@@ -190,20 +197,9 @@ export function WhatsappInbox() {
     try {
       await post(`/api/admin/bot/conversations/${selected.id}/close`, { closingMessage: closingMsg, byName: myName });
       toast('Atendimento finalizado', 'success');
-      setCloseOpen(false); loadMessages(selected.id); loadList();
+      setCloseOpen(false); setSelectedId(null);
+      loadList();
     } catch (e: any) { toast(e.message, 'error'); }
-  }
-
-  async function startNew(e: React.FormEvent) {
-    e.preventDefault();
-    setStarting(true);
-    try {
-      const r = await post('/api/admin/bot/conversations/start', { ...newForm, attendantId: myId, attendantName: myName, sectorId: newForm.sectorId || null });
-      toast('Conversa iniciada', 'success');
-      setNewOpen(false); setNewForm({ phone: '', name: '', sectorId: '', message: '' });
-      await loadList(); setTab('active'); setSelectedId(r.id);
-    } catch (err: any) { toast(err.message, 'error'); }
-    setStarting(false);
   }
 
   const avatar = (c: Conversation, size = 40) => (
@@ -211,31 +207,21 @@ export function WhatsappInbox() {
       {c.status === 'bot' ? <Bot size={size * 0.5} /> : personLabel(c)[0]?.toUpperCase() ?? '?'}
     </div>
   );
+  const ViewIcon = info.icon;
 
   return (
     <div className={`flex rounded-2xl overflow-hidden border ${border} bg-white dark:bg-[#0B1220]`} style={{ height: 'calc(100dvh - 170px)', minHeight: 540 }}>
       {/* ══ Lista ══ */}
       <aside className={`${selected ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-[380px] xl:w-[420px] shrink-0 border-r ${border}`}>
-        <div className="px-4 pt-4 pb-3 flex items-center gap-2">
-          <h3 className="text-base font-black flex-1 truncate" style={{ color: text }}>Conversas</h3>
-          <button onClick={() => setAttendantsOpen(true)} title="Equipe de atendimento" aria-label="Equipe de atendimento"
-            className={`p-2 rounded-lg border ${border} text-slate-500 hover:text-slate-800 dark:hover:text-white`}><Users size={16} /></button>
-          <Button size="sm" iconLeft={<Plus size={14} />} onClick={() => setNewOpen(true)}>Nova</Button>
-        </div>
-
-        {/* abas: rolam na horizontal em vez de se espremerem */}
-        <div className="px-3 pb-3 flex gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {TABS.map(t => {
-            const Icon = t.icon, active = tab === t.key;
-            return (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${active ? 'text-white border-transparent' : `${border} text-slate-500 dark:text-slate-300`}`}
-                style={active ? { background: NAVY } : undefined}>
-                <Icon size={13} /> {t.label}
-                <span className={`min-w-[18px] px-1 rounded-full text-[10px] text-center ${active ? 'bg-white/20' : 'bg-slate-100 dark:bg-white/10'}`}>{counts[t.key]}</span>
-              </button>
-            );
-          })}
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex items-center gap-2">
+            <ViewIcon size={18} style={{ color: GOLD }} />
+            <h3 className="text-base font-black flex-1 truncate" style={{ color: text }}>{info.title}</h3>
+            <span className="text-xs font-black px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10" style={{ color: text }}>{all.length}</span>
+            <button onClick={() => setAttendantsOpen(true)} title="Equipe de atendimento" aria-label="Equipe de atendimento"
+              className={`p-2 rounded-lg border ${border} text-slate-500 hover:text-slate-800 dark:hover:text-white`}><Users size={16} /></button>
+          </div>
+          <p className="text-xs mt-1.5" style={{ color: muted }}>{info.hint}</p>
         </div>
 
         <div className={`px-3 pb-3 flex gap-2 border-b ${border}`}>
@@ -249,20 +235,21 @@ export function WhatsappInbox() {
             <option value="">Setores</option>
             {sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          {tab === 'active' && (
+          {view === 'active' && (
             <button onClick={() => setOnlyMine(v => !v)} className={`px-3 rounded-lg text-xs font-bold border ${onlyMine ? 'border-amber-500 text-amber-600' : `${border} text-slate-500`}`}>Meus</button>
           )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {list.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 gap-2 px-6 text-center" style={{ color: muted }}>
+          {loading ? (
+            <p className="text-center py-12 text-sm" style={{ color: muted }}>Carregando…</p>
+          ) : list.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 px-6 text-center" style={{ color: muted }}>
               <Inbox size={34} />
-              <p className="text-sm">{tab === 'waiting' ? 'Fila vazia' : tab === 'bot' ? 'Ninguém está com o bot agora' : 'Nenhuma conversa'}</p>
-              {tab === 'active' && <p className="text-xs">Use <b>Nova</b> para iniciar uma conversa pelo número.</p>}
+              <p className="text-sm">{info.empty}</p>
+              {(view === 'active' || view === 'waiting') && <Button size="sm" variant="outline" iconLeft={<Plus size={14} />} onClick={() => go('new')}>Iniciar conversa</Button>}
             </div>
-          )}
-          {list.map(c => {
+          ) : list.map(c => {
             const sel = selectedId === c.id;
             const preview = c.lastMessage?.body?.replace(/\*/g, '') || c.firstMessage || '—';
             return (
@@ -273,15 +260,16 @@ export function WhatsappInbox() {
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-bold text-sm truncate" style={{ color: text }}>{personLabel(c)}</span>
                     <span className="text-[11px] shrink-0 font-semibold" style={{ color: c.status === 'waiting' ? GOLD : muted }}>
-                      {c.status === 'waiting' ? waitingFor(c.queuedAt) : shortWhen(c.updatedAt)}
+                      {c.status === 'waiting' ? `${waitingFor(c.queuedAt)}` : shortWhen(c.updatedAt)}
                     </span>
                   </div>
                   <p className="text-xs truncate mt-0.5" style={{ color: muted }}>
                     {c.lastMessage?.fromRole === 'bot' ? '🤖 ' : c.lastMessage?.fromRole === 'attendant' ? 'Você: ' : ''}{preview}
                   </p>
-                  {(c.sector || (c.attendantName && c.status === 'active')) && (
+                  {(c.sector || c.subject || (c.attendantName && c.status === 'active')) && (
                     <div className="flex gap-1.5 mt-1.5 flex-wrap">
                       {c.sector && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-200">{c.sector.name}</span>}
+                      {c.subject && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300">🛠️ {c.subject}</span>}
                       {c.attendantName && c.status === 'active' && <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-300">{c.attendantName.trim()}</span>}
                     </div>
                   )}
@@ -297,8 +285,7 @@ export function WhatsappInbox() {
         {!selected ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ color: muted }}>
             <MessageCircle size={44} />
-            <p className="text-sm">Selecione uma conversa ou inicie uma nova</p>
-            <Button size="sm" variant="outline" iconLeft={<Plus size={14} />} onClick={() => setNewOpen(true)}>Nova conversa</Button>
+            <p className="text-sm">Selecione uma conversa para ver o histórico</p>
           </div>
         ) : (
           <>
@@ -394,24 +381,6 @@ export function WhatsappInbox() {
 
       {attendantsOpen && <AttendantsModal onClose={() => setAttendantsOpen(false)} />}
 
-      {/* ══ Nova conversa ══ */}
-      {newOpen && (
-        <Modal isOpen onClose={() => setNewOpen(false)} title="Nova conversa" size="md"
-          footer={<div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setNewOpen(false)}>Cancelar</Button><Button type="submit" form="new-conv-form" loading={starting} fullWidth size="lg">ENVIAR E INICIAR</Button></div>}>
-          <form id="new-conv-form" onSubmit={startNew} className="space-y-4">
-            <Input label="Telefone com DDD" required autoFocus type="tel" value={newForm.phone} onChange={e => setNewForm({ ...newForm, phone: e.target.value })} placeholder="(15) 99999-9999" />
-            <Input label="Nome (opcional)" value={newForm.name} onChange={e => setNewForm({ ...newForm, name: e.target.value })} placeholder="Como o cliente se chama" />
-            {sectors.length > 0 && (
-              <Select label="Setor (opcional)" value={newForm.sectorId} onChange={e => setNewForm({ ...newForm, sectorId: e.target.value })}
-                options={[{ value: '', label: 'Sem setor' }, ...sectors.map(s => ({ value: s.id, label: s.name }))]} />
-            )}
-            <Textarea label="Primeira mensagem" required rows={4} value={newForm.message} onChange={e => setNewForm({ ...newForm, message: e.target.value })} placeholder="Olá! Aqui é da Develoi…" />
-            <p className="text-[11px] text-slate-400">A mensagem sai com o seu nome em negrito. O sistema confere se o número tem WhatsApp, e as respostas do cliente aparecem aqui, em <b>Em atendimento</b>.</p>
-          </form>
-        </Modal>
-      )}
-
-      {/* ══ Transferir ══ */}
       {transferOpen && (
         <Modal isOpen onClose={() => setTransferOpen(false)} title="Transferir para outro setor" size="sm"
           footer={<div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setTransferOpen(false)}>Cancelar</Button><Button fullWidth onClick={transfer} disabled={!transferSector}>TRANSFERIR</Button></div>}>
@@ -423,7 +392,6 @@ export function WhatsappInbox() {
         </Modal>
       )}
 
-      {/* ══ Finalizar ══ */}
       {closeOpen && (
         <Modal isOpen onClose={() => setCloseOpen(false)} title="Finalizar atendimento" size="sm"
           footer={<div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setCloseOpen(false)}>Cancelar</Button><Button fullWidth variant="success" onClick={finish}>FINALIZAR</Button></div>}>

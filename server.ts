@@ -651,6 +651,7 @@ async function startServer() {
     app.post("/api/admin/bot/flow", botController.saveFlowNodes);
     
     app.get("/api/admin/bot/conversations", botController.getConversations);
+    app.get("/api/admin/bot/conversations/counts", botController.getConversationCounts);
     app.get("/api/admin/bot/conversations/:id/messages", botController.getConversationMessages);
     app.post("/api/admin/bot/conversations/message", botController.sendMessage);
     app.post("/api/admin/bot/conversations/start", botController.startConversation);
