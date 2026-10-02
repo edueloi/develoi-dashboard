@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "start": "NODE_ENV=production PORT=3000 tsx server.ts",
     "build": "vite build",
+    "deploy": "prisma migrate deploy && prisma generate && npm run build",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
