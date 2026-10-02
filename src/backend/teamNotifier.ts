@@ -1,11 +1,10 @@
 // Avisos internos da equipe por WhatsApp: resumo diário de contas a pagar / a receber
 // e lembrete de reunião 24h antes. Também registra as rotas de destinatários e reuniões.
 import type { Express } from "express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { getSessionInfo, sendMessage } from "./wa.js";
 import { brtParts, brtTodayUtc, daysFromToday, fmtDueDate, fmtDateTimeBrt, DAY_MS } from "./time.js";
 
-const prisma = new PrismaClient();
 
 const DIGEST_FROM_HOUR = 9;   // resumos a partir das 9h (Brasília)
 const SEND_UNTIL_HOUR = 19;

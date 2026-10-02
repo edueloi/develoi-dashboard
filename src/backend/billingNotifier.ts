@@ -1,10 +1,9 @@
 // Avisos automáticos de cobrança por WhatsApp (vencimento, atraso e bloqueio de assinatura)
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { format } from "date-fns";
 import { brtParts, daysFromToday } from "./time.js";
 import { getSessionInfo, sendMessage } from "./wa.js";
 
-const prisma = new PrismaClient();
 
 export type NoticeKind = "reminder" | "due_today" | "overdue" | "blocked";
 

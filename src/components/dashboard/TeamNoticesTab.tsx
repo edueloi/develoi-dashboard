@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { RowMenu } from './financeShared';
 import { format, addHours, isPast } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useLiveEvents } from '../../lib/liveEvents';
 
 interface Recipient {
   id: string; name: string; phone: string; userId?: string | null;
@@ -62,6 +63,7 @@ export function TeamNoticesTab() {
   }, [toast]);
 
   useEffect(() => { load(); }, [load]);
+  useLiveEvents(['TeamRecipient', 'Meeting', 'MeetingAttendee'], () => load());
 
   const patchRecipient = async (id: string, data: Partial<Recipient>) => {
     setRecipients(prev => prev.map(r => (r.id === id ? { ...r, ...data } : r)));

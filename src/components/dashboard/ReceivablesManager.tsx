@@ -10,6 +10,7 @@ import type { Client, ClientPayment, Receivable } from './types';
 import { differenceInCalendarDays, format, isSameMonth, addMonths } from 'date-fns';
 import { CYCLE_LABEL, ClientFormModal } from './ClientForm';
 import { AsaasWebhookStatus } from './AsaasWebhookStatus';
+import { useLiveEvents } from '../../lib/liveEvents';
 import { PAY_METHODS, money, parseDay, fmtDate, startOfToday, firstOfMonth, Stat, RowMenu, PeriodBar } from './financeShared';
 
 type View = 'month' | 'overdue' | 'all';
@@ -112,13 +113,9 @@ export function ReceivablesManager() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Atualiza sozinho: pagamentos entram pelo webhook do Asaas e a tela acompanha sem recarregar
-  useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') fetchData(true); };
-    const id = setInterval(tick, 10000);
-    window.addEventListener('focus', tick);
-    return () => { clearInterval(id); window.removeEventListener('focus', tick); };
-  }, [fetchData]);
+  // Atualiza sozinho assim que algo muda
+  useLiveEvents(['Client', 'ClientPayment', 'Receivable', 'AsaasCharge'], () => fetchData(true));
+
 
   // ── monta as linhas ──
   const entries = useMemo<Entry[]>(() => {

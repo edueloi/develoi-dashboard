@@ -1,10 +1,9 @@
 // Contas a receber avulsas (as assinaturas dos clientes ficam em /api/clients)
 import type { Express } from "express";
 import { randomUUID } from "crypto";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { brtTodayUtc } from "./time.js";
 
-const prisma = new PrismaClient();
 
 // Soma `n` meses mantendo o dia (31/01 + 1 mês = 28/02). Em UTC: datas de vencimento são meia-noite UTC.
 function addMonthsClamped(date: Date, n: number): Date {

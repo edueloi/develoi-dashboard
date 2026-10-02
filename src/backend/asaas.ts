@@ -1,13 +1,12 @@
 // Integração com o Asaas: cria a assinatura do cliente, recebe os pagamentos pelo webhook
 // e usa o bot do WhatsApp para mandar a fatura (link de pagamento) e o comprovante/extrato.
 import type { Express, Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { getSessionInfo, sendMessage, registerClientKeywordHandler } from "./wa.js";
 import { registerClientPayment } from "./clientBilling.js";
 import { sendReceiptPdf } from "./receipts.js";
 import { brtTodayUtc } from "./time.js";
 
-const prisma = new PrismaClient();
 
 export type BillingType = "UNDEFINED" | "PIX" | "BOLETO" | "CREDIT_CARD";
 const BILLING_TYPES: BillingType[] = ["UNDEFINED", "PIX", "BOLETO", "CREDIT_CARD"];

@@ -12,6 +12,7 @@ import { format, differenceInCalendarDays, differenceInMonths } from 'date-fns';
 import { money, parseDay, fmtDate, startOfToday, Stat, RowMenu } from './financeShared';
 import { clientState, dueText, ReceiveModal, buildWhatsAppLink } from './ReceivablesManager';
 import { AsaasWebhookStatus } from './AsaasWebhookStatus';
+import { useLiveEvents } from '../../lib/liveEvents';
 import { ClientFormModal, CYCLE_LABEL } from './ClientForm';
 
 type Filter = 'all' | 'active' | 'late' | 'inactive';
@@ -76,13 +77,9 @@ export function ClientsManager() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Atualiza sozinho: pagamentos entram pelo webhook do Asaas e a tela acompanha sem recarregar
-  useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') fetchData(true); };
-    const id = setInterval(tick, 10000);
-    window.addEventListener('focus', tick);
-    return () => { clearInterval(id); window.removeEventListener('focus', tick); };
-  }, [fetchData]);
+  // Atualiza sozinho assim que algo muda (pagamento do Asaas, outra pessoa editando, bot…)
+  useLiveEvents(['Client', 'ClientPayment', 'AsaasCharge', 'ClientProject', 'Project'], () => fetchData(true));
+
 
   const stateKey = (c: Client) => clientState(c, today).key;
   const isLate = (c: Client) => ['overdue', 'blocked'].includes(stateKey(c));

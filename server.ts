@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import fs from "fs/promises";
 import nodeCrypto from "crypto";
 import { createServer as createViteServer } from "vite";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./src/backend/db.js";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import { blogController } from "./src/backend/blogController.js";
@@ -17,6 +17,7 @@ import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backen
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
 import { registerReceiptRoutes, sendReceiptPdf } from "./src/backend/receipts.js";
+import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
 import { brtTodayUtc } from "./src/backend/time.js";
 
@@ -26,7 +27,6 @@ process.env.TZ = "America/Sao_Paulo"; // horário de Brasília, independente do 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT) || 3000;
 const DB_PATH = path.join(__dirname, "db.json");
 
@@ -857,6 +857,7 @@ async function startServer() {
     registerReceivableRoutes(app);
     registerAsaasRoutes(app);
     registerReceiptRoutes(app);
+    registerWebhookOutRoutes(app);
 
     // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp
     app.post("/api/admin/billing/run", async (req, res) => {
@@ -1312,6 +1313,7 @@ async function startServer() {
       startBillingScheduler();
       startTeamNoticeScheduler();
       startAsaasScheduler();
+      startWebhookDispatcher();
       setTimeout(() => { void resumeSession(); }, 3000);
     });
   } catch (error) {

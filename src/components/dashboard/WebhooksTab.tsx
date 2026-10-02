@@ -7,12 +7,13 @@ import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { OutboundWebhooks } from './OutboundWebhooks';
 
 interface Status { configured: boolean; env: string; webhookTokenSet: boolean; webhookUrl: string | null }
 interface AsaasHook { id: string; name: string; url: string; enabled: boolean; interrupted: boolean; sendType?: string; events: string[]; penalized?: number; mine: boolean }
 interface EventLog { id: string; event: string; asaasPaymentId?: string | null; clientName?: string | null; outcome: string; ok: boolean; payload?: string | null; createdAt: string }
 
-export function WebhooksTab() {
+function AsaasInbound() {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
   const text = isDark ? '#fff' : '#0D1F4E';
@@ -90,7 +91,7 @@ export function WebhooksTab() {
   if (!status?.configured) {
     return (
       <div className="space-y-4">
-        <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Webhooks</h2>
+        <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Avisos recebidos do Asaas</h2>
         <EmptyState icon={Webhook} title="Asaas ainda não configurado"
           description="Adicione ASAAS_API_KEY, ASAAS_WEBHOOK_TOKEN e PUBLIC_BASE_URL no .env do servidor e reinicie o sistema." />
       </div>
@@ -104,7 +105,7 @@ export function WebhooksTab() {
     <div className="space-y-5 dashboard-density">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Webhooks</h2>
+          <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Avisos recebidos do Asaas</h2>
           <p className="text-xs text-slate-400 mt-0.5">Avisos que o Asaas envia ao sistema quando uma cobrança é criada, paga ou vence</p>
         </div>
         <Button variant="outline" iconLeft={<RefreshCw className="w-4 h-4" />} onClick={loadAll}>Atualizar</Button>
@@ -236,6 +237,31 @@ export function WebhooksTab() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+// Tela principal: avisos que o sistema RECEBE (Asaas) e avisos que o sistema ENVIA (para outros sistemas)
+export function WebhooksTab() {
+  const { isDark } = useTheme();
+  const [section, setSection] = useState<'in' | 'out'>('out');
+  const text = isDark ? '#fff' : '#0D1F4E';
+  return (
+    <div className="space-y-5 dashboard-density">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Webhooks</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Avisos entre o sistema e o mundo: o que ele recebe e o que ele envia</p>
+        </div>
+        <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 self-start">
+          {([['out', 'Enviados (todo o sistema)'], ['in', 'Recebidos (Asaas)']] as ['in' | 'out', string][]).map(([v, l]) => (
+            <button key={v} onClick={() => setSection(v)}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${section === v ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500'}`}
+              style={section === v ? { color: text } : undefined}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {section === 'out' ? <OutboundWebhooks /> : <AsaasInbound />}
     </div>
   );
 }

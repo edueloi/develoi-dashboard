@@ -3,11 +3,10 @@ import type { Express, Response } from "express";
 import path from "path";
 import fs from "fs";
 import PDFDocument from "pdfkit";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { getSessionInfo, sendDocument, sendMessage } from "./wa.js";
 import { TZ } from "./time.js";
 
-const prisma = new PrismaClient();
 
 // ─── Dados da empresa emissora ───────────────────────────────────────────────
 const COMPANY = { name: "Develoi Soluções Digitais", cnpj: "30.968.335/0001-69" };

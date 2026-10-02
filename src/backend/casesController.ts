@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { prisma } from "./db.js";
 import { randomUUID } from "crypto";
 
-const prisma = new PrismaClient();
 
 function toSlug(text: string): string {
   return text

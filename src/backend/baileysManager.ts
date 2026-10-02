@@ -13,10 +13,9 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import path from "path";
 import fs from "fs";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { brtParts } from "./time.js";
 
-const prisma = new PrismaClient();
 
 export type WppStatus = "not_configured" | "disconnected" | "qr_pending" | "connecting" | "connected";
 

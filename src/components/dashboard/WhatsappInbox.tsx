@@ -3,6 +3,7 @@ import { MessageCircle, Clock, UserCheck, CheckCircle2, Send, ArrowRightLeft, X,
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLiveEvents } from '../../lib/liveEvents';
 
 type ConvStatus = 'waiting' | 'active' | 'closed';
 
@@ -119,6 +120,9 @@ export function WhatsappInbox() {
   }, [selectedId, loadMessages]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length, selectedId]);
+
+  // Nova mensagem / conversa aparece na hora (além da verificação periódica)
+  useLiveEvents(['WppConversation', 'WppConversationMessage'], () => { loadList(); if (selectedId) loadMessages(selectedId); });
 
   const counts = useMemo(() => ({
     waiting: all.filter(c => c.status === 'waiting').length,

@@ -679,3 +679,55 @@ model AsaasWebhookLog {
 
   @@index([createdAt])
 }
+
+// ─── Eventos do sistema e webhooks de saída ─────────────────────────────────────
+// Toda criação/alteração/exclusão em qualquer tabela vira um SystemEvent (ver src/backend/db.ts).
+// Eles alimentam a atualização automática das telas e a entrega aos endpoints cadastrados.
+
+model SystemEvent {
+  id           Int       @id @default(autoincrement())
+  model        String    @db.VarChar(60)
+  action       String    @db.VarChar(20)   // created | updated | deleted
+  recordId     String?   @db.VarChar(64)
+  data         String?   @db.Text          // registro (sem senhas/tokens, textos longos cortados)
+  source       String?   @db.VarChar(20)   // api | worker
+  createdAt    DateTime  @default(now())
+  dispatchedAt DateTime?                    // quando foi distribuído aos webhooks de saída
+
+  @@index([dispatchedAt])
+  @@index([createdAt])
+}
+
+// Endereço de outro sistema que quer ser avisado de tudo (ou de parte) do que acontece aqui
+model WebhookEndpoint {
+  id        String   @id @default(uuid())
+  name      String
+  url       String   @db.VarChar(500)
+  secret    String   @db.VarChar(80)       // assina cada envio (HMAC SHA-256)
+  events    String   @db.Text              // JSON: ["*"] ou ["client.*", "payable.created"]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id             String    @id @default(uuid())
+  endpointId     String
+  eventId        Int
+  event          String    @db.VarChar(80)  // ex.: client.created
+  status         String    @default("pending") @db.VarChar(15) // pending | success | failed
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime?
+  lastStatusCode Int?
+  lastError      String?   @db.VarChar(300)
+  durationMs     Int?
+  createdAt      DateTime  @default(now())
+  deliveredAt    DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([endpointId, createdAt])
+}

@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import type { Payable, PayablePayment, PayableType, InterestPeriod } from './types';
 import { differenceInCalendarDays, addMonths, format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useLiveEvents } from '../../lib/liveEvents';
 
 // ─── Configuração visual ─────────────────────────────────────────────────────
 
@@ -127,6 +128,9 @@ export function PayablesManager() {
   }, [toast, profile?.uid, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Atualiza sozinho assim que algo muda
+  useLiveEvents(['Payable', 'PayablePayment'], () => fetchData());
 
   const visible = useMemo(() => payables.filter(p => !isGroupParent(p)), [payables]);
 

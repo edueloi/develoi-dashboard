@@ -1,9 +1,8 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { randomUUID } from "crypto";
 import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation } from "./wa.js";
 
-const prisma = new PrismaClient();
 
 // ─── Textos padrão do menu (editáveis na tela do bot) ────────────────────────
 // {{saudacao}} vira Bom dia / Boa tarde / Boa noite; {{nome}} é o primeiro nome do WhatsApp do cliente.

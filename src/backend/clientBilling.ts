@@ -1,8 +1,7 @@
 // Regras de vencimento e recebimento das assinaturas dos clientes (usado pelo servidor e pelo Asaas)
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "./db.js";
 import { brtTodayUtc } from "./time.js";
 
-const prisma = new PrismaClient();
 
 // Calcula a próxima data de vencimento a partir de um dia-do-mês fixo,
 // avançando ciclo(s) inteiros a partir de `from` até cair no futuro.
