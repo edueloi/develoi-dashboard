@@ -42,6 +42,16 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
   const toggle = (id: number) => setPicked(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const pending = (tenants ?? []).filter(t => !t.linkedClient);
 
+  const refresh = async () => {
+    try {
+      const res = await fetch('/api/boxsys/refresh', { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'Erro');
+      toast(d.updated ? `${d.updated} cliente(s) completado(s) com CNPJ/telefone` : 'Nada a completar', 'success');
+      if (d.updated) onDone();
+    } catch (e: any) { toast(e.message, 'error'); }
+  };
+
   const run = async () => {
     setBusy(true);
     try {
@@ -57,7 +67,7 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
 
   return (
     <Modal isOpen onClose={onClose} title="Importar do Store BoxSys" size="lg"
-      footer={<div className="flex gap-2"><Button variant="outline" onClick={onClose}>Fechar</Button>
+      footer={<div className="flex gap-2"><Button variant="outline" onClick={onClose}>Fechar</Button><Button variant="outline" onClick={refresh}>COMPLETAR DADOS</Button>
         <Button fullWidth size="lg" loading={busy} disabled={!picked.size} iconLeft={<Download className="w-4 h-4" />} onClick={run}>IMPORTAR {picked.size || ''} SELECIONADA(S)</Button></div>}>
       {error ? <p className="text-sm text-red-500">{error}</p>
         : !tenants ? <p className="text-sm text-slate-400 text-center py-8">Buscando lojas no BoxSys…</p>

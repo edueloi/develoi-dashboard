@@ -202,6 +202,27 @@ export function registerBoxsysRoutes(app: Express) {
     } catch (e) { fail(res, e); }
   });
 
+  // Completa, nos clientes já ligados ao BoxSys, o que estiver vazio (telefone, CNPJ/CPF, e-mail). Nunca sobrescreve.
+  app.post("/api/boxsys/refresh", async (_req, res) => {
+    try {
+      const tenants = await boxsys<any[]>("/tenants");
+      const linked = await prisma.client.findMany({ where: { boxsysTenantId: { not: null } } });
+      let updated = 0;
+      for (const c of linked) {
+        const t = tenants.find(x => String(x.id) === c.boxsysTenantId);
+        if (!t) continue;
+        const phone = String(t.whatsapp || t.owner?.phone || "").replace(/\D/g, "") || null;
+        const document = String(t.document || "").replace(/\D/g, "") || null;
+        const data: Record<string, string> = {};
+        if (!c.phone && phone) data.phone = phone;
+        if (!c.document && document) data.document = document;
+        if (!c.email && t.owner?.email) data.email = t.owner.email;
+        if (Object.keys(data).length) { await prisma.client.update({ where: { id: c.id }, data }); updated++; }
+      }
+      res.json({ updated });
+    } catch (e) { fail(res, e); }
+  });
+
   // Só desfaz o vínculo aqui; a loja continua existindo no BoxSys
   app.delete("/api/clients/:id/boxsys", async (req, res) => {
     try {
