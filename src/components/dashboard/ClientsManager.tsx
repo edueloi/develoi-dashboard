@@ -296,7 +296,7 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
   // ── cobrança automática (Asaas) ──
   const [asaas, setAsaas] = useState<{ configured: boolean; env: string; webhookTokenSet: boolean } | null>(null);
   const [charges, setCharges] = useState<AsaasCharge[]>([]);
-  const [billingType, setBillingType] = useState('UNDEFINED');
+  const [billingType, setBillingType] = useState('PIX');
   const [sendLink, setSendLink] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const hasAsaas = !!client.asaasCustomerId || !!client.asaasSubscriptionId;
