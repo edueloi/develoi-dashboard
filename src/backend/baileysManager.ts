@@ -87,7 +87,8 @@ async function updateDb(status: WppStatus, phone: string | null, qrCode: string 
 
 export function getSessionInfo(): SessionInfo {
   if (!session) return { status: "not_configured", phone: null, qrDataUrl: null };
-  return { status: session.status, phone: session.phone, qrDataUrl: session.qrDataUrl };
+  // o QR só vale enquanto está aguardando leitura; nunca mostrar um QR antigo
+  return { status: session.status, phone: session.phone, qrDataUrl: session.status === "qr_pending" ? session.qrDataUrl : null };
 }
 
 // Ajusta o estado em memória do cliente (usado pelo painel ao aceitar/finalizar um atendimento)
@@ -520,32 +521,44 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
   }
 }
 
-export async function connectSession() {
-  const tenantId = "default"; // Single-tenant
-  const dir = path.join(SESSIONS_DIR, tenantId);
-  fs.mkdirSync(dir, { recursive: true });
+// ─── Conexão com o WhatsApp ──────────────────────────────────────────────────
+// Padrão do BoxSys/Agendelle: UM socket por vez (dois sockets com a mesma sessão se derrubam
+// em loop), 515 reconecta na hora, quedas reconectam com espera crescente e a sessão volta
+// sozinha quando o servidor reinicia.
 
-  const { state, saveCreds } = await useMultiFileAuthState(dir);
-  
-  let version;
+let generation = 0;
+let reconnectTimer: NodeJS.Timeout | null = null;
+
+function closeSocket(sock: any) {
   try {
-    const latest = await fetchLatestBaileysVersion();
-    version = latest.version;
-  } catch (e) {
-    version = [2, 3000, 1015901307]; // Fallback if GitHub is unreachable
-  }
+    sock.ev.removeAllListeners("connection.update");
+    sock.ev.removeAllListeners("messages.upsert");
+    sock.ev.removeAllListeners("creds.update");
+    sock.end(undefined);
+  } catch {}
+}
+
+export async function connectSession(attempt = 0) {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+  const gen = ++generation;
+  if (session?.sock) closeSocket(session.sock); // nunca deixa dois sockets com a mesma sessão
+
+  const dir = path.join(SESSIONS_DIR, "default"); // single-tenant
+  fs.mkdirSync(dir, { recursive: true });
+  const { state, saveCreds } = await useMultiFileAuthState(dir);
+
+  // Versão atual do WhatsApp Web: uma versão antiga é recusada pelo servidor (erro 405).
+  // Se não conseguir buscar, deixa a biblioteca usar a dela em vez de uma versão fixa velha.
+  const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: undefined }));
+  if (gen !== generation) return; // outra conexão foi pedida enquanto esta preparava
 
   // Se makeWASocket for importado como default, em alguns ambientes ESM/TS ele é a própria função,
   // em outros (CJS interop) pode precisar de .default.
   const makeWASocketFn = (makeWASocket as any).default || makeWASocket;
-
   const sock = makeWASocketFn({
-    version,
+    ...(version ? { version } : {}),
     logger: makeLogger(),
-    printQRInTerminal: false,
-    auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, makeLogger()) },
-    browser: Browsers.macOS("Desktop"),
-    generateHighQualityLinkPreview: true,
+    auth: state,
     syncFullHistory: false,
   });
 
@@ -554,13 +567,17 @@ export async function connectSession() {
   } else {
     session.sock = sock;
     session.status = "connecting";
+    session.qrDataUrl = null;
+    session.qrRaw = null;
   }
 
+  let tries = attempt;
   sock.ev.on("creds.update", saveCreds);
 
   sock.ev.on("connection.update", async (update: any) => {
+    if (gen !== generation) return; // evento de um socket antigo
     const { connection, lastDisconnect, qr } = update;
-    
+
     if (qr) {
       session!.status = "qr_pending";
       session!.qrRaw = qr;
@@ -568,22 +585,41 @@ export async function connectSession() {
       await updateDb("qr_pending", null, session!.qrDataUrl);
     }
 
+    if (connection === "connecting" && session!.status !== "qr_pending") {
+      session!.status = "connecting";
+    }
+
     if (connection === "close") {
-      const reason = (lastDisconnect?.error as Boom)?.output?.statusCode;
-      if (reason === DisconnectReason.loggedOut) {
+      const code = (lastDisconnect?.error as Boom | undefined)?.output?.statusCode;
+
+      if (code === DisconnectReason.loggedOut) {
+        console.warn("[whatsapp] sessão encerrada pelo celular; apagando sessão local");
         fs.rmSync(dir, { recursive: true, force: true });
         session!.status = "disconnected";
         session!.qrDataUrl = null;
         session!.phone = null;
         await updateDb("disconnected", null, null);
+      } else if (code === DisconnectReason.restartRequired) {
+        // o WhatsApp fecha com 515 logo após o QR ser lido; é parte do pareamento, reconecta já
+        console.log("[whatsapp] reinício pedido após o pareamento; reconectando");
+        void connectSession(0);
+      } else if (code === DisconnectReason.connectionReplaced) {
+        // outra instância abriu a mesma sessão; reconectar só entraria em loop
+        console.warn("[whatsapp] conexão substituída por outra sessão; não vou reconectar sozinho");
+        session!.status = "disconnected";
+        session!.qrDataUrl = null;
+        await updateDb("disconnected", session!.phone, null);
       } else {
-        setTimeout(() => connectSession(), 5000);
+        const delayMs = Math.min(2000 * (tries + 1), 30_000);
+        console.warn(`[whatsapp] conexão caiu (código ${code ?? "?"}); reconectando em ${delayMs / 1000}s`);
+        session!.status = "connecting";
+        reconnectTimer = setTimeout(() => { void connectSession(tries + 1); }, delayMs);
       }
     }
 
     if (connection === "open") {
-      const me = sock.user?.id || "";
-      const phone = jidToPhone(me);
+      tries = 0; // conexão estável: a próxima queda recomeça a espera do zero
+      const phone = jidToPhone(sock.user?.id || "");
       session!.status = "connected";
       session!.phone = phone;
       session!.qrDataUrl = null;
@@ -594,15 +630,31 @@ export async function connectSession() {
   });
 
   sock.ev.on("messages.upsert", async (m: any) => {
+    if (gen !== generation) return;
     if (m.type === "notify") {
       for (const msg of m.messages) {
-        await handleMessage(msg, sock);
+        try { await handleMessage(msg, sock); } catch (e) { console.error("[whatsapp] erro ao tratar mensagem:", e); }
       }
     }
   });
 }
 
+// Ao subir o servidor, volta a conectar sozinho se já existe uma sessão pareada
+export async function resumeSession() {
+  try {
+    const credsFile = path.join(SESSIONS_DIR, "default", "creds.json");
+    if (!fs.existsSync(credsFile)) return;
+    const creds = JSON.parse(fs.readFileSync(credsFile, "utf-8"));
+    if (!creds?.registered) return; // QR nunca foi lido; espera o usuário clicar em Conectar
+    console.log("[whatsapp] retomando a sessão salva");
+    await connectSession();
+  } catch (e) {
+    console.error("[whatsapp] não consegui retomar a sessão:", e);
+  }
+}
+
 export async function disconnectSession() {
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
   if (session && session.sock) {
     try {
       session.sock.logout();

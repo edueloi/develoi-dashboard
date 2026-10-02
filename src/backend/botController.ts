@@ -266,7 +266,8 @@ export const botController = {
 
   async connect(req: Request, res: Response) {
     try {
-      await connectSession();
+      // já conectado: não abre outro socket por cima do que está funcionando
+      if (getSessionInfo().status !== "connected") await connectSession();
       res.json({ success: true });
     } catch (error) {
       console.error(error);
