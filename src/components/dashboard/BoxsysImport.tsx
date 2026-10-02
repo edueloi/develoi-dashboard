@@ -5,7 +5,8 @@ import { useToast } from '../ui/Toast';
 
 interface Tenant {
   id: number; name: string; subdomain?: string; status: string; trialEndsAt?: string | null; subscriptionAmount?: number; planName?: string | null;
-  owner?: { name: string; email: string } | null;
+  whatsapp?: string | null; document?: string | null;
+  owner?: { name: string; email: string; phone?: string | null } | null;
   linkedClient: { id: string; name: string } | null;
   suggestedClient: { id: string; name: string } | null;
 }
@@ -72,7 +73,7 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold flex items-center gap-2 flex-wrap"><Store className="w-3.5 h-3.5 text-slate-400" />{t.name}
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${st.cls}`}>{st.label}</span></p>
-                      <p className="text-[11px] text-slate-400 truncate">{t.owner?.email || 'sem e-mail'}{t.subdomain ? ` · ${t.subdomain}` : ''}{t.planName ? ` · ${t.planName}` : ''}
+                      <p className="text-[11px] text-slate-400 truncate">{t.owner?.name ? `${t.owner.name} · ` : ''}{t.owner?.email || 'sem e-mail'}{t.document ? ` · ${t.document}` : ''}{(t.whatsapp || t.owner?.phone) ? ` · ${t.whatsapp || t.owner?.phone}` : ''}{t.subdomain ? ` · ${t.subdomain}` : ''}{t.planName ? ` · ${t.planName}` : ''}
                         {t.trialEndsAt ? (new Date(t.trialEndsAt) > new Date() ? ` · teste até ${new Date(t.trialEndsAt).toLocaleDateString('pt-BR')}` : ` · teste venceu em ${new Date(t.trialEndsAt).toLocaleDateString('pt-BR')}`) : ''}</p>
                       {t.linkedClient && <p className="text-[11px] text-green-600 flex items-center gap-1"><Link2 className="w-3 h-3" /> já é o cliente {t.linkedClient.name}</p>}
                       {t.suggestedClient && <p className="text-[11px] text-indigo-500 flex items-center gap-1"><Link2 className="w-3 h-3" /> será ligada ao cliente {t.suggestedClient.name} (mesmo e-mail)</p>}

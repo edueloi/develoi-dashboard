@@ -173,8 +173,12 @@ export function registerBoxsysRoutes(app: Express) {
           boxsysTenantId: String(t.id), boxsysSubdomain: t.subdomain ?? null, boxsysUrl: t.accessUrl ?? null,
           boxsysStatus: isActive ? "active" : "suspended", boxsysSyncedAt: new Date(), boxsysError: null,
         };
+        const phone = String(t.whatsapp || t.owner?.phone || "").replace(/\D/g, "") || null;
+        const document = String(t.document || "").replace(/\D/g, "") || null;
         if (it.clientId) {
-          await prisma.client.update({ where: { id: it.clientId }, data: link });
+          // cliente já existente: completa só o que estiver vazio
+          const cur = await prisma.client.findUnique({ where: { id: it.clientId } });
+          await prisma.client.update({ where: { id: it.clientId }, data: { ...link, phone: cur?.phone || phone, document: cur?.document || document } });
           linked++;
         } else {
           const trialEnd = t.trialEndsAt ? new Date(t.trialEndsAt) : null;
@@ -182,11 +186,12 @@ export function registerBoxsysRoutes(app: Express) {
             data: {
               name: String(t.name || t.owner?.name || "Loja BoxSys").trim(),
               email: t.owner?.email ?? null,
+              phone, document,
               status: isActive ? "active" : "paused",
               billingValue: Number(t.subscriptionAmount) || 0,
               startDate: t.createdAt ? new Date(t.createdAt) : null,
               nextDueDate: trialEnd && trialEnd.getTime() > Date.now() ? trialEnd : null,
-              notes: "Importado do Store BoxSys.",
+              notes: `Importado do Store BoxSys.${t.owner?.name && t.owner.name !== t.name ? ` Responsável: ${t.owner.name}.` : ""}`,
               ...link,
             },
           });
