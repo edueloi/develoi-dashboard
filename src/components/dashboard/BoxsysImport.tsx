@@ -12,6 +12,7 @@ interface Tenant {
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   active: { label: 'Ativa', cls: 'bg-green-100 text-green-700' },
+  trial: { label: 'Em teste', cls: 'bg-amber-100 text-amber-700' },
   suspended: { label: 'Bloqueada', cls: 'bg-red-100 text-red-700' },
 };
 
@@ -30,7 +31,7 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
       if (!r.ok) throw new Error(d.error || 'Erro');
       const all: Tenant[] = d;
       // só entram lojas ativas (inclui as em teste) que ainda não estão aqui
-      const list = all.filter(t => t.status === 'active' && !t.linkedClient);
+      const list = all.filter(t => ['active', 'trial'].includes(t.status) && !t.linkedClient);
       setSkipped(all.length - list.length);
       setTenants(list);
       setPicked(new Set(list.map(t => t.id)));
@@ -72,7 +73,7 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
                       <p className="text-sm font-bold flex items-center gap-2 flex-wrap"><Store className="w-3.5 h-3.5 text-slate-400" />{t.name}
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${st.cls}`}>{st.label}</span></p>
                       <p className="text-[11px] text-slate-400 truncate">{t.owner?.email || 'sem e-mail'}{t.subdomain ? ` · ${t.subdomain}` : ''}{t.planName ? ` · ${t.planName}` : ''}
-                        {t.trialEndsAt && new Date(t.trialEndsAt) > new Date() ? ` · teste até ${new Date(t.trialEndsAt).toLocaleDateString('pt-BR')}` : ''}</p>
+                        {t.trialEndsAt ? (new Date(t.trialEndsAt) > new Date() ? ` · teste até ${new Date(t.trialEndsAt).toLocaleDateString('pt-BR')}` : ` · teste venceu em ${new Date(t.trialEndsAt).toLocaleDateString('pt-BR')}`) : ''}</p>
                       {t.linkedClient && <p className="text-[11px] text-green-600 flex items-center gap-1"><Link2 className="w-3 h-3" /> já é o cliente {t.linkedClient.name}</p>}
                       {t.suggestedClient && <p className="text-[11px] text-indigo-500 flex items-center gap-1"><Link2 className="w-3 h-3" /> será ligada ao cliente {t.suggestedClient.name} (mesmo e-mail)</p>}
                     </div>
