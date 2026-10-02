@@ -44,6 +44,54 @@ export function pickNotice(diff: number, reminderDaysBefore: number, graceDaysAf
   return "blocked";
 }
 
+// Passou da tolerância → cliente pausado e loja bloqueada NA HORA, a qualquer hora e mesmo sem WhatsApp.
+// O aviso "bloqueada" é só cortesia: fica pendente (block_pending) e sai na próxima janela de envio.
+export async function enforceOverdueBlocks(): Promise<number> {
+  const clients = await prisma.client.findMany({
+    where: { status: "active", nextDueDate: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } },
+  });
+  let blocked = 0;
+  for (const c of clients) {
+    const due = c.nextDueDate as Date;
+    if (pickNotice(daysFromToday(due), c.reminderDaysBefore, c.graceDaysAfter) !== "blocked") continue;
+    await prisma.client.update({ where: { id: c.id }, data: { status: "paused" } });
+    await prisma.clientBillingNotice.upsert({
+      where: { clientId_kind_dueDate: { clientId: c.id, kind: "block_pending", dueDate: due } },
+      create: { clientId: c.id, kind: "block_pending", dueDate: due }, update: {},
+    });
+    await syncBoxsysAccess(c.id); // bloqueia a loja no Store BoxSys
+    console.log(`[cobrança] ${c.name}: passou da tolerância, cliente pausado e loja bloqueada`);
+    blocked++;
+  }
+  return blocked;
+}
+
+// Envia o aviso de bloqueio que ficou pendente (só dentro da janela e com o bot pronto)
+async function sendPendingBlockedNotices(results: NoticeResult[], dryRun: boolean) {
+  const pending = await prisma.clientBillingNotice.findMany({ where: { kind: "block_pending" }, include: { client: { include: { projects: { include: { project: { select: { name: true } } } }, sale: { select: { productName: true } } } } } });
+  for (const n of pending) {
+    const c = n.client;
+    const done = await prisma.clientBillingNotice.findUnique({ where: { clientId_kind_dueDate: { clientId: c.id, kind: "blocked", dueDate: n.dueDate } } });
+    // já avisado, ou o cliente regularizou (vencimento mudou) → não precisa mais
+    if (done || !c.phone || !c.nextDueDate || c.nextDueDate.getTime() !== n.dueDate.getTime()) {
+      if (!done && (!c.nextDueDate || c.nextDueDate.getTime() !== n.dueDate.getTime())) await prisma.clientBillingNotice.delete({ where: { id: n.id } });
+      continue;
+    }
+    const entry: NoticeResult = { client: c.name, phone: c.phone, kind: "blocked", sent: false };
+    results.push(entry);
+    if (dryRun) continue;
+    const charge = await prisma.asaasCharge.findFirst({ where: { clientId: c.id, status: { in: ["PENDING", "OVERDUE"] }, dueDate: n.dueDate } });
+    const text = TEMPLATES.blocked({
+      name: c.name, value: c.billingValue, dueDate: n.dueDate, daysLeft: daysFromToday(n.dueDate), grace: c.graceDaysAfter,
+      link: charge?.invoiceUrl, assinatura: assinaturaTexto(subscriptionInfoOf(c)),
+    });
+    if (!(await sendMessage(c.phone, text))) { entry.reason = "falha no envio"; continue; }
+    await prisma.clientBillingNotice.create({ data: { clientId: c.id, kind: "blocked", dueDate: n.dueDate } });
+    entry.sent = true;
+    await new Promise(r => setTimeout(r, GAP_BETWEEN_MESSAGES_MS));
+  }
+}
+
 export interface NoticeResult { client: string; phone: string; kind: NoticeKind; sent: boolean; reason?: string }
 
 export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promise<NoticeResult[]> {
@@ -53,6 +101,8 @@ export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promis
   const config = await prisma.wppBotConfig.findFirst();
   if (!config?.botEnabled) return results;
   if (!dryRun && getSessionInfo().status !== "connected") return results;
+
+  await sendPendingBlockedNotices(results, dryRun);
 
   const clients = await prisma.client.findMany({
     where: { status: "active", nextDueDate: { not: null }, phone: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } }, // sem valor definido (teste/cortesia) não recebe cobrança
@@ -97,9 +147,11 @@ export function startBillingScheduler() {
   let running = false;
   const tick = async () => {
     const h = brtParts().hour; // horário de Brasília, não o do servidor
-    if (running || h < SEND_FROM_HOUR || h >= SEND_UNTIL_HOUR) return;
+    if (running) return;
     running = true;
     try {
+      await enforceOverdueBlocks(); // bloqueio vale o dia todo
+      if (h < SEND_FROM_HOUR || h >= SEND_UNTIL_HOUR) return; // mensagens só na janela
       const r = await runBillingNotices();
       const sent = r.filter(x => x.sent).length;
       if (sent) console.log(`[cobrança] ${sent} aviso(s) enviado(s)`);

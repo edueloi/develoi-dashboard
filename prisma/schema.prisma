@@ -401,7 +401,7 @@ model ClientPayment {
 model ClientBillingNotice {
   id       String   @id @default(uuid())
   clientId String
-  kind     String   @db.VarChar(20) // reminder | due_today | overdue | blocked
+  kind     String   @db.VarChar(20) // reminder | due_today | overdue | blocked | block_pending
   dueDate  DateTime // vencimento a que o aviso se refere
   sentAt   DateTime @default(now())
 
