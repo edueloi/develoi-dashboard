@@ -1,6 +1,7 @@
 // Regras de vencimento e recebimento das assinaturas dos clientes (usado pelo servidor e pelo Asaas)
 import { prisma } from "./db.js";
 import { brtTodayUtc } from "./time.js";
+import { syncBoxsysAccess } from "./boxsys.js";
 
 
 // Calcula a próxima data de vencimento a partir de um dia-do-mês fixo,
@@ -80,5 +81,6 @@ export async function registerClientPayment(clientId: string, input: PaymentInpu
       ...(wasBlocked ? { status: "active" } : {}),
     },
   });
+  void syncBoxsysAccess(clientId); // cliente voltou a ficar ativo: libera a loja no Store BoxSys, se houver
   return { client, payment, duplicate: false as const };
 }

@@ -362,6 +362,13 @@ model Client {
   asaasCustomerId     String?   @db.VarChar(40)  // cadastro do cliente no Asaas
   asaasSubscriptionId String?   @db.VarChar(40)  // assinatura recorrente no Asaas
   asaasBillingType    String?   @db.VarChar(20)  // UNDEFINED | PIX | BOLETO | CREDIT_CARD
+  // Loja do cliente no Store BoxSys (criada e bloqueada/liberada por este sistema)
+  boxsysTenantId      String?   @db.VarChar(20)
+  boxsysSubdomain     String?   @db.VarChar(80)
+  boxsysUrl           String?   @db.VarChar(255)
+  boxsysStatus        String?   @db.VarChar(20)  // active | suspended (último estado aplicado no BoxSys)
+  boxsysSyncedAt      DateTime?
+  boxsysError         String?   @db.VarChar(255)
 
   projects       ClientProject[]
   billingNotices ClientBillingNotice[]

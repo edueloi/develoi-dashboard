@@ -2,6 +2,7 @@
 import { prisma } from "./db.js";
 import { format } from "date-fns";
 import { brtParts, daysFromToday } from "./time.js";
+import { syncBoxsysAccess } from "./boxsys.js";
 import { assinaturaTexto, subscriptionInfoOf } from "./clientInfo.js";
 import { getSessionInfo, sendMessage } from "./wa.js";
 
@@ -82,7 +83,10 @@ export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promis
     if (!ok) { entry.reason = "falha no envio"; continue; }
 
     await prisma.clientBillingNotice.create({ data: { clientId: c.id, kind, dueDate: due } });
-    if (kind === "blocked") await prisma.client.update({ where: { id: c.id }, data: { status: "paused" } });
+    if (kind === "blocked") {
+      await prisma.client.update({ where: { id: c.id }, data: { status: "paused" } });
+      await syncBoxsysAccess(c.id); // bloqueia também a loja no Store BoxSys
+    }
     entry.sent = true;
     await new Promise(r => setTimeout(r, GAP_BETWEEN_MESSAGES_MS));
   }

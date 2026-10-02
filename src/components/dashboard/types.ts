@@ -287,6 +287,12 @@ export interface Client {
   asaasCustomerId?: string | null;
   asaasSubscriptionId?: string | null;
   asaasBillingType?: string | null;
+  boxsysTenantId?: string | null;
+  boxsysSubdomain?: string | null;
+  boxsysUrl?: string | null;
+  boxsysStatus?: 'active' | 'suspended' | null;
+  boxsysSyncedAt?: string | null;
+  boxsysError?: string | null;
   reminderDaysBefore: number;
   graceDaysAfter: number;
   soldById?: string;

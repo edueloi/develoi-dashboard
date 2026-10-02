@@ -202,7 +202,7 @@ export function BotConfigTab() {
               <div className="flex items-center justify-between p-4 rounded-xl border dash-border">
                 <div>
                   <p className="text-sm font-bold dash-text">Menus com botões</p>
-                  <p className="text-xs dash-text-muted">Botões clicáveis no WhatsApp (se não aparecerem, desligue para usar texto numerado)</p>
+                  <p className="text-xs dash-text-muted">Botões clicáveis só aparecem no celular; no WhatsApp Web/Desktop o cliente vê "Não foi possível carregar a mensagem". Desligado, o menu sai em texto numerado e funciona em qualquer aparelho.</p>
                 </div>
                 <input
                   type="checkbox"

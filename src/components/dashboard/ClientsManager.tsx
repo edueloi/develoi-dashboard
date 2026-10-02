@@ -12,6 +12,7 @@ import { format, differenceInCalendarDays, differenceInMonths } from 'date-fns';
 import { money, parseDay, fmtDate, startOfToday, Stat, RowMenu } from './financeShared';
 import { clientState, dueText, ReceiveModal, buildWhatsAppLink } from './ReceivablesManager';
 import { AsaasWebhookStatus } from './AsaasWebhookStatus';
+import { BoxsysSection } from './BoxsysSection';
 import { useLiveEvents } from '../../lib/liveEvents';
 import { ClientFormModal, CYCLE_LABEL } from './ClientForm';
 
@@ -201,6 +202,7 @@ export function ClientsManager() {
                     {since ? <span>Cliente há {since}</span> : <span>Sem data de início</span>}
                     {c.sale?.productName && <span>· {c.sale.productName}</span>}
                     {systems && <span className="inline-flex items-center gap-1 truncate">· <FolderOpen className="w-3 h-3" />{systems}</span>}
+                    {c.boxsysTenantId && <span className={`font-bold ${c.boxsysStatus === 'suspended' ? 'text-red-500' : 'text-green-600'}`}>· BoxSys {c.boxsysStatus === 'suspended' ? 'bloqueado' : 'liberado'}</span>}
                   </p>
                 </div>
 
@@ -466,6 +468,8 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
             </div>
           )}
         </section>
+
+        <BoxsysSection client={client} onChanged={onChanged} />
 
         <section>
           <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> Contato</p>

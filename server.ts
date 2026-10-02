@@ -17,6 +17,7 @@ import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backen
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
 import { registerReceiptRoutes, sendThanksAndReceipt } from "./src/backend/receipts.js";
+import { registerBoxsysRoutes, startBoxsysScheduler, syncBoxsysAccess } from "./src/backend/boxsys.js";
 import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
 import { brtTodayUtc } from "./src/backend/time.js";
@@ -859,6 +860,7 @@ async function startServer() {
     registerReceivableRoutes(app);
     registerAsaasRoutes(app);
     registerReceiptRoutes(app);
+    registerBoxsysRoutes(app);
     registerWebhookOutRoutes(app);
 
     // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp
@@ -935,6 +937,7 @@ async function startServer() {
             nextDueDate,
           }
         });
+        syncBoxsysAccess(client.id).catch(() => {}); // pausar/cancelar/reativar reflete na loja do BoxSys
         res.json(client);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
@@ -1316,6 +1319,7 @@ async function startServer() {
       startTeamNoticeScheduler();
       startAsaasScheduler();
       startWebhookDispatcher();
+      startBoxsysScheduler();
       setTimeout(() => { void resumeSession(); }, 3000);
       startConversationSweeper(); // só age quando o WhatsApp roda neste mesmo processo (desenvolvimento)
     });
