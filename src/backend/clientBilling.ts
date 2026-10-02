@@ -59,7 +59,7 @@ export async function registerClientPayment(clientId: string, input: PaymentInpu
   }
   // cliente que foi bloqueado por falta de pagamento volta a ficar ativo
   const wasBlocked = c.nextDueDate
-    ? await prisma.clientBillingNotice.findFirst({ where: { clientId, kind: "blocked", dueDate: c.nextDueDate } })
+    ? await prisma.clientBillingNotice.findFirst({ where: { clientId, kind: { in: ["blocked", "block_pending"] }, dueDate: c.nextDueDate } })
     : null;
 
   const payment = await prisma.clientPayment.create({
