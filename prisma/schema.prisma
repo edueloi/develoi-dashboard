@@ -337,7 +337,8 @@ model ReadyMessage {
 model Client {
   id                 String    @id @default(uuid())
   userId             String?   // dono/responsável (uid do User), opcional
-  name               String
+  name               String    // nome do cliente (pessoa)
+  businessName       String?   @db.VarChar(150) // nome do estabelecimento/empresa
   email              String?
   phone              String?
   document           String?   // CPF/CNPJ opcional

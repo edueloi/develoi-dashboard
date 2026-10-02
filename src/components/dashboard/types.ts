@@ -270,6 +270,7 @@ export interface Client {
   id: string;
   userId?: string;
   name: string;
+  businessName?: string | null;
   email?: string;
   phone?: string;
   document?: string;

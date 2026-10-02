@@ -19,6 +19,7 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
   const dateStr = (iso?: string | null) => (parseDay(iso) ? format(parseDay(iso)!, 'yyyy-MM-dd') : null);
 
   const [name, setName] = useState(client?.name ?? '');
+  const [businessName, setBusinessName] = useState(client?.businessName ?? '');
   const [phone, setPhone] = useState(client?.phone ?? '');
   const [email, setEmail] = useState(client?.email ?? '');
   const [document, setDocument] = useState(client?.document ?? '');
@@ -60,6 +61,7 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
     try {
       const payload = {
         name: name.trim(),
+        businessName: businessName.trim() || null,
         phone: phone.trim() || null,
         email: email.trim() || null,
         document: document.trim() || null,
@@ -86,7 +88,7 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
         const created = await res.json();
         const r = await fetch(`/api/clients/${created.id}/boxsys/create`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...store, storeName: store.storeName || name.trim(), ownerName: name.trim(), ownerEmail: email.trim(), sendAccess: store.sendAccess && !!phone.trim() }),
+          body: JSON.stringify({ ...store, storeName: store.storeName || businessName.trim() || name.trim(), ownerName: name.trim(), ownerEmail: email.trim(), sendAccess: store.sendAccess && !!phone.trim() }),
         });
         const d = await r.json().catch(() => ({}));
         if (r.ok) { setAccess({ ...d.access, sent: d.sent }); return; } // mostra o acesso e só então fecha
@@ -113,7 +115,10 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
     >
       <form id="client-form" onSubmit={submit} className="space-y-5">
         <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Dados do cliente</p>
-        <Input label="Nome" required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex: João da Silva" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Nome do cliente" required autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex: João da Silva" />
+          <Input label="Nome do estabelecimento (opcional)" value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="Ex: Doces da Maria" />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="WhatsApp (com DDD)" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(15) 99999-9999" />
           <Input label="E-mail" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="cliente@email.com" />
@@ -200,7 +205,7 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
                 </p>
                 {!email.trim() && <p className="text-xs text-amber-600">Preencha o <b>E-mail</b> acima: ele será o usuário de login da loja.</p>}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input label="Nome da loja" value={store.storeName} onChange={e => setStore({ ...store, storeName: e.target.value })} placeholder={name || 'Igual ao nome do cliente'} />
+                  <Input label="Nome da loja" value={store.storeName} onChange={e => setStore({ ...store, storeName: e.target.value })} placeholder={businessName || name || 'Igual ao nome do cliente'} />
                   <Input label="Endereço (opcional)" value={store.subdomain} onChange={e => setStore({ ...store, subdomain: e.target.value })} placeholder="minhaloja" />
                   <Input label="Dias de teste" type="number" min="1" value={store.trialDays} onChange={e => setStore({ ...store, trialDays: e.target.value })} />
                 </div>

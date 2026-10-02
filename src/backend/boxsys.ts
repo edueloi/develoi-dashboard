@@ -178,20 +178,21 @@ export function registerBoxsysRoutes(app: Express) {
         if (it.clientId) {
           // cliente já existente: completa só o que estiver vazio
           const cur = await prisma.client.findUnique({ where: { id: it.clientId } });
-          await prisma.client.update({ where: { id: it.clientId }, data: { ...link, phone: cur?.phone || phone, document: cur?.document || document } });
+          await prisma.client.update({ where: { id: it.clientId }, data: { ...link, phone: cur?.phone || phone, document: cur?.document || document, businessName: cur?.businessName || t.name || null } });
           linked++;
         } else {
           const trialEnd = t.trialEndsAt ? new Date(t.trialEndsAt) : null;
           await prisma.client.create({
             data: {
-              name: String(t.name || t.owner?.name || "Loja BoxSys").trim(),
+              name: String(t.owner?.name || t.name || "Loja BoxSys").trim(),
+              businessName: String(t.name || "").trim() || null,
               email: t.owner?.email ?? null,
               phone, document,
               status: isActive ? "active" : "paused",
               billingValue: Number(t.subscriptionAmount) || 0,
               startDate: t.createdAt ? new Date(t.createdAt) : null,
               nextDueDate: trialEnd && trialEnd.getTime() > Date.now() ? trialEnd : null,
-              notes: `Importado do Store BoxSys.${t.owner?.name && t.owner.name !== t.name ? ` Responsável: ${t.owner.name}.` : ""}`,
+              notes: "Importado do Store BoxSys.",
               ...link,
             },
           });
@@ -217,6 +218,9 @@ export function registerBoxsysRoutes(app: Express) {
         if (!c.phone && phone) data.phone = phone;
         if (!c.document && document) data.document = document;
         if (!c.email && t.owner?.email) data.email = t.owner.email;
+        if (!c.businessName && t.name) data.businessName = t.name;
+        // importados antes: o nome era o da loja; passa a ser o do responsável
+        if (c.notes?.startsWith("Importado do Store BoxSys") && c.name === t.name && t.owner?.name && t.owner.name !== t.name) data.name = t.owner.name;
         if (Object.keys(data).length) { await prisma.client.update({ where: { id: c.id }, data }); updated++; }
       }
       res.json({ updated });

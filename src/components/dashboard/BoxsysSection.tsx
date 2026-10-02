@@ -35,7 +35,7 @@ export function BoxsysSection({ client, onChanged }: { client: Client; onChanged
   const [plans, setPlans] = useState<Plan[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [access, setAccess] = useState<Access | null>(null);
-  const [form, setForm] = useState({ storeName: client.name, subdomain: '', ownerName: client.name, ownerEmail: client.email ?? '', planId: '', trialDays: '', sendAccess: !!client.phone });
+  const [form, setForm] = useState({ storeName: client.businessName || client.name, subdomain: '', ownerName: client.name, ownerEmail: client.email ?? '', planId: '', trialDays: '', sendAccess: !!client.phone });
 
   useEffect(() => { fetch('/api/boxsys/status').then(r => r.json()).then(setCfg).catch(() => {}); }, []);
   useEffect(() => {

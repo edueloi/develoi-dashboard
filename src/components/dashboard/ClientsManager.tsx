@@ -95,7 +95,7 @@ export function ClientsManager() {
         if (filter === 'active' && c.status !== 'active') return false;
         if (filter === 'late' && !isLate(c)) return false;
         if (filter === 'inactive' && !isInactive(c)) return false;
-        return !q || c.name.toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.phone ?? '').includes(q) || (c.document ?? '').includes(q);
+        return !q || c.name.toLowerCase().includes(q) || (c.businessName ?? '').toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.phone ?? '').includes(q) || (c.document ?? '').includes(q);
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [clients, filter, search]); // eslint-disable-line
@@ -193,7 +193,7 @@ export function ClientsManager() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-bold truncate" style={{ color: text }}>{c.name}</p>
+                    <p className="text-sm font-bold truncate" style={{ color: text }}>{c.name}{c.businessName && <span className="font-medium text-slate-400"> · {c.businessName}</span>}</p>
                     {c.status !== 'active' && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: st.bg, color: st.color }}>{STATUS_LABEL[c.status]}</span>
                     )}
@@ -378,6 +378,7 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
           </div>
           <div className="min-w-0">
             <p className="text-base font-black truncate" style={{ color: text }}>{client.name}</p>
+            {client.businessName && <p className="text-xs font-semibold text-slate-500 truncate">{client.businessName}</p>}
             <p className="text-xs font-bold" style={{ color: st.color }}>{st.label} · {dueText(client, today)}</p>
           </div>
         </div>
