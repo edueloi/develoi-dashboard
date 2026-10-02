@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Download, ExternalLink, QrCode, ShieldCheck, Lock, MessageCircle, CalendarDays, Building2, Receipt } from 'lucide-react';
+import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Download, ExternalLink, QrCode, ShieldCheck, Lock, MessageCircle } from 'lucide-react';
 
 interface InvoiceData {
   status: 'pending' | 'overdue' | 'paid' | 'cancelled';
@@ -87,18 +87,18 @@ export default function Invoice() {
           </span>
 
           <p className="relative mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-white/55">{paid ? 'Valor pago' : 'Valor da fatura'}</p>
-          <p className="relative mt-1 text-5xl font-black tracking-tight sm:text-6xl">{money(data.value)}</p>
+          <p className="relative mt-1 text-4xl font-extrabold sm:text-[2.6rem]">{money(data.value)}</p>
           <p className="relative mt-3 text-sm text-white/70">
             {paid && data.paidAt ? <>Pago em <b className="text-white">{day(data.paidAt)}</b>{data.method ? ` via ${data.method}` : ''}</> : <>Vencimento em <b className="text-white">{day(data.dueDate)}</b></>}
           </p>
         </header>
 
         {/* ── Detalhes ── */}
-        <div className="grid gap-3 border-b border-slate-100 px-6 py-5 sm:grid-cols-3 sm:px-10">
-          <Info Icon={Receipt} label="Assinatura" value={data.product} />
-          <Info Icon={Building2} label={data.business ? 'Estabelecimento' : 'Cliente'} value={data.business || data.customer} />
-          <Info Icon={CalendarDays} label={paid ? 'Próximo vencimento' : 'Vencimento'} value={day(paid ? (data.nextDueDate ?? data.dueDate) : data.dueDate)} />
-        </div>
+        <dl className="divide-y divide-slate-100 border-b border-slate-100 px-6 text-sm sm:px-10">
+          <Row label="Assinatura" value={data.product} />
+          <Row label={data.business ? 'Estabelecimento' : 'Cliente'} value={data.business || data.customer} />
+          <Row label={paid ? 'Próximo vencimento' : 'Vencimento'} value={day(paid ? (data.nextDueDate ?? data.dueDate) : data.dueDate)} />
+        </dl>
 
         {/* ── Pagamento / agradecimento ── */}
         <section className="px-6 py-7 sm:px-10">
@@ -113,7 +113,7 @@ export default function Invoice() {
                 </div>
               )}
 
-              <h2 className="text-base font-black text-slate-900">Como você quer pagar?</h2>
+              <h2 className="text-base font-bold text-slate-900">Como você quer pagar?</h2>
 
               {tabs.length > 1 && (
                 <div className="mt-3 grid gap-1.5 rounded-2xl bg-slate-100 p-1.5" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
@@ -173,14 +173,11 @@ export default function Invoice() {
   );
 }
 
-function Info({ Icon, label, value }: { Icon: typeof QrCode; label: string; value: string }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3.5 py-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200/70"><Icon className="h-4 w-4" /></span>
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="truncate text-sm font-bold text-slate-900">{value}</p>
-      </div>
+    <div className="flex items-baseline justify-between gap-4 py-3">
+      <dt className="shrink-0 text-slate-500">{label}</dt>
+      <dd className="text-right font-semibold text-slate-900">{value}</dd>
     </div>
   );
 }
@@ -204,7 +201,7 @@ function Thanks({ data }: { data: InvoiceData }) {
       <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100" style={{ animation: 'pop .6s ease both' }}>
         <CheckCircle2 className="h-11 w-11 text-green-600" />
       </div>
-      <h2 className="mt-5 text-2xl font-black text-slate-900">Obrigado, {data.customer}!</h2>
+      <h2 className="mt-5 text-xl font-bold text-slate-900">Obrigado, {data.customer}!</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">Recebemos o pagamento da sua assinatura e está tudo certo por aqui. 🙏</p>
 
       <div className="mx-auto mt-6 flex max-w-sm flex-col gap-3">
