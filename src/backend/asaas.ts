@@ -110,7 +110,7 @@ export async function createSubscription(clientId: string, billingType: BillingT
 
   const customer = await ensureCustomer(c);
   const dueDay = c.nextDueDate.toISOString().slice(0, 10);
-  const description = `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))} — ${c.name}`; // aparece na fatura do cliente
+  const description = `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))} — ${c.businessName || c.name}`; // aparece na fatura do cliente
   let charges: any[] = [];
   let subscriptionId: string | null = null;
 

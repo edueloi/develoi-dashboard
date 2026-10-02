@@ -7,10 +7,11 @@ export interface SubscriptionInfo {
   plan: string | null;      // plano da venda de origem, se houver
 }
 
-type WithSystems = { projects?: { project?: { name: string } | null }[]; sale?: { productName: string | null } | null };
+type WithSystems = { projects?: { project?: { name: string } | null }[]; sale?: { productName: string | null } | null; boxsysTenantId?: string | null };
 
 export function subscriptionInfoOf(client: WithSystems): SubscriptionInfo {
   const systems = (client.projects ?? []).map(p => p.project?.name).filter((n): n is string => !!n);
+  if (!systems.length && client.boxsysTenantId) systems.push("Store BoxSys"); // cliente com loja no BoxSys, sem sistema vinculado à mão
   return { systems, plan: client.sale?.productName ?? null };
 }
 
