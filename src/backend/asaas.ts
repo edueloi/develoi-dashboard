@@ -99,6 +99,13 @@ async function upsertCharge(clientId: string, p: any) {
   return prisma.asaasCharge.upsert({ where: { asaasPaymentId: p.id }, create: { asaasPaymentId: p.id, ...data }, update: data });
 }
 
+// QR Code e copia-e-cola do Pix de uma cobrança
+export const pixQrFor = (asaasPaymentId: string) =>
+  asaas<{ encodedImage: string; payload: string; expirationDate?: string }>(`/payments/${asaasPaymentId}/pixQrCode`);
+
+// Link da nossa página de fatura (no lugar da página padrão do Asaas)
+export const publicInvoiceUrl = (chargeId: string) => `${cfg().publicUrl}/fatura/${chargeId}`;
+
 // "Assinatura Store BoxSys — Doçaria Teste Edu": o sistema que o cliente assina e o nome do estabelecimento
 async function invoiceDescription(c: { id: string; name: string; businessName: string | null }) {
   return `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))} — ${c.businessName || c.name}`;
@@ -172,7 +179,7 @@ async function composeInvoice(clientId: string, opts: { welcome?: boolean } = {}
       ? `Olá, ${firstName(c.name)}! 👋\n\nSua ${ass} foi criada. Segue a fatura:`
       : `Olá, ${firstName(c.name)}! 👋\n\nSegue a fatura da sua ${ass}${late ? " (em atraso)" : ""}:`,
     `💰 *${money(charge.value)}*\n📅 Vencimento: *${fmtDay(charge.dueDate)}*`,
-    `💳 Pague por ${c.asaasBillingType && c.asaasBillingType !== "UNDEFINED" ? methodLabel(c.asaasBillingType) : "Pix, boleto ou cartão"} neste link:\n${charge.invoiceUrl}`,
+    `💳 Pague por ${c.asaasBillingType && c.asaasBillingType !== "UNDEFINED" ? methodLabel(c.asaasBillingType) : "Pix, boleto ou cartão"} neste link:\n${publicInvoiceUrl(charge.id)}`,
     `Depois do pagamento, enviamos o comprovante por aqui. ✅`,
   ].join("\n\n");
   return { client: c, charge, text };
@@ -203,7 +210,7 @@ async function statementText(clientId: string) {
       ? c.payments.map(p => `✅ ${fmtDay(p.paidAt)} — ${money(p.amount)}${p.method ? ` (${p.method})` : ""}`).join("\n") + `\n\n*Total dos últimos pagamentos:* ${money(total)}`
       : "Nenhum pagamento registrado ainda.",
   );
-  if (charge) parts.push(`⏳ *Em aberto:* ${money(charge.value)} — vence em ${fmtDay(charge.dueDate)}${charge.invoiceUrl ? `\n💳 ${charge.invoiceUrl}` : ""}`);
+  if (charge) parts.push(`⏳ *Em aberto:* ${money(charge.value)} — vence em ${fmtDay(charge.dueDate)}${charge.invoiceUrl ? `\n💳 ${publicInvoiceUrl(charge.id)}` : ""}`);
   else if (c.nextDueDate) parts.push(`📅 Próximo vencimento: ${fmtDay(c.nextDueDate)} — ${money(c.billingValue)}`);
   const pdf = await buildStatementPdf({
     clientName: c.name, document: c.document, subscription: assinaturaTexto(info).replace(/^assinatura/, "Assinatura"),

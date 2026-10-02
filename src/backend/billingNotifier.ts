@@ -3,6 +3,7 @@ import { prisma } from "./db.js";
 import { format } from "date-fns";
 import { brtParts, daysFromToday } from "./time.js";
 import { syncBoxsysAccess } from "./boxsys.js";
+import { publicInvoiceUrl } from "./asaas.js";
 import { assinaturaTexto, subscriptionInfoOf } from "./clientInfo.js";
 import { getSessionInfo, sendMessage } from "./wa.js";
 
@@ -83,7 +84,7 @@ async function sendPendingBlockedNotices(results: NoticeResult[], dryRun: boolea
     const charge = await prisma.asaasCharge.findFirst({ where: { clientId: c.id, status: { in: ["PENDING", "OVERDUE"] }, dueDate: n.dueDate } });
     const text = TEMPLATES.blocked({
       name: c.name, value: c.billingValue, dueDate: n.dueDate, daysLeft: daysFromToday(n.dueDate), grace: c.graceDaysAfter,
-      link: charge?.invoiceUrl, assinatura: assinaturaTexto(subscriptionInfoOf(c)),
+      link: charge ? publicInvoiceUrl(charge.id) : null, assinatura: assinaturaTexto(subscriptionInfoOf(c)),
     });
     if (!(await sendMessage(c.phone, text))) { entry.reason = "falha no envio"; continue; }
     await prisma.clientBillingNotice.create({ data: { clientId: c.id, kind: "blocked", dueDate: n.dueDate } });
@@ -126,7 +127,7 @@ export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promis
     });
     const text = TEMPLATES[kind]({
       name: c.name, value: c.billingValue, dueDate: due,
-      daysLeft: daysFromToday(due), grace: c.graceDaysAfter, link: charge?.invoiceUrl,
+      daysLeft: daysFromToday(due), grace: c.graceDaysAfter, link: charge ? publicInvoiceUrl(charge.id) : null,
       assinatura: assinaturaTexto(subscriptionInfoOf(c)),
     });
     const ok = await sendMessage(c.phone as string, text);

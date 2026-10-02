@@ -13,6 +13,7 @@ import About from './pages/About';
 import Values from './pages/Values';
 import FAQ from './pages/FAQ';
 import Login from './pages/Login';
+import Invoice from './pages/Invoice';
 import Dashboard from './pages/Dashboard';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
@@ -59,6 +60,7 @@ function AnimatedRoutes() {
         <Route path="/duvidas" element={<FAQ />} />
         <Route path="/contato" element={<ContactPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/fatura/:id" element={<Invoice />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/projetos" element={<ProjetosPage />} />
