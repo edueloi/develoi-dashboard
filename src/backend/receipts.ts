@@ -6,6 +6,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "./db.js";
 import { getSessionInfo, sendDocument, sendMessage } from "./wa.js";
 import { TZ } from "./time.js";
+import { assinaturaTexto, subscriptionInfoOf } from "./clientInfo.js";
 
 
 // ─── Dados da empresa emissora ───────────────────────────────────────────────
@@ -73,38 +74,36 @@ const fmtDoc = (d?: string | null) => {
 
 export function buildReceiptPdf(data: ReceiptData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 50, info: { Title: `Recibo ${data.number}`, Author: COMPANY.name } });
+    const doc = new PDFDocument({ size: "A4", margin: 56, info: { Title: `Recibo ${data.number}`, Author: COMPANY.name } });
     const chunks: Buffer[] = [];
     doc.on("data", c => chunks.push(c));
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const W = doc.page.width, M = 50, inner = W - M * 2;
+    const W = doc.page.width, M = 56, inner = W - M * 2;
+    const INK = "#1F2937", MUTED = "#6B7280", LINE = "#D1D5DB";
 
-    // Cabeçalho: logo + título
-    if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, M, 42, { width: 190 });
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(20).text("RECIBO DE PAGAMENTO", M, 52, { width: inner, align: "right" });
-    doc.fillColor("#64748B").font("Helvetica").fontSize(10).text(`Nº ${data.number}`, M, 78, { width: inner, align: "right" });
-    doc.text(`Emitido em ${data.paidAt.toLocaleDateString("pt-BR", { timeZone: "UTC" })}`, M, 92, { width: inner, align: "right" });
+    // Cabeçalho: logo à esquerda, dados da empresa à direita
+    if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, M, 50, { width: 120 });
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(10).text(COMPANY.name, M, 56, { width: inner, align: "right" });
+    doc.fillColor(MUTED).font("Helvetica").fontSize(9).text(`CNPJ ${COMPANY.cnpj}`, M, 70, { width: inner, align: "right" });
+    doc.moveTo(M, 112).lineTo(W - M, 112).lineWidth(0.7).strokeColor(LINE).stroke();
 
-    doc.moveTo(M, 128).lineTo(W - M, 128).lineWidth(2).strokeColor(GOLD).stroke();
-
-    // Valor em destaque
-    doc.roundedRect(M, 150, inner, 86, 8).fill(NAVY);
-    doc.fillColor("#CBD5E1").font("Helvetica").fontSize(10).text("VALOR RECEBIDO", M + 22, 164);
-    doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(30).text(money(data.amount), M + 22, 180);
-    doc.fillColor("#E2C27A").font("Helvetica").fontSize(9.5).text(`(${valorExtenso(data.amount)})`, M + 22, 216, { width: inner - 44 });
+    // Título e valor
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(18).text("RECIBO", M, 138);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(9.5).text(`Nº ${data.number}`, M, 162);
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(18).text(money(data.amount), M, 138, { width: inner, align: "right" });
 
     // Texto do recibo
-    let y = 262;
     const texto =
-      `Recebemos de ${data.payerName}${data.payerDocument ? `, inscrito(a) no CPF/CNPJ ${fmtDoc(data.payerDocument)}` : ""}, ` +
-      `a importância de ${money(data.amount)} (${valorExtenso(data.amount)}), referente a ${data.description}, ` +
-      `pagos em ${day(data.paidAt)}${data.method ? ` por ${data.method}` : ""}. Pelo que firmamos o presente recibo, dando plena e geral quitação.`;
-    doc.fillColor("#1E293B").font("Helvetica").fontSize(11.5).text(texto, M, y, { width: inner, align: "justify", lineGap: 4 });
-    y = doc.y + 24;
+      `Recebemos de ${data.payerName}${data.payerDocument ? `, CPF/CNPJ ${fmtDoc(data.payerDocument)}` : ""}, ` +
+      `a importância de ${money(data.amount)} (${valorExtenso(data.amount)}), a título de pagamento de ${data.description}` +
+      `${data.method ? `, por ${data.method}` : ""}, em ${day(data.paidAt)}. ` +
+      `Pelo que firmamos o presente, dando plena e geral quitação.`;
+    doc.fillColor(INK).font("Helvetica").fontSize(11).text(texto, M, 204, { width: inner, align: "justify", lineGap: 5 });
 
-    // Detalhes
+    // Detalhes (linhas finas, sem fundo)
+    let y = doc.y + 28;
     const rows: [string, string][] = [
       ["Pagador", data.payerName],
       ...(data.payerDocument ? [["CPF/CNPJ", fmtDoc(data.payerDocument)] as [string, string]] : []),
@@ -112,28 +111,29 @@ export function buildReceiptPdf(data: ReceiptData): Promise<Buffer> {
       ...(data.dueDate ? [["Vencimento", day(data.dueDate)] as [string, string]] : []),
       ["Data do pagamento", day(data.paidAt)],
       ...(data.method ? [["Forma de pagamento", data.method] as [string, string]] : []),
-      ["Valor", money(data.amount)],
+      ["Valor", `${money(data.amount)}`],
     ];
-    rows.forEach(([k, v], i) => {
-      const ry = y + i * 26;
-      if (i % 2 === 0) doc.rect(M, ry - 6, inner, 26).fill("#F8FAFC");
-      doc.fillColor("#64748B").font("Helvetica-Bold").fontSize(9).text(k.toUpperCase(), M + 12, ry + 2, { width: 140 });
-      doc.fillColor("#0F172A").font("Helvetica").fontSize(11).text(v, M + 160, ry, { width: inner - 175 });
+    doc.moveTo(M, y - 8).lineTo(W - M, y - 8).lineWidth(0.5).strokeColor(LINE).stroke();
+    rows.forEach(([k, v]) => {
+      doc.fillColor(MUTED).font("Helvetica").fontSize(9.5).text(k, M, y, { width: 150 });
+      doc.fillColor(INK).font("Helvetica").fontSize(10.5).text(v, M + 160, y - 1, { width: inner - 160 });
+      y += 24;
+      doc.moveTo(M, y - 8).lineTo(W - M, y - 8).lineWidth(0.5).strokeColor(LINE).stroke();
     });
-    y += rows.length * 26 + 50;
 
-    // Assinatura
-    doc.moveTo(W / 2 - 130, y).lineTo(W / 2 + 130, y).lineWidth(0.8).strokeColor("#94A3B8").stroke();
-    doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(11).text(COMPANY.name, M, y + 8, { width: inner, align: "center" });
-    doc.fillColor("#64748B").font("Helvetica").fontSize(10).text(`CNPJ ${COMPANY.cnpj}`, M, y + 24, { width: inner, align: "center" });
+    // Data e assinatura
+    y += 36;
+    doc.fillColor(MUTED).font("Helvetica").fontSize(10).text(`Emitido em ${day(data.paidAt)}.`, M, y);
+    y += 62;
+    doc.moveTo(M, y).lineTo(M + 230, y).lineWidth(0.7).strokeColor(INK).stroke();
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(10).text(COMPANY.name, M, y + 6);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(9).text(`CNPJ ${COMPANY.cnpj}`, M, y + 20);
 
     // Rodapé (margem inferior zerada para o texto não empurrar uma segunda página)
     doc.page.margins.bottom = 0;
-    const fy = doc.page.height - 78;
-    doc.moveTo(M, fy).lineTo(W - M, fy).lineWidth(0.5).strokeColor("#CBD5E1").stroke();
-    doc.fillColor("#94A3B8").font("Helvetica").fontSize(8.5)
-      .text(`${COMPANY.name} · CNPJ ${COMPANY.cnpj}`, M, fy + 10, { width: inner, align: "center", lineBreak: false })
-      .text(`Recibo nº ${data.number} · gerado eletronicamente em ${new Date().toLocaleString("pt-BR", { timeZone: TZ })}`, M, fy + 24, { width: inner, align: "center", lineBreak: false });
+    const fy = doc.page.height - 56;
+    doc.fillColor("#9CA3AF").font("Helvetica").fontSize(8)
+      .text(`Documento gerado eletronicamente em ${new Date().toLocaleString("pt-BR", { timeZone: TZ })} · Recibo nº ${data.number}`, M, fy, { width: inner, align: "center", lineBreak: false });
 
     doc.end();
   });
@@ -145,17 +145,20 @@ const receiptNumber = (id: string, paidAt: Date) => `${paidAt.getUTCFullYear()}$
 async function dataForClientPayment(id: string) {
   const p = await prisma.clientPayment.findUnique({
     where: { id },
-    include: { client: { include: { sale: { select: { productName: true } } } } },
+    include: { client: { include: {
+      sale: { select: { productName: true } },
+      projects: { include: { project: { select: { name: true } } } },
+    } } },
   });
   if (!p) return null;
-  const plan = p.client.sale?.productName;
+  const cycle = p.client.billingCycle === "yearly" ? " (anual)" : p.client.billingCycle === "monthly" ? " (mensal)" : "";
   const data: ReceiptData = {
     number: receiptNumber(p.id, p.paidAt),
     payerName: p.client.name,
     payerDocument: p.client.document,
     amount: p.amount,
     paidAt: p.paidAt,
-    description: `${plan ? `assinatura ${plan}` : "assinatura de serviços"}${p.client.billingCycle === "yearly" ? " (anual)" : p.client.billingCycle === "monthly" ? " (mensal)" : ""}`,
+    description: `${assinaturaTexto(subscriptionInfoOf(p.client), false)}${cycle}`, // ex.: assinatura do sistema Store BoxSys (mensal)
     dueDate: p.dueDate,
     method: p.method,
   };
@@ -191,6 +194,32 @@ export async function sendReceiptPdf(source: { clientPaymentId?: string; receiva
   const text = caption ?? `🧾 *Recibo de pagamento*\nOlá, ${found.clientName.trim().split(/\s+/)[0]}! Segue o recibo do seu pagamento de *${money(found.data.amount)}*. Obrigado! 🙏`;
   if (await sendDocument(found.phone, pdf, fileName(found.data), text)) return true;
   return sendMessage(found.phone, text); // se o arquivo falhar, ao menos o aviso vai
+}
+
+// Quando alguém paga: 1) mensagem de agradecimento  2) o recibo em PDF (duas mensagens)
+export async function sendThanksAndReceipt(
+  source: { clientPaymentId?: string; receivableId?: string },
+  opts: { nextDue?: Date | null; receiptUrl?: string | null } = {},
+): Promise<boolean> {
+  const found = source.clientPaymentId ? await dataForClientPayment(source.clientPaymentId)
+    : source.receivableId ? await dataForReceivable(source.receivableId) : null;
+  if (!found) throw new Error("Recebimento não encontrado.");
+  if (!found.phone) throw new Error("O cliente não tem WhatsApp cadastrado.");
+  if (getSessionInfo().status !== "connected") throw new Error("O WhatsApp do bot não está conectado.");
+
+  const { data } = found;
+  const thanks = [
+    `✅ *Pagamento confirmado!*`,
+    `Olá, ${found.clientName.trim().split(/\s+/)[0]}! Recebemos o seu pagamento de *${money(data.amount)}* em ${day(data.paidAt)}${data.method ? ` (${data.method})` : ""}. Muito obrigado pela confiança! 🙏`,
+    `📌 Referente a: ${data.description}`,
+    opts.nextDue ? `📅 Próximo vencimento: ${day(opts.nextDue)}` : null,
+    opts.receiptUrl ? `🧾 Comprovante do pagamento: ${opts.receiptUrl}` : null,
+    `Logo abaixo enviamos o seu recibo em PDF. Para consultar seus pagamentos, é só escrever *extrato*.`,
+  ].filter(Boolean).join("\n\n");
+
+  await sendMessage(found.phone, thanks);
+  const pdf = await buildReceiptPdf(data);
+  return sendDocument(found.phone, pdf, fileName(data), `📎 Recibo de pagamento nº ${data.number}`);
 }
 
 // ─── Rotas ───────────────────────────────────────────────────────────────────

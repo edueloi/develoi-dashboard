@@ -690,7 +690,7 @@ export async function resumeSession() {
     const credsFile = path.join(SESSIONS_DIR, "default", "creds.json");
     if (!fs.existsSync(credsFile)) return;
     const creds = JSON.parse(fs.readFileSync(credsFile, "utf-8"));
-    if (!creds?.registered) return; // QR nunca foi lido; espera o usuário clicar em Conectar
+    if (!creds?.me) return; // nunca pareou (QR não lido): espera o usuário clicar em Conectar
     console.log("[whatsapp] retomando a sessão salva");
     await connectSession();
   } catch (e) {

@@ -16,7 +16,7 @@ import { runBillingNotices, startBillingScheduler } from "./src/backend/billingN
 import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
-import { registerReceiptRoutes, sendReceiptPdf } from "./src/backend/receipts.js";
+import { registerReceiptRoutes, sendThanksAndReceipt } from "./src/backend/receipts.js";
 import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
 import { brtTodayUtc } from "./src/backend/time.js";
@@ -815,7 +815,7 @@ async function startServer() {
         // recibo em PDF no WhatsApp do cliente, se pedido
         let receipt: { sent: boolean; error?: string } | undefined;
         if (sendReceipt) {
-          try { receipt = { sent: await sendReceiptPdf({ clientPaymentId: result.payment.id }) }; }
+          try { receipt = { sent: await sendThanksAndReceipt({ clientPaymentId: result.payment.id }, { nextDue: result.client.nextDueDate }) }; }
           catch (e: any) { receipt = { sent: false, error: e.message }; }
         }
         res.json({ ...result.client, receipt });

@@ -4,7 +4,8 @@ import type { Express, Request, Response } from "express";
 import { prisma } from "./db.js";
 import { getSessionInfo, sendMessage, registerClientKeywordHandler } from "./wa.js";
 import { registerClientPayment } from "./clientBilling.js";
-import { sendReceiptPdf } from "./receipts.js";
+import { sendThanksAndReceipt } from "./receipts.js";
+import { loadSubscriptionInfo, assinaturaTexto, nomeCurto } from "./clientInfo.js";
 import { brtTodayUtc } from "./time.js";
 
 
@@ -108,7 +109,7 @@ export async function createSubscription(clientId: string, billingType: BillingT
 
   const customer = await ensureCustomer(c);
   const dueDay = c.nextDueDate.toISOString().slice(0, 10);
-  const description = `Assinatura Develoi — ${c.name}`;
+  const description = `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))} — ${c.name}`; // aparece na fatura do cliente
   let charges: any[] = [];
   let subscriptionId: string | null = null;
 
@@ -161,10 +162,11 @@ export async function sendInvoice(clientId: string, opts: { welcome?: boolean } 
   if (!charge?.invoiceUrl) throw new AsaasError("Não há fatura em aberto para este cliente.");
 
   const late = charge.dueDate < brtTodayUtc();
+  const ass = assinaturaTexto(await loadSubscriptionInfo(clientId)); // ex.: "assinatura do sistema *Store BoxSys*"
   const text = [
     opts.welcome
-      ? `Olá, ${firstName(c.name)}! 👋\n\nSua assinatura da *Develoi* foi criada. Segue a fatura:`
-      : `Olá, ${firstName(c.name)}! 👋\n\nSegue a fatura da sua assinatura da *Develoi*${late ? " (em atraso)" : ""}:`,
+      ? `Olá, ${firstName(c.name)}! 👋\n\nSua ${ass} foi criada. Segue a fatura:`
+      : `Olá, ${firstName(c.name)}! 👋\n\nSegue a fatura da sua ${ass}${late ? " (em atraso)" : ""}:`,
     `💰 *${money(charge.value)}*\n📅 Vencimento: *${fmtDay(charge.dueDate)}*`,
     `💳 Pague por ${c.asaasBillingType && c.asaasBillingType !== "UNDEFINED" ? methodLabel(c.asaasBillingType) : "Pix, boleto ou cartão"} neste link:\n${charge.invoiceUrl}`,
     `Depois do pagamento, enviamos o comprovante por aqui. ✅`,
@@ -180,7 +182,8 @@ async function statementText(clientId: string) {
   if (!c) return null;
   const charge = await openCharge(clientId);
   const total = c.payments.reduce((a, p) => a + p.amount, 0);
-  const parts = [`📄 *Extrato de pagamentos* — ${firstName(c.name)}`];
+  const info = await loadSubscriptionInfo(clientId);
+  const parts = [`📄 *Extrato de pagamentos* — ${firstName(c.name)}\n🧩 ${assinaturaTexto(info).replace(/^assinatura/, "Assinatura")}`];
   parts.push(
     c.payments.length
       ? c.payments.map(p => `✅ ${fmtDay(p.paidAt)} — ${money(p.amount)}${p.method ? ` (${p.method})` : ""}`).join("\n") + `\n\n*Total dos últimos pagamentos:* ${money(total)}`
@@ -286,25 +289,16 @@ export async function handlePayment(event: string, payload: any): Promise<Paymen
 
   await prisma.asaasCharge.update({ where: { id: charge.id }, data: { paidAt } });
 
-  // comprovante ao cliente (uma vez só)
-  let receipt = "sem WhatsApp para mandar o comprovante";
+  // agradecimento + recibo em PDF ao cliente (uma vez só)
+  let receipt = "sem WhatsApp para mandar o recibo";
   if (!charge.receiptSentAt && client.phone && (await clientBotReady())) {
-    const next = result.client.nextDueDate;
-    const caption = [
-      `✅ *Pagamento confirmado!*`,
-      `Olá, ${firstName(client.name)}! Recebemos seu pagamento de *${money(Number(p.value) || charge.value)}* em ${fmtDay(paidAt)} (${label}). Obrigado! 🙏`,
-      p.transactionReceiptUrl ? `🧾 Comprovante: ${p.transactionReceiptUrl}` : null,
-      next ? `📅 Próximo vencimento: ${fmtDay(next)}` : null,
-      `📎 Segue o recibo em PDF.`,
-      `Para ver seus pagamentos, é só escrever *extrato*.`,
-    ].filter(Boolean).join("\n\n");
     let ok = false;
-    try { ok = await sendReceiptPdf({ clientPaymentId: result.payment.id }, caption); } catch { ok = false; }
+    try { ok = await sendThanksAndReceipt({ clientPaymentId: result.payment.id }, { nextDue: result.client.nextDueDate, receiptUrl: p.transactionReceiptUrl }); } catch { ok = false; }
     if (ok) await prisma.asaasCharge.update({ where: { id: charge.id }, data: { receiptSentAt: new Date() } });
-    receipt = ok ? "recibo em PDF enviado ao cliente" : "recibo NÃO enviado (WhatsApp falhou)";
-  } else if (charge.receiptSentAt) receipt = "comprovante já enviado antes";
+    receipt = ok ? "agradecimento e recibo em PDF enviados ao cliente" : "recibo NÃO enviado (WhatsApp falhou)";
+  } else if (charge.receiptSentAt) receipt = "recibo já enviado antes";
   else if (!client.phone) receipt = "cliente sem WhatsApp";
-  else receipt = "comprovante não enviado (bot desligado ou desconectado)";
+  else receipt = "recibo não enviado (bot desligado ou desconectado)";
 
   await notifyTeam(`💰 *Pagamento recebido*\n${client.name} — *${money(Number(p.value) || charge.value)}* (${label})`);
   const adv = result.client.nextDueDate ? `vencimento avançou para ${fmtDay(result.client.nextDueDate)}` : "vencimento mantido";
