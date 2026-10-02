@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { prisma } from "./db.js";
 import { randomUUID } from "crypto";
-import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation } from "./wa.js";
+import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation, startConversation, notifyQueueChanged } from "./wa.js";
 
 
 // ─── Textos padrão do menu (editáveis na tela do bot) ────────────────────────
@@ -18,9 +18,10 @@ const DEFAULT_SOLUTIONS =
   "Para conhecer valores e receber uma proposta, selecione a opção *Comercial* no menu inicial.\n\nDigite *0* para voltar ao menu inicial.";
 
 const DEFAULT_CLIENT_HELP =
-  "*Já sou cliente* 🧾\n\nPara a sua comodidade, basta escrever a qualquer momento:\n\n" +
-  "• *fatura* — receber o link de pagamento em aberto\n• *extrato* — consultar os seus últimos pagamentos\n\n" +
-  "Se precisar falar com um atendente, selecione o setor desejado no menu inicial.\n\nDigite *0* para voltar ao menu inicial.";
+  "*Já sou cliente* 🧾\n\nSelecione abaixo o que deseja. Em seguida vou pedir o *CPF ou CNPJ* do seu cadastro para localizá-lo(a).\n\n" +
+  "Se precisar falar com um atendente, digite *0* e escolha o setor desejado no menu inicial.";
+
+const DOC_PROMPT_NODE = "Para localizar o seu cadastro, informe o *CPF ou CNPJ* (somente números).\nSe preferir voltar, digite *0*.";
 
 const DEFAULT_SECTORS = ["Comercial", "Suporte", "Financeiro"];
 
@@ -39,7 +40,7 @@ export const botController = {
       if (sectors.length === 0) {
         // primeira configuração: cria setores básicos (os atendentes são cadastrados na tela do bot)
         for (const [i, name] of DEFAULT_SECTORS.entries()) {
-          await prisma.wppBotSector.create({ data: { id: randomUUID(), name, menuKey: String(i + 2), attendants: "[]", sortOrder: i } });
+          await prisma.wppBotSector.create({ data: { id: randomUUID(), name, menuKey: String(i + 2), attendants: "[]", sortOrder: i, intake: name === "Suporte" ? "support" : "none" } });
         }
         sectors = await prisma.wppBotSector.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
       }
@@ -57,7 +58,7 @@ export const botController = {
       const clientHelp = config.clientHelpMsg?.trim() || DEFAULT_CLIENT_HELP;
       const welcome = config.menuWelcomeMsg?.trim() || DEFAULT_WELCOME;
 
-      const menuId = randomUUID(), solutionsId = randomUUID(), clientId = randomUUID();
+      const menuId = randomUUID(), solutionsId = randomUUID(), clientId = randomUUID(), invoiceId = randomUUID(), statementId = randomUUID();
       const sectorNodes = sectors.map(sec => ({ id: randomUUID(), sec }));
       const options = [
         { key: "1", label: "Conhecer nossas soluções", nextNodeId: solutionsId },
@@ -68,7 +69,16 @@ export const botController = {
         { id: menuId, type: "menu", title: "Menu inicial", content: welcome, options: JSON.stringify(options), isStart: true },
         { id: solutionsId, type: "message", title: "Conhecer nossas soluções", content: solutions, options: "[]" },
         ...sectorNodes.map(n => ({ id: n.id, type: "sector", title: n.sec.name, content: "", options: "[]", sectorId: n.sec.id })),
-        { id: clientId, type: "message", title: "Já sou cliente", content: clientHelp, options: "[]" },
+        // Já sou cliente: botões Fatura / Extrato; cada um pede o CPF/CNPJ do cadastro
+        {
+          id: clientId, type: "menu", title: "Já sou cliente", content: clientHelp,
+          options: JSON.stringify([
+            { key: "1", label: "Receber fatura", nextNodeId: invoiceId },
+            { key: "2", label: "Consultar extrato", nextNodeId: statementId },
+          ]),
+        },
+        { id: invoiceId, type: "client_action", title: "Fatura (CPF/CNPJ)", content: DOC_PROMPT_NODE, options: "[]", inputVar: "invoice" },
+        { id: statementId, type: "client_action", title: "Extrato (CPF/CNPJ)", content: DOC_PROMPT_NODE, options: "[]", inputVar: "statement" },
       ];
 
       await prisma.$transaction(async (tx) => {
@@ -76,7 +86,7 @@ export const botController = {
         await tx.wppBotFlowNode.createMany({
           data: nodes.map((n: any, index) => ({
             id: n.id, type: n.type, title: n.title, content: n.content, options: n.options,
-            sectorId: n.sectorId ?? null, nextNodeId: null, isStart: !!n.isStart, isActive: true, sortOrder: index, posX: 0, posY: 0,
+            sectorId: n.sectorId ?? null, inputVar: n.inputVar ?? null, nextNodeId: null, isStart: !!n.isStart, isActive: true, sortOrder: index, posX: 0, posY: 0,
           })),
         });
       });
@@ -108,7 +118,7 @@ export const botController = {
 
   async saveSector(req: Request, res: Response) {
     try {
-      const { id, name, menuKey, description, attendants, isActive, sortOrder } = req.body;
+      const { id, name, menuKey, description, attendants, isActive, sortOrder, intake } = req.body;
       
       const payload = {
         name,
@@ -116,7 +126,8 @@ export const botController = {
         description,
         attendants: attendants ? JSON.stringify(attendants) : "[]",
         isActive: isActive !== undefined ? isActive : true,
-        sortOrder: sortOrder || 0
+        sortOrder: sortOrder || 0,
+        ...(intake !== undefined && { intake: intake === "support" ? "support" : "none" }),
       };
 
       if (id) {
@@ -257,6 +268,20 @@ export const botController = {
     }
   },
 
+  // O atendente inicia uma conversa digitando o número do cliente
+  async startConversation(req: Request, res: Response) {
+    try {
+      const { phone, name, message, attendantId, attendantName, sectorId } = req.body ?? {};
+      if (!attendantName) return res.status(400).json({ error: "Atendente não informado." });
+      const result = await startConversation({ phone: String(phone || ""), name, message: String(message || ""), attendantId, attendantName, sectorId });
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      res.json(result);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Erro ao iniciar a conversa." });
+    }
+  },
+
   // Devolve a conversa para a fila de outro setor
   async transferConversation(req: Request, res: Response) {
     try {
@@ -264,6 +289,7 @@ export const botController = {
       const { sectorId, reason, byName } = req.body;
       const sector = await prisma.wppBotSector.findUnique({ where: { id: sectorId } });
       if (!sector) return res.status(404).json({ error: "Setor não encontrado." });
+      const before = await prisma.wppConversation.findUnique({ where: { id }, select: { sectorId: true, status: true } });
 
       const moved = await prisma.wppConversation.updateMany({
         where: { id, status: { in: ["bot", "waiting", "active"] } },
@@ -284,6 +310,7 @@ export const botController = {
       await sendWppMessage(targetOf(conv), moveText);
       await prisma.wppConversationMessage.create({ data: { conversationId: id, fromRole: "bot", body: moveText.replace(/\*/g, "") } });
       offerConversation(id).catch(e => console.error("Erro ao avisar atendentes:", e));
+      if (before?.status === "waiting") notifyQueueChanged(before.sectorId).catch(() => {}); // quem estava atrás sobe na fila
       res.json(conv);
     } catch (error) {
       console.error(error);

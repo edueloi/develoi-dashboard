@@ -10,7 +10,8 @@ import { assinaturaTexto, subscriptionInfoOf } from "./clientInfo.js";
 
 
 // ─── Dados da empresa emissora ───────────────────────────────────────────────
-const COMPANY = { name: "Develoi Soluções Digitais", cnpj: "30.968.335/0001-69" };
+// Telefone oficial = o do site (rodapé/contato). Reserva: (15) 99241-8299. Pode ser trocado por COMPANY_PHONE no .env.
+const COMPANY = { name: "Develoi Soluções Digitais", cnpj: "30.968.335/0001-69", phone: process.env.COMPANY_PHONE || "(15) 99702-6791" };
 const NAVY = "#0D1F4E";
 const GOLD = "#B8892E";
 const LOGO_PATH = path.join(process.cwd(), "public", "LOGO-MENU.png");
@@ -87,6 +88,7 @@ export function buildReceiptPdf(data: ReceiptData): Promise<Buffer> {
     if (fs.existsSync(LOGO_PATH)) doc.image(LOGO_PATH, M, 50, { width: 120 });
     doc.fillColor(INK).font("Helvetica-Bold").fontSize(10).text(COMPANY.name, M, 56, { width: inner, align: "right" });
     doc.fillColor(MUTED).font("Helvetica").fontSize(9).text(`CNPJ ${COMPANY.cnpj}`, M, 70, { width: inner, align: "right" });
+    doc.text(`WhatsApp ${COMPANY.phone}`, M, 83, { width: inner, align: "right" });
     doc.moveTo(M, 112).lineTo(W - M, 112).lineWidth(0.7).strokeColor(LINE).stroke();
 
     // Título e valor
@@ -127,7 +129,7 @@ export function buildReceiptPdf(data: ReceiptData): Promise<Buffer> {
     y += 62;
     doc.moveTo(M, y).lineTo(M + 230, y).lineWidth(0.7).strokeColor(INK).stroke();
     doc.fillColor(INK).font("Helvetica-Bold").fontSize(10).text(COMPANY.name, M, y + 6);
-    doc.fillColor(MUTED).font("Helvetica").fontSize(9).text(`CNPJ ${COMPANY.cnpj}`, M, y + 20);
+    doc.fillColor(MUTED).font("Helvetica").fontSize(9).text(`CNPJ ${COMPANY.cnpj} · WhatsApp ${COMPANY.phone}`, M, y + 20);
 
     // Rodapé (margem inferior zerada para o texto não empurrar uma segunda página)
     doc.page.margins.bottom = 0;

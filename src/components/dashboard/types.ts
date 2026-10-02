@@ -175,6 +175,7 @@ export interface Product {
   price: number;
   currency: string;
   active: boolean;
+  supportEnabled?: boolean;
   features?: string[];
   tags?: string[];
   createdAt: string;

@@ -653,6 +653,7 @@ async function startServer() {
     app.get("/api/admin/bot/conversations", botController.getConversations);
     app.get("/api/admin/bot/conversations/:id/messages", botController.getConversationMessages);
     app.post("/api/admin/bot/conversations/message", botController.sendMessage);
+    app.post("/api/admin/bot/conversations/start", botController.startConversation);
     app.post("/api/admin/bot/conversations/:id/accept", botController.acceptConversation);
     app.post("/api/admin/bot/conversations/:id/transfer", botController.transferConversation);
     app.post("/api/admin/bot/conversations/:id/close", botController.closeConversation);

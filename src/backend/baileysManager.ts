@@ -137,10 +137,20 @@ export async function sendMessage(phone: string, text: string): Promise<boolean>
 }
 
 
-// Gancho para respostas automáticas a clientes cadastrados ("extrato", "fatura"…), registrado pelo Asaas
-type ClientKeywordHandler = (phone: string, text: string) => Promise<boolean>;
-let clientKeywordHandler: ClientKeywordHandler | null = null;
-export function registerClientKeywordHandler(fn: ClientKeywordHandler) { clientKeywordHandler = fn; }
+// "Já sou cliente": fatura e extrato por CPF/CNPJ. Quem sabe consultar é o Asaas; o bot só conduz a conversa.
+export type ClientAction = "invoice" | "statement";
+export interface ClientActionResult { status: "sent" | "not_found" | "no_open" | "error"; text?: string }
+type ClientActionHandler = (kind: ClientAction, documentDigits: string) => Promise<ClientActionResult>;
+let clientActionHandler: ClientActionHandler | null = null;
+export function registerClientActionHandler(fn: ClientActionHandler) { clientActionHandler = fn; }
+
+const INVOICE_WORDS = /^(fatura|segunda via|2[ªa] via|boleto|pix|pagar|pagamento|link de pagamento)$/i;
+const STATEMENT_WORDS = /^(extrato|meu extrato|pagamentos)$/i;
+const clientActionFromText = (t: string): ClientAction | null =>
+  STATEMENT_WORDS.test(t.trim()) ? "statement" : INVOICE_WORDS.test(t.trim()) ? "invoice" : null;
+
+const DOC_PROMPT = "Para localizar o seu cadastro, informe o *CPF ou CNPJ* (somente números).\nSe preferir voltar, digite *0*.";
+const docAttempts = new Map<string, number[]>(); // consultas por contato na última hora (evita tentativas em massa)
 
 // ─── Atendentes pelo WhatsApp ────────────────────────────────────────────────
 // Cada setor tem atendentes {name, phone}. Quando um cliente cai no setor, o bot avisa o atendente
@@ -207,9 +217,10 @@ export async function offerConversation(convId: string, onlyPhone?: string) {
   if (!conv || conv.status !== "waiting" || !conv.sector) return;
 
   const lines = await clientSummaryLines(convId, conv.queuedAt);
-  const summary = lines.length
-    ? lines.map(b => `• ${b.length > 160 ? b.slice(0, 157) + "…" : b}`).join("\n")
-    : "• (cliente ainda não descreveu o assunto)";
+  const described = [conv.subject ? `🛠️ Sistema/assunto: *${conv.subject}*` : null, conv.firstMessage && conv.subject ? `• ${conv.firstMessage.slice(0, 220)}` : null].filter(Boolean) as string[];
+  const bullets = lines.map(b => `• ${b.length > 160 ? b.slice(0, 157) + "…" : b}`);
+  const summary = [...described, ...bullets].join("\n") || "• (cliente ainda não descreveu o assunto)";
+  const docLine = conv.clientDocument ? `\n🪪 CPF/CNPJ: ${conv.clientDocument}${conv.linkedClientId ? " (cadastro localizado ✅)" : " (não localizado no cadastro)"}` : "";
 
   for (const att of parseAttendants(conv.sector.attendants)) {
     if (!att.available) continue; // atendente marcado como ausente não recebe oferta
@@ -221,7 +232,7 @@ export async function offerConversation(convId: string, onlyPhone?: string) {
     if (!list.includes(convId)) offers.set(att.phone, [...list, convId]);
     await sendChoice(att.phone,
       `🔔 *Novo atendimento* — setor *${conv.sector.name}*\n` +
-      `👤 Cliente: *${clientLabel(conv)}*${realPhone(conv) && conv.clientName ? ` (${conv.clientPhone})` : ""}\n\n` +
+      `👤 Cliente: *${clientLabel(conv)}*${realPhone(conv) && conv.clientName ? ` (${conv.clientPhone})` : ""}${docLine}\n\n` +
       `💬 *Resumo:*\n${summary}`,
       [{ id: "1", text: "✅ Aceitar" }, { id: "2", text: "❌ Recusar" }],
       { footer: "Aceite ou recuse este atendimento.", hint: "Responda 1 para ACEITAR ou 2 para RECUSAR." });
@@ -242,6 +253,7 @@ export async function acceptWaitingConversation(convId: string, who: { id?: stri
     data: { conversationId: convId, fromRole: "system", body: `${who.name} assumiu o atendimento.` },
   });
   setClientConversation(targetOf(conv), convId, "in_chat");
+  void notifyQueueChanged(conv.sectorId);
   const greeting = `*${who.name}* iniciou o seu atendimento. 👋\nComo posso ajudar?`;
   await sendMessage(targetOf(conv), greeting);
   await recordMsg(convId, "attendant", `${who.name} iniciou o seu atendimento. Como posso ajudar?`);
@@ -272,6 +284,55 @@ export async function closeActiveConversation(convId: string, byName: string, cl
     await recordMsg(convId, "bot", msg.trim().replace(/\*/g, ""));
   }
   return conv;
+}
+
+// O atendente começa a conversa: digita o número, o sistema confere se tem WhatsApp e envia a primeira mensagem.
+// A conversa já nasce "em atendimento" com ele; as respostas do cliente caem no painel.
+export async function startConversation(input: {
+  phone: string; name?: string | null; message: string; attendantId?: string | null; attendantName: string; sectorId?: string | null;
+}): Promise<{ ok: boolean; id?: string; error?: string }> {
+  if (!session || session.status !== "connected") return { ok: false, error: "O WhatsApp do bot não está conectado." };
+  const raw = digits(input.phone);
+  if (raw.length < 10 || raw.length > 13) return { ok: false, error: "Informe o telefone com DDD (ex.: 15 99999-9999)." };
+  if (!input.message?.trim()) return { ok: false, error: "Escreva a primeira mensagem." };
+  const full = raw.startsWith("55") && raw.length >= 12 ? raw : `55${raw}`;
+
+  // confirma que o número tem WhatsApp e usa o endereço correto dele (ex.: com ou sem o 9º dígito)
+  let jid = `${full}@s.whatsapp.net`;
+  try {
+    const found = await session.sock.onWhatsApp(jid);
+    const hit = Array.isArray(found) ? found.find((x: any) => x?.exists) : null;
+    if (Array.isArray(found) && !hit) return { ok: false, error: "Este número não tem WhatsApp." };
+    if (hit?.jid) jid = hit.jid;
+  } catch (e) { console.warn("[whatsapp] não consegui conferir o número:", e); }
+
+  const phone = jidToPhone(jid);
+  const who = { attendantId: input.attendantId ?? null, attendantName: input.attendantName, attendantPhone: null as string | null, acceptedAt: new Date() };
+
+  let conv = await prisma.wppConversation.findFirst({
+    where: { status: { in: ["bot", "waiting", "active"] }, OR: [{ clientJid: jid }, { clientPhone: phone }] },
+    orderBy: { createdAt: "desc" },
+  });
+  if (conv?.status === "active" && conv.attendantName && conv.attendantName !== input.attendantName) {
+    return { ok: false, error: `Este contato já está em atendimento com ${conv.attendantName}.` };
+  }
+  if (conv) {
+    conv = await prisma.wppConversation.update({ where: { id: conv.id }, data: { status: "active", ...who, ...(input.name ? { clientName: input.name } : {}) } });
+  } else {
+    conv = await prisma.wppConversation.create({
+      data: { clientPhone: phone, clientJid: jid, clientName: input.name?.trim() || null, sectorId: input.sectorId || null, firstMessage: input.message.slice(0, 1000), status: "active", ...who },
+    });
+  }
+
+  const sent = await sendMessage(jid, `*${input.attendantName}:* ${input.message.trim()}`);
+  if (!sent) {
+    await prisma.wppConversation.update({ where: { id: conv.id }, data: { status: "closed", closedBy: "system", closedAt: new Date() } });
+    return { ok: false, error: "Não consegui enviar a mensagem. Tente de novo." };
+  }
+  setClientConversation(jid, conv.id, "in_chat");
+  await recordMsg(conv.id, "system", `${input.attendantName} iniciou a conversa.`);
+  await recordMsg(conv.id, "attendant", input.message.trim());
+  return { ok: true, id: conv.id };
 }
 
 // Mensagem de um atendente cadastrado. Retorna true se foi tratada como mensagem de atendente.
@@ -436,6 +497,134 @@ function fillPlaceholders(text: string, state: { pushName?: string | null }): st
     .replace(nome ? /\{\{\s*nome\s*\}\}/gi : /,?\s*\{\{\s*nome\s*\}\}/gi, nome ?? "");
 }
 
+// ─── Fila de espera: posição e avisos ───────────────────────────────────────
+const lastPosition = new Map<string, number>(); // conversa → última posição informada
+
+async function queuePosition(conv: { id: string; sectorId: string | null; queuedAt: Date }) {
+  const where = { status: "waiting", sectorId: conv.sectorId };
+  const [ahead, total] = await Promise.all([
+    prisma.wppConversation.count({ where: { ...where, queuedAt: { lt: conv.queuedAt } } }),
+    prisma.wppConversation.count({ where }),
+  ]);
+  return { position: ahead + 1, total };
+}
+
+const positionText = (sector: string, p: { position: number; total: number }) =>
+  `📍 Você é o *${p.position}º* da fila de espera do setor *${sector}*` +
+  (p.total > 1 ? ` (${p.total} pessoas aguardando).` : ".") +
+  `\nAssim que um atendente estiver disponível ele falará com você por aqui. Para ver a sua posição a qualquer momento, escreva *fila*.`;
+
+// Quando alguém sai da frente (assumido, transferido), avisa quem subiu de posição
+export async function notifyQueueChanged(sectorId: string | null | undefined) {
+  if (!sectorId) return;
+  try {
+    const waiting = await prisma.wppConversation.findMany({
+      where: { status: "waiting", sectorId }, orderBy: { queuedAt: "asc" }, include: { sector: { select: { name: true } } },
+    });
+    for (const [i, c] of waiting.entries()) {
+      const pos = i + 1, prev = lastPosition.get(c.id);
+      lastPosition.set(c.id, pos);
+      if (prev !== undefined && pos < prev) {
+        const msg = `📍 Sua posição na fila do setor *${c.sector?.name ?? ""}* agora é *${pos}º*.${pos === 1 ? " Você é o próximo a ser atendido!" : ""}`;
+        if (await sendMessage(targetOf(c), msg)) await recordMsg(c.id, "bot", msg.replace(/\*/g, ""));
+      }
+    }
+  } catch (e) { console.error("[whatsapp] aviso de posição na fila:", e); }
+}
+
+// ─── Suporte: sistema → CPF/CNPJ → assunto → fila ────────────────────────────
+async function findClientByDocument(doc: string) {
+  const rows = await prisma.client.findMany({ where: { status: { not: "cancelled" }, document: { not: null } }, select: { id: true, name: true, document: true } });
+  return rows.find(r => digits(r.document ?? "") === doc) ?? null;
+}
+
+async function sendSystemChoices(state: any, intro: string) {
+  const opts: { id: string; label: string }[] = state.intake.options;
+  await sendChoice(state.remoteJid, intro, opts.map(o => ({ id: o.id, text: o.label })), { hint: "Digite o número da opção." });
+  if (state.conversationId) await recordMsg(state.conversationId, "bot", `${intro}\n\n${opts.map(o => `${o.id} - ${o.label}`).join("\n")}`);
+}
+
+async function askIntakeDoc(state: any, sock: any) {
+  state.intake.step = "doc";
+  await botSay(state, sock, "Para agilizar o seu atendimento, informe o *CPF ou CNPJ* do seu cadastro (somente números).\nSe ainda não é cliente, digite *pular*.");
+}
+
+async function askIntakeSubject(state: any, sock: any) {
+  state.intake.step = "subject";
+  await botSay(state, sock, "Obrigado! Agora, em uma mensagem, descreva o *assunto* ou o problema que está enfrentando. ✍️");
+}
+
+async function beginSupportIntake(state: any, sock: any, sector: { id: string; name: string }) {
+  const products = await prisma.product.findMany({ where: { active: true, supportEnabled: true }, orderBy: { createdAt: "asc" }, take: 9 });
+  state.intake = { sector, step: "system", options: [] as { id: string; label: string }[], docTries: 0 };
+  if (products.length === 0) { await askIntakeDoc(state, sock); return; } // sem sistemas cadastrados: pula direto
+  state.intake.options = [...products.map((p, i) => ({ id: String(i + 1), label: p.name })), { id: String(products.length + 1), label: "Outro assunto" }];
+  await sendSystemChoices(state, `*${sector.name}* 🛠️\nSobre qual sistema ou produto você precisa de ajuda? Selecione uma das opções abaixo:`);
+}
+
+async function enqueueSupport(state: any, sock: any, clientPhone: string) {
+  const it = state.intake;
+  const convId: string = state.conversationId;
+  const data = {
+    sectorId: it.sector.id, status: "waiting", queuedAt: new Date(),
+    subject: it.system ? String(it.system).slice(0, 255) : null,
+    firstMessage: it.detail ? String(it.detail).slice(0, 1000) : `Escolheu o setor ${it.sector.name}`,
+    clientDocument: it.doc ?? null, linkedClientId: it.clientId ?? null,
+    ...(it.clientName ? { clientName: it.clientName } : {}),
+  };
+  const conv = await prisma.wppConversation.update({ where: { id: convId }, data });
+  await recordMsg(convId, "system", `Cliente encaminhado ao setor ${it.sector.name}${it.system ? ` — ${it.system}` : ""}${it.clientName ? ` — cadastro: ${it.clientName}` : ""}.`);
+  state.intake = undefined;
+  state.status = "waiting";
+  const pos = await queuePosition(conv);
+  lastPosition.set(convId, pos.position);
+  await botSay(state, sock, `Perfeito! Já estamos acionando o setor *${it.sector.name}*. 🛠️
+
+${positionText(it.sector.name, pos)}`);
+  setTimeout(() => { offerConversation(convId).catch(e => console.error("Erro ao avisar atendentes:", e)); }, 3000);
+}
+
+async function handleIntakeReply(state: any, sock: any, key: string, text: string, clientPhone: string) {
+  const it = state.intake;
+  const t = text.trim();
+
+  if (it.step === "system") {
+    const pick = it.options.find((o: any) => o.id === t || o.label.toLowerCase() === t.toLowerCase());
+    if (!pick) { await sendSystemChoices(state, "Desculpe, não compreendi a opção. 🙏 Selecione uma das opções abaixo:"); return; }
+    it.system = pick.label;
+    await askIntakeDoc(state, sock);
+    return;
+  }
+
+  if (it.step === "doc") {
+    if (/^pular$/i.test(t)) { await askIntakeSubject(state, sock); return; }
+    const doc = t.replace(/\D/g, "");
+    if (doc.length !== 11 && doc.length !== 14) {
+      await botSay(state, sock, "Não consegui identificar o número. 🙏 Envie apenas os números do *CPF* (11 dígitos) ou do *CNPJ* (14 dígitos), ou digite *pular*.");
+      return;
+    }
+    const now = Date.now();
+    const recent = (docAttempts.get(key) ?? []).filter(x => now - x < 60 * 60 * 1000);
+    if (recent.length >= 8) { await askIntakeSubject(state, sock); return; } // excesso de consultas: segue sem conferir
+    docAttempts.set(key, [...recent, now]);
+
+    it.doc = doc;
+    const c = await findClientByDocument(doc);
+    if (c) {
+      it.clientId = c.id; it.clientName = c.name;
+      await botSay(state, sock, `Obrigado, ${c.name.trim().split(/\s+/)[0]}! Localizei o seu cadastro. ✅`);
+    } else {
+      await botSay(state, sock, "Não localizei esse documento em nosso cadastro, mas não se preocupe: vou encaminhar o seu atendimento mesmo assim. 🙏");
+    }
+    await askIntakeSubject(state, sock);
+    return;
+  }
+
+  // step === "subject"
+  it.detail = t;
+  await enqueueSupport(state, sock, clientPhone);
+}
+
 // Telefone real do contato. O WhatsApp pode identificá-lo por um ID interno (@lid); tenta achar o número.
 async function resolvePhone(sock: any, msg: any): Promise<string> {
   const rawJid: string = msg.key.remoteJid;
@@ -458,6 +647,60 @@ async function botSay(state: any, sock: any, text: string) {
 
 async function closeBotConversation(id: string) {
   await prisma.wppConversation.update({ where: { id }, data: { status: "closed", closedBy: "system", closedAt: new Date() } });
+}
+
+// Pede o CPF/CNPJ para entregar a fatura ou o extrato
+async function askForDocument(state: any, sock: any, kind: ClientAction) {
+  state.awaiting = kind;
+  state.docTries = 0;
+  await botSay(state, sock, DOC_PROMPT);
+}
+
+// Recebeu o CPF/CNPJ: confere no cadastro e responde (a consulta em si é feita pelo Asaas/financeiro)
+async function handleDocumentReply(state: any, sock: any, key: string, text: string) {
+  const doc = text.replace(/\D/g, "");
+  if (doc.length !== 11 && doc.length !== 14) {
+    await botSay(state, sock, "Não consegui identificar o número informado. 🙏\nEnvie apenas os números do *CPF* (11 dígitos) ou do *CNPJ* (14 dígitos), ou digite *0* para voltar ao menu.");
+    return;
+  }
+
+  const now = Date.now();
+  const recent = (docAttempts.get(key) ?? []).filter(t => now - t < 60 * 60 * 1000);
+  if (recent.length >= 8) {
+    state.awaiting = undefined;
+    await botSay(state, sock, "Por segurança, atingimos o limite de consultas por hora. Tente novamente mais tarde ou digite *0* e fale com um de nossos atendentes.");
+    return;
+  }
+  docAttempts.set(key, [...recent, now]);
+
+  if (!clientActionHandler) {
+    state.awaiting = undefined;
+    await botSay(state, sock, "Esta consulta não está disponível no momento. Digite *0* para voltar ao menu e falar com um atendente.");
+    return;
+  }
+
+  const kind = state.awaiting as ClientAction;
+  let result: ClientActionResult;
+  try { result = await clientActionHandler(kind, doc); } catch (e) { console.error("[whatsapp] consulta de cliente falhou:", e); result = { status: "error" }; }
+
+  if (result.status === "not_found") {
+    state.docTries = (state.docTries ?? 0) + 1;
+    if (state.docTries >= 3) {
+      state.awaiting = undefined;
+      await botSay(state, sock, "Não localizamos esse CPF/CNPJ em nosso cadastro. Para falar com um de nossos atendentes, digite *0* e selecione o setor *Financeiro*.");
+    } else {
+      await botSay(state, sock, "Não encontrei esse CPF/CNPJ no cadastro. 🔎\nConfira os números e envie novamente, ou digite *0* para voltar ao menu.");
+    }
+    return;
+  }
+
+  state.awaiting = undefined;
+  if (result.status === "error" || !result.text) {
+    await botSay(state, sock, "Desculpe, não consegui concluir a consulta agora. Tente novamente em instantes ou digite *0* para voltar ao menu.");
+    return;
+  }
+  await botSay(state, sock, result.text);
+  await botSay(state, sock, "Posso ajudar em algo mais? Digite *0* para voltar ao menu inicial. 😊");
 }
 
 async function handleMessage(msg: any, sock: any) {
@@ -499,6 +742,16 @@ async function handleMessage(msg: any, sock: any) {
     state.lastActivity = Date.now();
     clientStates.set(key, state);
     await recordMsg(conv.id, "client", textMsg, clientPhone);
+
+    // Quem espera na fila pode perguntar a posição ("fila")
+    if (conv.status === "waiting" && /^(fila|posi[cç][aã]o|minha posi[cç][aã]o|status)$/i.test(textMsg.trim())) {
+      const sector = conv.sectorId ? await prisma.wppBotSector.findUnique({ where: { id: conv.sectorId } }) : null;
+      const pos = await queuePosition(conv);
+      lastPosition.set(conv.id, pos.position);
+      await botSay(state, sock, positionText(sector?.name ?? "de atendimento", pos));
+      return;
+    }
+
     if (!conv.clientJid || (!conv.clientName && pushName)) {
       await prisma.wppConversation.update({ where: { id: conv.id }, data: { clientJid: conv.clientJid ?? rawJid, ...(conv.clientName ? {} : { clientName: pushName }) } });
     }
@@ -511,9 +764,6 @@ async function handleMessage(msg: any, sock: any) {
 
   // Estado antigo sem conversa aberta (já encerrada): descarta
   if (!conv && state) { clientStates.delete(key); state = undefined; }
-
-  // Cliente cadastrado pedindo extrato/fatura: o bot responde sozinho
-  if (clientKeywordHandler && (await clientKeywordHandler(clientPhone, textMsg))) return;
 
   // Voltou depois de um tempo, ou cumprimentou: recomeça do menu com a saudação do momento
   if (state && (Date.now() - state.lastActivity > SESSION_IDLE_MS || GREETING.test(textMsg.trim()))) {
@@ -539,13 +789,17 @@ async function handleMessage(msg: any, sock: any) {
     clientStates.set(key, state);
     await recordMsg(conv.id, "client", textMsg, clientPhone);
 
-    await processNode(startNode, state, textMsg, sock, clientPhone);
+    const wanted = clientActionFromText(textMsg);
+    if (wanted) await askForDocument(state, sock, wanted);
+    else await processNode(startNode, state, textMsg, sock, clientPhone);
   } else {
     state.lastActivity = Date.now();
     if (!state.conversationId && conv) state.conversationId = conv.id;
     if (state.conversationId) await recordMsg(state.conversationId, "client", textMsg, clientPhone);
 
     if (BACK_CMD.test(textMsg.trim())) {
+      state.awaiting = undefined;
+      state.intake = undefined;
       const startNode = await prisma.wppBotFlowNode.findFirst({ where: { isStart: true, isActive: true } });
       if (startNode) {
         state.currentNodeId = startNode.id;
@@ -553,6 +807,14 @@ async function handleMessage(msg: any, sock: any) {
       }
       return;
     }
+
+    // Triagem do suporte em andamento (sistema → CPF/CNPJ → assunto)
+    if (state.intake) { await handleIntakeReply(state, sock, key, textMsg, clientPhone); return; }
+
+    // Aguardando o CPF/CNPJ de quem pediu fatura ou extrato
+    if (state.awaiting) { await handleDocumentReply(state, sock, key, textMsg); return; }
+    const wantedAction = clientActionFromText(textMsg);
+    if (wantedAction) { await askForDocument(state, sock, wantedAction); return; }
 
     // Processa a opção selecionada ou o input
     const currentNode = await prisma.wppBotFlowNode.findUnique({ where: { id: state.currentNodeId } });
@@ -597,20 +859,36 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
     } catch (e) {}
   }
 
+  if (node.type === "client_action") {
+    state.awaiting = node.inputVar === "statement" ? "statement" : "invoice";
+    state.docTries = 0;
+    if (!text) text = DOC_PROMPT;
+  }
+
   if (node.type === "sector") {
     const sector = await prisma.wppBotSector.findUnique({ where: { id: node.sectorId } });
-    if (sector) {
-      text += `${text ? "\n\n" : ""}Certo! Estou encaminhando o seu atendimento ao setor *${sector.name}*. Em instantes um de nossos atendentes irá falar com você.\nEnquanto isso, se desejar, descreva em uma mensagem como podemos ajudá-lo(a). ✍️`;
 
+    // Suporte: antes de entrar na fila, pergunta o sistema, o CPF/CNPJ e o assunto
+    if (sector && sector.intake === "support") {
+      await beginSupportIntake(state, sock, { id: sector.id, name: sector.name });
+      return;
+    }
+
+    if (sector) {
       // A conversa (já gravada desde o primeiro "oi") entra na fila do setor
       const data = { sectorId: sector.id, status: "waiting", queuedAt: new Date(), firstMessage: `Escolheu o setor ${sector.name}` };
       let convId: string = state.conversationId;
+      let conv;
       if (convId) {
-        await prisma.wppConversation.update({ where: { id: convId }, data });
+        conv = await prisma.wppConversation.update({ where: { id: convId }, data });
       } else {
-        convId = (await prisma.wppConversation.create({ data: { clientPhone, clientJid: state.remoteJid, clientName: state.pushName ?? null, ...data } })).id;
+        conv = await prisma.wppConversation.create({ data: { clientPhone, clientJid: state.remoteJid, clientName: state.pushName ?? null, ...data } });
+        convId = conv.id;
         state.conversationId = convId;
       }
+      const pos = await queuePosition(conv);
+      lastPosition.set(convId, pos.position);
+      text += `${text ? "\n\n" : ""}Certo! Estou encaminhando o seu atendimento ao setor *${sector.name}*.\n\n${positionText(sector.name, pos)}\nEnquanto isso, se desejar, descreva em uma mensagem como podemos ajudá-lo(a). ✍️`;
       await recordMsg(convId, "system", `Cliente encaminhado ao setor ${sector.name}.`);
       state.status = "waiting";
       setTimeout(() => { offerConversation(convId).catch(e => console.error("Erro ao avisar atendentes:", e)); }, OFFER_DELAY_MS);

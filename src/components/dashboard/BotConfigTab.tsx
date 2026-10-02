@@ -5,7 +5,7 @@ import { Button, PanelCard, Input, Select, Textarea, ConfirmModal, Badge } from 
 import { toast } from 'react-hot-toast';
 
 interface AttendantRow { name: string; phone: string }
-interface SectorRow { id?: string; name: string; menuKey: string; attendants: AttendantRow[] }
+interface SectorRow { id?: string; name: string; menuKey: string; attendants: AttendantRow[]; intake: string }
 
 function parseAttendantsJson(v: any): AttendantRow[] {
   try {
@@ -43,7 +43,7 @@ export function BotConfigTab() {
       setConfig(confRes);
       setInstance(instRes);
       setSectors(secRes);
-      setSectorRows(secRes.map((x: any) => ({ id: x.id, name: x.name, menuKey: x.menuKey, attendants: parseAttendantsJson(x.attendants) })));
+      setSectorRows(secRes.map((x: any) => ({ id: x.id, name: x.name, menuKey: x.menuKey, attendants: parseAttendantsJson(x.attendants), intake: x.intake ?? 'none' })));
     } catch (e) {
       toast.error('Erro ao carregar dados do bot');
     }
@@ -94,7 +94,7 @@ export function BotConfigTab() {
     const res = await fetch('/api/admin/bot/sectors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: row.id, name: row.name.trim(), menuKey: row.menuKey || String(i + 1), attendants }),
+      body: JSON.stringify({ id: row.id, name: row.name.trim(), menuKey: row.menuKey || String(i + 1), attendants, intake: row.intake }),
     });
     if (!res.ok) return toast.error('Erro ao salvar setor');
     toast.success('Setor salvo');
@@ -259,6 +259,14 @@ export function BotConfigTab() {
                 <button onClick={() => removeSector(i)} className="p-3 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
               </div>
 
+              <label className="flex items-start gap-2.5 text-sm cursor-pointer dash-text">
+                <input type="checkbox" className="w-4 h-4 mt-0.5 accent-indigo-600" checked={row.intake === 'support'}
+                  onChange={e => updateSector(i, { intake: e.target.checked ? 'support' : 'none' })} />
+                <span>Triagem de suporte
+                  <span className="block text-[11px] dash-text-muted">Antes da fila, o bot pergunta o sistema (botões dos produtos marcados para suporte), o CPF/CNPJ e o assunto, e mostra a posição na fila.</span>
+                </span>
+              </label>
+
               <p className="text-[11px] font-bold uppercase dash-text-muted">Atendentes</p>
               {row.attendants.map((a, j) => (
                 <div key={j} className="flex gap-2 items-end">
@@ -277,7 +285,7 @@ export function BotConfigTab() {
           ))}
 
           <div className="flex gap-2 flex-wrap">
-            <Button variant="secondary" onClick={() => setSectorRows(rows => [...rows, { name: '', menuKey: String(rows.length + 1), attendants: [] }])} iconLeft={<Plus className="w-4 h-4" />}>
+            <Button variant="secondary" onClick={() => setSectorRows(rows => [...rows, { name: '', menuKey: String(rows.length + 1), attendants: [], intake: 'none' }])} iconLeft={<Plus className="w-4 h-4" />}>
               NOVO SETOR
             </Button>
             <Button variant="secondary" onClick={generateMenu} iconLeft={<Wand2 className="w-4 h-4" />}>

@@ -2,7 +2,8 @@
 // e usa o bot do WhatsApp para mandar a fatura (link de pagamento) e o comprovante/extrato.
 import type { Express, Request, Response } from "express";
 import { prisma } from "./db.js";
-import { getSessionInfo, sendMessage, registerClientKeywordHandler } from "./wa.js";
+import { getSessionInfo, sendMessage, registerClientActionHandler } from "./wa.js";
+import type { ClientAction, ClientActionResult } from "./baileysManager.js";
 import { registerClientPayment } from "./clientBilling.js";
 import { sendThanksAndReceipt } from "./receipts.js";
 import { loadSubscriptionInfo, assinaturaTexto, nomeCurto } from "./clientInfo.js";
@@ -152,14 +153,12 @@ async function openCharge(clientId: string) {
   });
 }
 
-// Manda ao cliente o link da fatura em aberto (o mais antigo)
-export async function sendInvoice(clientId: string, opts: { welcome?: boolean } = {}): Promise<boolean> {
+// Texto da fatura em aberto (a mais antiga). null = não há fatura com link.
+async function composeInvoice(clientId: string, opts: { welcome?: boolean } = {}) {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
-  if (!c) throw new AsaasError("Cliente não encontrado.");
-  if (!c.phone) throw new AsaasError("O cliente não tem WhatsApp cadastrado.");
-  if (!(await clientBotReady())) throw new AsaasError("O bot precisa estar ativado e com o WhatsApp conectado.");
+  if (!c) return null;
   const charge = await openCharge(clientId);
-  if (!charge?.invoiceUrl) throw new AsaasError("Não há fatura em aberto para este cliente.");
+  if (!charge?.invoiceUrl) return { client: c, charge: null, text: null as string | null };
 
   const late = charge.dueDate < brtTodayUtc();
   const ass = assinaturaTexto(await loadSubscriptionInfo(clientId)); // ex.: "assinatura do sistema *Store BoxSys*"
@@ -171,9 +170,19 @@ export async function sendInvoice(clientId: string, opts: { welcome?: boolean } 
     `💳 Pague por ${c.asaasBillingType && c.asaasBillingType !== "UNDEFINED" ? methodLabel(c.asaasBillingType) : "Pix, boleto ou cartão"} neste link:\n${charge.invoiceUrl}`,
     `Depois do pagamento, enviamos o comprovante por aqui. ✅`,
   ].join("\n\n");
+  return { client: c, charge, text };
+}
 
-  const ok = await sendMessage(c.phone, text);
-  if (ok) await prisma.asaasCharge.update({ where: { id: charge.id }, data: { linkSentAt: new Date() } });
+// Manda ao WhatsApp cadastrado do cliente o link da fatura em aberto
+export async function sendInvoice(clientId: string, opts: { welcome?: boolean } = {}): Promise<boolean> {
+  const inv = await composeInvoice(clientId, opts);
+  if (!inv) throw new AsaasError("Cliente não encontrado.");
+  if (!inv.client.phone) throw new AsaasError("O cliente não tem WhatsApp cadastrado.");
+  if (!(await clientBotReady())) throw new AsaasError("O bot precisa estar ativado e com o WhatsApp conectado.");
+  if (!inv.charge || !inv.text) throw new AsaasError("Não há fatura em aberto para este cliente.");
+
+  const ok = await sendMessage(inv.client.phone, inv.text);
+  if (ok) await prisma.asaasCharge.update({ where: { id: inv.charge.id }, data: { linkSentAt: new Date() } });
   return ok;
 }
 
@@ -202,26 +211,26 @@ export async function sendStatement(clientId: string): Promise<boolean> {
   return sendMessage(s.client.phone, s.text);
 }
 
-// O cliente escreve "extrato" ou "fatura" no WhatsApp e o bot responde sozinho
-async function handleClientKeyword(phone: string, text: string): Promise<boolean> {
-  const t = text.trim().toLowerCase();
-  const wantsStatement = /^(extrato|meu extrato|pagamentos)$/.test(t);
-  const wantsInvoice = /^(fatura|segunda via|2[ªa] via|boleto|pix|pagar|pagamento|link de pagamento)$/.test(t);
-  if (!wantsStatement && !wantsInvoice) return false;
+// "Já sou cliente": a pessoa informa o CPF/CNPJ do cadastro e o bot responde na própria conversa.
+// Só entrega para cadastro ativo cujo documento confere; a resposta vai para quem está conversando.
+async function handleClientAction(kind: ClientAction, documentDigits: string): Promise<ClientActionResult> {
+  const candidates = await prisma.client.findMany({ where: { status: { not: "cancelled" }, document: { not: null } }, select: { id: true, document: true } });
+  const hit = candidates.find(c => digits(c.document) === documentDigits);
+  if (!hit) return { status: "not_found" };
 
-  const clients = await prisma.client.findMany({ where: { status: { not: "cancelled" }, phone: { not: null } } });
-  const c = clients.find(x => samePhone(x.phone as string, phone));
-  if (!c) return false;
-  if (!(await clientBotReady())) return false;
-
-  if (wantsStatement) {
-    const s = await statementText(c.id);
-    if (s) await sendMessage(phone, s.text);
-    return true;
+  if (kind === "statement") {
+    const s = await statementText(hit.id);
+    return s ? { status: "sent", text: s.text } : { status: "error" };
   }
-  try { if (!(await sendInvoice(c.id))) await sendMessage(phone, "Não consegui enviar a fatura agora. Tente de novo em instantes."); }
-  catch { await sendMessage(phone, "No momento não há fatura em aberto. Se precisar de ajuda, é só escrever. 😊"); }
-  return true;
+
+  const inv = await composeInvoice(hit.id);
+  if (!inv) return { status: "error" };
+  if (!inv.charge || !inv.text) {
+    const next = inv.client.nextDueDate ? ` Seu próximo vencimento é em *${fmtDay(inv.client.nextDueDate)}*.` : "";
+    return { status: "no_open", text: `Olá, ${firstName(inv.client.name)}! No momento não há fatura em aberto para o seu cadastro. ✅${next}\n\nSe precisar de ajuda com a cobrança, digite *0* e escolha o setor *Financeiro*.` };
+  }
+  await prisma.asaasCharge.update({ where: { id: inv.charge.id }, data: { linkSentAt: new Date() } });
+  return { status: "sent", text: inv.text };
 }
 
 // ─── Pagamentos (webhook e sincronização) ────────────────────────────────────
@@ -322,7 +331,7 @@ export async function syncCharges(clientId?: string) {
 
 // "extrato" / "fatura" no WhatsApp. Roda no processo que mantém o socket (o worker do WhatsApp).
 export function registerAsaasKeywords() {
-  registerClientKeywordHandler(handleClientKeyword);
+  registerClientActionHandler(handleClientAction);
 }
 
 export function startAsaasScheduler() {

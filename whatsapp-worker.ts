@@ -8,7 +8,7 @@ import "dotenv/config";
 import express from "express";
 import {
   getSessionInfo, sendMessage, sendDocument, sendChoice, offerConversation, acceptWaitingConversation,
-  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, resumeSession, startConversationSweeper,
+  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, resumeSession, startConversationSweeper, startConversation, notifyQueueChanged,
 } from "./src/backend/wa.js";
 import { registerAsaasKeywords } from "./src/backend/asaas.js";
 
@@ -18,7 +18,7 @@ const TOKEN = process.env.WA_INTERNAL_TOKEN || "";
 // Só estas funções podem ser chamadas pela API
 const allowed: Record<string, (...args: any[]) => any> = {
   sendMessage, sendDocument, sendChoice, offerConversation, acceptWaitingConversation,
-  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession,
+  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, startConversation, notifyQueueChanged,
 };
 
 const app = express();

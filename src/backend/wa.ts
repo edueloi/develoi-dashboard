@@ -70,6 +70,13 @@ export const acceptWaitingConversation = (...a: Parameters<typeof real.acceptWai
 export const closeActiveConversation = (...a: Parameters<typeof real.closeActiveConversation>) =>
   isLocal() ? real.closeActiveConversation(...a) : rpc<Awaited<ReturnType<typeof real.closeActiveConversation>>>("closeActiveConversation", a, null);
 
+export const startConversation = (...a: Parameters<typeof real.startConversation>) =>
+  isLocal() ? real.startConversation(...a)
+    : rpc<Awaited<ReturnType<typeof real.startConversation>>>("startConversation", a, { ok: false, error: "O serviço do WhatsApp não respondeu. Tente de novo." });
+
+export const notifyQueueChanged = (...a: Parameters<typeof real.notifyQueueChanged>): Promise<void> =>
+  isLocal() ? real.notifyQueueChanged(...a) : rpc<void>("notifyQueueChanged", a, undefined);
+
 export function setClientConversation(...a: Parameters<typeof real.setClientConversation>) {
   if (isLocal()) real.setClientConversation(...a); else void rpc<void>("setClientConversation", a, undefined);
 }
@@ -90,7 +97,7 @@ export const startConversationSweeper = (): void => { if (isLocal()) real.startC
 // Retomar a sessão salva é trabalho do worker; no modo proxy não há o que fazer aqui
 export const resumeSession = async (): Promise<void> => { if (isLocal()) await real.resumeSession(); };
 
-// Respostas automáticas a clientes ("extrato", "fatura"): só quem tem o socket precisa registrar
-export const registerClientKeywordHandler = (fn: Parameters<typeof real.registerClientKeywordHandler>[0]) => {
-  if (isLocal()) real.registerClientKeywordHandler(fn);
+// "Já sou cliente" (fatura/extrato por CPF/CNPJ): só quem tem o socket precisa registrar
+export const registerClientActionHandler = (fn: Parameters<typeof real.registerClientActionHandler>[0]) => {
+  if (isLocal()) real.registerClientActionHandler(fn);
 };

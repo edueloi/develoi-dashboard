@@ -343,6 +343,7 @@ function ProductFormModal({
   const [features, setFeatures] = useState(product?.features?.join('\n') ?? '');
   const [tags, setTags] = useState(product?.tags?.join(', ') ?? '');
   const [active, setActive] = useState(product?.active ?? true);
+  const [supportEnabled, setSupportEnabled] = useState(product?.supportEnabled ?? true);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -358,6 +359,7 @@ function ProductFormModal({
         price: Number(price),
         currency: 'BRL',
         active,
+        supportEnabled,
         features: features.split('\n').map(f => f.trim()).filter(Boolean),
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         createdAt: product?.createdAt ?? new Date().toISOString(),
@@ -443,6 +445,13 @@ function ProductFormModal({
             {active ? 'Produto ativo' : 'Produto inativo'}
           </button>
         </div>
+
+        <label className="flex items-start gap-2.5 text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+          <input type="checkbox" className="w-4 h-4 mt-0.5 accent-indigo-600" checked={supportEnabled} onChange={e => setSupportEnabled(e.target.checked)} />
+          <span>Aparece como opção no <b>suporte do bot</b>
+            <span className="block text-[11px] text-slate-400">O cliente que pede suporte escolhe, por botão, sobre qual sistema/produto precisa de ajuda.</span>
+          </span>
+        </label>
 
         <Button type="submit" loading={loading} fullWidth size="lg">
           {product ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR PRODUTO'}

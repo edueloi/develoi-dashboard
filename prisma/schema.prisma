@@ -292,6 +292,7 @@ model Product {
   price       Float    @default(0)
   currency    String   @default("BRL")
   active      Boolean  @default(true)
+  supportEnabled Boolean @default(true) // aparece como opção no menu de suporte do bot
   features    Json?
   tags        Json?
   createdAt   DateTime @default(now())
@@ -511,6 +512,7 @@ model WppBotSector {
   attendants   String   @db.Text                   // JSON array de atendentes
   isActive     Boolean  @default(true)
   sortOrder    Int      @default(0)
+  intake       String   @default("none") @db.VarChar(20) // none | support (pede sistema, CPF/CNPJ e assunto antes da fila)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -548,6 +550,9 @@ model WppConversation {
   queuedAt       DateTime  @default(now())   // quando entrou (ou voltou) para a fila
   status         String    @default("waiting") @db.VarChar(20) // bot, waiting, active, closed
   firstMessage   String?   @db.VarChar(1000)
+  subject        String?   @db.VarChar(255)   // sistema/assunto escolhido no suporte
+  clientDocument String?   @db.VarChar(20)    // CPF/CNPJ informado
+  linkedClientId String?   @db.VarChar(36)    // cliente cadastrado encontrado pelo documento
   closedBy       String?   @db.VarChar(20)  // attendant, client, system
   closedAt       DateTime? 
   createdAt      DateTime  @default(now())
