@@ -34,6 +34,9 @@ export function registerInvoiceRoutes(app: Express) {
       }
 
       const info = await loadSubscriptionInfo(charge.clientId);
+      // comprovante em PDF (o nosso, já com o recibo da Develoi) e próximo passo, para a tela de agradecimento
+      const payment = status === "paid" ? await prisma.clientPayment.findFirst({ where: { asaasPaymentId: charge.asaasPaymentId } }) : null;
+      const method = charge.billingType === "PIX" ? "Pix" : charge.billingType === "BOLETO" ? "Boleto" : charge.billingType === "CREDIT_CARD" ? "Cartão de crédito" : payment?.method ?? null;
       res.json({
         status, value: charge.value, dueDate: charge.dueDate, paidAt: charge.paidAt,
         product: nomeCurto(info), business: charge.client.businessName, customer: charge.client.name.trim().split(/\s+/)[0],
@@ -41,6 +44,10 @@ export function registerInvoiceRoutes(app: Express) {
         bankSlipUrl: status === "paid" ? null : charge.bankSlipUrl,
         checkoutUrl: status === "paid" ? null : charge.invoiceUrl,
         receiptUrl: charge.receiptUrl,
+        receiptPdfUrl: payment ? `/api/client-payments/${payment.id}/receipt.pdf` : null,
+        method,
+        nextDueDate: status === "paid" && charge.client.billingCycle !== "one_time" ? charge.client.nextDueDate : null,
+        storeUrl: status === "paid" && charge.client.boxsysUrl && charge.client.boxsysStatus === "active" ? charge.client.boxsysUrl : null,
         company: COMPANY,
       });
     } catch (e: any) { res.status(500).json({ error: "Não foi possível carregar a fatura." }); }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Clock, Receipt } from 'lucide-react';
+import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Clock, Download, ExternalLink } from 'lucide-react';
 
 interface InvoiceData {
   status: 'pending' | 'overdue' | 'paid' | 'cancelled';
@@ -9,6 +9,7 @@ interface InvoiceData {
   methods: { pix: boolean; boleto: boolean; card: boolean };
   pix: { payload: string; image: string } | null;
   bankSlipUrl: string | null; checkoutUrl: string | null; receiptUrl: string | null;
+  receiptPdfUrl: string | null; method: string | null; nextDueDate: string | null; storeUrl: string | null;
   company: { name: string; cnpj: string; email: string; phone: string };
 }
 
@@ -52,6 +53,41 @@ export default function Invoice() {
   const st = STATUS[data.status];
   const open = data.status === 'pending' || data.status === 'overdue';
 
+  if (data.status === 'paid') {
+    return (
+      <Shell company={data.company}>
+        <style>{'@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}@keyframes rise{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}'}</style>
+        <div className="px-6 pt-9 pb-6 text-center" style={{ animation: 'rise .5s ease both' }}>
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100" style={{ animation: 'pop .6s ease both' }}>
+            <CheckCircle2 className="h-11 w-11 text-green-600" />
+          </div>
+          <h1 className="mt-5 text-2xl font-black text-slate-900">Pagamento confirmado!</h1>
+          <p className="mt-2 text-sm text-slate-500">Obrigado, {data.customer}! Recebemos o pagamento da sua assinatura. 🙏</p>
+        </div>
+
+        <div className="mx-6 rounded-xl bg-slate-50 p-4">
+          <dl className="space-y-2.5 text-sm">
+            <div className="flex justify-between gap-4"><dt className="text-slate-500">Assinatura</dt><dd className="text-right font-bold text-slate-900">{data.product}{data.business ? ` · ${data.business}` : ''}</dd></div>
+            <div className="flex justify-between gap-4"><dt className="text-slate-500">Valor pago</dt><dd className="font-bold text-slate-900">{money(data.value)}</dd></div>
+            {data.paidAt && <div className="flex justify-between gap-4"><dt className="text-slate-500">Data</dt><dd className="font-bold text-slate-900">{day(data.paidAt)}</dd></div>}
+            {data.method && <div className="flex justify-between gap-4"><dt className="text-slate-500">Forma</dt><dd className="font-bold text-slate-900">{data.method}</dd></div>}
+            {data.nextDueDate && <div className="flex justify-between gap-4 border-t border-slate-200 pt-2.5"><dt className="text-slate-500">Próximo vencimento</dt><dd className="font-bold text-slate-900">{day(data.nextDueDate)}</dd></div>}
+          </dl>
+        </div>
+
+        <div className="space-y-3 px-6 pt-5 pb-7">
+          {data.storeUrl && (
+            <a href={data.storeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl bg-[#0D1F4E] px-4 py-3 text-sm font-bold text-white hover:brightness-110"><ExternalLink className="w-4 h-4" /> Acessar meu sistema</a>
+          )}
+          {(data.receiptPdfUrl || data.receiptUrl) && (
+            <a href={data.receiptPdfUrl || data.receiptUrl!} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><Download className="w-4 h-4" /> Baixar recibo</a>
+          )}
+          <p className="text-center text-xs text-slate-400">O recibo também foi enviado no seu WhatsApp. Qualquer dúvida, é só responder por lá.</p>
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell company={data.company}>
       <div className="px-6 pt-6 pb-5">
@@ -62,16 +98,9 @@ export default function Invoice() {
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-slate-50 p-3.5"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Valor</p><p className="mt-0.5 text-2xl font-black text-slate-900">{money(data.value)}</p></div>
-          <div className="rounded-xl bg-slate-50 p-3.5"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{data.status === 'paid' ? 'Pago em' : 'Vencimento'}</p><p className="mt-0.5 text-2xl font-black text-slate-900">{day(data.status === 'paid' && data.paidAt ? data.paidAt : data.dueDate)}</p></div>
+          <div className="rounded-xl bg-slate-50 p-3.5"><p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Vencimento</p><p className="mt-0.5 text-2xl font-black text-slate-900">{day(data.dueDate)}</p></div>
         </div>
       </div>
-
-      {data.status === 'paid' && (
-        <div className="px-6 pb-6">
-          <p className="rounded-xl bg-green-50 p-4 text-sm text-green-800">Recebemos o seu pagamento. Obrigado! 🙏 O comprovante também é enviado no seu WhatsApp.</p>
-          {data.receiptUrl && <a href={data.receiptUrl} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><Receipt className="w-4 h-4" /> Ver comprovante</a>}
-        </div>
-      )}
 
       {open && (
         <div className="space-y-4 border-t border-slate-100 px-6 py-6">
