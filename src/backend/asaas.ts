@@ -99,6 +99,11 @@ async function upsertCharge(clientId: string, p: any) {
   return prisma.asaasCharge.upsert({ where: { asaasPaymentId: p.id }, create: { asaasPaymentId: p.id, ...data }, update: data });
 }
 
+// "Assinatura Store BoxSys — Doçaria Teste Edu": o sistema que o cliente assina e o nome do estabelecimento
+async function invoiceDescription(c: { id: string; name: string; businessName: string | null }) {
+  return `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))} — ${c.businessName || c.name}`;
+}
+
 export async function createSubscription(clientId: string, billingType: BillingType, sendLink: boolean) {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c) throw new AsaasError("Cliente não encontrado.");
@@ -110,7 +115,7 @@ export async function createSubscription(clientId: string, billingType: BillingT
 
   const customer = await ensureCustomer(c);
   const dueDay = c.nextDueDate.toISOString().slice(0, 10);
-  const description = `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))} — ${c.businessName || c.name}`; // aparece na fatura do cliente
+  const description = await invoiceDescription(c); // aparece na fatura do cliente
   let charges: any[] = [];
   let subscriptionId: string | null = null;
 
@@ -328,6 +333,8 @@ export async function syncCharges(clientId?: string) {
   const clients = await prisma.client.findMany({ where: { asaasSubscriptionId: { not: null }, ...(clientId ? { id: clientId } : {}) } });
   let updated = 0;
   for (const c of clients) {
+    // mantém o texto da fatura em dia com o sistema/estabelecimento atuais (inclui as cobranças ainda em aberto)
+    await asaas(`/subscriptions/${c.asaasSubscriptionId}`, "PUT", { description: await invoiceDescription(c), updatePendingPayments: true }).catch(() => {});
     const list = await asaas<{ data: any[] }>(`/subscriptions/${c.asaasSubscriptionId}/payments?limit=24`);
     for (const p of list.data ?? []) {
       if (p.status === "DELETED") continue;
