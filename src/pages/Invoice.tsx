@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Clock, Download, ExternalLink, QrCode, ShieldCheck, Lock } from 'lucide-react';
+import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Download, ExternalLink, QrCode, ShieldCheck, Lock, MessageCircle, CalendarDays, Building2, Receipt } from 'lucide-react';
 
 interface InvoiceData {
   status: 'pending' | 'overdue' | 'paid' | 'cancelled';
@@ -19,13 +19,14 @@ const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curr
 const day = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
 const STATUS = {
-  pending: { label: 'Aguardando pagamento', dot: '#F59E0B' },
-  overdue: { label: 'Fatura vencida', dot: '#EF4444' },
-  paid: { label: 'Paga', dot: '#22C55E' },
-  cancelled: { label: 'Cancelada', dot: '#94A3B8' },
+  pending: { label: 'Aguardando pagamento', bg: 'rgba(245,158,11,.18)', fg: '#FCD34D' },
+  overdue: { label: 'Fatura vencida', bg: 'rgba(239,68,68,.2)', fg: '#FCA5A5' },
+  paid: { label: 'Pagamento confirmado', bg: 'rgba(34,197,94,.2)', fg: '#86EFAC' },
+  cancelled: { label: 'Cancelada', bg: 'rgba(148,163,184,.25)', fg: '#CBD5E1' },
 } as const;
 
 type Tab = 'pix' | 'boleto' | 'card';
+type TabDef = { key: Tab; label: string; Icon: typeof QrCode };
 
 // Página pública da fatura: o cliente chega pelo link do WhatsApp e paga por Pix, boleto ou cartão.
 export default function Invoice() {
@@ -47,9 +48,9 @@ export default function Invoice() {
     return () => { alive = false; clearInterval(t); };
   }, [id]);
 
-  const tabs = useMemo(() => {
-    if (!data) return [] as { key: Tab; label: string; Icon: typeof QrCode }[];
-    const list: { key: Tab; label: string; Icon: typeof QrCode }[] = [];
+  const tabs = useMemo<TabDef[]>(() => {
+    if (!data) return [];
+    const list: TabDef[] = [];
     if (data.pix) list.push({ key: 'pix', label: 'Pix', Icon: QrCode });
     if (data.methods.boleto && data.bankSlipUrl) list.push({ key: 'boleto', label: 'Boleto', Icon: FileText });
     if (data.methods.card && data.checkoutUrl) list.push({ key: 'card', label: 'Cartão', Icon: CreditCard });
@@ -63,44 +64,46 @@ export default function Invoice() {
     try { await navigator.clipboard.writeText(data.pix.payload); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* sem permissão */ }
   };
 
-  if (error) return <Page><p className="py-24 text-center text-slate-500">{error}</p></Page>;
-  if (!data) return <Page><p className="py-24 text-center text-slate-400">Carregando fatura…</p></Page>;
+  if (error) return <Page><div className="rounded-2xl bg-white p-10 text-center text-slate-500 shadow-sm">{error}</div></Page>;
+  if (!data) return <Page><div className="rounded-2xl bg-white p-10 text-center text-slate-400 shadow-sm">Carregando fatura…</div></Page>;
 
   const st = STATUS[data.status];
   const paid = data.status === 'paid';
   const open = data.status === 'pending' || data.status === 'overdue';
+  const wa = `https://wa.me/55${data.company.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre a fatura de ${data.product}${data.business ? ` (${data.business})` : ''}.`)}`;
 
   return (
     <Page company={data.company}>
-      <div className="grid overflow-hidden rounded-3xl bg-white shadow-[0_20px_60px_-20px_rgba(13,31,78,0.35)] ring-1 ring-slate-200/60 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-        {/* ── Resumo ── */}
-        <aside className="relative overflow-hidden p-7 text-white sm:p-9" style={{ background: `linear-gradient(155deg, ${NAVY} 0%, #14307A 100%)` }}>
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-20" style={{ background: GOLD, filter: 'blur(70px)' }} />
-          <img src="/LOGO-MENU.png" alt="Develoi" className="relative h-9 w-auto" onError={e => { e.currentTarget.style.display = 'none'; }} />
+      <div className="overflow-hidden rounded-3xl bg-white shadow-[0_24px_60px_-24px_rgba(13,31,78,0.45)] ring-1 ring-slate-200/70">
+        {/* ── Topo da marca + valor ── */}
+        <header className="relative overflow-hidden px-6 pb-8 pt-6 text-center text-white sm:px-10 sm:pt-8" style={{ background: `linear-gradient(160deg, ${NAVY} 0%, #17358A 100%)` }}>
+          <div className="pointer-events-none absolute -left-16 -top-16 h-56 w-56 rounded-full opacity-25" style={{ background: GOLD, filter: 'blur(60px)' }} />
+          <div className="pointer-events-none absolute -bottom-24 -right-10 h-56 w-56 rounded-full opacity-20" style={{ background: '#4F7DF3', filter: 'blur(70px)' }} />
+          <img src="/LOGO-MENU-BRANCO.png" alt="Develoi Soluções Digitais" className="relative mx-auto h-11 w-auto sm:h-12" />
 
-          <div className="relative mt-8 md:mt-14">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur">
-              <span className="h-2 w-2 rounded-full" style={{ background: st.dot }} /> {st.label}
-            </span>
-            <p className="mt-5 text-sm text-white/60">Fatura da assinatura</p>
-            <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">{data.product}</h1>
-            {data.business && <p className="mt-0.5 text-sm text-white/70">{data.business}</p>}
+          <span className="relative mt-6 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold" style={{ background: st.bg, color: st.fg }}>
+            {paid ? <CheckCircle2 className="h-3.5 w-3.5" /> : data.status === 'overdue' ? <AlertTriangle className="h-3.5 w-3.5" /> : <span className="h-2 w-2 rounded-full" style={{ background: st.fg }} />}
+            {st.label}
+          </span>
 
-            <p className="mt-8 text-xs font-semibold uppercase tracking-widest text-white/50">{paid ? 'Valor pago' : 'Valor a pagar'}</p>
-            <p className="mt-1 text-4xl font-black tracking-tight sm:text-5xl">{money(data.value)}</p>
+          <p className="relative mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-white/55">{paid ? 'Valor pago' : 'Valor da fatura'}</p>
+          <p className="relative mt-1 text-5xl font-black tracking-tight sm:text-6xl">{money(data.value)}</p>
+          <p className="relative mt-3 text-sm text-white/70">
+            {paid && data.paidAt ? <>Pago em <b className="text-white">{day(data.paidAt)}</b>{data.method ? ` via ${data.method}` : ''}</> : <>Vencimento em <b className="text-white">{day(data.dueDate)}</b></>}
+          </p>
+        </header>
 
-            <dl className="mt-8 space-y-3 border-t border-white/10 pt-5 text-sm">
-              <div className="flex justify-between"><dt className="text-white/55">Cliente</dt><dd className="font-semibold">{data.customer}</dd></div>
-              <div className="flex justify-between"><dt className="text-white/55">{paid ? 'Pago em' : 'Vencimento'}</dt><dd className="font-semibold">{day(paid && data.paidAt ? data.paidAt : data.dueDate)}</dd></div>
-              {paid && data.method && <div className="flex justify-between"><dt className="text-white/55">Forma</dt><dd className="font-semibold">{data.method}</dd></div>}
-            </dl>
-          </div>
-        </aside>
+        {/* ── Detalhes ── */}
+        <div className="grid gap-3 border-b border-slate-100 px-6 py-5 sm:grid-cols-3 sm:px-10">
+          <Info Icon={Receipt} label="Assinatura" value={data.product} />
+          <Info Icon={Building2} label={data.business ? 'Estabelecimento' : 'Cliente'} value={data.business || data.customer} />
+          <Info Icon={CalendarDays} label={paid ? 'Próximo vencimento' : 'Vencimento'} value={day(paid ? (data.nextDueDate ?? data.dueDate) : data.dueDate)} />
+        </div>
 
         {/* ── Pagamento / agradecimento ── */}
-        <section className="p-7 sm:p-9">
+        <section className="px-6 py-7 sm:px-10">
           {paid ? <Thanks data={data} /> : data.status === 'cancelled' ? (
-            <p className="py-12 text-center text-slate-500">Esta fatura foi cancelada. Se precisar de ajuda, fale com a gente pelo WhatsApp.</p>
+            <p className="py-6 text-center text-slate-500">Esta fatura foi cancelada. Se precisar de ajuda, fale com a gente pelo WhatsApp.</p>
           ) : open && (
             <>
               {data.status === 'overdue' && (
@@ -110,13 +113,13 @@ export default function Invoice() {
                 </div>
               )}
 
-              <h2 className="text-lg font-black text-slate-900">Escolha como pagar</h2>
+              <h2 className="text-base font-black text-slate-900">Como você quer pagar?</h2>
 
               {tabs.length > 1 && (
-                <div className="mt-4 grid gap-1.5 rounded-xl bg-slate-100 p-1" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+                <div className="mt-3 grid gap-1.5 rounded-2xl bg-slate-100 p-1.5" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
                   {tabs.map(({ key, label, Icon }) => (
                     <button key={key} onClick={() => setTab(key)}
-                      className={`flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-bold transition ${tab === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+                      className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-3 text-sm font-bold transition ${tab === key ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700'}`}>
                       <Icon className="h-4 w-4" /> {label}
                     </button>
                   ))}
@@ -126,75 +129,90 @@ export default function Invoice() {
               <div className="mt-5">
                 {tab === 'pix' && data.pix && (
                   <div>
-                    <div className="mx-auto w-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                      <img src={`data:image/png;base64,${data.pix.image}`} alt="QR Code Pix" className="h-52 w-52 sm:h-56 sm:w-56" />
+                    <div className="mx-auto w-fit rounded-3xl border border-slate-200 bg-white p-3.5 shadow-sm">
+                      <img src={`data:image/png;base64,${data.pix.image}`} alt="QR Code Pix" className="h-56 w-56 max-w-full sm:h-60 sm:w-60" />
                     </div>
-                    <ol className="mt-5 space-y-2 text-sm text-slate-600">
-                      {['Abra o app do seu banco e escolha Pix.', 'Leia o QR Code ou use o Pix copia e cola.', 'Confirme o valor e pronto: a confirmação é automática.'].map((t, i) => (
-                        <li key={i} className="flex gap-2.5"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: NAVY }}>{i + 1}</span>{t}</li>
-                      ))}
-                    </ol>
-                    <div className="mt-5 flex items-stretch gap-2">
-                      <div className="min-w-0 flex-1 truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 font-mono text-xs text-slate-500">{data.pix.payload}</div>
-                      <button onClick={copy} className="flex shrink-0 items-center gap-1.5 rounded-xl px-4 text-sm font-bold text-white transition hover:brightness-110" style={{ background: copied ? '#16A34A' : NAVY }}>
-                        {copied ? <><Check className="h-4 w-4" /> Copiado</> : <><Copy className="h-4 w-4" /> Copiar</>}
+                    <p className="mt-3 text-center text-sm font-semibold text-slate-700">Aponte a câmera do app do seu banco</p>
+
+                    <div className="my-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-slate-400"><span className="h-px flex-1 bg-slate-200" />ou use o copia e cola<span className="h-px flex-1 bg-slate-200" /></div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <div className="min-w-0 flex-1 truncate rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 font-mono text-xs text-slate-500">{data.pix.payload}</div>
+                      <button onClick={copy} className="flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-bold text-white transition hover:brightness-110" style={{ background: copied ? '#16A34A' : NAVY }}>
+                        {copied ? <><Check className="h-4 w-4" /> Código copiado!</> : <><Copy className="h-4 w-4" /> Copiar código</>}
                       </button>
                     </div>
+                    <p className="mt-3 text-center text-xs text-slate-400">No app do banco: Pix → Pix Copia e Cola → colar → confirmar.</p>
                   </div>
                 )}
 
                 {tab === 'boleto' && data.bankSlipUrl && (
-                  <div className="rounded-2xl border border-slate-200 p-5 text-center">
-                    <FileText className="mx-auto h-9 w-9 text-slate-400" />
-                    <p className="mt-3 text-sm text-slate-600">Abra o boleto para copiar o código de barras ou baixar o PDF. A compensação pode levar até 2 dias úteis.</p>
-                    <a href={data.bankSlipUrl} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white hover:brightness-110" style={{ background: NAVY }}><ExternalLink className="h-4 w-4" /> Abrir boleto</a>
-                  </div>
+                  <ActionCard Icon={FileText} text="Abra o boleto para copiar o código de barras ou baixar o PDF. A compensação pode levar até 2 dias úteis." href={data.bankSlipUrl} label="Abrir boleto" />
                 )}
 
                 {tab === 'card' && data.checkoutUrl && (
-                  <div className="rounded-2xl border border-slate-200 p-5 text-center">
-                    <CreditCard className="mx-auto h-9 w-9 text-slate-400" />
-                    <p className="mt-3 text-sm text-slate-600">Você será levado ao ambiente seguro do Asaas para informar os dados do cartão.</p>
-                    <a href={data.checkoutUrl} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white hover:brightness-110" style={{ background: NAVY }}><Lock className="h-4 w-4" /> Pagar com cartão</a>
-                  </div>
+                  <ActionCard Icon={CreditCard} text="Você será levado ao ambiente seguro do Asaas para informar os dados do cartão." href={data.checkoutUrl} label="Pagar com cartão" lock />
                 )}
 
                 {!tabs.length && data.checkoutUrl && (
-                  <a href={data.checkoutUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold text-white hover:brightness-110" style={{ background: NAVY }}><ExternalLink className="h-4 w-4" /> Ir para o pagamento</a>
+                  <ActionCard Icon={ExternalLink} text="Escolha a forma de pagamento no ambiente seguro do Asaas." href={data.checkoutUrl} label="Ir para o pagamento" />
                 )}
               </div>
 
-              <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400"><Clock className="h-3.5 w-3.5" /> Depois de pagar, esta página confirma sozinha e o recibo chega no seu WhatsApp.</p>
+              <p className="mt-6 text-center text-xs text-slate-400">Depois de pagar, esta página confirma sozinha e o recibo chega no seu WhatsApp.</p>
             </>
           )}
         </section>
+
+        <footer className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:flex-row sm:px-10">
+          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-4 w-4 text-green-600" /> Pagamento seguro processado pelo Asaas</span>
+          <a href={wa} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-white px-3.5 py-1.5 text-xs font-bold text-green-700 hover:bg-green-50"><MessageCircle className="h-3.5 w-3.5" /> Dúvidas? Fale conosco</a>
+        </footer>
       </div>
     </Page>
   );
 }
 
+function Info({ Icon, label, value }: { Icon: typeof QrCode; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3.5 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm ring-1 ring-slate-200/70"><Icon className="h-4 w-4" /></span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="truncate text-sm font-bold text-slate-900">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({ Icon, text, href, label, lock }: { Icon: typeof QrCode; text: string; href: string; label: string; lock?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 p-6 text-center">
+      <Icon className="mx-auto h-10 w-10 text-slate-300" />
+      <p className="mx-auto mt-3 max-w-sm text-sm text-slate-600">{text}</p>
+      <a href={href} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold text-white transition hover:brightness-110" style={{ background: NAVY }}>
+        {lock ? <Lock className="h-4 w-4" /> : <ExternalLink className="h-4 w-4" />} {label}
+      </a>
+    </div>
+  );
+}
+
 function Thanks({ data }: { data: InvoiceData }) {
   return (
-    <div className="flex h-full flex-col justify-center text-center" style={{ animation: 'rise .5s ease both' }}>
+    <div className="text-center" style={{ animation: 'rise .5s ease both' }}>
       <style>{'@keyframes pop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}@keyframes rise{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}'}</style>
       <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100" style={{ animation: 'pop .6s ease both' }}>
         <CheckCircle2 className="h-11 w-11 text-green-600" />
       </div>
-      <h2 className="mt-5 text-2xl font-black text-slate-900">Pagamento confirmado!</h2>
-      <p className="mx-auto mt-2 max-w-xs text-sm text-slate-500">Obrigado, {data.customer}! Recebemos o pagamento da sua assinatura e está tudo certo por aqui. 🙏</p>
+      <h2 className="mt-5 text-2xl font-black text-slate-900">Obrigado, {data.customer}!</h2>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">Recebemos o pagamento da sua assinatura e está tudo certo por aqui. 🙏</p>
 
-      {data.nextDueDate && (
-        <div className="mx-auto mt-6 w-full max-w-xs rounded-xl bg-slate-50 px-4 py-3 text-sm">
-          <span className="text-slate-500">Próximo vencimento: </span><b className="text-slate-900">{day(data.nextDueDate)}</b>
-        </div>
-      )}
-
-      <div className="mx-auto mt-6 w-full max-w-xs space-y-3">
+      <div className="mx-auto mt-6 flex max-w-sm flex-col gap-3">
         {data.storeUrl && (
-          <a href={data.storeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white hover:brightness-110" style={{ background: NAVY }}><ExternalLink className="h-4 w-4" /> Acessar meu sistema</a>
+          <a href={data.storeUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold text-white hover:brightness-110" style={{ background: NAVY }}><ExternalLink className="h-4 w-4" /> Acessar meu sistema</a>
         )}
         {(data.receiptPdfUrl || data.receiptUrl) && (
-          <a href={data.receiptPdfUrl || data.receiptUrl!} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" /> Baixar recibo</a>
+          <a href={data.receiptPdfUrl || data.receiptUrl!} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3.5 text-sm font-bold text-slate-700 hover:bg-slate-50"><Download className="h-4 w-4" /> Baixar recibo</a>
         )}
       </div>
       <p className="mt-5 text-xs text-slate-400">O recibo também foi enviado no seu WhatsApp.</p>
@@ -204,13 +222,10 @@ function Thanks({ data }: { data: InvoiceData }) {
 
 function Page({ children, company }: { children: React.ReactNode; company?: InvoiceData['company'] }) {
   return (
-    <div className="min-h-screen px-4 py-6 sm:py-12" style={{ background: 'linear-gradient(180deg,#EEF1F8 0%,#F7F8FC 100%)', fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div className="mx-auto max-w-4xl">
+    <div className="min-h-screen px-3 py-4 sm:px-4 sm:py-10" style={{ background: 'linear-gradient(180deg,#E8ECF6 0%,#F6F7FB 60%)', fontFamily: 'Inter, system-ui, sans-serif' }}>
+      <div className="mx-auto max-w-xl">
         {children}
-        <div className="mt-6 flex flex-col items-center gap-1.5 text-center text-[11px] text-slate-400">
-          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Pagamento seguro processado pelo Asaas</span>
-          {company && <span>{company.name} · CNPJ {company.cnpj} · {company.email} · WhatsApp {company.phone}</span>}
-        </div>
+        {company && <p className="mt-5 px-2 text-center text-[11px] leading-relaxed text-slate-400">{company.name} · CNPJ {company.cnpj}<br />{company.email} · WhatsApp {company.phone}</p>}
       </div>
     </div>
   );
