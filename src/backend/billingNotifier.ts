@@ -55,7 +55,7 @@ export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promis
   if (!dryRun && getSessionInfo().status !== "connected") return results;
 
   const clients = await prisma.client.findMany({
-    where: { status: "active", nextDueDate: { not: null }, phone: { not: null }, billingCycle: { not: "one_time" } },
+    where: { status: "active", nextDueDate: { not: null }, phone: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } }, // sem valor definido (teste/cortesia) não recebe cobrança
     include: { billingNotices: true, projects: { include: { project: { select: { name: true } } } }, sale: { select: { productName: true } } },
   });
 
