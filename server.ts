@@ -12,7 +12,7 @@ import { blogController } from "./src/backend/blogController.js";
 import { casesController } from "./src/backend/casesController.js";
 import { botController } from "./src/backend/botController.js";
 import { resumeSession, startConversationSweeper } from "./src/backend/wa.js";
-import { runBillingNotices, startBillingScheduler } from "./src/backend/billingNotifier.js";
+import { runBillingNotices, startBillingScheduler, enforceOverdueBlocks } from "./src/backend/billingNotifier.js";
 import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
@@ -910,6 +910,11 @@ async function startServer() {
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // Roda agora a verificação de bloqueio por atraso (a rotina já faz isso a cada 15 minutos)
+    app.post("/api/admin/billing/enforce-blocks", async (_req, res) => {
+      try { res.json({ blocked: await enforceOverdueBlocks() }); } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
     app.patch("/api/clients/:id", async (req, res) => {
       try {
         const { projects, ...data } = req.body;
@@ -939,7 +944,8 @@ async function startServer() {
             nextDueDate,
           }
         });
-        syncBoxsysAccess(client.id).catch(() => {}); // pausar/cancelar/reativar reflete na loja do BoxSys
+        // pausar/cancelar/reativar reflete na loja do BoxSys; e quem ficou além da tolerância é bloqueado na hora (sem esperar a rotina)
+        syncBoxsysAccess(client.id).then(() => enforceOverdueBlocks()).catch(() => {});
         res.json(client);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
