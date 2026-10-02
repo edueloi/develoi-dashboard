@@ -2,7 +2,7 @@
 // e usa o bot do WhatsApp para mandar a fatura (link de pagamento) e o comprovante/extrato.
 import type { Express, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
-import { getSessionInfo, sendMessage, registerClientKeywordHandler } from "./baileysManager.js";
+import { getSessionInfo, sendMessage, registerClientKeywordHandler } from "./wa.js";
 import { registerClientPayment } from "./clientBilling.js";
 import { sendReceiptPdf } from "./receipts.js";
 import { brtTodayUtc } from "./time.js";
@@ -327,8 +327,13 @@ export async function syncCharges(clientId?: string) {
   return updated;
 }
 
-export function startAsaasScheduler() {
+// "extrato" / "fatura" no WhatsApp. Roda no processo que mantém o socket (o worker do WhatsApp).
+export function registerAsaasKeywords() {
   registerClientKeywordHandler(handleClientKeyword);
+}
+
+export function startAsaasScheduler() {
+  registerAsaasKeywords();
   if (!cfg().key) return;
   const tick = async () => { try { await syncCharges(); } catch (e) { console.error("[asaas] sincronização falhou:", e); } };
   setInterval(tick, 30 * 60 * 1000);

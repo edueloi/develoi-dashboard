@@ -2,7 +2,7 @@
 // e lembrete de reunião 24h antes. Também registra as rotas de destinatários e reuniões.
 import type { Express } from "express";
 import { PrismaClient } from "@prisma/client";
-import { getSessionInfo, sendMessage } from "./baileysManager.js";
+import { getSessionInfo, sendMessage } from "./wa.js";
 import { brtParts, brtTodayUtc, daysFromToday, fmtDueDate, fmtDateTimeBrt, DAY_MS } from "./time.js";
 
 const prisma = new PrismaClient();

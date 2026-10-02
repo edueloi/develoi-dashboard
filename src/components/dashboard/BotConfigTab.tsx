@@ -1,6 +1,6 @@
 // Bot Config UI
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Smartphone, MessageSquare, List, Plus, Trash2, Users, Wand2 } from 'lucide-react';
+import { Settings, Save, Smartphone, MessageSquare, List, Plus, Trash2, Users, Wand2, Sun } from 'lucide-react';
 import { Button, PanelCard, Input, Select, Textarea, ConfirmModal, Badge } from '../ui';
 import { toast } from 'react-hot-toast';
 
@@ -21,6 +21,8 @@ export function BotConfigTab() {
   const [loading, setLoading] = useState(false);
   const [sectors, setSectors] = useState<any[]>([]);
   const [sectorRows, setSectorRows] = useState<SectorRow[]>([]);
+  const [defaults, setDefaults] = useState<{ welcome: string; solutions: string; clientHelp: string } | null>(null);
+  const [savingMenu, setSavingMenu] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -31,11 +33,13 @@ export function BotConfigTab() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [confRes, instRes, secRes] = await Promise.all([
+      const [confRes, instRes, secRes, defRes] = await Promise.all([
         fetch('/api/admin/bot/config').then(r => r.json()),
         fetch('/api/admin/bot/instance').then(r => r.json()),
-        fetch('/api/admin/bot/sectors').then(r => r.json())
+        fetch('/api/admin/bot/sectors').then(r => r.json()),
+        fetch('/api/admin/bot/menu-defaults').then(r => r.json()).catch(() => null),
       ]);
+      setDefaults(defRes);
       setConfig(confRes);
       setInstance(instRes);
       setSectors(secRes);
@@ -108,25 +112,23 @@ export function BotConfigTab() {
     }
   };
 
-  // Monta o menu do bot a partir dos setores: boas-vindas com as opções -> cada opção leva ao setor
+  // Salva os textos e (re)monta o menu no servidor: Soluções · setores · Já sou cliente
   const generateMenu = async () => {
-    const saved = sectors.filter((x: any) => x.isActive !== false);
-    if (!saved.length) return toast.error('Cadastre e salve ao menos um setor');
-    if (!confirm('Isso substitui o fluxo atual do bot por um menu com os setores. Continuar?')) return;
-    const menuId = crypto.randomUUID();
-    const sectorNodes = saved.map((x: any) => ({ id: crypto.randomUUID(), type: 'sector', title: x.name, content: '', sectorId: x.id }));
-    const nodes = [
-      {
-        id: menuId, type: 'menu', title: 'Menu inicial', isStart: true,
-        content: 'Olá! Bem-vindo(a) à *Develoi*. 👋\nCom qual setor você quer falar?',
-        options: saved.map((x: any, idx: number) => ({ key: String(x.menuKey || idx + 1), label: x.name, nextNodeId: sectorNodes[idx].id })),
-      },
-      ...sectorNodes,
-    ];
-    const res = await fetch('/api/admin/bot/flow', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nodes }),
-    });
-    res.ok ? toast.success('Menu do bot gerado') : toast.error('Erro ao gerar menu');
+    if (!confirm('Isso monta o menu do bot com os setores e os textos abaixo, substituindo o fluxo atual. Continuar?')) return;
+    setSavingMenu(true);
+    try {
+      if (config) {
+        await fetch('/api/admin/bot/config', {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...config, menuWelcomeMsg: config.menuWelcomeMsg ?? null, solutionsMsg: config.solutionsMsg ?? null, clientHelpMsg: config.clientHelpMsg ?? null }),
+        });
+      }
+      const res = await fetch('/api/admin/bot/flow/default', { method: 'POST' });
+      if (!res.ok) throw new Error();
+      toast.success('Menu do bot atualizado');
+      fetchData();
+    } catch { toast.error('Erro ao gerar o menu'); }
+    setSavingMenu(false);
   };
 
   return (
@@ -218,6 +220,25 @@ export function BotConfigTab() {
         </PanelCard>
       </div>
 
+      <PanelCard title="Mensagens do bot" icon={Sun}>
+        {config && (
+          <div className="space-y-4">
+            <p className="text-xs dash-text-muted">
+              O bot sempre cumprimenta com <b>Bom dia</b>, <b>Boa tarde</b> ou <b>Boa noite</b> conforme o horário, em tom formal. Use
+              <b> {'{{saudacao}}'}</b> para a saudação do momento e <b>{'{{nome}}'}</b> para o primeiro nome do cliente.
+              Deixe em branco para usar o texto padrão.
+            </p>
+            <Textarea label="Boas-vindas (menu inicial)" rows={4} value={config.menuWelcomeMsg ?? ''} placeholder={defaults?.welcome}
+              onChange={(e: any) => setConfig({ ...config, menuWelcomeMsg: e.target.value })} />
+            <Textarea label="Opção 1 — Conhecer nossas soluções" rows={6} value={config.solutionsMsg ?? ''} placeholder={defaults?.solutions ?? 'Se vazio, usa os produtos cadastrados em Produtos & Planos.'}
+              onChange={(e: any) => setConfig({ ...config, solutionsMsg: e.target.value })} />
+            <Textarea label="Última opção — Já sou cliente" rows={5} value={config.clientHelpMsg ?? ''} placeholder={defaults?.clientHelp}
+              onChange={(e: any) => setConfig({ ...config, clientHelpMsg: e.target.value })} />
+            <Button onClick={generateMenu} loading={savingMenu} iconLeft={<Wand2 className="w-4 h-4" />}>SALVAR TEXTOS E ATUALIZAR O MENU</Button>
+          </div>
+        )}
+      </PanelCard>
+
       <PanelCard title="Setores e Atendentes" icon={Users}>
         <div className="space-y-4">
           <p className="text-xs dash-text-muted">
@@ -260,7 +281,7 @@ export function BotConfigTab() {
               NOVO SETOR
             </Button>
             <Button variant="secondary" onClick={generateMenu} iconLeft={<Wand2 className="w-4 h-4" />}>
-              GERAR MENU DO BOT A PARTIR DOS SETORES
+              ATUALIZAR MENU DO BOT
             </Button>
           </div>
         </div>

@@ -2,7 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import { format } from "date-fns";
 import { brtParts, daysFromToday } from "./time.js";
-import { getSessionInfo, sendMessage } from "./baileysManager.js";
+import { getSessionInfo, sendMessage } from "./wa.js";
 
 const prisma = new PrismaClient();
 

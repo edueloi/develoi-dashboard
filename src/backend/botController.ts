@@ -1,11 +1,95 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation } from "./baileysManager.js";
+import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation } from "./wa.js";
 
 const prisma = new PrismaClient();
 
+// ─── Textos padrão do menu (editáveis na tela do bot) ────────────────────────
+// {{saudacao}} vira Bom dia / Boa tarde / Boa noite; {{nome}} é o primeiro nome do WhatsApp do cliente.
+const DEFAULT_WELCOME =
+  "{{saudacao}}, {{nome}}! 👋 Seja bem-vindo(a) à *Develoi Soluções Digitais*.\n\nSou o assistente virtual e estou à disposição para atendê-lo(a). Como posso ajudar? Selecione uma das opções abaixo:";
+
+const DEFAULT_SOLUTIONS =
+  "*Conheça as soluções da Develoi* 💼\n\nSomos especialistas em tecnologia para negócios. Entre as nossas soluções:\n\n" +
+  "• *Sistemas de gestão sob medida* — vendas, estoque, financeiro e agenda\n" +
+  "• *Sites e lojas virtuais* — presença digital profissional\n" +
+  "• *Automação e atendimento por WhatsApp* — bots, avisos e cobranças automáticas\n" +
+  "• *Painéis e relatórios* — informações claras para decidir melhor\n\n" +
+  "Para conhecer valores e receber uma proposta, selecione a opção *Comercial* no menu inicial.\n\nDigite *0* para voltar ao menu inicial.";
+
+const DEFAULT_CLIENT_HELP =
+  "*Já sou cliente* 🧾\n\nPara a sua comodidade, basta escrever a qualquer momento:\n\n" +
+  "• *fatura* — receber o link de pagamento em aberto\n• *extrato* — consultar os seus últimos pagamentos\n\n" +
+  "Se precisar falar com um atendente, selecione o setor desejado no menu inicial.\n\nDigite *0* para voltar ao menu inicial.";
+
+const DEFAULT_SECTORS = ["Comercial", "Suporte", "Financeiro"];
+
 export const botController = {
+  // ── MENU PADRÃO ─────────────────────────────────────────────────────────
+  // Monta o fluxo: saudação por horário → 1 Soluções · 2.. setores · última "Já sou cliente".
+  async generateDefaultFlow(req: Request, res: Response) {
+    try {
+      let config = await prisma.wppBotConfig.findFirst();
+      if (!config) config = await prisma.wppBotConfig.create({ data: { botEnabled: true } });
+
+      let sectors = await prisma.wppBotSector.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
+      if (sectors.length === 0) {
+        // primeira configuração: cria setores básicos (os atendentes são cadastrados na tela do bot)
+        for (const [i, name] of DEFAULT_SECTORS.entries()) {
+          await prisma.wppBotSector.create({ data: { id: randomUUID(), name, menuKey: String(i + 2), attendants: "[]", sortOrder: i } });
+        }
+        sectors = await prisma.wppBotSector.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } });
+      }
+
+      // "Conhecer nossas soluções": usa os produtos cadastrados, se houver
+      let solutions = config.solutionsMsg?.trim() || "";
+      if (!solutions) {
+        const products = await prisma.product.findMany({ where: { active: true }, orderBy: { createdAt: "asc" }, take: 8 });
+        solutions = products.length
+          ? "*Conheça as nossas soluções* 💼\n\n" +
+            products.map(p => `• *${p.name}*${p.description ? ` — ${p.description.replace(/\s+/g, " ").slice(0, 140)}` : ""}`).join("\n") +
+            "\n\nPara conhecer valores e receber uma proposta, selecione a opção *Comercial* no menu inicial.\n\nDigite *0* para voltar ao menu inicial."
+          : DEFAULT_SOLUTIONS;
+      }
+      const clientHelp = config.clientHelpMsg?.trim() || DEFAULT_CLIENT_HELP;
+      const welcome = config.menuWelcomeMsg?.trim() || DEFAULT_WELCOME;
+
+      const menuId = randomUUID(), solutionsId = randomUUID(), clientId = randomUUID();
+      const sectorNodes = sectors.map(sec => ({ id: randomUUID(), sec }));
+      const options = [
+        { key: "1", label: "Conhecer nossas soluções", nextNodeId: solutionsId },
+        ...sectorNodes.map((n, i) => ({ key: String(i + 2), label: n.sec.name, nextNodeId: n.id })),
+        { key: String(sectorNodes.length + 2), label: "Já sou cliente", nextNodeId: clientId },
+      ];
+      const nodes = [
+        { id: menuId, type: "menu", title: "Menu inicial", content: welcome, options: JSON.stringify(options), isStart: true },
+        { id: solutionsId, type: "message", title: "Conhecer nossas soluções", content: solutions, options: "[]" },
+        ...sectorNodes.map(n => ({ id: n.id, type: "sector", title: n.sec.name, content: "", options: "[]", sectorId: n.sec.id })),
+        { id: clientId, type: "message", title: "Já sou cliente", content: clientHelp, options: "[]" },
+      ];
+
+      await prisma.$transaction(async (tx) => {
+        await tx.wppBotFlowNode.deleteMany({});
+        await tx.wppBotFlowNode.createMany({
+          data: nodes.map((n: any, index) => ({
+            id: n.id, type: n.type, title: n.title, content: n.content, options: n.options,
+            sectorId: n.sectorId ?? null, nextNodeId: null, isStart: !!n.isStart, isActive: true, sortOrder: index, posX: 0, posY: 0,
+          })),
+        });
+      });
+      res.json({ success: true, nodes: nodes.length, sectors: sectors.length });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Erro ao gerar o menu do bot." });
+    }
+  },
+
+  // Textos padrão, para preencher os campos quando ainda estão vazios
+  getMenuDefaults(_req: Request, res: Response) {
+    res.json({ welcome: DEFAULT_WELCOME, solutions: DEFAULT_SOLUTIONS, clientHelp: DEFAULT_CLIENT_HELP });
+  },
+
   // ── SETORES ─────────────────────────────────────────────────────────────
   
   async getSectors(req: Request, res: Response) {

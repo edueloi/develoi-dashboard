@@ -14,6 +14,7 @@ import makeWASocket, {
 import path from "path";
 import fs from "fs";
 import { PrismaClient } from "@prisma/client";
+import { brtParts } from "./time.js";
 
 const prisma = new PrismaClient();
 
@@ -383,6 +384,30 @@ function extractIncomingText(message: any): string {
   );
 }
 
+// ─── Saudação e textos do menu ───────────────────────────────────────────────
+const GREETING = /^(oi+|olá|ola|oie|ei|opa|hello|hi|bom dia|boa tarde|boa noite|início|inicio|menu)[\s!.,?]*$/i;
+const SESSION_IDLE_MS = 30 * 60 * 1000; // depois disso, quem volta a escrever recebe o menu de novo com a saudação do momento
+
+// Bom dia / Boa tarde / Boa noite conforme o horário de Brasília
+export function saudacao(date: Date = new Date()): string {
+  const h = brtParts(date).hour;
+  return h >= 5 && h < 12 ? "Bom dia" : h < 18 && h >= 12 ? "Boa tarde" : "Boa noite";
+}
+
+function firstNameOf(pushName?: string | null): string | null {
+  const n = String(pushName || "").trim().split(/\s+/)[0];
+  if (!n || !/^[\p{L}][\p{L}'-]{1,}$/u.test(n)) return null; // ignora apelidos com emoji/números
+  return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+}
+
+// {{saudacao}} e {{nome}} nos textos configurados
+function fillPlaceholders(text: string, state: { pushName?: string | null }): string {
+  const nome = firstNameOf(state.pushName);
+  return text
+    .replace(/\{\{\s*saudacao\s*\}\}/gi, saudacao())
+    .replace(nome ? /\{\{\s*nome\s*\}\}/gi : /,?\s*\{\{\s*nome\s*\}\}/gi, nome ?? "");
+}
+
 async function handleMessage(msg: any, sock: any) {
   if (!msg.message || msg.key.fromMe || isJidGroup(msg.key.remoteJid!) || isJidBroadcast(msg.key.remoteJid!)) return;
   
@@ -437,6 +462,12 @@ async function handleMessage(msg: any, sock: any) {
   // Cliente cadastrado pedindo extrato/fatura: o bot responde sozinho
   if (clientKeywordHandler && (await clientKeywordHandler(senderPhone, textMsg))) return;
 
+  // Voltou depois de um tempo, ou cumprimentou: recomeça do menu com a saudação do momento
+  if (state && (Date.now() - state.lastActivity > SESSION_IDLE_MS || GREETING.test(textMsg.trim()))) {
+    clientStates.delete(key);
+    state = undefined;
+  }
+
   if (!state) {
     // Nova conversa, checa se bot está ativado
     const config = await prisma.wppBotConfig.findFirst();
@@ -475,7 +506,7 @@ async function handleMessage(msg: any, sock: any) {
         if (selected) {
           nextNodeId = selected.nextNodeId;
         } else {
-          await sock.sendMessage(rawJid, { text: "⚠️ Opção inválida. Digite novamente." });
+          await sock.sendMessage(rawJid, { text: "Desculpe, não compreendi a opção informada. 🙏\nPor favor, selecione uma das opções do menu ou digite *0* para voltar ao início." });
           return;
         }
       } catch (e) {}
@@ -487,12 +518,15 @@ async function handleMessage(msg: any, sock: any) {
         state.currentNodeId = nextNode.id;
         await processNode(nextNode, state, textMsg, sock, clientPhone);
       }
+    } else {
+      // ramo informativo sem próximo passo: não deixa o cliente sem resposta
+      await sock.sendMessage(rawJid, { text: "Para continuar, digite *0* e retornaremos ao menu inicial. Será um prazer atendê-lo(a). 😊" });
     }
   }
 }
 
 async function processNode(node: any, state: any, textMsg: string, sock: any, clientPhone: string) {
-  let text = node.content || "";
+  let text = fillPlaceholders(node.content || "", state);
   let choices: ChoiceOption[] = [];
 
   if (node.options && node.options !== "[]") {
@@ -505,7 +539,7 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
   if (node.type === "sector") {
     const sector = await prisma.wppBotSector.findUnique({ where: { id: node.sectorId } });
     if (sector) {
-      text += `\n\nTransferindo para o setor *${sector.name}*... Aguarde um momento.\nEnquanto isso, pode escrever em uma mensagem o que você precisa. ✍️`;
+      text += `${text ? "\n\n" : ""}Certo! Estou encaminhando o seu atendimento ao setor *${sector.name}*. Em instantes um de nossos atendentes irá falar com você.\nEnquanto isso, se desejar, descreva em uma mensagem como podemos ajudá-lo(a). ✍️`;
       
       // Cria a conversa no banco
       const conv = await prisma.wppConversation.create({
@@ -513,7 +547,7 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
           sectorId: sector.id,
           clientPhone,
           clientName: state.pushName ?? null,
-          firstMessage: textMsg,
+          firstMessage: `Escolheu o setor ${sector.name}`,
           status: "waiting"
         }
       });

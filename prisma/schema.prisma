@@ -496,6 +496,8 @@ model WppBotConfig {
   menuEnabled           Boolean  @default(false)
   useButtons            Boolean  @default(true)   // menus com botões nativos do WhatsApp (senão, texto numerado)
   menuWelcomeMsg        String?  @db.Text
+  solutionsMsg          String?  @db.Text   // texto de "Conhecer nossas soluções"
+  clientHelpMsg         String?  @db.Text   // texto de "Já sou cliente"
   menuOptions           String?  @db.Text
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt

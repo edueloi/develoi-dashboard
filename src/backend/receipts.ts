@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import PDFDocument from "pdfkit";
 import { PrismaClient } from "@prisma/client";
-import { getSessionInfo, sendDocument, sendMessage } from "./baileysManager.js";
+import { getSessionInfo, sendDocument, sendMessage } from "./wa.js";
 import { TZ } from "./time.js";
 
 const prisma = new PrismaClient();

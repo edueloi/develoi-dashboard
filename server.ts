@@ -11,7 +11,7 @@ import dotenv from "dotenv";
 import { blogController } from "./src/backend/blogController.js";
 import { casesController } from "./src/backend/casesController.js";
 import { botController } from "./src/backend/botController.js";
-import { resumeSession } from "./src/backend/baileysManager.js";
+import { resumeSession } from "./src/backend/wa.js";
 import { runBillingNotices, startBillingScheduler } from "./src/backend/billingNotifier.js";
 import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
@@ -643,6 +643,8 @@ async function startServer() {
     app.post("/api/admin/bot/sectors", botController.saveSector);
     app.delete("/api/admin/bot/sectors/:id", botController.deleteSector);
     
+    app.post("/api/admin/bot/flow/default", botController.generateDefaultFlow);
+    app.get("/api/admin/bot/menu-defaults", botController.getMenuDefaults);
     app.get("/api/admin/bot/flow", botController.getFlowNodes);
     app.post("/api/admin/bot/flow", botController.saveFlowNodes);
     
