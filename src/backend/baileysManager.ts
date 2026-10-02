@@ -8,6 +8,8 @@ import makeWASocket, {
   Browsers,
   isJidGroup,
   isJidBroadcast,
+  proto,
+  generateWAMessageFromContent,
 } from "@whiskeysockets/baileys";
 import path from "path";
 import fs from "fs";
@@ -88,6 +90,20 @@ export function getSessionInfo(): SessionInfo {
   return { status: session.status, phone: session.phone, qrDataUrl: session.qrDataUrl };
 }
 
+// Ajusta o estado em memória do cliente (usado pelo painel ao aceitar/finalizar um atendimento)
+export function setClientConversation(phone: string, conversationId: string, status: "waiting" | "in_chat") {
+  const key = normalizeForKey(phoneToJid(phone));
+  const state = clientStates.get(key) ?? { currentNodeId: null, remoteJid: phoneToJid(phone), lastActivity: Date.now() };
+  state.conversationId = conversationId;
+  state.status = status;
+  clientStates.set(key, state);
+}
+
+// Libera o cliente: na próxima mensagem ele volta ao início do menu do bot
+export function releaseClient(phone: string) {
+  clientStates.delete(normalizeForKey(phoneToJid(phone)));
+}
+
 export async function sendMessage(phone: string, text: string): Promise<boolean> {
   if (!session || session.status !== "connected") return false;
   try {
@@ -99,20 +115,306 @@ export async function sendMessage(phone: string, text: string): Promise<boolean>
   }
 }
 
+
+// ─── Atendentes pelo WhatsApp ────────────────────────────────────────────────
+// Cada setor tem atendentes {name, phone}. Quando um cliente cai no setor, o bot avisa o atendente
+// no WhatsApp dele; ele aceita (1) ou recusa (2) e passa a conversar COM O BOT, que repassa as
+// mensagens ao cliente identificando o atendente em negrito. "&sair" encerra e o cliente volta ao bot.
+
+interface Attendant { name: string; phone: string }
+
+const OFFER_ACCEPT = /^(1|aceitar|sim)$/i;
+const OFFER_REFUSE = /^(2|recusar|nao|não)$/i;
+const ATT_EXIT = /^&(sair|encerrar)$/i;
+const OFFER_DELAY_MS = 20_000; // dá tempo do cliente descrever o que precisa antes de avisar o atendente
+
+const digits = (v: string) => String(v || "").replace(/\D/g, "");
+// Compara pelos 8 últimos dígitos (ignora DDI, DDD e o 9º dígito)
+const samePhone = (a: string, b: string) => {
+  const x = digits(a), y = digits(b);
+  return x.length >= 8 && y.length >= 8 && x.slice(-8) === y.slice(-8);
+};
+
+// conversationIds oferecidos a cada atendente (chave = telefone só com dígitos)
+const offers = new Map<string, string[]>();
+
+export function parseAttendants(json: string | null | undefined): Attendant[] {
+  try {
+    const arr = JSON.parse(json || "[]");
+    return (Array.isArray(arr) ? arr : [])
+      .map((a: any) => ({ name: String(a?.name || "").trim(), phone: digits(a?.phone) }))
+      .filter(a => a.name && a.phone.length >= 8);
+  } catch { return []; }
+}
+
+async function findAttendantByPhone(phone: string): Promise<Attendant | null> {
+  const sectors = await prisma.wppBotSector.findMany({ where: { isActive: true } });
+  for (const sec of sectors) {
+    const hit = parseAttendants(sec.attendants).find(a => samePhone(a.phone, phone));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+const clientLabel = (c: { clientName?: string | null; clientPhone: string }) => c.clientName || c.clientPhone;
+
+// Avisa os atendentes do setor (ou só `onlyPhone`) que há um novo atendimento aguardando
+export async function offerConversation(convId: string, onlyPhone?: string) {
+  const conv = await prisma.wppConversation.findUnique({
+    where: { id: convId },
+    include: { sector: true, messages: { where: { fromRole: "client" }, orderBy: { sentAt: "asc" }, take: 6 } },
+  });
+  if (!conv || conv.status !== "waiting" || !conv.sector) return;
+
+  const summary = conv.messages.length
+    ? conv.messages.map(m => `• ${m.body.length > 160 ? m.body.slice(0, 157) + "…" : m.body}`).join("\n")
+    : conv.firstMessage ? `• ${conv.firstMessage}` : "• (cliente ainda não descreveu o assunto)";
+
+  for (const att of parseAttendants(conv.sector.attendants)) {
+    if (onlyPhone && !samePhone(att.phone, onlyPhone)) continue;
+    // atendente já em conversa não recebe oferta (as mensagens dele iriam para o cliente)
+    const busy = await prisma.wppConversation.findFirst({ where: { status: "active", attendantPhone: att.phone } });
+    if (busy) continue;
+    const list = offers.get(att.phone) ?? [];
+    if (!list.includes(convId)) offers.set(att.phone, [...list, convId]);
+    await sendChoice(att.phone,
+      `🔔 *Novo atendimento* — setor *${conv.sector.name}*\n` +
+      `👤 Cliente: *${clientLabel(conv)}* (${conv.clientPhone})\n\n` +
+      `💬 *Resumo:*\n${summary}`,
+      [{ id: "1", text: "✅ Aceitar" }, { id: "2", text: "❌ Recusar" }],
+      { footer: "Aceite ou recuse este atendimento.", hint: "Responda 1 para ACEITAR ou 2 para RECUSAR." });
+  }
+}
+
+// Assume a conversa (atômico: só um atendente consegue). `phone` = atendente conversando pelo WhatsApp.
+export async function acceptWaitingConversation(convId: string, who: { id?: string | null; name: string; phone?: string | null }) {
+  const phone = who.phone ? digits(who.phone) : null;
+  const claimed = await prisma.wppConversation.updateMany({
+    where: { id: convId, status: "waiting" },
+    data: { status: "active", attendantId: who.id ?? null, attendantName: who.name, attendantPhone: phone, acceptedAt: new Date() },
+  });
+  if (claimed.count === 0) return null;
+
+  const conv = await prisma.wppConversation.findUniqueOrThrow({ where: { id: convId }, include: { sector: true } });
+  await prisma.wppConversationMessage.create({
+    data: { conversationId: convId, fromRole: "system", body: `${who.name} assumiu o atendimento.` },
+  });
+  setClientConversation(conv.clientPhone, convId, "in_chat");
+  await sendMessage(conv.clientPhone, `*${who.name}* iniciou o seu atendimento. 👋\nComo posso ajudar?`);
+
+  // avisa os outros atendentes que ofertas desta conversa não valem mais
+  for (const [attPhone, list] of offers) {
+    if (!list.includes(convId)) continue;
+    offers.set(attPhone, list.filter(id => id !== convId));
+    if (!phone || !samePhone(attPhone, phone)) {
+      await sendMessage(attPhone, `ℹ️ O atendimento de *${clientLabel(conv)}* já foi assumido por *${who.name}*.`);
+    }
+  }
+  return conv;
+}
+
+// Encerra a conversa e devolve o cliente ao bot
+export async function closeActiveConversation(convId: string, byName: string, closingMessage?: string) {
+  const conv = await prisma.wppConversation.findUnique({ where: { id: convId } });
+  if (!conv || conv.status === "closed") return null;
+  await prisma.wppConversation.update({ where: { id: convId }, data: { status: "closed", closedBy: "attendant", closedAt: new Date() } });
+  await prisma.wppConversationMessage.create({
+    data: { conversationId: convId, fromRole: "system", body: `${byName} finalizou o atendimento.` },
+  });
+  releaseClient(conv.clientPhone);
+  const msg = closingMessage ?? `Atendimento encerrado por *${byName}*. Obrigado pelo contato! 😊\nSe precisar de algo, é só enviar uma mensagem.`;
+  if (msg.trim()) await sendMessage(conv.clientPhone, msg.trim());
+  return conv;
+}
+
+// Mensagem de um atendente cadastrado. Retorna true se foi tratada como mensagem de atendente.
+async function handleAttendantMessage(att: Attendant, text: string): Promise<boolean> {
+  const active = await prisma.wppConversation.findFirst({
+    where: { status: "active", attendantPhone: att.phone },
+    orderBy: { acceptedAt: "desc" },
+  });
+
+  if (active) {
+    if (ATT_EXIT.test(text.trim())) {
+      await closeActiveConversation(active.id, att.name);
+      await sendMessage(att.phone, `✅ Atendimento com *${clientLabel(active)}* encerrado. O cliente voltou ao bot.`);
+      // oferece o que está na fila
+      const waiting = await prisma.wppConversation.findMany({ where: { status: "waiting" }, orderBy: { queuedAt: "asc" }, take: 5 });
+      for (const w of waiting) await offerConversation(w.id, att.phone);
+      return true;
+    }
+    // repassa ao cliente com o nome do atendente em negrito
+    if (!(await sendMessage(active.clientPhone, `*${att.name}:* ${text}`))) {
+      await sendMessage(att.phone, "⚠️ Não consegui entregar a mensagem ao cliente.");
+      return true;
+    }
+    await prisma.wppConversationMessage.create({ data: { conversationId: active.id, fromRole: "attendant", body: text } });
+    await prisma.wppConversation.update({ where: { id: active.id }, data: { updatedAt: new Date() } });
+    return true;
+  }
+
+  // sem atendimento ativo: só reage a ofertas pendentes; fora disso trata como cliente comum
+  const pendingIds = offers.get(att.phone) ?? [];
+  if (!pendingIds.length) return false;
+  const stillWaiting = await prisma.wppConversation.findMany({
+    where: { id: { in: pendingIds }, status: "waiting" }, orderBy: { queuedAt: "asc" },
+  });
+  offers.set(att.phone, stillWaiting.map(c => c.id));
+  const next = stillWaiting[0];
+  if (!next) return false;
+
+  if (OFFER_ACCEPT.test(text.trim())) {
+    const conv = await acceptWaitingConversation(next.id, { name: att.name, phone: att.phone });
+    if (!conv) {
+      await sendMessage(att.phone, "ℹ️ Este atendimento já foi assumido por outra pessoa.");
+    } else {
+      const history = await prisma.wppConversationMessage.findMany({ where: { conversationId: conv.id, fromRole: "client" }, orderBy: { sentAt: "asc" }, take: 6 });
+      await sendMessage(att.phone,
+        `✅ Você está em atendimento com *${clientLabel(conv)}*.\n` +
+        (history.length ? `\n💬 *Mensagens do cliente:*\n${history.map(m => `• ${m.body}`).join("\n")}\n` : "") +
+        `\nTudo que você escrever aqui será enviado ao cliente como *${att.name}*. Envie *&sair* para encerrar.`);
+    }
+    return true;
+  }
+  if (OFFER_REFUSE.test(text.trim())) {
+    offers.set(att.phone, stillWaiting.slice(1).map(c => c.id));
+    await sendMessage(att.phone, "👍 Recusado. A conversa continua na fila para os outros atendentes.");
+    return true;
+  }
+  await sendChoice(att.phone, `Você tem ${stillWaiting.length} atendimento(s) aguardando.`,
+    [{ id: "1", text: "✅ Aceitar" }, { id: "2", text: "❌ Recusar" }], { hint: "Responda 1 para ACEITAR ou 2 para RECUSAR." });
+  return true;
+}
+
+// ─── Botões nativos do WhatsApp ──────────────────────────────────────────────
+// Baileys não gera os nós binários que o WhatsApp exige para renderizar mensagens interativas
+// (sem eles o cliente vê "Não foi possível carregar a mensagem"). O nó biz > interactive > native_flow
+// e o nó bot (exigido em chats 1:1) resolvem. Mesmo método usado no psi-painel.
+
+export interface ChoiceOption { id: string; text: string; description?: string }
+
+const cut = (v: string, n: number) => (v.length > n ? v.slice(0, n - 1) + "…" : v);
+
+function numberedMenu(body: string, options: ChoiceOption[], hint?: string) {
+  return `${body}\n\n${options.map(o => `*${o.id}* - ${o.text}`).join("\n")}${hint ? `\n\n_${hint}_` : ""}`;
+}
+
+async function buttonsEnabled(): Promise<boolean> {
+  try { return (await prisma.wppBotConfig.findFirst())?.useButtons !== false; } catch { return true; }
+}
+
+// Envia uma pergunta com opções clicáveis. Até 3 opções = botões de resposta rápida;
+// mais que isso = lista (single_select). Em caso de falha, cai para o menu numerado em texto.
+export async function sendChoice(jidOrPhone: string, body: string, options: ChoiceOption[], opts: { footer?: string; hint?: string } = {}): Promise<boolean> {
+  if (!session || session.status !== "connected") return false;
+  const jid = jidOrPhone.includes("@") ? jidOrPhone : phoneToJid(jidOrPhone);
+  const hint = opts.hint ?? "Toque em uma opção ou digite o número.";
+
+  if (await buttonsEnabled() && options.length) {
+    try {
+      const buttons = options.length <= 3
+        ? options.map(o => ({ name: "quick_reply", buttonParamsJson: JSON.stringify({ display_text: cut(o.text, 20), id: o.id }) }))
+        : [{
+            name: "single_select",
+            buttonParamsJson: JSON.stringify({
+              title: "Ver opções",
+              sections: [{ title: "Opções", rows: options.map(o => ({ id: o.id, title: cut(o.text, 24), description: o.description ? cut(o.description, 72) : "" })) }],
+            }),
+          }];
+
+      const interactiveMessage = proto.Message.InteractiveMessage.create({
+        body: proto.Message.InteractiveMessage.Body.create({ text: body }),
+        footer: proto.Message.InteractiveMessage.Footer.create({ text: opts.footer ?? "Selecione uma opção para continuar." }),
+        nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({ buttons }),
+      });
+      const message = generateWAMessageFromContent(jid, proto.Message.fromObject({ interactiveMessage }), { userJid: session.sock.user?.id });
+      const additionalNodes = [
+        { tag: "biz", attrs: {}, content: [{ tag: "interactive", attrs: { type: "native_flow", v: "1" }, content: [{ tag: "native_flow", attrs: { v: "9", name: "mixed" } }] }] },
+        { tag: "bot", attrs: { biz_bot: "1" } },
+      ];
+      await session.sock.relayMessage(jid, message.message, { messageId: message.key.id, additionalNodes });
+      return true;
+    } catch (e) {
+      console.error("Falha ao enviar botões, usando texto:", e);
+    }
+  }
+
+  try {
+    await session.sock.sendMessage(jid, { text: numberedMenu(body, options, hint) });
+    return true;
+  } catch (e) {
+    console.error("Erro ao enviar menu:", e);
+    return false;
+  }
+}
+
+// Texto de uma mensagem recebida, inclusive o clique em botão/lista (devolve o id da opção)
+function extractIncomingText(message: any): string {
+  const m = message?.ephemeralMessage?.message ?? message?.viewOnceMessage?.message ?? message ?? {};
+  const params = m.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
+  let interactiveId = "";
+  if (params) { try { interactiveId = String(JSON.parse(params)?.id ?? "").trim(); } catch {} }
+  return (
+    m.conversation ||
+    m.extendedTextMessage?.text ||
+    interactiveId ||
+    m.buttonsResponseMessage?.selectedButtonId ||
+    m.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    m.templateButtonReplyMessage?.selectedId ||
+    ""
+  );
+}
+
 async function handleMessage(msg: any, sock: any) {
   if (!msg.message || msg.key.fromMe || isJidGroup(msg.key.remoteJid!) || isJidBroadcast(msg.key.remoteJid!)) return;
   
-  const textMsg = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+  const textMsg = extractIncomingText(msg.message);
   if (!textMsg) return;
 
   const rawJid = msg.key.remoteJid!;
   const key = normalizeForKey(rawJid);
   const clientPhone = jidToPhone(key);
 
+  // Mensagem de um atendente cadastrado (aceitar/recusar/conversar pelo bot)?
+  // No Baileys v7 o remetente pode vir como @lid; remoteJidAlt traz o número real.
+  const altJid: string | undefined = msg.key.remoteJidAlt;
+  const senderPhone = altJid && altJid.endsWith("@s.whatsapp.net") ? jidToPhone(altJid) : clientPhone;
+  const attendant = await findAttendantByPhone(senderPhone);
+  if (attendant && (await handleAttendantMessage(attendant, textMsg))) return;
+
   // Aqui é a máquina de estados baseada nos nós do banco
   // Para ser simples e prático, vamos consultar o banco e navegar.
   
   let state = clientStates.get(key);
+
+  // Cliente com conversa aberta (fila ou atendimento): só registra a mensagem para o atendente.
+  // Também cobre reinício do servidor, quando o estado em memória foi perdido.
+  if (!state || state.status === "waiting" || state.status === "in_chat") {
+    const open = await prisma.wppConversation.findFirst({
+      where: { clientPhone, status: { in: ["waiting", "active"] } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (open) {
+      state = state ?? { currentNodeId: null, remoteJid: rawJid, lastActivity: Date.now() };
+      state.conversationId = open.id;
+      state.status = open.status === "active" ? "in_chat" : "waiting";
+      state.lastActivity = Date.now();
+      clientStates.set(key, state);
+      await prisma.wppConversationMessage.create({
+        data: { conversationId: open.id, fromRole: "client", fromPhone: clientPhone, body: textMsg }
+      });
+      await prisma.wppConversation.update({
+        where: { id: open.id },
+        data: { updatedAt: new Date(), ...(open.clientName ? {} : { clientName: msg.pushName || null }) }
+      });
+      // atendente conversando pelo WhatsApp: repassa a mensagem do cliente
+      if (open.status === "active" && open.attendantPhone) {
+        await sendMessage(open.attendantPhone, `*${open.clientName || open.clientPhone}:* ${textMsg}`);
+      }
+      return; // O atendente também vê no painel
+    }
+    if (state) { clientStates.delete(key); state = undefined; } // conversa já encerrada
+  }
 
   if (!state) {
     // Nova conversa, checa se bot está ativado
@@ -123,7 +425,7 @@ async function handleMessage(msg: any, sock: any) {
     const startNode = await prisma.wppBotFlowNode.findFirst({ where: { isStart: true, isActive: true } });
     if (!startNode) return;
 
-    state = { currentNodeId: startNode.id, remoteJid: rawJid, lastActivity: Date.now() };
+    state = { currentNodeId: startNode.id, remoteJid: rawJid, lastActivity: Date.now(), pushName: msg.pushName || null };
     clientStates.set(key, state);
 
     await processNode(startNode, state, textMsg, sock, clientPhone);
@@ -137,17 +439,6 @@ async function handleMessage(msg: any, sock: any) {
         await processNode(startNode, state, textMsg, sock, clientPhone);
       }
       return;
-    }
-
-    if (state.status === "waiting" || state.status === "in_chat") {
-      // Cliente na fila ou falando com atendente - apenas reencaminha a msg
-      if (state.conversationId) {
-        await prisma.wppConversationMessage.create({
-          data: { conversationId: state.conversationId, fromRole: "client", fromPhone: clientPhone, body: textMsg }
-        });
-        await prisma.wppConversation.update({ where: { id: state.conversationId }, data: { updatedAt: new Date() } });
-      }
-      return; // O atendente vê no painel
     }
 
     // Processa a opção selecionada ou o input
@@ -181,37 +472,42 @@ async function handleMessage(msg: any, sock: any) {
 
 async function processNode(node: any, state: any, textMsg: string, sock: any, clientPhone: string) {
   let text = node.content || "";
+  let choices: ChoiceOption[] = [];
 
   if (node.options && node.options !== "[]") {
     try {
       const options = JSON.parse(node.options);
-      text += "\n\n" + options.map((o: any) => `*${o.key}* - ${o.label}`).join("\n");
-      text += "\n\n_Digite a opção desejada:_";
+      choices = options.map((o: any) => ({ id: String(o.key), text: String(o.label) }));
     } catch (e) {}
   }
 
   if (node.type === "sector") {
     const sector = await prisma.wppBotSector.findUnique({ where: { id: node.sectorId } });
     if (sector) {
-      text += `\n\nTransferindo para o setor *${sector.name}*... Aguarde um momento.`;
+      text += `\n\nTransferindo para o setor *${sector.name}*... Aguarde um momento.\nEnquanto isso, pode escrever em uma mensagem o que você precisa. ✍️`;
       
       // Cria a conversa no banco
       const conv = await prisma.wppConversation.create({
         data: {
           sectorId: sector.id,
           clientPhone,
+          clientName: state.pushName ?? null,
           firstMessage: textMsg,
           status: "waiting"
         }
       });
       state.status = "waiting";
       state.conversationId = conv.id;
+      setTimeout(() => { offerConversation(conv.id).catch(e => console.error("Erro ao avisar atendentes:", e)); }, OFFER_DELAY_MS);
     } else {
       text += "\n\nSetor indisponível no momento.";
     }
   }
 
-  if (text) {
+  if (choices.length) {
+    // menu com botões clicáveis (ou texto numerado, se desativado/indisponível)
+    await sendChoice(state.remoteJid, text || "Escolha uma opção:", choices, { hint: "Digite a opção desejada." });
+  } else if (text) {
     await sock.sendMessage(state.remoteJid, { text });
   }
 }

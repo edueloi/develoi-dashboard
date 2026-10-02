@@ -11,6 +11,9 @@ import dotenv from "dotenv";
 import { blogController } from "./src/backend/blogController.js";
 import { casesController } from "./src/backend/casesController.js";
 import { botController } from "./src/backend/botController.js";
+import { runBillingNotices, startBillingScheduler } from "./src/backend/billingNotifier.js";
+import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
+import { registerReceivableRoutes } from "./src/backend/receivables.js";
 
 dotenv.config();
 
@@ -640,7 +643,10 @@ async function startServer() {
     app.post("/api/admin/bot/flow", botController.saveFlowNodes);
     
     app.get("/api/admin/bot/conversations", botController.getConversations);
+    app.get("/api/admin/bot/conversations/:id/messages", botController.getConversationMessages);
     app.post("/api/admin/bot/conversations/message", botController.sendMessage);
+    app.post("/api/admin/bot/conversations/:id/accept", botController.acceptConversation);
+    app.post("/api/admin/bot/conversations/:id/transfer", botController.transferConversation);
     app.post("/api/admin/bot/conversations/:id/close", botController.closeConversation);
 
     app.get("/api/admin/bot/instance", botController.getInstance);
@@ -796,45 +802,115 @@ async function startServer() {
     // Calcula a próxima data de vencimento a partir de um dia-do-mês fixo,
     // avançando ciclo(s) inteiros a partir de `from` até cair no futuro.
     function computeNextDueDate(dueDay: number, billingCycle: string, from: Date): Date {
+      // trabalha em UTC: as datas de vencimento são guardadas como meia-noite UTC
       const clampDay = (year: number, month: number) => {
-        const lastDay = new Date(year, month + 1, 0).getDate();
+        const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
         return Math.min(dueDay, lastDay);
       };
-      let year = from.getFullYear();
-      let month = from.getMonth();
-      let candidate = new Date(year, month, clampDay(year, month));
+      let year = from.getUTCFullYear();
+      let month = from.getUTCMonth();
+      let candidate = new Date(Date.UTC(year, month, clampDay(year, month)));
       const stepMonths = billingCycle === 'yearly' ? 12 : 1; // custom/one_time tratados como mensal p/ rollover
       while (candidate <= from) {
         month += stepMonths;
         year += Math.floor(month / 12);
         month = month % 12;
-        candidate = new Date(year, month, clampDay(year, month));
+        candidate = new Date(Date.UTC(year, month, clampDay(year, month)));
       }
       return candidate;
     }
 
-    // Avança nextDueDate de clientes ativos cujo vencimento já passou, com base em dueDay.
-    async function rolloverOverdueClients() {
-      const now = new Date();
-      const candidates = await prisma.client.findMany({
-        where: {
-          status: 'active',
-          dueDay: { not: null },
-          nextDueDate: { lt: now },
+    // O vencimento NÃO avança sozinho: só quando um recebimento é registrado (botão manual hoje,
+    // webhook do Asaas depois). Sem isso não dá para saber quem está em atraso.
+    async function registerClientPayment(clientId: string, input: { amount?: number; paidAt?: string; method?: string; notes?: string } = {}) {
+      const c = await prisma.client.findUnique({ where: { id: clientId } });
+      if (!c) return null;
+
+      const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
+      let next: Date | null = null;
+      if (c.billingCycle !== 'one_time' && c.nextDueDate) {
+        const day = c.dueDay ?? c.nextDueDate.getUTCDate();
+        next = computeNextDueDate(day, c.billingCycle, c.nextDueDate);
+      }
+      // cliente que foi bloqueado por falta de pagamento volta a ficar ativo
+      const wasBlocked = c.nextDueDate
+        ? await prisma.clientBillingNotice.findFirst({ where: { clientId, kind: 'blocked', dueDate: c.nextDueDate } })
+        : null;
+
+      await prisma.clientPayment.create({
+        data: {
+          clientId,
+          amount: input.amount !== undefined && !Number.isNaN(Number(input.amount)) ? Number(input.amount) : c.billingValue,
+          dueDate: c.nextDueDate,
+          paidAt,
+          method: input.method || null,
+          notes: input.notes || null,
         },
       });
-      for (const c of candidates) {
-        const newDate = computeNextDueDate(c.dueDay as number, c.billingCycle, c.nextDueDate as Date);
-        await prisma.client.update({ where: { id: c.id }, data: { nextDueDate: newDate } });
-      }
+      return prisma.client.update({
+        where: { id: clientId },
+        data: { nextDueDate: next, lastPaidAt: paidAt, ...(wasBlocked ? { status: 'active' } : {}) },
+      });
     }
+
+    app.post("/api/clients/:id/mark-paid", async (req, res) => {
+      try {
+        const client = await registerClientPayment(req.params.id, req.body ?? {});
+        if (!client) return res.status(404).json({ error: "Cliente não encontrado." });
+        res.json(client);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // Desfaz um recebimento: o vencimento volta para o do ciclo que tinha sido pago
+    app.delete("/api/client-payments/:id", async (req, res) => {
+      try {
+        const payment = await prisma.clientPayment.findUnique({ where: { id: req.params.id } });
+        if (!payment) return res.json({ success: true });
+        await prisma.clientPayment.delete({ where: { id: payment.id } });
+        const previous = await prisma.clientPayment.findFirst({ where: { clientId: payment.clientId }, orderBy: { paidAt: 'desc' } });
+        await prisma.client.update({
+          where: { id: payment.clientId },
+          data: { lastPaidAt: previous?.paidAt ?? null, ...(payment.dueDate ? { nextDueDate: payment.dueDate } : {}) },
+        });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // Recebimentos de um período (YYYY-MM), com o nome do cliente
+    app.get("/api/client-payments", async (req, res) => {
+      try {
+        const month = String(req.query.month || '');
+        const where: any = {};
+        if (/^\d{4}-\d{2}$/.test(month)) {
+          const [y, m] = month.split('-').map(Number);
+          where.paidAt = { gte: new Date(Date.UTC(y, m - 1, 1)), lt: new Date(Date.UTC(y, m, 1)) };
+        }
+        res.json(await prisma.clientPayment.findMany({
+          where, orderBy: { paidAt: 'desc' },
+          include: { client: { select: { id: true, name: true, phone: true } } },
+        }));
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    registerTeamNoticeRoutes(app);
+    registerReceivableRoutes(app);
+
+    // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp
+    app.post("/api/admin/billing/run", async (req, res) => {
+      try {
+        res.json(await runBillingNotices({ dryRun: req.query.dryRun === "1" }));
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
 
     app.get("/api/clients", async (req, res) => {
       try {
-        await rolloverOverdueClients();
         const clients = await prisma.client.findMany({
           orderBy: { createdAt: 'desc' },
-          include: { projects: { include: { project: { select: { id: true, name: true } } } } },
+          include: {
+            projects: { include: { project: { select: { id: true, name: true } } } },
+            sale: { select: { productName: true, productCategory: true } },
+            payments: { orderBy: { paidAt: 'desc' }, take: 12 },
+          },
         });
         res.json(clients);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -843,7 +919,9 @@ async function startServer() {
     app.post("/api/clients", async (req, res) => {
       try {
         const { projects, ...data } = req.body;
-        const dueDay = data.dueDay ? Number(data.dueDay) : null;
+        const explicitDay = data.dueDay ? Number(data.dueDay) : null;
+        // a data de vencimento escolhida define o dia fixo de cobrança
+        const dueDay = explicitDay ?? (data.nextDueDate && (data.billingCycle ?? 'monthly') !== 'one_time' ? new Date(data.nextDueDate).getUTCDate() : null);
         const nextDueDate = data.nextDueDate
           ? new Date(data.nextDueDate)
           : dueDay
@@ -865,7 +943,11 @@ async function startServer() {
     app.patch("/api/clients/:id", async (req, res) => {
       try {
         const { projects, ...data } = req.body;
-        const dueDay = 'dueDay' in data ? (data.dueDay ? Number(data.dueDay) : null) : undefined;
+        let dueDay: number | null | undefined = 'dueDay' in data ? (data.dueDay ? Number(data.dueDay) : null) : undefined;
+        // a data de vencimento escolhida define o dia fixo de cobrança
+        if (data.nextDueDate && (data.billingCycle ?? 'monthly') !== 'one_time' && !dueDay) {
+          dueDay = new Date(data.nextDueDate).getUTCDate();
+        }
 
         let nextDueDate: Date | null | undefined = data.nextDueDate ? new Date(data.nextDueDate) : undefined;
         // Se o dia de vencimento mudou e nenhuma data explícita foi enviada, recalcula.
@@ -921,28 +1003,129 @@ async function startServer() {
     // ─── Contas a Pagar (Payables) ────────────────────────────────────────────────
     app.get("/api/payables", async (req, res) => {
       try {
+        await extendOpenEndedSeries();
         const payables = await prisma.payable.findMany({
           orderBy: { dueDate: 'asc' },
-          include: { project: { select: { id: true, name: true } } },
+          include: {
+            project: { select: { id: true, name: true } },
+            payments: { orderBy: { date: 'asc' } },
+          },
         });
         res.json(payables);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // Soma `n` meses mantendo o dia (31/01 + 1 mês = 28/02, não 03/03)
+    function addMonthsClamped(date: Date, n: number): Date {
+      const d = new Date(date.getTime());
+      const day = d.getUTCDate();
+      d.setUTCDate(1);
+      d.setUTCMonth(d.getUTCMonth() + n);
+      const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+      d.setUTCDate(Math.min(day, last));
+      return d;
+    }
+
+    // Séries "sem prazo" (ex.: aluguel): recurrence = 'monthly' e recurrenceCount = null.
+    // Mantém sempre os próximos 12 meses criados, copiando a última conta da série.
+    let extendingSeries = false;
+    async function extendOpenEndedSeries() {
+      if (extendingSeries) return;
+      extendingSeries = true;
+      try {
+        const parents = await prisma.payable.findMany({
+          where: { recurrence: 'monthly', recurrenceCount: null, parentId: null, dueDate: { not: null } },
+          include: { children: { orderBy: { dueDate: 'desc' }, take: 1 } },
+        });
+        const horizon = addMonthsClamped(new Date(), 12);
+        for (const parent of parents) {
+          const last = parent.children[0];
+          if (!last?.dueDate || !parent.dueDate) continue;
+          const anchor = parent.dueDate;
+          const monthsFromAnchor = (last.dueDate.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + (last.dueDate.getUTCMonth() - anchor.getUTCMonth());
+          const rows: any[] = [];
+          for (let i = 1; i <= 240; i++) {
+            const due = addMonthsClamped(anchor, monthsFromAnchor + i);
+            if (due > horizon) break;
+            rows.push({
+              description: last.description, type: last.type, projectId: last.projectId, amount: last.amount,
+              dueDate: due, notes: last.notes, createdById: last.createdById, createdByName: last.createdByName,
+              recurrence: 'none', parentId: parent.id,
+              interestRate: last.interestRate, interestPeriod: last.interestPeriod, finePercent: last.finePercent,
+            });
+          }
+          if (rows.length) await prisma.payable.createMany({ data: rows });
+        }
+      } catch (e) {
+        console.error('[contas a pagar] erro ao estender séries:', e);
+      } finally { extendingSeries = false; }
+    }
+    extendOpenEndedSeries();
+
+    // Campos que uma edição pode propagar para as próximas contas da série
+    const SERIES_FIELDS = ['description', 'type', 'projectId', 'amount', 'notes', 'interestRate', 'interestPeriod', 'finePercent'];
+
+    // Cria uma conta única, uma série mensal ou um parcelamento.
+    //  plan.mode: 'once' (padrão) | 'monthly' (repete N meses, mesmo valor) | 'installments' (divide o total em N parcelas)
+    // (aceita também o formato antigo: recurrence = 'monthly' + recurrenceCount)
     app.post("/api/payables", async (req, res) => {
       try {
+        const { amountsByMonth, plan, ...body } = req.body;
+        const mode: 'once' | 'monthly' | 'installments' =
+          plan?.mode ?? (body.recurrence === 'monthly' ? 'monthly' : 'once');
+        const base = {
+          ...body,
+          dueDate: body.dueDate ? new Date(body.dueDate) : null,
+          paidDate: body.paidDate ? new Date(body.paidDate) : null,
+        };
+
+        if (mode !== 'once' && base.dueDate instanceof Date) {
+          const requested = Number(plan?.count ?? body.recurrenceCount) || 0;
+          const openEnded = mode === 'monthly' && requested <= 0; // sem prazo: cria 12 agora e o resto é gerado conforme o tempo passa
+          const count = openEnded ? 12 : Math.min(120, Math.max(mode === 'installments' ? 2 : 1, requested || 2));
+          const total = Number(body.amount) || 0;
+
+          // parcelas em centavos; a última absorve a diferença do arredondamento
+          const cents = Math.round(total * 100);
+          const parcelCents = Math.floor(cents / count);
+          const amountFor = (i: number) => {
+            if (mode === 'installments') return (i === count - 1 ? cents - parcelCents * (count - 1) : parcelCents) / 100;
+            return Array.isArray(amountsByMonth) && amountsByMonth[i] != null ? Number(amountsByMonth[i]) || 0 : total;
+          };
+
+          const parent = await prisma.payable.create({
+            data: { ...base, recurrence: mode, recurrenceCount: openEnded ? null : count, installments: mode === 'installments' ? count : null },
+          });
+          await prisma.payable.createMany({
+            data: Array.from({ length: count }, (_, i) => ({
+              description: body.description,
+              type: body.type,
+              projectId: body.projectId || null,
+              amount: amountFor(i),
+              dueDate: addMonthsClamped(base.dueDate, i),
+              notes: body.notes,
+              createdById: body.createdById,
+              createdByName: body.createdByName,
+              recurrence: 'none',
+              installments: mode === 'installments' ? count : null,
+              parentId: parent.id,
+              interestRate: body.interestRate ?? null,
+              interestPeriod: body.interestPeriod ?? null,
+              finePercent: body.finePercent ?? null,
+            })),
+          });
+          return res.json({ ...parent, generated: count });
+        }
+
         const payable = await prisma.payable.create({
-          data: {
-            ...req.body,
-            dueDate: req.body.dueDate ? new Date(req.body.dueDate) : null,
-            paidDate: req.body.paidDate ? new Date(req.body.paidDate) : null,
-          },
+          data: { ...base, recurrence: 'none' },
           include: { project: { select: { id: true, name: true } } },
         });
         res.json(payable);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // ?scope=following aplica a edição também às próximas contas pendentes da mesma série
     app.patch("/api/payables/:id", async (req, res) => {
       try {
         const { dueDate, paidDate, ...rest } = req.body;
@@ -955,13 +1138,104 @@ async function startServer() {
           },
           include: { project: { select: { id: true, name: true } } },
         });
-        res.json(payable);
+        if (rest.amount !== undefined) await recomputePayableStatus(payable.id);
+
+        if (req.query.scope === 'following' && payable.parentId && payable.dueDate) {
+          const data: any = {};
+          for (const k of SERIES_FIELDS) if (k in rest) data[k] = rest[k];
+          const later = await prisma.payable.findMany({
+            where: { parentId: payable.parentId, dueDate: { gt: payable.dueDate }, status: 'pending' },
+            select: { id: true },
+          });
+          if (later.length && Object.keys(data).length) {
+            await prisma.payable.updateMany({ where: { id: { in: later.map(l => l.id) } }, data });
+            if (data.amount !== undefined) for (const l of later) await recomputePayableStatus(l.id);
+          }
+        }
+
+        const refreshed = await prisma.payable.findUnique({
+          where: { id: payable.id },
+          include: { project: { select: { id: true, name: true } }, payments: { orderBy: { date: 'asc' } } },
+        });
+        res.json(refreshed);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // ?scope=following → esta e as próximas pendentes · ?scope=series → a série inteira
     app.delete("/api/payables/:id", async (req, res) => {
       try {
-        await prisma.payable.delete({ where: { id: req.params.id } });
+        const scope = req.query.scope;
+        const target = await prisma.payable.findUnique({ where: { id: req.params.id } });
+        if (!target) return res.json({ success: true });
+
+        if (scope === 'series' && target.parentId) {
+          await prisma.payable.delete({ where: { id: target.parentId } }); // cascata apaga as filhas
+        } else if (scope === 'following' && target.parentId && target.dueDate) {
+          await prisma.payable.deleteMany({
+            where: { parentId: target.parentId, dueDate: { gte: target.dueDate }, status: 'pending' },
+          });
+          // a série passa a ter fim: não gerar mais meses
+          const left = await prisma.payable.count({ where: { parentId: target.parentId } });
+          await prisma.payable.update({ where: { id: target.parentId }, data: { recurrenceCount: left } });
+        } else {
+          await prisma.payable.delete({ where: { id: req.params.id } });
+        }
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // ─── Pagamentos de uma conta a pagar ──────────────────────────────────────
+    async function recomputePayableStatus(payableId: string) {
+      const payable = await prisma.payable.findUnique({ where: { id: payableId }, include: { payments: true } });
+      if (!payable) return;
+      const paid = payable.payments.reduce((a, p) => a + p.amount, 0);
+      const status = paid >= payable.amount && payable.amount > 0 ? 'paid' : paid > 0 ? 'partial' : 'pending';
+      const lastPaymentDate = payable.payments.length > 0
+        ? payable.payments.map(p => p.date).sort((a, b) => b.getTime() - a.getTime())[0]
+        : null;
+      await prisma.payable.update({
+        where: { id: payableId },
+        data: { status, paidDate: status === 'paid' ? (lastPaymentDate ?? new Date()) : null },
+      });
+    }
+
+    app.post("/api/payables/:id/payments", async (req, res) => {
+      try {
+        const payment = await prisma.payablePayment.create({
+          data: {
+            payableId: req.params.id,
+            amount: Number(req.body.amount) || 0,
+            date: req.body.date ? new Date(req.body.date) : new Date(),
+            method: req.body.method || null,
+            notes: req.body.notes || null,
+          },
+        });
+        await recomputePayableStatus(req.params.id);
+        res.json(payment);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.patch("/api/payments/:id", async (req, res) => {
+      try {
+        const payment = await prisma.payablePayment.update({
+          where: { id: req.params.id },
+          data: {
+            amount: req.body.amount !== undefined ? Number(req.body.amount) || 0 : undefined,
+            date: req.body.date !== undefined ? (req.body.date ? new Date(req.body.date) : null as any) : undefined,
+            method: req.body.method !== undefined ? req.body.method : undefined,
+            notes: req.body.notes !== undefined ? req.body.notes : undefined,
+          },
+        });
+        await recomputePayableStatus(payment.payableId);
+        res.json(payment);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.delete("/api/payments/:id", async (req, res) => {
+      try {
+        const payment = await prisma.payablePayment.findUnique({ where: { id: req.params.id } });
+        await prisma.payablePayment.delete({ where: { id: req.params.id } });
+        if (payment) await recomputePayableStatus(payment.payableId);
         res.json({ success: true });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
@@ -1070,7 +1344,11 @@ async function startServer() {
       app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
     }
 
-    app.listen(PORT, "0.0.0.0", () => console.log(`Server running on http://localhost:${PORT}`));
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      startBillingScheduler();
+      startTeamNoticeScheduler();
+    });
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

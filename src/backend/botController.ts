@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage } from "./baileysManager.js";
+import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation } from "./baileysManager.js";
 
 const prisma = new PrismaClient();
 
@@ -113,59 +113,114 @@ export const botController = {
 
   // ── CONVERSAS ───────────────────────────────────────────────────────────
 
+  // Lista leve (sem histórico): usada pelo painel para fila / em atendimento / finalizadas
   async getConversations(req: Request, res: Response) {
     try {
-      const { status } = req.query; 
-
-      const filter: any = {};
-      if (status) filter.status = status;
-
-      const conversations = await prisma.wppConversation.findMany({
-        where: filter,
+      const { status, sectorId, search } = req.query;
+      const where: any = {};
+      if (status) where.status = { in: String(status).split(",") };
+      if (sectorId) where.sectorId = String(sectorId);
+      if (search) {
+        where.OR = [
+          { clientPhone: { contains: String(search) } },
+          { clientName: { contains: String(search) } },
+        ];
+      }
+      const rows = await prisma.wppConversation.findMany({
+        where,
         orderBy: { updatedAt: "desc" },
+        take: 200,
         include: {
-          sector: true,
-          messages: {
-            orderBy: { sentAt: "asc" },
-            take: 100 // Últimas 100 mensagens
-          }
-        }
+          sector: { select: { id: true, name: true } },
+          messages: { orderBy: { sentAt: "desc" }, take: 1 },
+        },
       });
-      res.json(conversations);
+      res.json(rows.map(({ messages, ...c }) => ({ ...c, lastMessage: messages[0] ?? null })));
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Erro ao buscar conversas." });
     }
   },
 
+  async getConversationMessages(req: Request, res: Response) {
+    try {
+      const messages = await prisma.wppConversationMessage.findMany({
+        where: { conversationId: req.params.id },
+        orderBy: { sentAt: "asc" },
+      });
+      res.json(messages);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Erro ao buscar mensagens." });
+    }
+  },
+
+  // Atendente assume uma conversa da fila pelo painel. Atômico: só um atendente consegue aceitar.
+  async acceptConversation(req: Request, res: Response) {
+    try {
+      const { attendantId, attendantName } = req.body;
+      if (!attendantName) return res.status(400).json({ error: "Atendente não informado." });
+      const conv = await acceptWaitingConversation(req.params.id, { id: attendantId, name: attendantName });
+      if (!conv) {
+        return res.status(409).json({ error: "Esta conversa já foi aceita por outro atendente ou foi encerrada." });
+      }
+      res.json(conv);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Erro ao aceitar conversa." });
+    }
+  },
+
+  // Devolve a conversa para a fila de outro setor
+  async transferConversation(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { sectorId, reason, byName } = req.body;
+      const sector = await prisma.wppBotSector.findUnique({ where: { id: sectorId } });
+      if (!sector) return res.status(404).json({ error: "Setor não encontrado." });
+
+      const moved = await prisma.wppConversation.updateMany({
+        where: { id, status: { in: ["waiting", "active"] } },
+        data: { sectorId, status: "waiting", attendantId: null, attendantName: null, attendantPhone: null, acceptedAt: null, queuedAt: new Date() },
+      });
+      if (moved.count === 0) return res.status(409).json({ error: "Conversa já encerrada." });
+
+      const conv = await prisma.wppConversation.findUniqueOrThrow({ where: { id }, include: { sector: true } });
+      await prisma.wppConversationMessage.create({
+        data: {
+          conversationId: id,
+          fromRole: "system",
+          body: `${byName || "Atendente"} transferiu para o setor ${sector.name}${reason ? ` — ${reason}` : ""}.`,
+        },
+      });
+      setClientConversation(conv.clientPhone, id, "waiting");
+      await sendWppMessage(conv.clientPhone, `Estamos transferindo você para o setor *${sector.name}*. Aguarde um momento, por favor.`);
+      offerConversation(id).catch(e => console.error("Erro ao avisar atendentes:", e));
+      res.json(conv);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Erro ao transferir conversa." });
+    }
+  },
+
   async sendMessage(req: Request, res: Response) {
     try {
       const { conversationId, body } = req.body;
+      if (!body?.trim()) return res.status(400).json({ error: "Mensagem vazia." });
 
-      const conv = await prisma.wppConversation.findUnique({
-        where: { id: conversationId }
-      });
-
-      if (!conv) {
-        return res.status(404).json({ error: "Conversa não encontrada." });
+      const conv = await prisma.wppConversation.findUnique({ where: { id: conversationId } });
+      if (!conv) return res.status(404).json({ error: "Conversa não encontrada." });
+      if (conv.status !== "active") {
+        return res.status(409).json({ error: "Aceite a conversa antes de responder." });
       }
 
+      const sent = await sendWppMessage(conv.clientPhone, conv.attendantName ? `*${conv.attendantName}:* ${body}` : body);
+      if (!sent) return res.status(503).json({ error: "WhatsApp desconectado. Mensagem não enviada." });
+
       const msg = await prisma.wppConversationMessage.create({
-        data: {
-          conversationId,
-          fromRole: "attendant",
-          body
-        }
+        data: { conversationId, fromRole: "attendant", body }
       });
-
-      await prisma.wppConversation.update({
-        where: { id: conversationId },
-        data: { updatedAt: new Date() }
-      });
-
-      // Dispara a mensagem via baileysManager
-      await sendWppMessage(conv.clientPhone, body);
-
+      await prisma.wppConversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } });
       res.json(msg);
     } catch (error) {
       console.error(error);
@@ -175,24 +230,13 @@ export const botController = {
 
   async closeConversation(req: Request, res: Response) {
     try {
-      const { id } = req.params;
-
-      const conv = await prisma.wppConversation.findUnique({ where: { id } });
-
-      if (!conv) {
-        return res.status(404).json({ error: "Conversa não encontrada." });
+      const { closingMessage, byName } = req.body ?? {};
+      const conv = await closeActiveConversation(req.params.id, byName || "Atendente", closingMessage);
+      if (!conv) return res.status(404).json({ error: "Conversa não encontrada ou já encerrada." });
+      // atendente que conversava pelo WhatsApp é avisado de que foi encerrado pelo painel
+      if (conv.attendantPhone) {
+        await sendWppMessage(conv.attendantPhone, `ℹ️ O atendimento com *${conv.clientName || conv.clientPhone}* foi encerrado pelo painel.`);
       }
-
-      await prisma.wppConversation.update({
-        where: { id },
-        data: {
-          status: "closed",
-          closedBy: "attendant",
-          closedAt: new Date(),
-          updatedAt: new Date()
-        }
-      });
-
       res.json({ success: true });
     } catch (error) {
       console.error(error);

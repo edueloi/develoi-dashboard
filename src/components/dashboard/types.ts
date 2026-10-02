@@ -152,6 +152,8 @@ export type ActiveTab =
   | 'blog'
   | 'cases'
   | 'bot'
+  | 'wa-inbox'
+  | 'team-notices'
   | 'posts'
   | 'sales'
   | 'products'
@@ -213,6 +215,36 @@ export interface ClientProjectLink {
   project?: { id: string; name: string };
 }
 
+export interface Receivable {
+  id: string;
+  description: string;
+  amount: number;
+  dueDate: string;
+  status: 'pending' | 'received';
+  receivedAt?: string | null;
+  receivedAmount?: number | null;
+  method?: string | null;
+  notes?: string | null;
+  clientId?: string | null;
+  client?: { id: string; name: string; phone?: string | null } | null;
+  payerName?: string | null;
+  groupId?: string | null;
+  installmentNo?: number | null;
+  installmentsTotal?: number | null;
+  createdAt: string;
+}
+
+export interface ClientPayment {
+  id: string;
+  clientId: string;
+  amount: number;
+  dueDate?: string | null;
+  paidAt: string;
+  method?: string | null;
+  notes?: string | null;
+  client?: { id: string; name: string; phone?: string | null };
+}
+
 export interface Client {
   id: string;
   userId?: string;
@@ -224,10 +256,13 @@ export interface Client {
   startDate?: string;
   status: ClientStatus;
   saleId?: string;
+  sale?: { productName: string; productCategory: string } | null;
   billingValue: number;
   billingCycle: BillingCycle;
   dueDay?: number;
   nextDueDate?: string;
+  lastPaidAt?: string;
+  payments?: ClientPayment[];
   reminderDaysBefore: number;
   graceDaysAfter: number;
   soldById?: string;
@@ -242,8 +277,19 @@ export interface Client {
 
 // ─── Contas a Pagar ───────────────────────────────────────────────────────────
 
-export type PayableType = 'fixed' | 'product' | 'reimbursement';
-export type PayableStatus = 'pending' | 'paid';
+export type PayableType = 'fixed' | 'variable' | 'normal' | 'product' | 'reimbursement';
+export type PayableStatus = 'pending' | 'partial' | 'paid';
+export type InterestPeriod = 'day' | 'month' | 'year';
+
+export interface PayablePayment {
+  id: string;
+  payableId: string;
+  amount: number;
+  date: string;
+  method?: string;
+  notes?: string;
+  createdAt: string;
+}
 
 export interface Payable {
   id: string;
@@ -260,6 +306,14 @@ export interface Payable {
   createdById?: string;
   createdByName?: string;
   createdAt: string;
+  installments?: number | null;
+  recurrence?: 'none' | 'monthly' | 'installments';
+  recurrenceCount?: number | null;
+  interestRate?: number | null;
+  interestPeriod?: InterestPeriod | null;
+  finePercent?: number | null;
+  parentId?: string | null;
+  payments?: PayablePayment[];
 }
 
 // ─── Mensagens Prontas / Contato ──────────────────────────────────────────────

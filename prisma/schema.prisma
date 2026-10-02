@@ -315,6 +315,8 @@ model Sale {
   closedAt        DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+
+  client     Client?
 }
 
 model ReadyMessage {
@@ -341,7 +343,7 @@ model Client {
   birthDate          DateTime?
   startDate          DateTime? // data de início de uso do sistema/serviço
   status             String    @default("active") // active | paused | cancelled
-  saleId             String?   // venda de origem (Sale.id), opcional
+  saleId             String?   @unique // venda de origem (Sale.id), opcional
   billingValue       Float     @default(0)
   billingCycle       String    @default("monthly") // monthly | yearly | custom | one_time
   dueDay             Int?      // dia do mês de vencimento (1-31)
@@ -355,25 +357,81 @@ model Client {
   notes              String?   @db.Text
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  lastPaidAt         DateTime? // última fatura paga (manual hoje, webhook do Asaas depois)
 
-  projects ClientProject[]
+  projects       ClientProject[]
+  billingNotices ClientBillingNotice[]
+  payments       ClientPayment[]
+  receivables    Receivable[]
+  sale           Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
+}
+
+// Histórico de recebimentos de cada cliente (manual hoje; o webhook do Asaas grava aqui depois)
+model ClientPayment {
+  id        String    @id @default(uuid())
+  clientId  String
+  amount    Float
+  dueDate   DateTime? // vencimento a que o recebimento se refere
+  paidAt    DateTime
+  method    String?   @db.VarChar(40) // Pix, Boleto, Cartão, Asaas…
+  notes     String?   @db.Text
+  createdAt DateTime  @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([paidAt])
+}
+
+// Avisos de cobrança já enviados por WhatsApp (evita mensagem repetida no mesmo ciclo)
+model ClientBillingNotice {
+  id       String   @id @default(uuid())
+  clientId String
+  kind     String   @db.VarChar(20) // reminder | due_today | overdue | blocked
+  dueDate  DateTime // vencimento a que o aviso se refere
+  sentAt   DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, kind, dueDate])
 }
 
 model Payable {
   id            String    @id @default(uuid())
   description   String
-  type          String    @default("fixed") // fixed (custo fixo da empresa) | product (custo de um sistema/produto) | reimbursement (reembolso)
+  type          String    @default("fixed") // fixed (custo fixo) | variable (valor muda) | normal (avulso) | product (sistema) | reimbursement
   projectId     String?   // qual sistema/produto, quando type = "product"
   project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   amount        Float     @default(0)
   dueDate       DateTime?
   paidDate      DateTime?
-  status        String    @default("pending") // pending | paid
+  status        String    @default("pending") // pending | partial | paid
   reimbursed    Boolean   @default(false)      // usado quando type = "reimbursement"
   notes         String?   @db.Text
   createdById   String?
   createdByName String?
   createdAt     DateTime  @default(now())
+  installments  Int?      // qtd. de parcelas (ex.: compra parcelada)
+  recurrence    String    @default("none") // none | monthly
+  recurrenceCount Int?    // qtd. de meses da série (null = indefinida → gera 12 iniciais)
+  interestRate  Float?    // % de juros se atrasar
+  interestPeriod String?  // day | month | year
+  finePercent   Float?    // % de multa se atrasar
+  parentId      String?
+  parent        Payable?  @relation("PayableSeries", fields: [parentId], references: [id], onDelete: Cascade)
+  children      Payable[] @relation("PayableSeries")
+  payments      PayablePayment[]
+}
+
+model PayablePayment {
+  id        String   @id @default(uuid())
+  payableId String
+  payable   Payable  @relation(fields: [payableId], references: [id], onDelete: Cascade)
+  amount    Float
+  date      DateTime
+  method    String?
+  notes     String?
+  createdAt DateTime @default(now())
 }
 
 model ClientProject {
@@ -431,6 +489,7 @@ model WppBotConfig {
   botEnabled            Boolean  @default(false)
   sendWelcome           Boolean  @default(true)
   menuEnabled           Boolean  @default(false)
+  useButtons            Boolean  @default(true)   // menus com botões nativos do WhatsApp (senão, texto numerado)
   menuWelcomeMsg        String?  @db.Text
   menuOptions           String?  @db.Text
   createdAt             DateTime @default(now())
@@ -475,6 +534,10 @@ model WppConversation {
   clientPhone    String    @db.VarChar(30)
   clientName     String?   @db.VarChar(255)
   attendantName  String?   @db.VarChar(100)
+  attendantId    String?   @db.VarChar(36)
+  attendantPhone String?   @db.VarChar(30)   // preenchido quando o atendente conversa pelo próprio WhatsApp
+  acceptedAt     DateTime?
+  queuedAt       DateTime  @default(now())   // quando entrou (ou voltou) para a fila
   status         String    @default("waiting") @db.VarChar(20) // waiting, active, closed
   firstMessage   String?   @db.VarChar(1000)
   closedBy       String?   @db.VarChar(20)  // attendant, client, system
@@ -489,10 +552,86 @@ model WppConversation {
 model WppConversationMessage {
   id             String   @id @default(uuid())
   conversationId String   
-  fromRole       String   @db.VarChar(20) // client, attendant, bot
+  fromRole       String   @db.VarChar(20) // client, attendant, bot, system
   fromPhone      String?  @db.VarChar(30)
   body           String   @db.Text
   sentAt         DateTime @default(now())
 
   conversation WppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ─── Avisos internos da equipe (bot manda por WhatsApp) ────────────────────────
+
+// Pessoa da equipe que recebe avisos no próprio WhatsApp
+model TeamRecipient {
+  id                String   @id @default(uuid())
+  name              String
+  phone             String   @db.VarChar(30)
+  userId            String?  @db.VarChar(36) // usuário do sistema, quando houver
+  notifyPayables    Boolean  @default(true)  // resumo de contas a pagar
+  notifyReceivables Boolean  @default(true)  // resumo de contas a receber
+  notifyMeetings    Boolean  @default(true)  // lembrete de reuniões
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+
+  meetings MeetingAttendee[]
+}
+
+model Meeting {
+  id             String    @id @default(uuid())
+  title          String
+  startsAt       DateTime
+  location       String?   @db.VarChar(255) // link ou local
+  notes          String?   @db.Text
+  createdById    String?
+  createdByName  String?
+  reminderSentAt DateTime? // quando o lembrete de 24h foi enviado
+  createdAt      DateTime  @default(now())
+
+  attendees MeetingAttendee[]
+
+  @@index([startsAt])
+}
+
+model MeetingAttendee {
+  id          String        @id @default(uuid())
+  meetingId   String
+  recipientId String
+  meeting     Meeting       @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  recipient   TeamRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, recipientId])
+}
+
+// Evita mandar o mesmo resumo duas vezes no mesmo dia
+model TeamNoticeLog {
+  id     String   @id @default(uuid())
+  key    String   @unique @db.VarChar(120) // ex.: payables:<recipientId>:2026-10-02
+  sentAt DateTime @default(now())
+}
+
+// Conta a receber avulsa: qualquer valor que a empresa tem a receber (serviço, venda parcelada, reembolso…).
+// As assinaturas dos clientes aparecem junto na tela, mas vivem em Client.
+model Receivable {
+  id                String    @id @default(uuid())
+  description       String
+  amount            Float
+  dueDate           DateTime
+  status            String    @default("pending") // pending | received
+  receivedAt        DateTime?
+  receivedAmount    Float?
+  method            String?   @db.VarChar(40)
+  notes             String?   @db.Text
+  clientId          String?   @db.VarChar(36) // vínculo opcional com um cliente
+  client            Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  payerName         String?   // quem vai pagar, quando não é um cliente cadastrado
+  groupId           String?   @db.VarChar(36) // parcelas do mesmo lançamento
+  installmentNo     Int?
+  installmentsTotal Int?
+  createdById       String?
+  createdByName     String?
+  createdAt         DateTime  @default(now())
+
+  @@index([dueDate])
+  @@index([groupId])
 }

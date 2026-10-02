@@ -10,7 +10,7 @@ import {
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
   ShoppingBag, BarChart2, PhoneCall, UserCircle, Zap, Camera, Loader2,
-  DollarSign, Wallet,
+  DollarSign, Wallet, MessageCircle, Bell,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -57,6 +57,8 @@ import { CasesManager } from '../components/dashboard/CasesManager';
 import { AgileManager } from '../components/dashboard/AgileManager';
 import { TimelineView } from '../components/dashboard/TimelineView';
 import { BotConfigTab } from '../components/dashboard/BotConfigTab';
+import { WhatsappInbox } from '../components/dashboard/WhatsappInbox';
+import { TeamNoticesTab } from '../components/dashboard/TeamNoticesTab';
 
 // Types
 import type { Project, Feature, Message, ActiveTab, ProjectImage as ProjectImageType } from '../components/dashboard/types';
@@ -97,6 +99,8 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   blog:            '/dashboard/blog',
   cases:           '/dashboard/cases',
   bot:             '/dashboard/bot',
+  'wa-inbox':      '/dashboard/atendimento',
+  'team-notices':  '/dashboard/avisos',
   posts:           '/dashboard/postagens',
   sales:           '/dashboard/vendas',
   products:        '/dashboard/produtos',
@@ -219,10 +223,12 @@ export default function Dashboard() {
     clients:         'Clientes',
     receivables:     'Contas a Receber',
     payables:        'Contas a Pagar',
+    'wa-inbox':      'Atendimento WhatsApp',
+    'team-notices':  'Avisos da equipe',
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'posts', 'sales', 'products', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'team-notices', 'posts', 'sales', 'products', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -308,6 +314,8 @@ export default function Dashboard() {
 
           <NavSection label="Sistema">
             <NavItem icon={Image} label="Criador de Postagens" active={activeTab === 'posts'} onClick={() => goTo('posts')} />
+            <NavItem icon={MessageCircle} label="Atendimento WhatsApp" active={activeTab === 'wa-inbox'} onClick={() => goTo('wa-inbox')} />
+            <NavItem icon={Bell} label="Avisos da equipe" active={activeTab === 'team-notices'} onClick={() => goTo('team-notices')} />
             <NavItem icon={MessageSquare} label="Bot de Atendimento" active={activeTab === 'bot'} onClick={() => goTo('bot')} />
           </NavSection>
 
@@ -730,6 +738,8 @@ export default function Dashboard() {
               {activeTab === 'blog' && <BlogManager />}
               {activeTab === 'cases' && <CasesManager />}
               {activeTab === 'bot' && <BotConfigTab />}
+              {activeTab === 'wa-inbox' && <WhatsappInbox />}
+              {activeTab === 'team-notices' && <TeamNoticesTab />}
               {activeTab === 'posts' && <PostCreatorTab />}
               {activeTab === 'sales' && <SalesManager />}
               {activeTab === 'products' && <ProductsManager />}

@@ -80,6 +80,8 @@ function AnimatedRoutes() {
           '/dashboard/blog',
           '/dashboard/cases',
           '/dashboard/bot',
+          '/dashboard/atendimento',
+          '/dashboard/avisos',
           '/dashboard/postagens',
           '/dashboard/vendas',
           '/dashboard/produtos',

@@ -41,7 +41,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const nearLimit = maxLength !== undefined && currentLen >= maxLength * 0.85;
 
     return (
-      <div className={cn("flex flex-col gap-1.5", wrapperClassName)}>
+      <div className={cn("flex flex-col gap-1.5 min-w-0", wrapperClassName)}>
         {label && (
           <div className="flex items-center justify-between">
             <label htmlFor={inputId} className="ds-label">
@@ -137,7 +137,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
     const nearLimit = maxLength !== undefined && currentLen >= maxLength * 0.85;
 
     return (
-      <div className={cn("flex flex-col gap-1.5", wrapperClassName)}>
+      <div className={cn("flex flex-col gap-1.5 min-w-0", wrapperClassName)}>
         {label && (
           <div className="flex items-center justify-between">
             <label htmlFor={inputId} className="ds-label">
@@ -204,7 +204,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     const inputId = id ?? `select-${Math.random().toString(36).slice(2, 7)}`;
 
     return (
-      <div className={cn("flex flex-col gap-1.5", wrapperClassName)}>
+      <div className={cn("flex flex-col gap-1.5 min-w-0", wrapperClassName)}>
         {label && (
           <label htmlFor={inputId} className="ds-label">
             {label}
