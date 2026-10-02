@@ -1,5 +1,6 @@
 // Regras de vencimento e recebimento das assinaturas dos clientes (usado pelo servidor e pelo Asaas)
 import { PrismaClient } from "@prisma/client";
+import { brtTodayUtc } from "./time.js";
 
 const prisma = new PrismaClient();
 
@@ -46,7 +47,7 @@ export async function registerClientPayment(clientId: string, input: PaymentInpu
     if (already) return { client: c, payment: already, duplicate: true as const };
   }
 
-  const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
+  const paidAt = input.paidAt ? new Date(input.paidAt) : brtTodayUtc(); // dia de hoje em Brasília
   const advance = input.advance !== false;
   let next: Date | null = c.nextDueDate;
   if (advance) {

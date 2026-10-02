@@ -2,6 +2,7 @@
 import type { Express } from "express";
 import { randomUUID } from "crypto";
 import { PrismaClient } from "@prisma/client";
+import { brtTodayUtc } from "./time.js";
 
 const prisma = new PrismaClient();
 
@@ -105,7 +106,7 @@ export function registerReceivableRoutes(app: Express) {
         where: { id: cur.id },
         data: {
           status: "received",
-          receivedAt: req.body.receivedAt ? new Date(req.body.receivedAt) : new Date(),
+          receivedAt: req.body.receivedAt ? new Date(req.body.receivedAt) : brtTodayUtc(),
           receivedAmount: req.body.amount !== undefined ? Number(req.body.amount) || 0 : cur.amount,
           method: req.body.method || null,
           notes: req.body.notes ? req.body.notes : cur.notes,

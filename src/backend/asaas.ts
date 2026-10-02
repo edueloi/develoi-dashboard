@@ -271,7 +271,7 @@ export async function handlePayment(event: string, payload: any): Promise<Paymen
   }
   if (!isPaidEvent) return { clientName: client.name, outcome: `cobrança atualizada (${p.status})` };
 
-  const paidAt = p.paymentDate || p.clientPaymentDate ? dayOf(p.paymentDate || p.clientPaymentDate) : new Date();
+  const paidAt = p.paymentDate || p.clientPaymentDate ? dayOf(p.paymentDate || p.clientPaymentDate) : brtTodayUtc();
   const label = methodLabel(p.billingType, p.status);
   const result = await registerClientPayment(client.id, {
     amount: Number(p.value) || charge.value,
@@ -350,9 +350,12 @@ export function registerAsaasRoutes(app: Express) {
     res.json({ configured: !!c.key, env: c.env, webhookTokenSet: !!c.webhookToken, webhookUrl: c.publicUrl ? `${c.publicUrl}/api/asaas/webhook` : null });
   });
 
-  // Webhook chamado pelo Asaas a cada evento de cobrança
-  const logWebhook = (data: { event: string; asaasPaymentId?: string | null; clientName?: string | null; outcome: string; ok: boolean }) =>
-    prisma.asaasWebhookLog.create({ data: { ...data, outcome: data.outcome.slice(0, 160) } }).catch(() => {});
+  // ── Webhook: recebe os avisos do Asaas ──
+  const logWebhook = (data: { event: string; asaasPaymentId?: string | null; clientName?: string | null; outcome: string; ok: boolean; payload?: unknown }) =>
+    prisma.asaasWebhookLog.create({
+      data: { event: data.event, asaasPaymentId: data.asaasPaymentId ?? null, clientName: data.clientName ?? null, ok: data.ok,
+        outcome: data.outcome.slice(0, 160), payload: data.payload ? JSON.stringify(data.payload).slice(0, 8000) : null },
+    }).catch(() => {});
 
   app.post("/api/asaas/webhook", async (req: Request, res: Response) => {
     const { webhookToken } = cfg();
@@ -365,34 +368,80 @@ export function registerAsaasRoutes(app: Express) {
     try {
       let result: PaymentOutcome = { outcome: "sem cobrança no aviso" };
       if (payment?.id && typeof event === "string") result = await handlePayment(event, payment);
-      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, clientName: result.clientName ?? null, outcome: result.outcome, ok: true });
+      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, clientName: result.clientName, outcome: result.outcome, ok: true, payload: payment });
       res.json({ received: true });
     } catch (e: any) {
       console.error("[asaas] erro no webhook:", e);
-      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, outcome: `ERRO: ${e.message}`, ok: false });
+      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, outcome: `ERRO: ${e.message}`, ok: false, payload: payment });
       res.status(500).json({ error: e.message }); // o Asaas tenta de novo
     }
   });
 
-  // Últimos avisos recebidos do Asaas (para conferir se a integração está viva)
-  app.get("/api/asaas/events", async (_req, res) => {
-    try { res.json(await prisma.asaasWebhookLog.findMany({ orderBy: { createdAt: "desc" }, take: 15 })); }
-    catch (e) { fail(res, e); }
+  // Avisos recebidos (mais recentes primeiro)
+  app.get("/api/asaas/events", async (req, res) => {
+    try {
+      const take = Math.min(100, Math.max(1, Number(req.query.limit) || 15));
+      res.json(await prisma.asaasWebhookLog.findMany({ orderBy: { createdAt: "desc" }, take }));
+    } catch (e) { fail(res, e); }
   });
 
-  // Registra o webhook no Asaas automaticamente (precisa de PUBLIC_BASE_URL e ASAAS_WEBHOOK_TOKEN)
+  // Processa de novo um aviso (ex.: o que falhou por o WhatsApp estar fora do ar)
+  app.post("/api/asaas/events/:id/reprocess", async (req, res) => {
+    try {
+      const ev = await prisma.asaasWebhookLog.findUnique({ where: { id: req.params.id } });
+      if (!ev?.payload) throw new AsaasError("Este aviso não tem os dados guardados para reprocessar.");
+      const payment = JSON.parse(ev.payload);
+      const result = await handlePayment(ev.event, payment);
+      await logWebhook({ event: ev.event, asaasPaymentId: ev.asaasPaymentId, clientName: result.clientName, outcome: `(reprocessado) ${result.outcome}`, ok: true, payload: payment });
+      res.json(result);
+    } catch (e) { fail(res, e); }
+  });
+
+  // ── Conexão e configuração no Asaas ──
+  app.post("/api/asaas/test", async (_req, res) => {
+    try {
+      const info = await asaas<any>("/myAccount/commercialInfo");
+      res.json({ ok: true, env: cfg().env, name: info?.tradingName || info?.companyName || info?.name || null });
+    } catch (e: any) { res.status(400).json({ ok: false, error: e.message }); }
+  });
+
+  // Webhooks cadastrados na conta do Asaas, marcando o deste sistema
+  app.get("/api/asaas/webhooks", async (_req, res) => {
+    try {
+      const url = `${cfg().publicUrl}/api/asaas/webhook`;
+      const list = await asaas<{ data: any[] }>("/webhooks?limit=50");
+      res.json((list.data ?? []).map(w => ({
+        id: w.id, name: w.name, url: w.url, enabled: !!w.enabled, interrupted: !!w.interrupted,
+        sendType: w.sendType, events: w.events ?? [], penalized: Number(w.penalizedRequestsCount) || 0, mine: w.url === url,
+      })));
+    } catch (e) { fail(res, e); }
+  });
+
+  // Cria o webhook deste sistema no Asaas (ou atualiza, se já existir). Precisa de PUBLIC_BASE_URL e ASAAS_WEBHOOK_TOKEN.
   app.post("/api/asaas/setup-webhook", async (_req, res) => {
     try {
       const c = cfg();
       if (!c.publicUrl || !c.webhookToken) throw new AsaasError("Defina PUBLIC_BASE_URL e ASAAS_WEBHOOK_TOKEN no .env do servidor.");
-      const email = process.env.ASAAS_WEBHOOK_EMAIL || "eduardo.santos@comexport.com.br";
-      const out = await asaas("/webhooks", "POST", {
-        name: "Develoi Dashboard", url: `${c.publicUrl}/api/asaas/webhook`, email, enabled: true, interrupted: false,
-        apiVersion: 3, authToken: c.webhookToken, sendType: "SEQUENTIALLY",
+      const url = `${c.publicUrl}/api/asaas/webhook`;
+      const body = {
+        name: "Develoi Dashboard", url, email: process.env.ASAAS_WEBHOOK_EMAIL || "eduardo.santos@comexport.com.br",
+        enabled: true, interrupted: false, apiVersion: 3, authToken: c.webhookToken, sendType: "SEQUENTIALLY",
         events: ["PAYMENT_CREATED", "PAYMENT_UPDATED", "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED", "PAYMENT_DELETED", "PAYMENT_CHARGEBACK_REQUESTED"],
-      });
-      res.json(out);
+      };
+      const existing = (await asaas<{ data: any[] }>("/webhooks?limit=50")).data?.find(w => w.url === url);
+      res.json(existing ? await asaas(`/webhooks/${existing.id}`, "PUT", body) : await asaas("/webhooks", "POST", body));
     } catch (e) { fail(res, e); }
+  });
+
+  // O Asaas pausa a fila depois de várias falhas seguidas; isto liga de novo
+  app.post("/api/asaas/webhooks/:id/resume", async (req, res) => {
+    try { res.json(await asaas(`/webhooks/${encodeURIComponent(req.params.id)}`, "PUT", { enabled: true, interrupted: false })); }
+    catch (e) { fail(res, e); }
+  });
+
+  // Confere todas as assinaturas no Asaas agora (a mesma conferência automática de 30 min)
+  app.post("/api/asaas/sync-all", async (_req, res) => {
+    try { res.json({ updated: await syncCharges() }); } catch (e) { fail(res, e); }
   });
 
   app.post("/api/clients/:id/asaas/subscribe", async (req, res) => {

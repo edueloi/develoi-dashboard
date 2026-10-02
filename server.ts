@@ -18,8 +18,10 @@ import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
 import { registerReceiptRoutes, sendReceiptPdf } from "./src/backend/receipts.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
+import { brtTodayUtc } from "./src/backend/time.js";
 
 dotenv.config();
+process.env.TZ = "America/Sao_Paulo"; // horário de Brasília, independente do fuso do servidor
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1156,7 +1158,7 @@ async function startServer() {
         : null;
       await prisma.payable.update({
         where: { id: payableId },
-        data: { status, paidDate: status === 'paid' ? (lastPaymentDate ?? new Date()) : null },
+        data: { status, paidDate: status === 'paid' ? (lastPaymentDate ?? brtTodayUtc()) : null },
       });
     }
 
@@ -1166,7 +1168,7 @@ async function startServer() {
           data: {
             payableId: req.params.id,
             amount: Number(req.body.amount) || 0,
-            date: req.body.date ? new Date(req.body.date) : new Date(),
+            date: req.body.date ? new Date(req.body.date) : brtTodayUtc(),
             method: req.body.method || null,
             notes: req.body.notes || null,
           },

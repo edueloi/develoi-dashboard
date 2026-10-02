@@ -82,6 +82,7 @@ function AnimatedRoutes() {
           '/dashboard/bot',
           '/dashboard/atendimento',
           '/dashboard/avisos',
+          '/dashboard/webhooks',
           '/dashboard/postagens',
           '/dashboard/vendas',
           '/dashboard/produtos',

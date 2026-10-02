@@ -2,6 +2,7 @@
 // atualizar/reiniciar o develoi-api não derruba o WhatsApp. A API fala com este processo por
 // HTTP local (127.0.0.1) usando o módulo src/backend/wa.ts.
 process.env.WA_ROLE = "worker";
+process.env.TZ = "America/Sao_Paulo"; // horário de Brasília, independente do fuso do servidor
 
 import "dotenv/config";
 import express from "express";

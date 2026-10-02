@@ -154,6 +154,7 @@ export type ActiveTab =
   | 'bot'
   | 'wa-inbox'
   | 'team-notices'
+  | 'webhooks'
   | 'posts'
   | 'sales'
   | 'products'

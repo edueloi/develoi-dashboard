@@ -673,6 +673,7 @@ model AsaasWebhookLog {
   asaasPaymentId String?  @db.VarChar(40)
   clientName     String?
   outcome        String   @db.VarChar(160) // o que o sistema fez com o aviso
+  payload        String?  @db.Text         // cobrança enviada pelo Asaas (para reprocessar)
   ok             Boolean  @default(true)
   createdAt      DateTime @default(now())
 
