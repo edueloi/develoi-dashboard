@@ -22,14 +22,18 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
   const [error, setError] = useState('');
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [skipped, setSkipped] = useState(0);
 
   useEffect(() => {
     fetch('/api/boxsys/tenants').then(async r => {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'Erro');
-      const list: Tenant[] = d;
+      const all: Tenant[] = d;
+      // só entram lojas ativas (inclui as em teste) que ainda não estão aqui
+      const list = all.filter(t => t.status === 'active' && !t.linkedClient);
+      setSkipped(all.length - list.length);
       setTenants(list);
-      setPicked(new Set(list.filter(t => !t.linkedClient).map(t => t.id)));
+      setPicked(new Set(list.map(t => t.id)));
     }).catch(e => setError(e.message));
   }, []);
 
@@ -57,7 +61,7 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
         : !tenants ? <p className="text-sm text-slate-400 text-center py-8">Buscando lojas no BoxSys…</p>
         : (
           <div className="space-y-3">
-            <p className="text-xs text-slate-400">Cada loja marcada vira um cliente aqui (ou é ligada ao cliente de mesmo e-mail). O estado de acesso passa a ser controlado pelos pagamentos deste sistema.</p>
+            <p className="text-xs text-slate-400">Mostrando só lojas <b>ativas ou em teste</b> que ainda não são clientes{skipped ? ` (${skipped} ocultada(s): bloqueadas ou já importadas)` : ''}. Cada loja marcada vira um cliente aqui (ou é ligada ao cliente de mesmo e-mail). O estado de acesso passa a ser controlado pelos pagamentos deste sistema.</p>
             <div className="divide-y divide-slate-100 dark:divide-white/5 rounded-xl border border-slate-200/70 dark:border-white/10">
               {tenants.map(t => {
                 const st = STATUS[t.status] ?? { label: t.status, cls: 'bg-slate-100 text-slate-600' };
@@ -75,7 +79,7 @@ export function BoxsysImportModal({ onClose, onDone }: { onClose: () => void; on
                   </label>
                 );
               })}
-              {tenants.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Nenhuma loja no BoxSys.</p>}
+              {tenants.length === 0 && <p className="text-sm text-slate-400 text-center py-6">Nenhuma loja nova para importar.</p>}
             </div>
           </div>
         )}

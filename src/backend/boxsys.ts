@@ -167,7 +167,7 @@ export function registerBoxsysRoutes(app: Express) {
         const t = tenants.find(x => String(x.id) === String(it.tenantId));
         if (!t) continue;
         const already = await prisma.client.findFirst({ where: { boxsysTenantId: String(t.id) } });
-        if (already) continue;
+        if (already || t.status !== "active") continue; // só ativas (inclui as em teste)
         const isActive = t.status === "active";
         const link = {
           boxsysTenantId: String(t.id), boxsysSubdomain: t.subdomain ?? null, boxsysUrl: t.accessUrl ?? null,
