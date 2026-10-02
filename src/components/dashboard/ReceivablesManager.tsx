@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   DollarSign, Plus, Edit2, Trash2, MessageCircle, Clock, AlertCircle, ShieldAlert, CheckCircle2,
-  Undo2, RefreshCw, Repeat, ChevronDown, Bot, Users, Layers, Receipt, Banknote,
+  Undo2, RefreshCw, Repeat, ChevronDown, Bot, Users, Layers, Receipt, Banknote, FileText, Send,
 } from 'lucide-react';
 import { Button, Modal, Input, Select, Textarea, EmptyState, DatePicker } from '../ui';
 import { useToast } from '../ui/Toast';
@@ -9,6 +9,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import type { Client, ClientPayment, Receivable } from './types';
 import { differenceInCalendarDays, format, isSameMonth, addMonths } from 'date-fns';
 import { CYCLE_LABEL, ClientFormModal } from './ClientForm';
+import { AsaasWebhookStatus } from './AsaasWebhookStatus';
 import { PAY_METHODS, money, parseDay, fmtDate, startOfToday, firstOfMonth, Stat, RowMenu, PeriodBar } from './financeShared';
 
 type View = 'month' | 'overdue' | 'all';
@@ -92,7 +93,7 @@ export function ReceivablesManager() {
   const kpiMonth = view === 'month' ? cursor : firstOfMonth(new Date());
   const kpiKey = format(kpiMonth, 'yyyy-MM');
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
       const [cr, rr, pr, ur] = await Promise.all([
         fetch('/api/clients'), fetch('/api/receivables'), fetch(`/api/client-payments?month=${kpiKey}`), fetch('/api/users'),
@@ -103,13 +104,21 @@ export function ReceivablesManager() {
       setReceived(Array.isArray(paymentsData) ? paymentsData : []);
       setUsers(Array.isArray(usersData) ? usersData.map((u: any) => ({ uid: u.uid, displayName: u.displayName })) : []);
     } catch {
-      toast('Não deu para carregar as contas a receber agora. Tente de novo.', 'error');
+      if (!silent) toast('Não deu para carregar as contas a receber agora. Tente de novo.', 'error');
     } finally {
       setLoading(false);
     }
   }, [toast, kpiKey]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Atualiza sozinho: pagamentos entram pelo webhook do Asaas e a tela acompanha sem recarregar
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === 'visible') fetchData(true); };
+    const id = setInterval(tick, 10000);
+    window.addEventListener('focus', tick);
+    return () => { clearInterval(id); window.removeEventListener('focus', tick); };
+  }, [fetchData]);
 
   // ── monta as linhas ──
   const entries = useMemo<Entry[]>(() => {
@@ -142,11 +151,11 @@ export function ReceivablesManager() {
   // recebidos no mês navegado: pagamentos de assinatura + contas avulsas recebidas
   const receivedRows = useMemo(() => {
     if (view !== 'month') return [];
-    type R = { id: string; name: string; amount: number; at: string; method?: string | null; ref?: string | null; undo: () => void };
+    type R = { id: string; name: string; amount: number; at: string; method?: string | null; ref?: string | null; undo: () => void; receiptBase: string };
     const rows: R[] = [];
-    if (source !== 'manual') received.forEach(p => rows.push({ id: `p-${p.id}`, name: p.client?.name ?? 'Cliente', amount: p.amount, at: p.paidAt, method: p.method, ref: p.dueDate, undo: () => undoSub(p.id) }));
+    if (source !== 'manual') received.forEach(p => rows.push({ id: `p-${p.id}`, name: p.client?.name ?? 'Cliente', amount: p.amount, at: p.paidAt, method: p.method, ref: p.dueDate, undo: () => undoSub(p.id), receiptBase: `/api/client-payments/${p.id}` }));
     if (source !== 'subscription') manual.filter(r => r.status === 'received' && r.receivedAt && isSameMonth(parseDay(r.receivedAt)!, kpiMonth))
-      .forEach(r => rows.push({ id: `m-${r.id}`, name: r.description, amount: r.receivedAmount ?? r.amount, at: r.receivedAt!, method: r.method, ref: r.dueDate, undo: () => undoManual(r.id) }));
+      .forEach(r => rows.push({ id: `m-${r.id}`, name: r.description, amount: r.receivedAmount ?? r.amount, at: r.receivedAt!, method: r.method, ref: r.dueDate, undo: () => undoManual(r.id), receiptBase: `/api/receivables/${r.id}` }));
     return rows.filter(r => !q || r.name.toLowerCase().includes(q)).sort((a, b) => b.at.localeCompare(a.at));
   }, [view, source, received, manual, kpiMonth, q]); // eslint-disable-line
 
@@ -168,6 +177,14 @@ export function ReceivablesManager() {
       toast(ok, 'success');
       fetchData();
     } catch { toast(fail, 'error'); }
+  }
+  async function sendReceipt(base: string) {
+    try {
+      const res = await fetch(`${base}/send-receipt`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro');
+      toast(data.sent ? 'Recibo enviado no WhatsApp' : 'Não consegui enviar o recibo agora', data.sent ? 'success' : 'error');
+    } catch (e: any) { toast(e.message || 'Não deu para enviar o recibo.', 'error'); }
   }
   function undoSub(id: string) { call(`/api/client-payments/${id}`, 'DELETE', 'Recebimento desfeito', 'Não deu para desfazer agora.'); }
   function undoManual(id: string) { call(`/api/receivables/${id}/undo`, 'POST', 'Recebimento desfeito', 'Não deu para desfazer agora.'); }
@@ -295,6 +312,8 @@ export function ReceivablesManager() {
         <Stat label="Receita mensal (assinaturas)" value={money(mrr)} color="#2563EB" icon={RefreshCw} text={text} />
       </div>
 
+      <AsaasWebhookStatus />
+
       <p className="flex items-center gap-2 text-xs text-slate-400 -mt-1">
         <Bot className="w-3.5 h-3.5 flex-shrink-0" />
         Assinaturas de clientes entram aqui sozinhas. O bot avisa o cliente antes do vencimento, no dia, quando atrasa e quando bloqueia, e a equipe recebe o resumo do dia.
@@ -352,7 +371,11 @@ export function ReceivablesManager() {
                         <p className="text-sm font-black" style={{ color: '#15803D' }}>{money(p.amount)}</p>
                         <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#15803D' }}>Recebido</span>
                       </div>
-                      <RowMenu items={[{ label: 'Desfazer recebimento', icon: Undo2, danger: true, onClick: p.undo }]} />
+                      <RowMenu items={[
+                        { label: 'Baixar recibo (PDF)', icon: FileText, onClick: () => window.open(`${p.receiptBase}/receipt.pdf`, '_blank') },
+                        { label: 'Enviar recibo no WhatsApp', icon: Send, onClick: () => sendReceipt(p.receiptBase) },
+                        { label: 'Desfazer recebimento', icon: Undo2, danger: true, onClick: p.undo },
+                      ]} />
                     </div>
                   ))}
                 </div>
@@ -617,6 +640,7 @@ export function ReceiveModal({ client, today, onClose, onChanged, onUndo }: {
   const [date, setDate] = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
   const [method, setMethod] = useState('');
   const [notes, setNotes] = useState('');
+  const [sendReceipt, setSendReceipt] = useState(!!client.phone);
   const [saving, setSaving] = useState(false);
 
   const st = clientState(client, today);
@@ -629,10 +653,11 @@ export function ReceiveModal({ client, today, onClose, onChanged, onUndo }: {
     try {
       const res = await fetch(`/api/clients/${client.id}/mark-paid`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Number(amount) || 0, paidAt: date, method, notes }),
+        body: JSON.stringify({ amount: Number(amount) || 0, paidAt: date, method, notes, sendReceipt }),
       });
       if (!res.ok) throw new Error();
-      toast('Recebimento registrado', 'success');
+      const out = await res.json().catch(() => ({}));
+      toast(sendReceipt && out.receipt ? (out.receipt.sent ? 'Recebimento registrado e recibo enviado no WhatsApp' : `Recebimento registrado. Recibo não enviado: ${out.receipt.error ?? 'WhatsApp indisponível'}`) : 'Recebimento registrado', 'success');
       onChanged();
       onClose();
     } catch { toast('Não deu para registrar o recebimento agora.', 'error'); }
@@ -684,6 +709,10 @@ export function ReceiveModal({ client, today, onClose, onChanged, onUndo }: {
               ))}
             </div>
             <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Observação (opcional)" />
+            <label className={`flex items-center gap-2 text-sm cursor-pointer ${client.phone ? 'text-slate-600 dark:text-slate-300' : 'text-slate-300'}`}>
+              <input type="checkbox" className="w-4 h-4 accent-indigo-600" disabled={!client.phone} checked={sendReceipt && !!client.phone} onChange={e => setSendReceipt(e.target.checked)} />
+              Enviar o recibo em PDF no WhatsApp do cliente{!client.phone ? ' (sem WhatsApp cadastrado)' : ''}
+            </label>
             {client.billingCycle !== 'one_time' && (
               <p className="text-[11px] text-slate-400">Ao confirmar, o próximo vencimento avança para o ciclo seguinte.</p>
             )}

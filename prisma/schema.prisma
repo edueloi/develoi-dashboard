@@ -663,3 +663,16 @@ model AsaasCharge {
 
   @@index([clientId])
 }
+
+// Registro dos avisos (webhooks) recebidos do Asaas, para conferir se a integração está funcionando
+model AsaasWebhookLog {
+  id             String   @id @default(uuid())
+  event          String   @db.VarChar(60)
+  asaasPaymentId String?  @db.VarChar(40)
+  clientName     String?
+  outcome        String   @db.VarChar(160) // o que o sistema fez com o aviso
+  ok             Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -16,6 +16,7 @@ import { runBillingNotices, startBillingScheduler } from "./src/backend/billingN
 import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
+import { registerReceiptRoutes, sendReceiptPdf } from "./src/backend/receipts.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
 
 dotenv.config();
@@ -804,9 +805,16 @@ async function startServer() {
 
     app.post("/api/clients/:id/mark-paid", async (req, res) => {
       try {
-        const result = await registerClientPayment(req.params.id, req.body ?? {});
+        const { sendReceipt, ...input } = req.body ?? {};
+        const result = await registerClientPayment(req.params.id, input);
         if (!result) return res.status(404).json({ error: "Cliente não encontrado." });
-        res.json(result.client);
+        // recibo em PDF no WhatsApp do cliente, se pedido
+        let receipt: { sent: boolean; error?: string } | undefined;
+        if (sendReceipt) {
+          try { receipt = { sent: await sendReceiptPdf({ clientPaymentId: result.payment.id }) }; }
+          catch (e: any) { receipt = { sent: false, error: e.message }; }
+        }
+        res.json({ ...result.client, receipt });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
@@ -844,6 +852,7 @@ async function startServer() {
     registerTeamNoticeRoutes(app);
     registerReceivableRoutes(app);
     registerAsaasRoutes(app);
+    registerReceiptRoutes(app);
 
     // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp
     app.post("/api/admin/billing/run", async (req, res) => {

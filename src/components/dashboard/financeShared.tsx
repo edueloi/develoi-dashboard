@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react';
 import { addMonths, format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,30 +43,59 @@ export function Stat({ label, value, color, icon: Icon, text, footer }: {
 }
 
 // ─── Menu "⋮" da linha ───────────────────────────────────────────────────────
+// Renderizado no <body> com posição fixa: não é cortado pela caixa da lista (overflow) e
+// abre para cima quando não há espaço embaixo (ex.: último item da página).
 
 export function RowMenu({ items }: { items: { label: string; icon: any; onClick: () => void; danger?: boolean }[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const toggle = () => {
+    if (pos) return setPos(null);
+    const r = btnRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const menuH = items.length * 40 + 12;
+    const right = Math.max(8, window.innerWidth - r.right);
+    setPos(window.innerHeight - r.bottom < menuH + 12
+      ? { bottom: window.innerHeight - r.top + 4, right }
+      : { top: r.bottom + 4, right });
+  };
+
   useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    if (!pos) return;
+    const close = (e: Event) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || btnRef.current?.contains(t)) return;
+      setPos(null);
+    };
+    const hide = () => setPos(null);
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('scroll', hide, true);
+      window.removeEventListener('resize', hide);
+    };
+  }, [pos]);
+
   return (
-    <div className="relative flex-shrink-0" ref={ref}>
-      <button onClick={() => setOpen(v => !v)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Mais ações">
+    <div className="relative flex-shrink-0">
+      <button ref={btnRef} onClick={toggle} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Mais ações">
         <MoreVertical className="w-4 h-4" />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 min-w-[200px] rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl py-1">
+      {pos && createPortal(
+        <div ref={menuRef} style={{ position: 'fixed', zIndex: 80, top: pos.top, bottom: pos.bottom, right: pos.right }}
+          className="min-w-[210px] rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl py-1">
           {items.map(it => (
-            <button key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
+            <button key={it.label} onClick={() => { setPos(null); it.onClick(); }}
               className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left hover:bg-slate-50 dark:hover:bg-white/5 ${it.danger ? 'text-rose-600' : 'text-slate-600 dark:text-slate-200'}`}>
               <it.icon className="w-4 h-4" /> {it.label}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

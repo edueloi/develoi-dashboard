@@ -11,6 +11,7 @@ import type { Client, ClientStatus, AsaasCharge } from './types';
 import { format, differenceInCalendarDays, differenceInMonths } from 'date-fns';
 import { money, parseDay, fmtDate, startOfToday, Stat, RowMenu } from './financeShared';
 import { clientState, dueText, ReceiveModal, buildWhatsAppLink } from './ReceivablesManager';
+import { AsaasWebhookStatus } from './AsaasWebhookStatus';
 import { ClientFormModal, CYCLE_LABEL } from './ClientForm';
 
 type Filter = 'all' | 'active' | 'late' | 'inactive';
@@ -55,7 +56,7 @@ export function ClientsManager() {
 
   const today = useMemo(startOfToday, []);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (silent = false) => {
     try {
       const [cr, pr, ur] = await Promise.all([
         fetch('/api/clients'),
@@ -67,13 +68,21 @@ export function ClientsManager() {
       setProjects(Array.isArray(projectsData) ? projectsData.map((p: any) => ({ id: p.id, name: p.name })) : []);
       setUsers(Array.isArray(usersData) ? usersData.map((u: any) => ({ uid: u.uid, displayName: u.displayName })) : []);
     } catch {
-      toast('Não deu para carregar os clientes agora. Tente de novo.', 'error');
+      if (!silent) toast('Não deu para carregar os clientes agora. Tente de novo.', 'error');
     } finally {
       setLoading(false);
     }
   }, [toast, profile?.uid, isAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Atualiza sozinho: pagamentos entram pelo webhook do Asaas e a tela acompanha sem recarregar
+  useEffect(() => {
+    const tick = () => { if (document.visibilityState === 'visible') fetchData(true); };
+    const id = setInterval(tick, 10000);
+    window.addEventListener('focus', tick);
+    return () => { clearInterval(id); window.removeEventListener('focus', tick); };
+  }, [fetchData]);
 
   const stateKey = (c: Client) => clientState(c, today).key;
   const isLate = (c: Client) => ['overdue', 'blocked'].includes(stateKey(c));
@@ -142,6 +151,8 @@ export function ClientsManager() {
         <Stat label="Vencendo em breve" value={String(soon)} color="#C49A2A" icon={Clock} text={text} />
         <Stat label="Atrasados" value={String(late)} color="#DC2626" icon={ShieldAlert} text={text} />
       </div>
+
+      <AsaasWebhookStatus />
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 self-start overflow-x-auto max-w-full">
@@ -504,7 +515,12 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
               {(client.payments ?? []).slice(0, 6).map(p => (
                 <div key={p.id} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-white/10 px-3 py-2 text-sm">
                   <span className="flex items-center gap-2"><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /><b>{money(p.amount)}</b></span>
-                  <span className="text-xs text-slate-400">{fmtDate(p.paidAt)}{p.method ? ` · ${p.method}` : ''}</span>
+                  <span className="flex items-center gap-3 text-xs text-slate-400">
+                    {fmtDate(p.paidAt)}{p.method ? ` · ${p.method}` : ''}
+                    <a href={`/api/client-payments/${p.id}/receipt.pdf`} target="_blank" rel="noopener noreferrer" className="font-bold text-indigo-500 hover:underline flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> Recibo
+                    </a>
+                  </span>
                 </div>
               ))}
             </div>

@@ -91,6 +91,18 @@ export function getSessionInfo(): SessionInfo {
   return { status: session.status, phone: session.phone, qrDataUrl: session.status === "qr_pending" ? session.qrDataUrl : null };
 }
 
+// Envia um arquivo (ex.: recibo em PDF) no WhatsApp
+export async function sendDocument(phone: string, file: Buffer, fileName: string, caption?: string): Promise<boolean> {
+  if (!session || session.status !== "connected") return false;
+  try {
+    await session.sock.sendMessage(phoneToJid(phone), { document: file, mimetype: "application/pdf", fileName, caption });
+    return true;
+  } catch (e) {
+    console.error("Erro ao enviar documento:", e);
+    return false;
+  }
+}
+
 // Ajusta o estado em memória do cliente (usado pelo painel ao aceitar/finalizar um atendimento)
 export function setClientConversation(phone: string, conversationId: string, status: "waiting" | "in_chat") {
   const key = normalizeForKey(phoneToJid(phone));

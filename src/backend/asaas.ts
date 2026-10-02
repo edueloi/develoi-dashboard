@@ -4,6 +4,7 @@ import type { Express, Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { getSessionInfo, sendMessage, registerClientKeywordHandler } from "./baileysManager.js";
 import { registerClientPayment } from "./clientBilling.js";
+import { sendReceiptPdf } from "./receipts.js";
 import { brtTodayUtc } from "./time.js";
 
 const prisma = new PrismaClient();
@@ -51,7 +52,8 @@ const fmtDay = (d: Date) => d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 const firstName = (n: string) => n.trim().split(/\s+/)[0];
 const dayOf = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00.000Z`); // "2026-10-15" → meia-noite UTC
 const sameDay = (a: Date | null, b: Date | null) => !!a && !!b && a.getTime() === b.getTime();
-const methodLabel = (t?: string) => (t === "PIX" ? "Pix" : t === "BOLETO" ? "Boleto" : t === "CREDIT_CARD" ? "Cartão" : "Asaas");
+const methodLabel = (t?: string, status?: string) =>
+  status === "RECEIVED_IN_CASH" ? "Dinheiro" : t === "PIX" ? "Pix" : t === "BOLETO" ? "Boleto" : t === "CREDIT_CARD" ? "Cartão" : "Asaas";
 const samePhone = (a: string, b: string) => { const x = digits(a), y = digits(b); return x.length >= 8 && y.length >= 8 && x.slice(-8) === y.slice(-8); };
 
 async function clientBotReady() {
@@ -239,48 +241,75 @@ async function findClientFor(p: any) {
 }
 
 const PAID_EVENTS = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
+const PAID_STATUSES = new Set(["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]);
+
+export interface PaymentOutcome { outcome: string; clientName?: string }
 
 // Trata uma cobrança do Asaas (vinda do webhook ou da sincronização). Idempotente.
-export async function handlePayment(event: string, p: any) {
+// Para pagamentos, NÃO confia só no aviso: consulta a cobrança direto no Asaas e só dá baixa
+// se ela estiver realmente paga (e usa o valor/data que o Asaas confirma).
+export async function handlePayment(event: string, payload: any): Promise<PaymentOutcome> {
+  let p = payload;
   const client = await findClientFor(p);
-  if (!client) return;
+  if (!client) return { outcome: "ignorado: cobrança que não é de nenhum cliente deste sistema" };
+
+  const isPaidEvent = PAID_EVENTS.has(event);
+  if (isPaidEvent) {
+    const fresh = await asaas<any>(`/payments/${encodeURIComponent(p.id)}`); // falha aqui => 500 => o Asaas reenvia
+    if (!PAID_STATUSES.has(fresh.status)) {
+      await upsertCharge(client.id, fresh);
+      return { clientName: client.name, outcome: `ignorado: o Asaas informa status ${fresh.status}, não pago` };
+    }
+    p = fresh;
+  }
 
   const charge = await upsertCharge(client.id, p);
 
   if (event === "PAYMENT_REFUNDED" || event === "PAYMENT_CHARGEBACK_REQUESTED") {
     await notifyTeam(`↩️ *Pagamento estornado* — ${client.name} (${money(charge.value)}). Confira no Asaas.`);
-    return;
+    return { clientName: client.name, outcome: "estorno avisado à equipe" };
   }
-  if (!PAID_EVENTS.has(event)) return;
+  if (!isPaidEvent) return { clientName: client.name, outcome: `cobrança atualizada (${p.status})` };
 
   const paidAt = p.paymentDate || p.clientPaymentDate ? dayOf(p.paymentDate || p.clientPaymentDate) : new Date();
+  const label = methodLabel(p.billingType, p.status);
   const result = await registerClientPayment(client.id, {
     amount: Number(p.value) || charge.value,
     paidAt,
-    method: methodLabel(p.billingType),
+    method: label,
     notes: "Recebido via Asaas",
     asaasPaymentId: p.id,
     dueDate: charge.dueDate,
     advance: sameDay(charge.dueDate, client.nextDueDate), // só avança se for a fatura do ciclo atual
   });
-  if (!result || result.duplicate) return;
+  if (!result) return { clientName: client.name, outcome: "ignorado: cliente não encontrado" };
+  if (result.duplicate) return { clientName: client.name, outcome: "já registrado antes (duplicado ignorado)" };
 
   await prisma.asaasCharge.update({ where: { id: charge.id }, data: { paidAt } });
 
   // comprovante ao cliente (uma vez só)
+  let receipt = "sem WhatsApp para mandar o comprovante";
   if (!charge.receiptSentAt && client.phone && (await clientBotReady())) {
     const next = result.client.nextDueDate;
-    const ok = await sendMessage(client.phone, [
+    const caption = [
       `✅ *Pagamento confirmado!*`,
-      `Olá, ${firstName(client.name)}! Recebemos seu pagamento de *${money(Number(p.value) || charge.value)}* em ${fmtDay(paidAt)} (${methodLabel(p.billingType)}). Obrigado! 🙏`,
+      `Olá, ${firstName(client.name)}! Recebemos seu pagamento de *${money(Number(p.value) || charge.value)}* em ${fmtDay(paidAt)} (${label}). Obrigado! 🙏`,
       p.transactionReceiptUrl ? `🧾 Comprovante: ${p.transactionReceiptUrl}` : null,
       next ? `📅 Próximo vencimento: ${fmtDay(next)}` : null,
+      `📎 Segue o recibo em PDF.`,
       `Para ver seus pagamentos, é só escrever *extrato*.`,
-    ].filter(Boolean).join("\n\n"));
+    ].filter(Boolean).join("\n\n");
+    let ok = false;
+    try { ok = await sendReceiptPdf({ clientPaymentId: result.payment.id }, caption); } catch { ok = false; }
     if (ok) await prisma.asaasCharge.update({ where: { id: charge.id }, data: { receiptSentAt: new Date() } });
-  }
+    receipt = ok ? "recibo em PDF enviado ao cliente" : "recibo NÃO enviado (WhatsApp falhou)";
+  } else if (charge.receiptSentAt) receipt = "comprovante já enviado antes";
+  else if (!client.phone) receipt = "cliente sem WhatsApp";
+  else receipt = "comprovante não enviado (bot desligado ou desconectado)";
 
-  await notifyTeam(`💰 *Pagamento recebido*\n${client.name} — *${money(Number(p.value) || charge.value)}* (${methodLabel(p.billingType)})`);
+  await notifyTeam(`💰 *Pagamento recebido*\n${client.name} — *${money(Number(p.value) || charge.value)}* (${label})`);
+  const adv = result.client.nextDueDate ? `vencimento avançou para ${fmtDay(result.client.nextDueDate)}` : "vencimento mantido";
+  return { clientName: client.name, outcome: `recebimento registrado; ${adv}; ${receipt}` };
 }
 
 // Rede de segurança: confere as cobranças no Asaas caso algum webhook tenha falhado
@@ -291,7 +320,7 @@ export async function syncCharges(clientId?: string) {
     const list = await asaas<{ data: any[] }>(`/subscriptions/${c.asaasSubscriptionId}/payments?limit=24`);
     for (const p of list.data ?? []) {
       if (p.status === "DELETED") continue;
-      await handlePayment(PAID_EVENTS.has(`PAYMENT_${p.status}`) ? `PAYMENT_${p.status}` : "SYNC", p);
+      await handlePayment(PAID_STATUSES.has(p.status) ? "PAYMENT_RECEIVED" : "SYNC", p);
       updated++;
     }
   }
@@ -317,17 +346,33 @@ export function registerAsaasRoutes(app: Express) {
   });
 
   // Webhook chamado pelo Asaas a cada evento de cobrança
+  const logWebhook = (data: { event: string; asaasPaymentId?: string | null; clientName?: string | null; outcome: string; ok: boolean }) =>
+    prisma.asaasWebhookLog.create({ data: { ...data, outcome: data.outcome.slice(0, 160) } }).catch(() => {});
+
   app.post("/api/asaas/webhook", async (req: Request, res: Response) => {
     const { webhookToken } = cfg();
-    if (!webhookToken || req.headers["asaas-access-token"] !== webhookToken) return res.status(401).json({ error: "Token inválido." });
+    const { event, payment } = req.body ?? {};
+    const evName = typeof event === "string" ? event : "?";
+    if (!webhookToken || req.headers["asaas-access-token"] !== webhookToken) {
+      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, outcome: "REJEITADO: token de autenticação inválido", ok: false });
+      return res.status(401).json({ error: "Token inválido." });
+    }
     try {
-      const { event, payment } = req.body ?? {};
-      if (payment?.id && typeof event === "string") await handlePayment(event, payment);
+      let result: PaymentOutcome = { outcome: "sem cobrança no aviso" };
+      if (payment?.id && typeof event === "string") result = await handlePayment(event, payment);
+      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, clientName: result.clientName ?? null, outcome: result.outcome, ok: true });
       res.json({ received: true });
     } catch (e: any) {
       console.error("[asaas] erro no webhook:", e);
+      await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, outcome: `ERRO: ${e.message}`, ok: false });
       res.status(500).json({ error: e.message }); // o Asaas tenta de novo
     }
+  });
+
+  // Últimos avisos recebidos do Asaas (para conferir se a integração está viva)
+  app.get("/api/asaas/events", async (_req, res) => {
+    try { res.json(await prisma.asaasWebhookLog.findMany({ orderBy: { createdAt: "desc" }, take: 15 })); }
+    catch (e) { fail(res, e); }
   });
 
   // Registra o webhook no Asaas automaticamente (precisa de PUBLIC_BASE_URL e ASAAS_WEBHOOK_TOKEN)
