@@ -116,6 +116,11 @@ export async function sendMessage(phone: string, text: string): Promise<boolean>
 }
 
 
+// Gancho para respostas automáticas a clientes cadastrados ("extrato", "fatura"…), registrado pelo Asaas
+type ClientKeywordHandler = (phone: string, text: string) => Promise<boolean>;
+let clientKeywordHandler: ClientKeywordHandler | null = null;
+export function registerClientKeywordHandler(fn: ClientKeywordHandler) { clientKeywordHandler = fn; }
+
 // ─── Atendentes pelo WhatsApp ────────────────────────────────────────────────
 // Cada setor tem atendentes {name, phone}. Quando um cliente cai no setor, o bot avisa o atendente
 // no WhatsApp dele; ele aceita (1) ou recusa (2) e passa a conversar COM O BOT, que repassa as
@@ -415,6 +420,9 @@ async function handleMessage(msg: any, sock: any) {
     }
     if (state) { clientStates.delete(key); state = undefined; } // conversa já encerrada
   }
+
+  // Cliente cadastrado pedindo extrato/fatura: o bot responde sozinho
+  if (clientKeywordHandler && (await clientKeywordHandler(senderPhone, textMsg))) return;
 
   if (!state) {
     // Nova conversa, checa se bot está ativado

@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, Plus, Edit2, Trash2, DollarSign, Clock, ShieldAlert, Cake, FolderOpen, X, Phone, Mail,
-  Banknote, CalendarCheck, MessageCircle, CheckCircle2,
+  Banknote, CalendarCheck, MessageCircle, CheckCircle2, CreditCard, ExternalLink, FileText, RefreshCw, Send,
 } from 'lucide-react';
 import { Button, Modal, ConfirmModal, Input, Select, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import type { Client, ClientStatus } from './types';
+import type { Client, ClientStatus, AsaasCharge } from './types';
 import { format, differenceInCalendarDays, differenceInMonths } from 'date-fns';
 import { money, parseDay, fmtDate, startOfToday, Stat, RowMenu } from './financeShared';
 import { clientState, dueText, ReceiveModal, buildWhatsAppLink } from './ReceivablesManager';
@@ -276,6 +276,37 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
   const [addProjectId, setAddProjectId] = useState('');
   const [linking, setLinking] = useState(false);
 
+  // ── cobrança automática (Asaas) ──
+  const [asaas, setAsaas] = useState<{ configured: boolean; env: string; webhookTokenSet: boolean } | null>(null);
+  const [charges, setCharges] = useState<AsaasCharge[]>([]);
+  const [billingType, setBillingType] = useState('UNDEFINED');
+  const [sendLink, setSendLink] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const hasAsaas = !!client.asaasCustomerId || !!client.asaasSubscriptionId;
+
+  const loadCharges = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/clients/${client.id}/asaas/charges`);
+      if (r.ok) setCharges(await r.json());
+    } catch {}
+  }, [client.id]);
+
+  useEffect(() => { fetch('/api/asaas/status').then(r => r.json()).then(setAsaas).catch(() => {}); }, []);
+  useEffect(() => { if (hasAsaas) loadCharges(); }, [hasAsaas, loadCharges]);
+
+  async function asaasCall(key: string, url: string, method: string, body: any, ok: (d: any) => string) {
+    setBusy(key);
+    try {
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Erro');
+      toast(ok(data), 'success');
+      onChanged();
+      loadCharges();
+    } catch (e: any) { toast(e.message || 'Não deu para concluir agora.', 'error'); }
+    finally { setBusy(null); }
+  }
+
   const linkedIds = new Set((client.projects ?? []).map(p => p.projectId));
   const available = projects.filter(p => !linkedIds.has(p.id));
   const commission = client.commissionType === 'percentage' ? (client.billingValue * (client.commissionValue ?? 0)) / 100
@@ -342,6 +373,90 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
           <Row label="Último recebimento" value={client.lastPaidAt ? fmtDate(client.lastPaidAt) : '—'} />
           {totalReceived > 0 && <Row label="Recebido (últimos)" value={money(totalReceived)} />}
           {client.sale?.productName && <Row label="Plano" value={client.sale.productName} />}
+        </section>
+
+
+        <section>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5"><CreditCard className="w-3.5 h-3.5" /> Cobrança automática (Asaas)</p>
+
+          {asaas && !asaas.configured ? (
+            <p className="text-xs text-slate-400 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2.5">
+              O Asaas ainda não foi configurado no servidor. Adicione <b>ASAAS_API_KEY</b> no .env e reinicie.
+            </p>
+          ) : !client.asaasSubscriptionId && !charges.length ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-400">Cria a assinatura no Asaas. O bot manda o link de pagamento ao cliente e, quando ele paga, o recebimento entra sozinho e ele recebe o comprovante.</p>
+              {!client.document && <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2">Cadastre o CPF/CNPJ do cliente (em Editar). O Asaas exige para gerar a cobrança.</p>}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Select label="Forma de pagamento" value={billingType} onChange={e => setBillingType(e.target.value)}
+                  options={[{ value: 'UNDEFINED', label: 'O cliente escolhe' }, { value: 'PIX', label: 'Pix' }, { value: 'BOLETO', label: 'Boleto' }, { value: 'CREDIT_CARD', label: 'Cartão de crédito' }]} />
+                <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 sm:pt-6 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={sendLink} onChange={e => setSendLink(e.target.checked)} />
+                  Enviar o link no WhatsApp agora
+                </label>
+              </div>
+              <Button fullWidth loading={busy === 'subscribe'} disabled={!client.document}
+                onClick={() => asaasCall('subscribe', `/api/clients/${client.id}/asaas/subscribe`, 'POST', { billingType, sendLink },
+                  d => d.sent ? 'Assinatura criada e link enviado no WhatsApp' : 'Assinatura criada no Asaas')}>
+                CRIAR ASSINATURA NO ASAAS
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between rounded-xl bg-green-50 dark:bg-green-500/10 px-3 py-2.5">
+                <span className="text-sm font-bold text-green-700 dark:text-green-300 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />
+                  {client.asaasSubscriptionId ? 'Assinatura ativa no Asaas' : 'Cobrança criada no Asaas'}
+                </span>
+                {asaas && <span className="text-[10px] font-bold uppercase text-green-700/70">{asaas.env === 'production' ? 'produção' : 'teste (sandbox)'}</span>}
+              </div>
+
+              {charges.length > 0 && (
+                <div className="space-y-1.5">
+                  {charges.slice(0, 5).map(ch => {
+                    const paid = ch.status === 'RECEIVED' || ch.status === 'CONFIRMED';
+                    const href = (paid ? ch.receiptUrl : ch.invoiceUrl) || null;
+                    return (
+                      <div key={ch.id} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-white/10 px-3 py-2 text-sm">
+                        <span className="flex items-center gap-2">
+                          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${paid ? 'bg-green-100 text-green-700' : ch.status === 'OVERDUE' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {paid ? 'PAGO' : ch.status === 'OVERDUE' ? 'ATRASADO' : 'ABERTO'}
+                          </span>
+                          <b>{money(ch.value)}</b>
+                          <span className="text-xs text-slate-400">{fmtDate(ch.dueDate)}</span>
+                        </span>
+                        {href && (
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-indigo-500 flex items-center gap-1 hover:underline">
+                            {paid ? 'Comprovante' : 'Abrir fatura'} <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="outline" loading={busy === 'invoice'} iconLeft={<Send className="w-3.5 h-3.5" />}
+                  onClick={() => asaasCall('invoice', `/api/clients/${client.id}/asaas/send-invoice`, 'POST', null, () => 'Fatura enviada no WhatsApp')}>
+                  Enviar fatura
+                </Button>
+                <Button size="sm" variant="outline" loading={busy === 'statement'} iconLeft={<FileText className="w-3.5 h-3.5" />}
+                  onClick={() => asaasCall('statement', `/api/clients/${client.id}/asaas/send-statement`, 'POST', null, () => 'Extrato enviado no WhatsApp')}>
+                  Enviar extrato
+                </Button>
+                <Button size="sm" variant="outline" loading={busy === 'sync'} iconLeft={<RefreshCw className="w-3.5 h-3.5" />}
+                  onClick={() => asaasCall('sync', `/api/clients/${client.id}/asaas/sync`, 'POST', null, () => 'Cobranças atualizadas')}>
+                  Atualizar
+                </Button>
+                {client.asaasSubscriptionId && (
+                  <Button size="sm" variant="outline" loading={busy === 'cancel'}
+                    onClick={() => { if (confirm('Cancelar a assinatura no Asaas? As próximas cobranças deixam de ser geradas.')) asaasCall('cancel', `/api/clients/${client.id}/asaas/subscription`, 'DELETE', null, () => 'Assinatura cancelada no Asaas'); }}>
+                    Cancelar assinatura
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         <section>

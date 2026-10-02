@@ -358,10 +358,14 @@ model Client {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   lastPaidAt         DateTime? // última fatura paga (manual hoje, webhook do Asaas depois)
+  asaasCustomerId     String?   @db.VarChar(40)  // cadastro do cliente no Asaas
+  asaasSubscriptionId String?   @db.VarChar(40)  // assinatura recorrente no Asaas
+  asaasBillingType    String?   @db.VarChar(20)  // UNDEFINED | PIX | BOLETO | CREDIT_CARD
 
   projects       ClientProject[]
   billingNotices ClientBillingNotice[]
   payments       ClientPayment[]
+  asaasCharges   AsaasCharge[]
   receivables    Receivable[]
   sale           Sale?    @relation(fields: [saleId], references: [id], onDelete: SetNull)
 }
@@ -374,6 +378,7 @@ model ClientPayment {
   dueDate   DateTime? // vencimento a que o recebimento se refere
   paidAt    DateTime
   method    String?   @db.VarChar(40) // Pix, Boleto, Cartão, Asaas…
+  asaasPaymentId String? @unique @db.VarChar(40) // evita registrar o mesmo pagamento do Asaas duas vezes
   notes     String?   @db.Text
   createdAt DateTime  @default(now())
 
@@ -634,4 +639,27 @@ model Receivable {
 
   @@index([dueDate])
   @@index([groupId])
+}
+
+// Cobranças geradas no Asaas (uma por vencimento). Guarda o link para o bot mandar ao cliente.
+model AsaasCharge {
+  id             String    @id @default(uuid())
+  clientId       String
+  asaasPaymentId String    @unique @db.VarChar(40)
+  value          Float
+  dueDate        DateTime
+  status         String    @db.VarChar(30) // PENDING | RECEIVED | CONFIRMED | OVERDUE | REFUNDED | DELETED …
+  billingType    String?   @db.VarChar(20)
+  invoiceUrl     String?   @db.Text
+  bankSlipUrl    String?   @db.Text
+  receiptUrl     String?   @db.Text
+  paidAt         DateTime?
+  linkSentAt     DateTime? // quando o bot mandou o link ao cliente
+  receiptSentAt  DateTime? // quando o bot mandou o comprovante
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }

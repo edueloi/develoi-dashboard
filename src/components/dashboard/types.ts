@@ -234,6 +234,20 @@ export interface Receivable {
   createdAt: string;
 }
 
+export interface AsaasCharge {
+  id: string;
+  clientId: string;
+  asaasPaymentId: string;
+  value: number;
+  dueDate: string;
+  status: string;
+  billingType?: string | null;
+  invoiceUrl?: string | null;
+  receiptUrl?: string | null;
+  paidAt?: string | null;
+  linkSentAt?: string | null;
+}
+
 export interface ClientPayment {
   id: string;
   clientId: string;
@@ -263,6 +277,9 @@ export interface Client {
   nextDueDate?: string;
   lastPaidAt?: string;
   payments?: ClientPayment[];
+  asaasCustomerId?: string | null;
+  asaasSubscriptionId?: string | null;
+  asaasBillingType?: string | null;
   reminderDaysBefore: number;
   graceDaysAfter: number;
   soldById?: string;

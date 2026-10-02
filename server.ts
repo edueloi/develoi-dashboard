@@ -14,6 +14,8 @@ import { botController } from "./src/backend/botController.js";
 import { runBillingNotices, startBillingScheduler } from "./src/backend/billingNotifier.js";
 import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
+import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
+import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
 
 dotenv.config();
 
@@ -799,65 +801,11 @@ async function startServer() {
 
     // ─── Clients ───────────────────────────────────────────────────────────────
 
-    // Calcula a próxima data de vencimento a partir de um dia-do-mês fixo,
-    // avançando ciclo(s) inteiros a partir de `from` até cair no futuro.
-    function computeNextDueDate(dueDay: number, billingCycle: string, from: Date): Date {
-      // trabalha em UTC: as datas de vencimento são guardadas como meia-noite UTC
-      const clampDay = (year: number, month: number) => {
-        const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-        return Math.min(dueDay, lastDay);
-      };
-      let year = from.getUTCFullYear();
-      let month = from.getUTCMonth();
-      let candidate = new Date(Date.UTC(year, month, clampDay(year, month)));
-      const stepMonths = billingCycle === 'yearly' ? 12 : 1; // custom/one_time tratados como mensal p/ rollover
-      while (candidate <= from) {
-        month += stepMonths;
-        year += Math.floor(month / 12);
-        month = month % 12;
-        candidate = new Date(Date.UTC(year, month, clampDay(year, month)));
-      }
-      return candidate;
-    }
-
-    // O vencimento NÃO avança sozinho: só quando um recebimento é registrado (botão manual hoje,
-    // webhook do Asaas depois). Sem isso não dá para saber quem está em atraso.
-    async function registerClientPayment(clientId: string, input: { amount?: number; paidAt?: string; method?: string; notes?: string } = {}) {
-      const c = await prisma.client.findUnique({ where: { id: clientId } });
-      if (!c) return null;
-
-      const paidAt = input.paidAt ? new Date(input.paidAt) : new Date();
-      let next: Date | null = null;
-      if (c.billingCycle !== 'one_time' && c.nextDueDate) {
-        const day = c.dueDay ?? c.nextDueDate.getUTCDate();
-        next = computeNextDueDate(day, c.billingCycle, c.nextDueDate);
-      }
-      // cliente que foi bloqueado por falta de pagamento volta a ficar ativo
-      const wasBlocked = c.nextDueDate
-        ? await prisma.clientBillingNotice.findFirst({ where: { clientId, kind: 'blocked', dueDate: c.nextDueDate } })
-        : null;
-
-      await prisma.clientPayment.create({
-        data: {
-          clientId,
-          amount: input.amount !== undefined && !Number.isNaN(Number(input.amount)) ? Number(input.amount) : c.billingValue,
-          dueDate: c.nextDueDate,
-          paidAt,
-          method: input.method || null,
-          notes: input.notes || null,
-        },
-      });
-      return prisma.client.update({
-        where: { id: clientId },
-        data: { nextDueDate: next, lastPaidAt: paidAt, ...(wasBlocked ? { status: 'active' } : {}) },
-      });
-    }
-
     app.post("/api/clients/:id/mark-paid", async (req, res) => {
       try {
-        const client = await registerClientPayment(req.params.id, req.body ?? {});
-        if (!client) return res.status(404).json({ error: "Cliente não encontrado." });
-        res.json(client);
+        const result = await registerClientPayment(req.params.id, req.body ?? {});
+        if (!result) return res.status(404).json({ error: "Cliente não encontrado." });
+        res.json(result.client);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
@@ -894,6 +842,7 @@ async function startServer() {
 
     registerTeamNoticeRoutes(app);
     registerReceivableRoutes(app);
+    registerAsaasRoutes(app);
 
     // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp
     app.post("/api/admin/billing/run", async (req, res) => {
@@ -1348,6 +1297,7 @@ async function startServer() {
       console.log(`Server running on http://localhost:${PORT}`);
       startBillingScheduler();
       startTeamNoticeScheduler();
+      startAsaasScheduler();
     });
   } catch (error) {
     console.error("Failed to start server:", error);

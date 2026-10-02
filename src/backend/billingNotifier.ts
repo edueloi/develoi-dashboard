@@ -16,17 +16,22 @@ const GAP_BETWEEN_MESSAGES_MS = 5000;
 const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const firstName = (n: string) => n.trim().split(/\s+/)[0];
 
-interface Ctx { name: string; value: number; dueDate: Date; daysLeft: number; grace: number }
+interface Ctx { name: string; value: number; dueDate: Date; daysLeft: number; grace: number; link?: string | null }
+
+const payLine = (c: Ctx) => (c.link ? `
+
+💳 *Pague aqui* (Pix, boleto ou cartão):
+${c.link}` : "");
 
 const TEMPLATES: Record<NoticeKind, (c: Ctx) => string> = {
   reminder: c =>
-    `Olá, ${firstName(c.name)}! 👋\n\nPassando para avisar que a fatura da sua assinatura da *Develoi* de *${money(c.value)}* vence em *${format(c.dueDate, "dd/MM/yyyy")}* (${c.daysLeft === 1 ? "amanhã" : `em ${c.daysLeft} dias`}).\n\nSe já pagou, pode desconsiderar esta mensagem. Qualquer dúvida, é só responder por aqui.`,
+    `Olá, ${firstName(c.name)}! 👋\n\nPassando para avisar que a fatura da sua assinatura da *Develoi* de *${money(c.value)}* vence em *${format(c.dueDate, "dd/MM/yyyy")}* (${c.daysLeft === 1 ? "amanhã" : `em ${c.daysLeft} dias`}).\n\nSe já pagou, pode desconsiderar esta mensagem. Qualquer dúvida, é só responder por aqui.${payLine(c)}`,
   due_today: c =>
-    `Olá, ${firstName(c.name)}! 👋\n\nHoje é o vencimento da fatura da sua assinatura da *Develoi* no valor de *${money(c.value)}*.\n\nPara manter tudo funcionando normalmente, realize o pagamento hoje. Se já pagou, obrigado! 🙏`,
+    `Olá, ${firstName(c.name)}! 👋\n\nHoje é o vencimento da fatura da sua assinatura da *Develoi* no valor de *${money(c.value)}*.\n\nPara manter tudo funcionando normalmente, realize o pagamento hoje. Se já pagou, obrigado! 🙏${payLine(c)}`,
   overdue: c =>
-    `Olá, ${firstName(c.name)}.\n\nIdentificamos que a fatura de *${money(c.value)}* da sua assinatura da *Develoi*, com vencimento em *${format(c.dueDate, "dd/MM/yyyy")}*, está em atraso.\n\nRegularize em até *${c.grace} dias* após o vencimento para evitar o bloqueio da assinatura. Se já pagou, envie o comprovante por aqui.`,
+    `Olá, ${firstName(c.name)}.\n\nIdentificamos que a fatura de *${money(c.value)}* da sua assinatura da *Develoi*, com vencimento em *${format(c.dueDate, "dd/MM/yyyy")}*, está em atraso.\n\nRegularize em até *${c.grace} dias* após o vencimento para evitar o bloqueio da assinatura. Se já pagou, envie o comprovante por aqui.${payLine(c)}`,
   blocked: c =>
-    `Olá, ${firstName(c.name)}.\n\nComo a fatura de *${money(c.value)}* (vencimento em *${format(c.dueDate, "dd/MM/yyyy")}*) não foi regularizada dentro do prazo, sua assinatura da *Develoi* foi *bloqueada*.\n\nAssim que o pagamento for confirmado, o acesso é liberado. Responda esta mensagem para falarmos sobre a regularização.`,
+    `Olá, ${firstName(c.name)}.\n\nComo a fatura de *${money(c.value)}* (vencimento em *${format(c.dueDate, "dd/MM/yyyy")}*) não foi regularizada dentro do prazo, sua assinatura da *Develoi* foi *bloqueada*.\n\nAssim que o pagamento for confirmado, o acesso é liberado. Responda esta mensagem para falarmos sobre a regularização.${payLine(c)}`,
 };
 
 // Qual aviso o cliente deve receber agora, a partir dos dias até o vencimento
@@ -64,9 +69,13 @@ export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promis
     results.push(entry);
     if (dryRun) continue;
 
+    // se a assinatura está no Asaas, o aviso leva o link da fatura daquele vencimento
+    const charge = await prisma.asaasCharge.findFirst({
+      where: { clientId: c.id, status: { in: ["PENDING", "OVERDUE"] }, dueDate: due },
+    });
     const text = TEMPLATES[kind]({
       name: c.name, value: c.billingValue, dueDate: due,
-      daysLeft: daysFromToday(due), grace: c.graceDaysAfter,
+      daysLeft: daysFromToday(due), grace: c.graceDaysAfter, link: charge?.invoiceUrl,
     });
     const ok = await sendMessage(c.phone as string, text);
     if (!ok) { entry.reason = "falha no envio"; continue; }
