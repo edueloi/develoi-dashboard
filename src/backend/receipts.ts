@@ -10,8 +10,8 @@ import { assinaturaTexto, subscriptionInfoOf } from "./clientInfo.js";
 
 
 // ─── Dados da empresa emissora ───────────────────────────────────────────────
-// Telefone oficial = o do site (rodapé/contato). Reserva: (15) 99241-8299. Pode ser trocado por COMPANY_PHONE no .env.
-const COMPANY = { name: "Develoi Soluções Digitais", cnpj: "30.968.335/0001-69", phone: process.env.COMPANY_PHONE || "(15) 99702-6791" };
+// Telefone/WhatsApp oficial da Develoi (pode ser trocado por COMPANY_PHONE no .env)
+const COMPANY = { name: "Develoi Soluções Digitais", cnpj: "30.968.335/0001-69", phone: process.env.COMPANY_PHONE || "(15) 99241-8299" };
 const NAVY = "#0D1F4E";
 const GOLD = "#B8892E";
 const LOGO_PATH = path.join(process.cwd(), "public", "LOGO-MENU.png");
