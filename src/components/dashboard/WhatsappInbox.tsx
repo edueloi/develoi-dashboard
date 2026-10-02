@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { MessageCircle, Clock, UserCheck, CheckCircle2, Send, ArrowRightLeft, X, Search, Phone, Inbox } from 'lucide-react';
+import { MessageCircle, Clock, UserCheck, CheckCircle2, Send, ArrowRightLeft, X, Search, Phone, Inbox, Bot, Users } from 'lucide-react';
+import { AttendantsModal } from './AttendantsModal';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLiveEvents } from '../../lib/liveEvents';
 
-type ConvStatus = 'waiting' | 'active' | 'closed';
+type ConvStatus = 'bot' | 'waiting' | 'active' | 'closed';
 
 interface Sector { id: string; name: string }
 interface WaMessage { id: string; fromRole: 'client' | 'attendant' | 'bot' | 'system'; body: string; sentAt: string }
@@ -27,10 +28,14 @@ const NAVY = '#0D1F4E';
 const GOLD = '#C49A2A';
 
 const TABS: { key: ConvStatus; label: string; icon: any }[] = [
+  { key: 'bot', label: 'Bot', icon: Bot },
   { key: 'waiting', label: 'Fila', icon: Clock },
   { key: 'active', label: 'Em atendimento', icon: UserCheck },
   { key: 'closed', label: 'Finalizadas', icon: CheckCircle2 },
 ];
+
+const isRealPhone = (p: string) => p.replace(/\D/g, '').length <= 13;
+const personLabel = (c: { clientName?: string | null; clientPhone: string }) => c.clientName || (isRealPhone(c.clientPhone) ? formatPhone(c.clientPhone) : 'Cliente');
 
 function formatPhone(p: string) {
   const d = p.replace(/\D/g, '');
@@ -71,6 +76,7 @@ export function WhatsappInbox() {
   const [transferSector, setTransferSector] = useState('');
   const [transferReason, setTransferReason] = useState('');
   const [closeOpen, setCloseOpen] = useState(false);
+  const [attendantsOpen, setAttendantsOpen] = useState(false);
   const [closingMsg, setClosingMsg] = useState('Atendimento finalizado. Agradecemos o contato! Qualquer dúvida, é só chamar. 😊');
   const lastWaiting = useRef<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -83,7 +89,7 @@ export function WhatsappInbox() {
 
   const loadList = useCallback(async () => {
     try {
-      const r = await fetch('/api/admin/bot/conversations?status=waiting,active,closed');
+      const r = await fetch('/api/admin/bot/conversations?status=bot,waiting,active,closed');
       if (!r.ok) return;
       const data: Conversation[] = await r.json();
       setAll(data);
@@ -125,6 +131,7 @@ export function WhatsappInbox() {
   useLiveEvents(['WppConversation', 'WppConversationMessage'], () => { loadList(); if (selectedId) loadMessages(selectedId); });
 
   const counts = useMemo(() => ({
+    bot: all.filter(c => c.status === 'bot').length,
     waiting: all.filter(c => c.status === 'waiting').length,
     active: all.filter(c => c.status === 'active').length,
     closed: all.filter(c => c.status === 'closed').length,
@@ -218,6 +225,9 @@ export function WhatsappInbox() {
         </div>
 
         <div className="p-3 space-y-2 border-b" style={{ borderColor: border }}>
+          <button onClick={() => setAttendantsOpen(true)} className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold border" style={{ borderColor: border, color: text, background: panel }}>
+            <Users size={14} /> Equipe de atendimento
+          </button>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: muted }} />
             <input className={inputCls} style={{ ...inputStyle, paddingLeft: 32 }} placeholder="Buscar nome ou telefone" value={search} onChange={e => setSearch(e.target.value)} />
@@ -252,7 +262,7 @@ export function WhatsappInbox() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex justify-between gap-2">
-                  <span className="font-bold text-sm truncate" style={{ color: text }}>{c.clientName || formatPhone(c.clientPhone)}</span>
+                  <span className="font-bold text-sm truncate" style={{ color: text }}>{personLabel(c)}</span>
                   <span className="text-[11px] shrink-0" style={{ color: c.status === 'waiting' ? GOLD : muted }}>
                     {c.status === 'waiting' ? waitingFor(c.queuedAt) : hhmm(c.updatedAt)}
                   </span>
@@ -282,14 +292,16 @@ export function WhatsappInbox() {
             <div className="px-4 py-3 border-b flex items-center gap-3" style={{ borderColor: border }}>
               <button className="lg:hidden p-1" onClick={() => setSelectedId(null)} style={{ color: muted }}><X size={18} /></button>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-sm truncate" style={{ color: text }}>{selected.clientName || formatPhone(selected.clientPhone)}</p>
+                <p className="font-bold text-sm truncate" style={{ color: text }}>{personLabel(selected)}</p>
                 <p className="text-xs truncate" style={{ color: muted }}>
-                  {formatPhone(selected.clientPhone)}{selected.sector ? ` · ${selected.sector.name}` : ''}
-                  {selected.attendantName && selected.status !== 'waiting' ? ` · ${selected.attendantName}` : ''}
+                  {isRealPhone(selected.clientPhone) ? formatPhone(selected.clientPhone) : 'WhatsApp'}{selected.sector ? ` · ${selected.sector.name}` : ''}
+                  {selected.attendantName && selected.status !== 'waiting' && selected.status !== 'bot' ? ` · ${selected.attendantName}` : ''}
                 </p>
               </div>
-              {selected.status === 'waiting' && (
-                <button onClick={() => accept(selected)} className="px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: NAVY }}>Aceitar</button>
+              {(selected.status === 'waiting' || selected.status === 'bot') && (
+                <button onClick={() => accept(selected)} className="px-4 py-2 rounded-lg text-sm font-bold text-white" style={{ background: NAVY }}>
+                  {selected.status === 'bot' ? 'Assumir' : 'Aceitar'}
+                </button>
               )}
               {selected.status === 'active' && canReply && (
                 <>
@@ -307,12 +319,18 @@ export function WhatsappInbox() {
                   return <div key={m.id} className="text-center text-[11px] py-1" style={{ color: muted }}>{m.body} · {hhmm(m.sentAt)}</div>;
                 }
                 const mine = m.fromRole !== 'client';
+                const isBot = m.fromRole === 'bot';
                 return (
                   <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
                     <div className="max-w-[78%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words"
-                      style={{ background: mine ? NAVY : bg, color: mine ? '#fff' : text, border: mine ? 'none' : `1px solid ${border}` }}>
+                      style={{
+                        background: isBot ? (isDark ? 'rgba(196,154,42,0.15)' : 'rgba(196,154,42,0.12)') : mine ? NAVY : bg,
+                        color: mine && !isBot ? '#fff' : text,
+                        border: mine && !isBot ? 'none' : `1px solid ${isBot ? 'rgba(196,154,42,0.35)' : border}`,
+                      }}>
+                      {isBot && <div className="text-[10px] font-black mb-1 flex items-center gap-1" style={{ color: GOLD }}><Bot size={11} /> BOT</div>}
                       {m.body}
-                      <div className="text-[10px] text-right mt-1 opacity-60">{m.fromRole === 'bot' ? 'bot · ' : ''}{hhmm(m.sentAt)}</div>
+                      <div className="text-[10px] text-right mt-1 opacity-60">{hhmm(m.sentAt)}</div>
                     </div>
                   </div>
                 );
@@ -328,7 +346,8 @@ export function WhatsappInbox() {
                 </form>
               ) : (
                 <p className="text-xs text-center py-2" style={{ color: muted }}>
-                  {selected.status === 'waiting' ? 'Aceite a conversa para responder.'
+                  {selected.status === 'bot' ? 'Conversa com o bot. Clique em Assumir para falar com o cliente.'
+                    : selected.status === 'waiting' ? 'Aceite a conversa para responder.'
                     : selected.status === 'closed' ? 'Atendimento finalizado.'
                     : `Em atendimento por ${selected.attendantName}.`}
                 </p>
@@ -337,6 +356,8 @@ export function WhatsappInbox() {
           </>
         )}
       </div>
+
+      {attendantsOpen && <AttendantsModal onClose={() => setAttendantsOpen(false)} />}
 
       {/* ── Modais ── */}
       {(transferOpen || closeOpen) && (

@@ -8,7 +8,7 @@ import "dotenv/config";
 import express from "express";
 import {
   getSessionInfo, sendMessage, sendDocument, sendChoice, offerConversation, acceptWaitingConversation,
-  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, resumeSession,
+  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, resumeSession, startConversationSweeper,
 } from "./src/backend/wa.js";
 import { registerAsaasKeywords } from "./src/backend/asaas.js";
 
@@ -49,6 +49,7 @@ app.post("/rpc", async (req, res) => {
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`[wpp-worker] ouvindo em 127.0.0.1:${PORT}`);
   registerAsaasKeywords();                    // "extrato" / "fatura" respondidos pelo bot
+  startConversationSweeper();                 // encerra conversas só com o bot que ficaram paradas
   setTimeout(() => { void resumeSession(); }, 2000); // volta sozinho com a sessão salva, sem QR
 });
 

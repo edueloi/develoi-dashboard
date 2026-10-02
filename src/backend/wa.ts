@@ -84,6 +84,9 @@ export const disconnectSession = async (): Promise<void> => {
   if (isLocal()) await real.disconnectSession(); else await rpc<void>("disconnectSession", [], undefined);
 };
 
+// Encerra conversas só-com-bot paradas (trabalho do processo que mantém o socket)
+export const startConversationSweeper = (): void => { if (isLocal()) real.startConversationSweeper(); };
+
 // Retomar a sessão salva é trabalho do worker; no modo proxy não há o que fazer aqui
 export const resumeSession = async (): Promise<void> => { if (isLocal()) await real.resumeSession(); };
 

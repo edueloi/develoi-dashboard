@@ -24,6 +24,9 @@ const DEFAULT_CLIENT_HELP =
 
 const DEFAULT_SECTORS = ["Comercial", "Suporte", "Financeiro"];
 
+// Para onde responder: o endereço original do contato (pode ser um ID interno @lid), não "55 + número"
+const targetOf = (c: { clientJid?: string | null; clientPhone: string }) => c.clientJid || c.clientPhone;
+
 export const botController = {
   // ── MENU PADRÃO ─────────────────────────────────────────────────────────
   // Monta o fluxo: saudação por horário → 1 Soluções · 2.. setores · última "Já sou cliente".
@@ -263,7 +266,7 @@ export const botController = {
       if (!sector) return res.status(404).json({ error: "Setor não encontrado." });
 
       const moved = await prisma.wppConversation.updateMany({
-        where: { id, status: { in: ["waiting", "active"] } },
+        where: { id, status: { in: ["bot", "waiting", "active"] } },
         data: { sectorId, status: "waiting", attendantId: null, attendantName: null, attendantPhone: null, acceptedAt: null, queuedAt: new Date() },
       });
       if (moved.count === 0) return res.status(409).json({ error: "Conversa já encerrada." });
@@ -276,8 +279,10 @@ export const botController = {
           body: `${byName || "Atendente"} transferiu para o setor ${sector.name}${reason ? ` — ${reason}` : ""}.`,
         },
       });
-      setClientConversation(conv.clientPhone, id, "waiting");
-      await sendWppMessage(conv.clientPhone, `Estamos transferindo você para o setor *${sector.name}*. Aguarde um momento, por favor.`);
+      setClientConversation(targetOf(conv), id, "waiting");
+      const moveText = `Estamos transferindo você para o setor *${sector.name}*. Aguarde um momento, por favor.`;
+      await sendWppMessage(targetOf(conv), moveText);
+      await prisma.wppConversationMessage.create({ data: { conversationId: id, fromRole: "bot", body: moveText.replace(/\*/g, "") } });
       offerConversation(id).catch(e => console.error("Erro ao avisar atendentes:", e));
       res.json(conv);
     } catch (error) {
@@ -297,7 +302,7 @@ export const botController = {
         return res.status(409).json({ error: "Aceite a conversa antes de responder." });
       }
 
-      const sent = await sendWppMessage(conv.clientPhone, conv.attendantName ? `*${conv.attendantName}:* ${body}` : body);
+      const sent = await sendWppMessage(targetOf(conv), conv.attendantName ? `*${conv.attendantName}:* ${body}` : body);
       if (!sent) return res.status(503).json({ error: "WhatsApp desconectado. Mensagem não enviada." });
 
       const msg = await prisma.wppConversationMessage.create({

@@ -539,13 +539,14 @@ model WppConversation {
   id             String    @id @default(uuid())
   sectorId       String?   
   clientPhone    String    @db.VarChar(30)
+  clientJid      String?   @db.VarChar(80)    // endereço original no WhatsApp (pode ser um ID interno @lid, não o telefone)
   clientName     String?   @db.VarChar(255)
   attendantName  String?   @db.VarChar(100)
   attendantId    String?   @db.VarChar(36)
   attendantPhone String?   @db.VarChar(30)   // preenchido quando o atendente conversa pelo próprio WhatsApp
   acceptedAt     DateTime?
   queuedAt       DateTime  @default(now())   // quando entrou (ou voltou) para a fila
-  status         String    @default("waiting") @db.VarChar(20) // waiting, active, closed
+  status         String    @default("waiting") @db.VarChar(20) // bot, waiting, active, closed
   firstMessage   String?   @db.VarChar(1000)
   closedBy       String?   @db.VarChar(20)  // attendant, client, system
   closedAt       DateTime? 

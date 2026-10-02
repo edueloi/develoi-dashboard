@@ -11,7 +11,7 @@ import dotenv from "dotenv";
 import { blogController } from "./src/backend/blogController.js";
 import { casesController } from "./src/backend/casesController.js";
 import { botController } from "./src/backend/botController.js";
-import { resumeSession } from "./src/backend/wa.js";
+import { resumeSession, startConversationSweeper } from "./src/backend/wa.js";
 import { runBillingNotices, startBillingScheduler } from "./src/backend/billingNotifier.js";
 import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
@@ -1315,6 +1315,7 @@ async function startServer() {
       startAsaasScheduler();
       startWebhookDispatcher();
       setTimeout(() => { void resumeSession(); }, 3000);
+      startConversationSweeper(); // só age quando o WhatsApp roda neste mesmo processo (desenvolvimento)
     });
   } catch (error) {
     console.error("Failed to start server:", error);
