@@ -117,7 +117,7 @@ function AnimatedRoutes() {
 function AppContent() {
   console.log("AppContent component rendering");
   const location = useLocation();
-  const hideGlobalLayout = location.pathname.startsWith('/dashboard') || location.pathname === '/login';
+  const hideGlobalLayout = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/fatura/');
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
