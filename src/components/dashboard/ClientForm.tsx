@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Button, Modal, Input, Select, Textarea, DatePicker } from '../ui';
 import { useToast } from '../ui/Toast';
 import type { Client, ClientStatus, BillingCycle, CommissionType } from './types';
 import { format } from 'date-fns';
 import { parseDay } from './financeShared';
+import { BoxsysAccessModal, type Access } from './BoxsysSection';
 
 export const CYCLE_LABEL: Record<BillingCycle, string> = { monthly: 'Mensal', yearly: 'Anual', custom: 'Personalizado', one_time: 'Único' };
 
@@ -34,6 +35,13 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
   const [commissionValue, setCommissionValue] = useState(client?.commissionValue != null ? String(client.commissionValue) : '');
   const [notes, setNotes] = useState(client?.notes ?? '');
   const [saving, setSaving] = useState(false);
+  const [makeStore, setMakeStore] = useState(false);
+  const [store, setStore] = useState({ storeName: '', subdomain: '', planId: '', trialDays: '', sendAccess: true });
+  const [plans, setPlans] = useState<{ id: number; name: string }[]>([]);
+  const [access, setAccess] = useState<Access | null>(null);
+  useEffect(() => {
+    if (makeStore && plans.length === 0) fetch('/api/boxsys/plans').then(r => r.json()).then(d => setPlans(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [makeStore, plans.length]);
 
   const due = nextDueDate ? new Date(nextDueDate + 'T12:00:00') : null;
   const dueHint = !due ? null
@@ -72,6 +80,16 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
       });
       if (!res.ok) throw new Error();
       toast(editing ? 'Cliente atualizado' : 'Cliente cadastrado', 'success');
+      if (!editing && makeStore) {
+        const created = await res.json();
+        const r = await fetch(`/api/clients/${created.id}/boxsys/create`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...store, storeName: store.storeName || name.trim(), ownerName: name.trim(), ownerEmail: email.trim(), sendAccess: store.sendAccess && !!phone.trim() }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (r.ok) { setAccess({ ...d.access, sent: d.sent }); return; } // mostra o acesso e só então fecha
+        toast(`Cliente salvo, mas a loja não foi criada: ${d.error || 'erro no BoxSys'}. Crie depois pelo cadastro do cliente.`, 'warning');
+      }
       onSaved();
     } catch {
       toast('Não deu para salvar agora. Confira os dados e tente de novo.', 'error');
@@ -166,8 +184,35 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
           </div>
         </details>
 
+        {!editing && (
+          <div className="rounded-xl border border-slate-200 dark:border-white/10 p-4 space-y-4">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input type="checkbox" className="w-4 h-4 mt-0.5 accent-indigo-600" checked={makeStore} onChange={e => setMakeStore(e.target.checked)} />
+              <span className="text-sm font-bold">Criar a loja dele no Store BoxSys
+                <span className="block text-[11px] font-normal text-slate-400">Cria o usuário e o link de acesso agora. Pagou = loja liberada; atrasou além da tolerância = bloqueada.</span></span>
+            </label>
+            {makeStore && (
+              <div className="space-y-4">
+                {!email.trim() && <p className="text-xs text-amber-600">Preencha o <b>E-mail</b> acima: ele será o usuário de login da loja.</p>}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input label="Nome da loja" value={store.storeName} onChange={e => setStore({ ...store, storeName: e.target.value })} placeholder={name || 'Igual ao nome do cliente'} />
+                  <Input label="Endereço (opcional)" value={store.subdomain} onChange={e => setStore({ ...store, subdomain: e.target.value })} placeholder="minhaloja" />
+                  <Select label="Plano no BoxSys (opcional)" value={store.planId} onChange={e => setStore({ ...store, planId: e.target.value })}
+                    options={[{ value: '', label: 'Sem plano' }, ...plans.map(p => ({ value: String(p.id), label: p.name }))]} />
+                  <Input label="Dias de teste (opcional)" type="number" min="1" value={store.trialDays} onChange={e => setStore({ ...store, trialDays: e.target.value })} />
+                </div>
+                <label className={`flex items-center gap-2 text-sm ${phone.trim() ? '' : 'opacity-40'}`}>
+                  <input type="checkbox" className="w-4 h-4 accent-indigo-600" disabled={!phone.trim()} checked={store.sendAccess && !!phone.trim()} onChange={e => setStore({ ...store, sendAccess: e.target.checked })} />
+                  Enviar link e senha no WhatsApp do cliente
+                </label>
+              </div>
+            )}
+          </div>
+        )}
+
         <Textarea label="Observações" value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Opcional" />
       </form>
+      {access && <BoxsysAccessModal access={access} onClose={onSaved} />}
     </Modal>
   );
 }

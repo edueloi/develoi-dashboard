@@ -5,7 +5,26 @@ import { useToast } from '../ui/Toast';
 import type { Client } from './types';
 
 interface Plan { id: number; name: string; price: number }
-interface Access { url: string; email: string; password: string; sent: boolean }
+export interface Access { url: string; email: string; password: string; sent: boolean }
+
+
+export function BoxsysAccessModal({ access, onClose }: { access: Access; onClose: () => void }) {
+  const { show: toast } = useToast();
+  const copy = async (v: string) => { try { await navigator.clipboard.writeText(v); toast('Copiado', 'success'); } catch { toast('Não deu para copiar.', 'error'); } };
+  return (
+    <Modal isOpen onClose={onClose} title="Loja criada" size="sm" footer={<Button fullWidth onClick={onClose}>ENTENDI, JÁ COPIEI</Button>}>
+      <div className="space-y-3">
+        <p className="text-sm text-slate-500">{access.sent ? 'O acesso já foi enviado no WhatsApp do cliente.' : 'Passe estes dados ao cliente.'} <b>A senha não aparece de novo.</b></p>
+        {([['Endereço', access.url], ['Usuário (e-mail)', access.email], ['Senha provisória', access.password]] as const).map(([l, v]) => (
+          <div key={l} className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-white/5 px-3 py-2">
+            <div className="min-w-0 flex-1"><p className="text-[10px] font-bold uppercase text-slate-400">{l}</p><code className="text-xs break-all">{v}</code></div>
+            <button type="button" onClick={() => copy(v)} className="text-slate-400 hover:text-indigo-500" aria-label={`Copiar ${l}`}><Copy className="w-4 h-4" /></button>
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
 
 // Loja do cliente no Store BoxSys: criar, ver o estado e bloquear/liberar.
 // A regra automática: cliente ativo → loja liberada; pausado/bloqueado/cancelado → loja bloqueada.
@@ -45,7 +64,6 @@ export function BoxsysSection({ client, onChanged }: { client: Client; onChanged
   const act = async (key: string, url: string, method: string, okMsg: string) => {
     try { await call(key, url, method); toast(okMsg, 'success'); onChanged(); } catch (err: any) { toast(err.message, 'error'); }
   };
-  const copy = async (v: string) => { try { await navigator.clipboard.writeText(v); toast('Copiado', 'success'); } catch { toast('Não deu para copiar.', 'error'); } };
 
   const linked = !!client.boxsysTenantId;
   const suspended = client.boxsysStatus === 'suspended';
@@ -54,11 +72,10 @@ export function BoxsysSection({ client, onChanged }: { client: Client; onChanged
     <section>
       <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5"><Store className="w-3.5 h-3.5" /> Store BoxSys</p>
 
-      {cfg && !cfg.configured ? (
-        <p className="text-xs text-slate-400 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2.5">
-          A ligação com o BoxSys ainda não foi configurada no servidor. Adicione <b>BOXSYS_API_KEY</b> (a mesma <i>EXTERNAL_API_KEY</i> do BoxSys) no .env e reinicie.
-        </p>
-      ) : !linked ? (
+      {cfg && !cfg.configured && !linked && (
+        <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2.5 mb-2.5">Falta configurar <b>BOXSYS_API_KEY</b> no servidor para a loja ser criada de verdade.</p>
+      )}
+      {!linked ? (
         <div className="space-y-2.5">
           <p className="text-xs text-slate-400">Cria a loja deste cliente no Store BoxSys. Daí em diante, <b>pagou = loja liberada</b>; <b>passou da tolerância, pausado ou cancelado = loja bloqueada</b>, tudo sozinho.</p>
           <Button fullWidth variant="outline" iconLeft={<Store className="w-4 h-4" />} onClick={() => setOpen(true)}>CRIAR LOJA NO STORE BOXSYS</Button>
@@ -109,19 +126,7 @@ export function BoxsysSection({ client, onChanged }: { client: Client; onChanged
         </Modal>
       )}
 
-      {access && (
-        <Modal isOpen onClose={() => setAccess(null)} title="Loja criada" size="sm" footer={<Button fullWidth onClick={() => setAccess(null)}>ENTENDI, JÁ COPIEI</Button>}>
-          <div className="space-y-3">
-            <p className="text-sm text-slate-500">{access.sent ? 'O acesso já foi enviado no WhatsApp do cliente.' : 'Passe estes dados ao cliente.'} <b>A senha não aparece de novo.</b></p>
-            {([['Endereço', access.url], ['E-mail', access.email], ['Senha provisória', access.password]] as const).map(([l, v]) => (
-              <div key={l} className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-white/5 px-3 py-2">
-                <div className="min-w-0 flex-1"><p className="text-[10px] font-bold uppercase text-slate-400">{l}</p><code className="text-xs break-all">{v}</code></div>
-                <button onClick={() => copy(v)} className="text-slate-400 hover:text-indigo-500" aria-label={`Copiar ${l}`}><Copy className="w-4 h-4" /></button>
-              </div>
-            ))}
-          </div>
-        </Modal>
-      )}
+      {access && <BoxsysAccessModal access={access} onClose={() => setAccess(null)} />}
     </section>
   );
 }
