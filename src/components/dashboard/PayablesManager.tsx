@@ -8,15 +8,16 @@ import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import type { Payable, PayablePayment, PayableType, InterestPeriod } from './types';
-import { differenceInCalendarDays, addMonths, format, isSameMonth } from 'date-fns';
+import { differenceInCalendarDays, addMonths, addWeeks, format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useLiveEvents } from '../../lib/liveEvents';
+import { RowMenu } from './financeShared';
 
 // ─── Configuração visual ─────────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<PayableType, { label: string; hint: string; color: string; bg: string; icon: any }> = {
-  fixed:         { label: 'Fixa',      hint: 'Todo mês, mesmo valor (aluguel, internet, hospedagem)', color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)',  icon: Building2 },
-  variable:      { label: 'Variável',  hint: 'Todo mês, mas o valor muda (energia, água, cartão)',    color: '#D97706', bg: 'rgba(217,119,6,0.1)',  icon: TrendingUp },
+  fixed:         { label: 'Fixa',      hint: 'Repete com o mesmo valor (aluguel, internet, hospedagem, domínio)', color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)',  icon: Building2 },
+  variable:      { label: 'Variável',  hint: 'Repete, mas o valor muda (energia, água, cartão)',    color: '#D97706', bg: 'rgba(217,119,6,0.1)',  icon: TrendingUp },
   normal:        { label: 'Avulsa',    hint: 'Um gasto pontual, à vista ou parcelado',                color: '#475569', bg: 'rgba(71,85,105,0.1)',  icon: Receipt },
   product:       { label: 'Sistema',   hint: 'Custo ligado a um sistema/produto seu',                 color: '#2563EB', bg: 'rgba(37,99,235,0.08)', icon: Boxes },
   reimbursement: { label: 'Reembolso', hint: 'Dinheiro seu que você investiu e quer receber de volta', color: '#C49A2A', bg: 'rgba(196,154,42,0.1)', icon: RotateCcw },
@@ -138,11 +139,11 @@ export function PayablesManager() {
   const seriesIndex = useMemo(() => {
     const groups = new Map<string, Payable[]>();
     visible.forEach(p => { if (p.parentId) groups.set(p.parentId, [...(groups.get(p.parentId) ?? []), p]); });
-    const idx = new Map<string, { n: number; total: number; installments: boolean; openEnded: boolean }>();
+    const idx = new Map<string, { n: number; total: number; installments: boolean; openEnded: boolean; freq: string }>();
     groups.forEach((list, parentId) => {
       const parent = payables.find(x => x.id === parentId);
       list.sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
-      list.forEach((p, i) => idx.set(p.id, { n: i + 1, total: list.length, installments: parent?.recurrence === 'installments', openEnded: parent?.recurrence === 'monthly' && parent.recurrenceCount == null }));
+      list.forEach((p, i) => idx.set(p.id, { n: i + 1, total: list.length, installments: parent?.recurrence === 'installments', openEnded: parent?.recurrence === 'monthly' && parent.recurrenceCount == null, freq: parent?.recurrence === 'monthly' ? freqLabel(parent.recurrenceEvery ?? 1, (parent.recurrenceUnit ?? 'month') as FreqUnit) : '' }));
     });
     return idx;
   }, [visible, payables]);
@@ -210,7 +211,7 @@ export function PayablesManager() {
             <p className="text-sm font-bold truncate" style={{ color: text }}>{p.description}</p>
             {sIdx && (
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 flex items-center gap-1">
-                {sIdx.installments ? <Layers className="w-3 h-3" /> : <Repeat className="w-3 h-3" />}{sIdx.openEnded ? 'Todo mês' : `${sIdx.n}/${sIdx.total}`}
+                {sIdx.installments ? <Layers className="w-3 h-3" /> : <Repeat className="w-3 h-3" />}{sIdx.openEnded ? sIdx.freq : `${sIdx.n}/${sIdx.total}${sIdx.freq && sIdx.freq !== 'Todo mês' ? ` · ${sIdx.freq}` : ''}`}
               </span>
             )}
           </div>
@@ -413,33 +414,6 @@ function Stat({ label, value, color, icon: Icon, text, footer }: { label: string
   );
 }
 
-function RowMenu({ items }: { items: { label: string; icon: any; onClick: () => void; danger?: boolean }[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
-  return (
-    <div className="relative flex-shrink-0" ref={ref}>
-      <button onClick={() => setOpen(v => !v)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10" aria-label="Mais ações">
-        <MoreVertical className="w-4 h-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-30 min-w-[200px] rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 shadow-xl py-1">
-          {items.map(it => (
-            <button key={it.label} onClick={() => { setOpen(false); it.onClick(); }}
-              className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-left hover:bg-slate-50 dark:hover:bg-white/5 ${it.danger ? 'text-rose-600' : 'text-slate-600 dark:text-slate-200'}`}>
-              <it.icon className="w-4 h-4" /> {it.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ─── Pagamento ───────────────────────────────────────────────────────────────
 
@@ -578,6 +552,29 @@ function PayModal({ payable, onClose, onChanged }: { payable: Payable; onClose: 
 // ─── Cadastro / edição ───────────────────────────────────────────────────────
 
 type PlanMode = 'once' | 'monthly' | 'installments';
+type FreqUnit = 'week' | 'month' | 'year';
+
+// "Todo mês", "Trimestral", "A cada 2 anos"…
+export function freqLabel(every = 1, unit: FreqUnit = 'month'): string {
+  if (unit === 'week') return every === 1 ? 'Toda semana' : every === 2 ? 'Quinzenal (2 semanas)' : `A cada ${every} semanas`;
+  if (unit === 'year') return every === 1 ? 'Todo ano' : `A cada ${every} anos`;
+  return ({ 1: 'Todo mês', 2: 'Bimestral', 3: 'Trimestral', 6: 'Semestral' } as Record<number, string>)[every] ?? `A cada ${every} meses`;
+}
+
+const FREQ_PRESETS: { every: number; unit: FreqUnit; label: string }[] = [
+  { every: 1, unit: 'week', label: 'Semanal' },
+  { every: 2, unit: 'week', label: 'Quinzenal' },
+  { every: 1, unit: 'month', label: 'Mensal' },
+  { every: 2, unit: 'month', label: 'Bimestral' },
+  { every: 3, unit: 'month', label: 'Trimestral' },
+  { every: 6, unit: 'month', label: 'Semestral' },
+  { every: 1, unit: 'year', label: 'Anual' },
+  { every: 2, unit: 'year', label: 'A cada 2 anos' },
+  { every: 3, unit: 'year', label: 'A cada 3 anos' },
+];
+
+const stepDate = (d: Date, i: number, every: number, unit: FreqUnit) => unit === 'week' ? addWeeks(d, i * every) : addMonths(d, i * every * (unit === 'year' ? 12 : 1));
+const stepMonthsOf = (every: number, unit: FreqUnit) => (unit === 'week' ? (every * 7) / 30.4 : unit === 'year' ? every * 12 : every);
 
 function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }: {
   payable: Payable | null; projects: { id: string; name: string }[]; defaultDate: Date; onClose: () => void; onSuccess: () => void;
@@ -594,7 +591,9 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
     payable?.dueDate ? format(parseDay(payable.dueDate)!, 'yyyy-MM-dd') : format(new Date(defaultDate.getFullYear(), defaultDate.getMonth(), Math.min(new Date().getDate(), 28)), 'yyyy-MM-dd'),
   );
   const [plan, setPlan] = useState<PlanMode>('monthly'); // Fixa/Variável nascem repetindo todo mês
-  const [count, setCount] = useState(''); // mensal: vazio = sem prazo
+  const [count, setCount] = useState(''); // repetições: vazio = sem prazo
+  const [freq, setFreq] = useState<{ every: number; unit: FreqUnit }>({ every: payable?.recurrenceEvery ?? 1, unit: (payable?.recurrenceUnit as FreqUnit) ?? 'month' });
+  const [customFreq, setCustomFreq] = useState(false);
   const [notes, setNotes] = useState(payable?.notes || '');
   const [fine, setFine] = useState(payable?.finePercent != null ? String(payable.finePercent) : '');
   const [interest, setInterest] = useState(payable?.interestRate != null ? String(payable.interestRate) : '');
@@ -618,9 +617,11 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
 
   const planPreview = (() => {
     if (!canPlan || plan === 'once' || !firstDue) return null;
-    const last = addMonths(firstDue, n - 1);
-    if (forever) return `Repete todo mês sem data para acabar. Já deixo criados os próximos 12 meses (até ${format(addMonths(firstDue, 11), 'dd/MM/yy')}) e o sistema cria os seguintes sozinho. Para encerrar, exclua "esta e as próximas".`;
-    if (plan === 'monthly') return `${n} ${n === 1 ? 'conta' : 'contas'} de ${money(total)}, de ${format(firstDue, 'dd/MM/yy')} até ${format(last, 'dd/MM/yy')} (${n} ${n === 1 ? 'mês' : 'meses'}).`;
+    const step = plan === 'monthly' ? freq : { every: 1, unit: 'month' as FreqUnit };
+    const last = stepDate(firstDue, n - 1, step.every, step.unit);
+    const openCount = Math.min(60, Math.max(2, Math.ceil(12 / stepMonthsOf(freq.every, freq.unit))));
+    if (forever) return `Repete ${freqLabel(freq.every, freq.unit).toLowerCase()}, sem data para acabar. Já deixo criadas as próximas ${openCount} (até ${format(stepDate(firstDue, openCount - 1, freq.every, freq.unit), 'dd/MM/yy')}) e o sistema cria as seguintes sozinho. Para encerrar, exclua "esta e as próximas".`;
+    if (plan === 'monthly') return `${n} ${n === 1 ? 'conta' : 'contas'} de ${money(total)} (${freqLabel(freq.every, freq.unit).toLowerCase()}), de ${format(firstDue, 'dd/MM/yy')} até ${format(last, 'dd/MM/yy')}.`;
     return `${n}x de ${money(total / n)} — a última parcela vence em ${format(last, 'dd/MM/yy')}.`;
   })();
 
@@ -647,12 +648,12 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
         interestPeriod: interest ? interestPeriod : null,
         finePercent: fine ? Number(fine) : null,
       };
-      if (!editing && canPlan && plan !== 'once') payload.plan = { mode: plan, count: forever ? null : n };
+      if (!editing && canPlan && plan !== 'once') payload.plan = { mode: plan, count: forever ? null : n, every: plan === 'monthly' ? freq.every : 1, unit: plan === 'monthly' ? freq.unit : 'month' };
 
       const url = editing ? `/api/payables/${payable!.id}${applyFollowing ? '?scope=following' : ''}` : '/api/payables';
       const res = await fetch(url, { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error();
-      toast(editing ? 'Alterações salvas' : plan !== 'once' && canPlan ? (forever ? 'Conta mensal cadastrada' : `${n} ${n === 1 ? 'conta criada' : 'contas criadas'}`) : 'Conta cadastrada', 'success');
+      toast(editing ? 'Alterações salvas' : plan !== 'once' && canPlan ? (forever ? 'Conta recorrente cadastrada' : `${n} ${n === 1 ? 'conta criada' : 'contas criadas'}`) : 'Conta cadastrada', 'success');
       onSuccess();
     } catch {
       toast('Não deu para salvar agora. Confira os dados e tente de novo.', 'error');
@@ -720,7 +721,7 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
             <div className="grid grid-cols-3 gap-2 mt-1.5">
               {([
                 ['once', 'À vista', 'Uma vez só', Receipt],
-                ['monthly', 'Todo mês', 'Mesmo valor, repetindo', Repeat],
+                ['monthly', 'Repete', 'Mesmo valor, em intervalo', Repeat],
                 ['installments', 'Parcelado', 'Divide o total', Layers],
               ] as [PlanMode, string, string, any][]).map(([m, title, sub, Icon]) => (
                 <button type="button" key={m} onClick={() => { setPlan(m); setCount(m === 'installments' ? '12' : ''); }}
@@ -731,9 +732,36 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
                 </button>
               ))}
             </div>
+            {plan === 'monthly' && (
+              <div className="mt-3 space-y-2.5">
+                <label className="ds-label">Repete a cada quanto tempo?</label>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {FREQ_PRESETS.map(f => {
+                    const on = !customFreq && freq.every === f.every && freq.unit === f.unit;
+                    return (
+                      <button type="button" key={f.label} onClick={() => { setFreq({ every: f.every, unit: f.unit }); setCustomFreq(false); }}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${on ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-white/10 text-slate-500 hover:border-slate-300'}`}>
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                  <button type="button" onClick={() => setCustomFreq(true)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${customFreq ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-white/10 text-slate-500 hover:border-slate-300'}`}>
+                    Outro intervalo
+                  </button>
+                </div>
+                {customFreq && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">A cada</span>
+                    <div className="w-20"><Input type="number" min={1} max={60} value={String(freq.every)} onChange={e => setFreq({ ...freq, every: Math.min(60, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })} aria-label="Intervalo" /></div>
+                    <div className="w-36"><Select value={freq.unit} onChange={e => setFreq({ ...freq, unit: e.target.value as FreqUnit })} options={[{ value: 'week', label: 'semana(s)' }, { value: 'month', label: 'mês(es)' }, { value: 'year', label: 'ano(s)' }]} /></div>
+                  </div>
+                )}
+              </div>
+            )}
             {plan !== 'once' && (
               <div className="mt-3 space-y-2.5">
-                <label className="ds-label">{plan === 'monthly' ? 'Até quando?' : 'Em quantas parcelas?'}</label>
+                <label className="ds-label">{plan === 'monthly' ? 'Por quantas vezes?' : 'Em quantas parcelas?'}</label>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {plan === 'monthly' && (
                     <button type="button" onClick={() => setCount('')}
@@ -741,16 +769,16 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
                       Sem prazo
                     </button>
                   )}
-                  {(plan === 'monthly' ? [6, 12, 24, 36] : [2, 3, 6, 10, 12]).map(v => (
+                  {(plan === 'monthly' ? [2, 3, 4, 6, 12] : [2, 3, 6, 10, 12]).map(v => (
                     <button type="button" key={v} onClick={() => setCount(String(v))}
                       className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors ${!forever && n === v ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-white/10 text-slate-500 hover:border-slate-300'}`}>
-                      {plan === 'monthly' ? `${v} meses` : `${v}x`}
+                      {`${v}x`}
                     </button>
                   ))}
                   <div className="w-24">
                     <Input type="number" min={plan === 'installments' ? 2 : 1} max={120} value={count} onChange={e => setCount(e.target.value)} placeholder={plan === 'monthly' ? 'Outro' : String(defaultCount)} aria-label="Outra quantidade" />
                   </div>
-                  {!forever && <span className="text-xs text-slate-400">{plan === 'monthly' ? 'meses' : 'parcelas'}</span>}
+                  {!forever && <span className="text-xs text-slate-400">{plan === 'monthly' ? 'vezes' : 'parcelas'}</span>}
                 </div>
                 {planPreview && <p className="text-xs text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg px-3 py-2">{planPreview}</p>}
               </div>

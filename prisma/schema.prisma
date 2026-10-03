@@ -431,7 +431,9 @@ model Payable {
   createdAt     DateTime  @default(now())
   installments  Int?      // qtd. de parcelas (ex.: compra parcelada)
   recurrence    String    @default("none") // none | monthly
-  recurrenceCount Int?    // qtd. de meses da série (null = indefinida → gera 12 iniciais)
+  recurrenceCount Int?    // qtd. de repetições da série (null = indefinida → gera as próximas conforme o tempo passa)
+  recurrenceEvery Int     @default(1)        // a cada N (semanas, meses ou anos)
+  recurrenceUnit  String  @default("month") @db.VarChar(10) // week | month | year
   interestRate  Float?    // % de juros se atrasar
   interestPeriod String?  // day | month | year
   finePercent   Float?    // % de multa se atrasar

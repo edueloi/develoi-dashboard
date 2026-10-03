@@ -14,6 +14,7 @@ import makeWASocket, {
 import path from "path";
 import fs from "fs";
 import { prisma } from "./db.js";
+import { deDash } from "./botNlu.js";
 import { respondTo, newBrainCtx, peekIntent, seedKnowledge, idleNudge, idleClose, type BrainCtx, type BrainIO } from "./botBrain.js";
 import { brtParts } from "./time.js";
 
@@ -416,6 +417,8 @@ async function buttonsEnabled(): Promise<boolean> {
 // Envia uma pergunta com opções clicáveis. Até 3 opções = botões de resposta rápida;
 // mais que isso = lista (single_select). Em caso de falha, cai para o menu numerado em texto.
 export async function sendChoice(jidOrPhone: string, body: string, options: ChoiceOption[], opts: { footer?: string; hint?: string } = {}): Promise<boolean> {
+  body = deDash(body);
+  options = options.map(o => ({ ...o, text: deDash(o.text) }));
   if (!session || session.status !== "connected") return false;
   const jid = jidOrPhone.includes("@") ? jidOrPhone : phoneToJid(jidOrPhone);
   const hint = opts.hint ?? "Toque em uma opção ou digite o número.";
@@ -496,7 +499,9 @@ function firstNameOf(pushName?: string | null): string | null {
 // {{saudacao}} e {{nome}} nos textos configurados
 function fillPlaceholders(text: string, state: { pushName?: string | null }): string {
   const nome = firstNameOf(state.pushName);
-  return text
+  // textos antigos salvos no fluxo: a assistente agora se chama BiIA
+  text = text.replace(/Sou o assistente virtual e estou à disposição para atendê-lo\(a\)\./g, "Sou a *BiIA*, assistente virtual da Develoi, e estou à disposição para te atender.");
+  return deDash(text)
     .replace(/\{\{\s*saudacao\s*\}\}/gi, saudacao())
     .replace(nome ? /\{\{\s*nome\s*\}\}/gi : /,?\s*\{\{\s*nome\s*\}\}/gi, nome ?? "");
 }
@@ -664,6 +669,7 @@ async function typing(sock: any, jid: string, text: string) {
 }
 
 async function botSay(state: any, sock: any, text: string) {
+  text = deDash(text);
   await typing(sock, state.remoteJid, text);
   await sock.sendMessage(state.remoteJid, { text });
   if (state.conversationId) await recordMsg(state.conversationId, "bot", text);
@@ -723,6 +729,13 @@ async function handleDocumentReply(state: any, sock: any, key: string, text: str
     await botSay(state, sock, "Desculpe, não consegui concluir a consulta agora. Tente novamente em instantes ou digite *0* para voltar ao menu.");
     return;
   }
+  // a BiIA passa a saber quem é (para não pedir o CPF de novo e chamar pelo nome)
+  try {
+    const known = await findClientByDocument(doc);
+    const b = brainOf(state);
+    b.client = { name: known?.name ?? null, document: doc };
+    b.profile = "client";
+  } catch { /* identificação é só um extra */ }
   await botSay(state, sock, result.text);
   if (result.file) {
     try {
@@ -849,7 +862,7 @@ async function handleMessage(msg: any, sock: any) {
     if (state.awaiting) {
       if (!/\d/.test(textMsg)) {
         const peek = await peekIntent(textMsg, brainOf(state).lastSystem);
-        if (peek && peek.confidence >= 0.7 && ["human", "complaint", "cancel", "menu", "goodbye", "support_problem", "hire", "price", "systems_overview"].includes(peek.id)) {
+        if (peek && peek.confidence >= 0.7 && ["human", "complaint", "cancel", "menu", "goodbye", "support_problem", "hire", "price", "systems_overview", "topic_change", "not_client", "i_am_client"].includes(peek.id)) {
           state.awaiting = undefined;
           if (await smartReply(state, sock, key, textMsg, clientPhone)) return;
         }
@@ -918,10 +931,20 @@ async function smartReply(state: any, sock: any, key: string, text: string, clie
       if (!sector) { await handoffToSector(state, sock, clientPhone, "Suporte", text); return; }
       await beginSupportIntake(state, sock, { id: sector.id, name: sector.name }, { system, detail: subject });
     },
-    handoff: async (sectorName) => { await handoffToSector(state, sock, clientPhone, sectorName, text); },
-    menu: async () => {
+    handoff: async (sectorName, note) => { if (note) state.handoffNote = note; await handoffToSector(state, sock, clientPhone, sectorName, text); },
+    note: async (t) => { if (state.conversationId) await recordMsg(state.conversationId, "system", t); },
+    menu: async (kind) => {
       const start = await prisma.wppBotFlowNode.findFirst({ where: { isStart: true, isActive: true } });
-      if (start) { state.currentNodeId = start.id; await processNode(start, state, "", sock, clientPhone); }
+      if (!start) return;
+      state.currentNodeId = start.id;
+      if (kind !== "inline") { await processNode(start, state, "", sock, clientPhone); return; }
+      // no meio da conversa: sem "seja bem-vindo" de novo, só as opções com uma frase curta
+      let choices: ChoiceOption[] = [];
+      try { choices = JSON.parse(start.options).map((o: any) => ({ id: String(o.key), text: String(o.label) })); } catch { /* sem opções */ }
+      const lead = ["Se preferir, escolha abaixo o assunto que mais combina com o que você precisa. 👇", "Posso te ajudar com algum destes assuntos? 👇", "Olha só o que posso fazer por você agora:"][Math.floor(Math.random() * 3)];
+      if (!choices.length) { await botSay(state, sock, lead); return; }
+      await sendChoice(state.remoteJid, lead, choices, { hint: "Digite a opção desejada." });
+      if (state.conversationId) await recordMsg(state.conversationId, "bot", `${lead}\n\n${choices.map(c => `${c.id} - ${c.text}`).join("\n")}`);
     },
     queueStatus: async () => {
       const conv = state.conversationId ? await prisma.wppConversation.findUnique({ where: { id: state.conversationId } }) : null;
@@ -979,7 +1002,9 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
 
     if (sector) {
       // A conversa (já gravada desde o primeiro "oi") entra na fila do setor
-      const data = { sectorId: sector.id, status: "waiting", queuedAt: new Date(), firstMessage: `Escolheu o setor ${sector.name}` };
+      const note: string | undefined = state.handoffNote;
+      state.handoffNote = undefined;
+      const data = { sectorId: sector.id, status: "waiting", queuedAt: new Date(), firstMessage: note ? note.slice(0, 1000) : `Escolheu o setor ${sector.name}` };
       let convId: string = state.conversationId;
       let conv;
       if (convId) {
@@ -992,7 +1017,7 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
       const pos = await queuePosition(conv);
       lastPosition.set(convId, pos.position);
       text += `${text ? "\n\n" : ""}Certo! Estou encaminhando o seu atendimento ao setor *${sector.name}*.\n\n${positionText(sector.name, pos)}\nEnquanto isso, se desejar, descreva em uma mensagem como podemos ajudá-lo(a). ✍️`;
-      await recordMsg(convId, "system", `Cliente encaminhado ao setor ${sector.name}.`);
+      await recordMsg(convId, "system", `Cliente encaminhado ao setor ${sector.name}.${note ? ` ${note}` : ""}`);
       state.status = "waiting";
       setTimeout(() => { offerConversation(convId).catch(e => console.error("Erro ao avisar atendentes:", e)); }, OFFER_DELAY_MS);
     } else {

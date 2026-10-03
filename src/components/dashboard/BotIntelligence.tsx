@@ -19,6 +19,7 @@ const ACTIONS = [
   { value: 'reply', label: 'Só responder' },
   { value: 'menu', label: 'Responder e mostrar o menu' },
   { value: 'support', label: 'Responder e abrir suporte' },
+  { value: 'lead', label: 'Responder e coletar dados para o Comercial' },
   { value: 'handoff:Comercial', label: 'Responder e chamar o Comercial' },
   { value: 'handoff:Financeiro', label: 'Responder e chamar o Financeiro' },
   { value: 'handoff:Suporte', label: 'Responder e chamar o Suporte' },
@@ -96,7 +97,7 @@ export function BotIntelligence() {
   const dismiss = async (u: Unknown) => { await fetch(`/api/admin/bot/nlu/unknown/${u.id}/dismiss`, { method: 'POST' }); load(); };
 
   return (
-    <PanelCard title="Inteligência do bot" icon={Brain}>
+    <PanelCard title="BiIA, a inteligência do bot" icon={Brain}>
       <div className="space-y-6">
         <p className="text-xs dash-text-muted">
           O bot entende mensagens livres (com erros de digitação, gírias e abreviações), responde com variações e age: manda a fatura, o extrato, abre suporte ou chama a equipe.

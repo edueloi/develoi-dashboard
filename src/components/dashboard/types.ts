@@ -342,6 +342,8 @@ export interface Payable {
   installments?: number | null;
   recurrence?: 'none' | 'monthly' | 'installments';
   recurrenceCount?: number | null;
+  recurrenceEvery?: number;
+  recurrenceUnit?: 'week' | 'month' | 'year';
   interestRate?: number | null;
   interestPeriod?: InterestPeriod | null;
   finePercent?: number | null;

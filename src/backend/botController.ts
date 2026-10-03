@@ -7,7 +7,7 @@ import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendW
 // ─── Textos padrão do menu (editáveis na tela do bot) ────────────────────────
 // {{saudacao}} vira Bom dia / Boa tarde / Boa noite; {{nome}} é o primeiro nome do WhatsApp do cliente.
 const DEFAULT_WELCOME =
-  "{{saudacao}}, {{nome}}! 👋 Seja bem-vindo(a) à *Develoi Soluções Digitais*.\n\nSou o assistente virtual e estou à disposição para atendê-lo(a). Como posso ajudar? Selecione uma das opções abaixo:";
+  "{{saudacao}}, {{nome}}! 👋 Seja bem-vindo(a) à *Develoi Soluções Digitais*.\n\nSou a *BiIA*, assistente virtual da Develoi, e estou à disposição para te atender. Como posso ajudar? Selecione uma das opções abaixo:";
 
 const DEFAULT_SOLUTIONS =
   "*Conheça as soluções da Develoi* 💼\n\nSomos especialistas em tecnologia para negócios. Entre as nossas soluções:\n\n" +

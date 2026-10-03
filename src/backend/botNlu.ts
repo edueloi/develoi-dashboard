@@ -2,6 +2,17 @@
 // por frases-exemplo e palavras-chave, tolerando erros de digitação, gírias e abreviações.
 // É puro (não acessa banco): a base de conhecimento editável entra por parâmetro (ver botBrain.ts).
 
+// Tira os travessões (— e –) dos textos do bot: soa mais natural com vírgula, ponto ou dois-pontos
+export function deDash(t: string): string {
+  return t
+    .replace(/(\n\s*[•*-]\s*\*[^*\n]+\*)\s[—–]\s/g, "$1: ")
+    .replace(/\s[—–]\s/g, ", ")
+    .replace(/[—–]/g, ", ")
+    .replace(/,\s*,/g, ",")
+    .replace(/\s+,/g, ",")
+    .replace(/,\s*([.!?])/g, "$1");
+}
+
 // ─── Normalização ────────────────────────────────────────────────────────────
 
 const ABBR: Record<string, string> = {
@@ -100,13 +111,18 @@ function lev(a: string, b: string): number {
   return d[la][lb];
 }
 
+const LEV_CACHE = new Map<string, number>();
+
 // 1 = igual · menos = parecido (erro de digitação) · 0 = nada a ver
 function tokSim(a: Tok, b: Tok): number {
   if (a.c === b.c || a.s === b.s) return 1;
   const m = Math.min(a.s.length, b.s.length);
   if (m < 4) return 0;
+  if (a.s[0] !== b.s[0] || Math.abs(a.s.length - b.s.length) > 3) return 0; // erro de digitação raramente muda a 1ª letra
   if ((a.s.startsWith(b.s) || b.s.startsWith(a.s)) && m >= 4 && m / Math.max(a.s.length, b.s.length) >= 0.7) return 0.85;
-  const d = lev(a.s, b.s);
+  const key = a.s < b.s ? `${a.s}|${b.s}` : `${b.s}|${a.s}`;
+  let d = LEV_CACHE.get(key);
+  if (d === undefined) { d = lev(a.s, b.s); if (LEV_CACHE.size > 50000) LEV_CACHE.clear(); LEV_CACHE.set(key, d); }
   if (d === 1) return 0.85;
   if (d === 2 && m >= 7) return 0.7;
   return 0;
@@ -114,7 +130,7 @@ function tokSim(a: Tok, b: Tok): number {
 
 // ─── Intenções ───────────────────────────────────────────────────────────────
 
-export type IntentAction = "reply" | "menu" | "invoice" | "statement" | "support" | "queue_status" | "goodbye" | `handoff:${string}`;
+export type IntentAction = "reply" | "menu" | "invoice" | "statement" | "support" | "queue_status" | "goodbye" | "lead" | `handoff:${string}`;
 
 export interface IntentDef {
   id: string;
@@ -130,72 +146,179 @@ export interface IntentDef {
   id2?: string;
 }
 
-interface Prepared extends IntentDef {
-  p: Tok[][];
-  k: { t: Tok; w: number }[];
-}
-
-const prepCache = new WeakMap<IntentDef, Prepared>();
-function prepare(def: IntentDef): Prepared {
-  let p = prepCache.get(def);
-  if (!p) {
-    p = {
-      ...def,
-      p: def.phrases.map(x => content(tokenize(x))).filter(x => x.length),
-      k: (def.keywords ?? []).flatMap(([w, wt]) => content(tokenize(w)).slice(0, 1).map(t => ({ t, w: wt }))),
-    };
-    prepCache.set(def, p);
-  }
-  return p;
-}
-
 export interface Candidate { id: string; label: string; score: number; def: IntentDef }
 
-function scoreIntent(def: IntentDef, input: Tok[], normalized: string): number {
-  const d = prepare(def);
-  const useful = content(input);
-  if (!useful.length) return 0;
+// Índice por conjunto de intenções: peso de cada palavra (IDF: palavra rara decide mais que "pagar"), frases por palavra
+// e correção ortográfica contra o vocabulário. Montado uma vez e reaproveitado enquanto as intenções não mudam.
+interface PhraseRef { def: IntentDef; toks: Tok[]; set: Set<string>; wsum: number; norm: string }
+interface Index {
+  cen: Map<string, { def: IntentDef; w: number }[]>;      // palavra → peso dela em cada intenção (centróide TF-IDF)
+  cenNorm: Map<IntentDef, number>;
+  tri: { def: IntentDef; set: Set<string> }[];             // trigramas de cada frase (mensagens curtas)
+  idf: Map<string, number>;
+  post: Map<string, PhraseRef[]>;
+  kw: Map<string, { def: IntentDef; w: number }[]>;
+  byFirst: Map<string, string[]>;
+  vocab: Set<string>;
+}
+const INDEXES = new WeakMap<IntentDef[], Index>();
 
-  // 1) parecido com alguma frase-exemplo (quanto da frase aparece na mensagem e quanto da mensagem é a frase)
-  let best = 0;
-  for (const phrase of d.p) {
-    let cover = 0;
-    for (const pt of phrase) {
-      let m = 0;
-      for (const it of useful) m = Math.max(m, tokSim(pt, it) * (it.neg && !pt.neg ? 0.2 : 1));
-      cover += m;
-    }
-    const coverage = cover / phrase.length;
-    let used = 0;
-    for (const it of useful) { let m = 0; for (const pt of phrase) m = Math.max(m, tokSim(pt, it)); if (m >= 0.7) used++; }
-    const precision = used / useful.length;
-    let s = 0.7 * coverage + 0.3 * precision;
-    if (def.phrases.some(x => normalized.includes(normalize(x)) && normalize(x).length >= 4)) s = Math.max(s, 0.92);
-    best = Math.max(best, s);
-  }
-
-  // 2) palavras-chave (peso soma; "não" antes da palavra anula)
-  let kw = 0;
-  for (const k of d.k) {
-    let m = 0;
-    for (const it of useful) m = Math.max(m, it.neg ? 0 : tokSim(k.t, it));
-    kw += m * k.w;
-  }
-  const kwScore = Math.min(1, kw / 3);
-
-  let base = Math.max(best * 0.95, kwScore * 0.85);
-  if (best < 0.35 && def.custom) base = Math.min(base, 0.62); // resposta da base só por uma palavra solta (ex.: o nome do sistema) não basta
-  const both = best > 0.4 && kwScore > 0.3 ? 0.08 : 0;
-  return Math.min(1, base + both);
+function trigrams(norm: string): Set<string> {
+  const t = ` ${norm} `;
+  const out = new Set<string>();
+  for (let i = 0; i + 3 <= t.length; i++) out.add(t.slice(i, i + 3));
+  return out;
 }
 
+function buildIndex(defs: IntentDef[]): Index {
+  const df = new Map<string, number>();
+  const post = new Map<string, PhraseRef[]>();
+  const kw = new Map<string, { def: IntentDef; w: number }[]>();
+  const refs: PhraseRef[] = [];
+  for (const def of defs) {
+    const seen = new Set<string>();
+    for (const ph of def.phrases) {
+      const toks = content(tokenize(ph));
+      if (!toks.length) continue;
+      refs.push({ def, toks, set: new Set(toks.map(t => t.s)), wsum: 0, norm: normalize(ph) });
+      toks.forEach(t => seen.add(t.s));
+    }
+    for (const [w, wt] of def.keywords ?? []) {
+      const t = content(tokenize(w))[0];
+      if (!t) continue;
+      seen.add(t.s);
+      (kw.get(t.s) ?? kw.set(t.s, []).get(t.s)!).push({ def, w: wt });
+    }
+    seen.forEach(st => df.set(st, (df.get(st) ?? 0) + 1));
+  }
+  const N = Math.max(1, defs.length);
+  const idf = new Map<string, number>();
+  df.forEach((d, st) => idf.set(st, Math.min(4, Math.max(0.35, Math.log((N + 1) / (d + 0.5))))));
+  for (const r of refs) {
+    r.wsum = r.toks.reduce((a, t) => a + (idf.get(t.s) ?? 1), 0);
+    for (const st of r.set) (post.get(st) ?? post.set(st, []).get(st)!).push(r);
+  }
+  const byFirst = new Map<string, string[]>();
+  df.forEach((_, st) => { const k = st[0]; (byFirst.get(k) ?? byFirst.set(k, []).get(k)!).push(st); });
+
+  // centróide: quanto cada palavra pesa em cada intenção (frequência nas frases × raridade entre intenções)
+  const cen = new Map<string, { def: IntentDef; w: number }[]>();
+  const cenNorm = new Map<IntentDef, number>();
+  for (const def of defs) {
+    const tf = new Map<string, number>();
+    for (const r of refs) if (r.def === def) r.set.forEach(st => tf.set(st, (tf.get(st) ?? 0) + 1));
+    for (const [w, wt] of def.keywords ?? []) { const t = content(tokenize(w))[0]; if (t) tf.set(t.s, (tf.get(t.s) ?? 0) + wt); }
+    let norm = 0;
+    tf.forEach((c, st) => {
+      const w = (1 + Math.log(c)) * (idf.get(st) ?? 1);
+      norm += w * w;
+      (cen.get(st) ?? cen.set(st, []).get(st)!).push({ def, w });
+    });
+    cenNorm.set(def, Math.sqrt(norm) || 1);
+  }
+  const tri: { def: IntentDef; set: Set<string> }[] = [];
+  for (const r of refs) tri.push({ def: r.def, set: trigrams(r.norm) });
+  return { idf, post, kw, byFirst, vocab: new Set(df.keys()), cen, cenNorm, tri };
+}
+
+function indexOf(defs: IntentDef[]): Index {
+  let ix = INDEXES.get(defs);
+  if (!ix) { ix = buildIndex(defs); INDEXES.set(defs, ix); }
+  return ix;
+}
+
+// palavra fora do vocabulário → a mais parecida que o bot conhece ("boleta" vira "boleto")
+function correct(t: Tok, ix: Index): Tok {
+  if (ix.vocab.has(t.s) || t.s.length < 4) return t;
+  let best: string | null = null, bd = 9;
+  for (const v of ix.byFirst.get(t.s[0]) ?? []) {
+    if (Math.abs(v.length - t.s.length) > 2) continue;
+    const d = lev(t.s, v);
+    if (d < bd) { bd = d; best = v; }
+  }
+  const lim = t.s.length >= 7 ? 2 : 1;
+  return best && bd <= lim ? { ...t, s: best, c: best } : t;
+}
+
+const NAME_TOKENS = new Set(["bia", "biia", "bea"]);
+const COS_GAIN = 3.0;
+const COS_CAP = 0.9;
+const TRI_GAIN = 0.7;
+
 export function rank(defs: IntentDef[], text: string): Candidate[] {
-  const toks = tokenize(text);
+  const ix = indexOf(defs);
+  const all = tokenize(text);
+  let toks = content(all).map(t => correct(t, ix));
+  const named = toks.filter(t => !NAME_TOKENS.has(t.s));
+  if (named.length) toks = named; // "bia, quero a fatura" → só "quero a fatura"
+  // conversa curta feita só de palavras comuns ("como vc ta?", "tudo bem"): usa todas as palavras
+  if (!toks.length) toks = all.filter(t => t.c !== "nao").map(t => correct(t, ix));
+  if (!toks.length) return [];
   const norm = normalize(text);
-  return defs
-    .map(def => ({ id: def.id, label: def.label, def, score: scoreIntent(def, toks, norm) + (def.priority ?? 0) * 0.002 }))
-    .filter(c => c.score > 0.2)
-    .sort((a, b) => b.score - a.score);
+  const uset = new Map<string, boolean>(); // palavra → veio com "não" antes
+  toks.forEach(t => uset.set(t.s, (uset.get(t.s) ?? false) || t.neg));
+  const usum = toks.reduce((a, t) => a + (ix.idf.get(t.s) ?? 1), 0) || 1;
+
+  const best = new Map<IntentDef, number>();
+  const seenRef = new Set<PhraseRef>();
+  for (const st of uset.keys()) {
+    for (const r of ix.post.get(st) ?? []) {
+      if (seenRef.has(r)) continue;
+      seenRef.add(r);
+      let cov = 0, used = 0;
+      for (const pt of r.toks) {
+        if (uset.has(pt.s)) cov += (ix.idf.get(pt.s) ?? 1) * ((uset.get(pt.s) && !pt.neg) ? 0.2 : 1);
+      }
+      for (const [us, neg] of uset) if (r.set.has(us)) used += (ix.idf.get(us) ?? 1) * (neg && !r.toks.some(t => t.s === us && t.neg) ? 0.2 : 1);
+      let sc = 0.7 * (cov / r.wsum) + 0.3 * (used / usum);
+      if (r.norm.length >= 4 && norm.includes(r.norm)) sc = Math.max(sc, 0.92);
+      if (sc > (best.get(r.def) ?? 0)) best.set(r.def, sc);
+    }
+  }
+
+  const kws = new Map<IntentDef, number>();
+  for (const [st, neg] of uset) {
+    if (neg) continue;
+    for (const k of ix.kw.get(st) ?? []) kws.set(k.def, (kws.get(k.def) ?? 0) + k.w);
+  }
+
+  // parecido com o "perfil" da intenção (cobre jeitos de falar que nenhuma frase isolada traz)
+  const dots = new Map<IntentDef, number>();
+  let inorm = 0;
+  for (const st of uset.keys()) {
+    const w = ix.idf.get(st) ?? 1;
+    inorm += w * w;
+    for (const c of ix.cen.get(st) ?? []) dots.set(c.def, (dots.get(c.def) ?? 0) + w * c.w);
+  }
+  inorm = Math.sqrt(inorm) || 1;
+  const cosOf = (def: IntentDef) => (dots.get(def) ?? 0) / (inorm * (ix.cenNorm.get(def) ?? 1));
+
+  // mensagens curtas: parecido de letras com as frases (pega "como vc ta", "td bem", "obrigadoo")
+  const tri = new Map<IntentDef, number>();
+  if (norm.length <= 45) {
+    const it = trigrams(norm);
+    for (const r of ix.tri) {
+      let inter = 0;
+      for (const g of it) if (r.set.has(g)) inter++;
+      const d = (2 * inter) / (it.size + r.set.size);
+      if (d > (tri.get(r.def) ?? 0)) tri.set(r.def, d);
+    }
+  }
+
+  const out: Candidate[] = [];
+  for (const def of new Set([...best.keys(), ...kws.keys(), ...dots.keys(), ...tri.keys()])) {
+    const b = best.get(def) ?? 0;
+    const k = Math.min(1, (kws.get(def) ?? 0) / 3);
+    const cs = Math.min(COS_CAP, cosOf(def) * COS_GAIN);
+    const td = tri.get(def) ?? 0;
+    const ts = td >= 0.5 ? 0.55 + (td - 0.5) * TRI_GAIN : 0;
+    let base = Math.max(b * 0.95, k * 0.85, cs, ts);
+    if (b < 0.35 && def.custom && cs < 0.6 && ts < 0.6) base = Math.min(base, 0.62); // resposta da base só por uma palavra solta não basta
+    const both = b > 0.4 && k > 0.3 ? 0.08 : 0;
+    const score = Math.min(1, base + both) + (def.priority ?? 0) * 0.005; // sem teto: a ordem entre intenções parecidas continua valendo
+    if (score > 0.2) out.push({ id: def.id, label: def.label, def, score });
+  }
+  return out.sort((a, b) => b.score - a.score);
 }
 
 // ─── Entidades e tom ─────────────────────────────────────────────────────────
@@ -279,7 +402,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     id: "greeting", label: "Saudação", action: "menu", priority: 1,
     phrases: ["oi", "ola", "bom dia", "boa tarde", "boa noite", "e ai", "opa", "eae", "oie", "hello", "salve", "oi tudo bem", "ola tudo bem", "oi bom dia", "oi boa tarde"],
     keywords: [["oi", 3], ["ola", 3], ["salve", 2]],
-    replies: ["{{saudacao}}{{, nome}}! 😊 Que bom ter você por aqui. Como posso ajudar?", "{{saudacao}}{{, nome}}! 👋 Sou o assistente virtual da Develoi. Me conta o que você precisa que eu já te ajudo!"],
+    replies: ["{{saudacao}}{{, nome}}! 😊 Que bom ter você por aqui. Como posso ajudar?", "{{saudacao}}{{, nome}}! 👋 Aqui é a BiIA, assistente virtual da Develoi. Me conta o que você precisa que eu já te ajudo!", "Oi{{, nome}}! 😊 A BiIA está por aqui. Do que você precisa hoje?"],
   },
   {
     id: "how_are_you", label: "Tudo bem?", action: "reply",
@@ -290,7 +413,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     id: "bot_identity", label: "Você é um robô?", action: "reply",
     phrases: ["voce e um robo", "voce e humano", "quem e voce", "e uma pessoa", "com quem falo", "voce e real", "e bot", "isso e um robo", "estou falando com um robo", "quem esta falando"],
     keywords: [["robo", 3], ["bot", 3], ["humano", 1]],
-    replies: ["Sou o assistente virtual da *Develoi Soluções Digitais* 🤖. Resolvo muita coisa por aqui na hora — fatura, extrato, dúvidas sobre os sistemas — e, quando precisar, chamo uma pessoa da nossa equipe.", "Eu sou o assistente virtual da Develoi 🤖 — um robô, mas bem esperto! 😄 Se você preferir falar com uma pessoa, é só pedir que eu chamo."],
+    replies: ["Eu sou a *BiIA*, a assistente virtual da *Develoi Soluções Digitais* 🤖. Resolvo muita coisa por aqui na hora, como fatura, extrato e dúvidas sobre os sistemas, e quando precisar eu chamo uma pessoa da nossa equipe.", "Sou a BiIA, uma assistente virtual criada pela equipe da Develoi 🤖. Um robô, mas bem esperta! 😄 Se preferir falar com uma pessoa, é só pedir que eu chamo.", "Prazer, eu sou a BiIA! Sou a assistente digital da Develoi e estou aqui para ajudar com fatura, extrato, dúvidas e o que mais precisar. Se for caso de gente de verdade, eu chamo alguém da equipe. 🙂"],
   },
   {
     id: "thanks", label: "Agradecimento", action: "reply",
@@ -323,7 +446,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
   {
     id: "invoice", label: "Segunda via da fatura", action: "invoice", priority: 2,
     phrases: ["segunda via do boleto", "segunda via da fatura", "quero minha fatura", "me manda o boleto", "link de pagamento", "como pago minha mensalidade", "qual o pix para pagar", "preciso pagar", "enviar a fatura", "fatura em aberto", "onde eu pago", "quero pagar", "codigo pix", "pagar a assinatura", "me envia o link para pagar", "perdi o boleto", "nao recebi a fatura", "quanto devo", "tenho alguma conta em aberto", "minha fatura venceu"],
-    keywords: [["fatura", 3], ["segunda via", 3], ["pagar", 1.5], ["devo", 2.5], ["aberto", 1.5], ["pix", 1], ["vencida", 2]],
+    keywords: [["fatura", 3], ["segunda via", 3], ["boleto", 3], ["pagar", 1.5], ["devo", 2.5], ["aberto", 1.5], ["pix", 1], ["vencida", 2]],
     replies: ["Claro! Vou buscar a sua fatura agora mesmo. 🧾"],
   },
   {
@@ -357,7 +480,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     replies: ["Lamento muito pelo transtorno, e obrigado por nos contar. 🙏 Quero que isso seja resolvido: vou passar o seu caso para uma pessoa da equipe agora mesmo, com prioridade."],
   },
   {
-    id: "hire", label: "Contratar / orçamento", action: "handoff:Comercial", priority: 2,
+    id: "hire", label: "Contratar / orçamento", action: "lead", priority: 2,
     phrases: ["quero contratar", "quero um orcamento", "preciso de um sistema", "quero um site", "quero criar um aplicativo", "voces fazem sistema sob medida", "quanto fica para fazer um site", "quero uma proposta", "gostaria de contratar", "preciso de um site para minha empresa", "desenvolvem aplicativo", "quero automatizar meu negocio", "quero conhecer os servicos para contratar"],
     keywords: [["contratar", 2.5], ["proposta", 2], ["sob medida", 2], ["desenvolver", 1.5], ["site", 1], ["aplicativo", 1]],
     replies: ["Que legal! 🚀 Vou passar você para o nosso time comercial, que monta a melhor proposta para o seu negócio."],
@@ -372,6 +495,63 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     id: "queue_status", label: "Quanto tempo falta?", action: "queue_status", priority: 1,
     phrases: ["quanto tempo falta", "quanto falta para me atender", "quanto falta para ser atendido", "quanto tempo ate me atenderem", "alguem vai me atender", "demora muito", "ainda vai demorar", "quantas pessoas na frente", "minha vez", "ninguem me atende", "ja estou esperando ha muito tempo", "qual minha posicao"],
     keywords: [["demora", 2], ["posicao", 2], ["fila", 2], ["falta", 2]],
+  },
+  {
+    id: "thanks_but", label: "Obrigado, mas ainda preciso", action: "reply", priority: 5,
+    phrases: ["obrigado mas tenho outra duvida", "valeu so mais uma coisa", "obrigado mas ainda preciso", "brigado so mais uma pergunta", "ok obrigado mas e", "obrigada mas ainda nao resolveu", "obrigado so mais uma duvida", "valeu mas ainda tenho uma pergunta", "obrigado e outra coisa", "ah mais uma coisa", "so mais uma coisa", "mais uma duvida", "ainda tenho uma duvida"],
+    keywords: [["mais uma", 2.5], ["outra duvida", 2.5]],
+    replies: ["Claro, pode falar{{, nome}}! 😊", "Pode mandar, estou aqui!", "Sem pressa, me conta qual é a dúvida. 🙌"],
+  },
+  {
+    id: "i_am_client", label: "Já sou cliente", action: "reply", priority: 3,
+    phrases: ["ja sou cliente", "eu ja tenho o sistema", "ja uso o sistema de voces", "sou cliente de voces", "ja sou assinante", "tenho cadastro com voces", "eu ja sou cliente", "ja tenho conta", "uso o sistema ja faz tempo"],
+    keywords: [["cliente", 1.2], ["assinante", 2]],
+    replies: ["Que bom ter você com a gente{{, nome}}! 💙 Como posso ajudar com a sua conta?"],
+  },
+  {
+    id: "not_client", label: "Ainda não sou cliente", action: "reply", priority: 3,
+    phrases: ["ainda nao sou cliente", "nao sou cliente", "quero conhecer", "nao tenho ainda", "quero ser cliente", "sou novo por aqui", "primeira vez aqui", "nunca usei", "quero conhecer o sistema de voces", "estou conhecendo voces agora"],
+    keywords: [["conhecer", 2], ["novo", 1]],
+    replies: ["Seja muito bem-vindo{{, nome}}! 🎉 Vou te mostrar o que temos por aqui."],
+  },
+  {
+    id: "topic_change", label: "Mudar de assunto", action: "reply", priority: 4,
+    phrases: ["mudando de assunto", "outra coisa", "na verdade quero outra coisa", "deixa pra la", "esquece isso", "quero tratar de outro assunto", "cancela isso", "nao era isso", "nao nao era isso", "esquece o que eu falei", "melhor outro assunto", "deixa quieto isso"],
+    keywords: [["assunto", 2], ["esquece", 2.5]],
+    replies: ["Sem problema! 😊 Sobre o que você quer falar agora?", "Tudo bem! Me conta o que você precisa agora.", "Fechado, vamos de outro assunto. O que posso fazer por você?"],
+  },
+  {
+    id: "retry_failed", label: "Já tentei e não resolveu", action: "reply", priority: 3,
+    phrases: ["ja fiz isso", "ja tentei", "nao deu certo", "nao funcionou", "continua igual", "nada mudou", "segue o mesmo problema", "ainda com problema", "continua dando erro", "persiste o erro", "ja reiniciei e nada", "ja fiz tudo isso", "de novo o mesmo erro", "ainda nao resolveu", "ja tentei de tudo"],
+    keywords: [["continua", 2], ["persiste", 2.5], ["tentei", 2]],
+  },
+  {
+    id: "resend", label: "Mandar de novo", action: "reply", priority: 2,
+    phrases: ["me manda", "manda ai", "envia", "manda de novo", "pode mandar de novo", "reenvia", "manda novamente", "me envia de novo", "pode enviar", "manda pra mim", "manda esse link de novo", "perdi, manda de novo"],
+    keywords: [["reenvia", 3], ["novamente", 1.5]],
+  },
+  {
+    id: "repeat", label: "Repetir / explicar de novo", action: "reply", priority: 2,
+    phrases: ["pode repetir", "repete por favor", "nao entendi", "como assim", "explica de novo", "explica melhor", "nao entendi nada", "pode explicar de outro jeito", "fala de novo", "nao peguei", "mais detalhes", "pode detalhar", "me explica melhor isso", "ficou confuso"],
+    keywords: [["repetir", 3], ["entendi", 1.2], ["detalhes", 2], ["explica", 2]],
+  },
+  {
+    id: "addressing", label: "Chamou a BiIA", action: "reply", priority: 0,
+    phrases: ["bia", "biia", "oi bia", "bia voce esta ai", "esta ai", "voce esta ai", "ta ai", "alo", "alô", "tem alguem ai", "ola bia", "bia me ajuda", "ei bia"],
+    keywords: [["bia", 2], ["biia", 2], ["alo", 2]],
+    replies: ["Oi{{, nome}}! Estou aqui sim. 😊 Como posso ajudar?", "Pode falar{{, nome}}, estou por aqui!", "Tô aqui! 🙌 Me conta o que você precisa."],
+  },
+  {
+    id: "friendship", label: "Quer amizade / papo pessoal", action: "reply", priority: 0,
+    phrases: ["quer ser minha amiga", "pode ser minha amiga", "ser minha amiga", "voce e minha amiga", "vamos ser amigos", "gosto de voce", "te amo", "voce e linda", "voce tem namorado", "casa comigo", "voce e legal", "quero conversar com voce", "me faz companhia"],
+    keywords: [["amiga", 3], ["amigo", 2], ["amo", 2], ["linda", 2], ["namorado", 2], ["casa", 1]],
+    replies: ["Ai, que fofo! 🥰 Eu adoro conversar, mas sou uma assistente virtual e meu foco é ajudar com a Develoi. Posso te ajudar com alguma coisa agora?", "Obrigada pelo carinho! 😄 Sou só uma robô simpática, mas estou sempre por aqui. Quer que eu te ajude com alguma coisa?", "Que gentileza! 💙 Pode contar comigo para o que precisar sobre fatura, sistemas ou suporte."],
+  },
+  {
+    id: "contact_info", label: "Contatos da Develoi", action: "reply", priority: 1,
+    phrases: ["qual o telefone de voces", "qual o email de voces", "email de contato", "site de voces", "qual o site", "qual o whatsapp", "como entro em contato", "onde encontro voces", "qual o instagram", "redes sociais", "numero de telefone", "como falo com voces", "qual o contato"],
+    keywords: [["telefone", 2.5], ["email", 2], ["site", 1.5], ["contato", 2], ["instagram", 2]],
+    replies: ["Você encontra a gente por aqui mesmo no WhatsApp, pelo site *develoi.com.br* ou pelo e-mail *contato@develoi.com.br*. 😉", "Nossos canais são este WhatsApp, o e-mail *contato@develoi.com.br* e o site *develoi.com.br*."],
   },
   {
     id: "price", label: "Preços e planos", action: "reply", priority: 1,
@@ -406,6 +586,23 @@ export interface Understanding {
   greetingOnly: boolean;
 }
 
+// Palavras que, sozinhas, quase decidem a intenção. Usam as palavras já padronizadas (sinônimos) do tokenizador.
+function applySignals(text: string, cands: Candidate[]): Candidate[] {
+  const toks = tokenize(text);
+  const has = (c: string) => toks.some(t => t.c === c && !t.neg);
+  const hasNeg = (c: string) => toks.some(t => t.c === c);
+  const n = normalize(text);
+  const boost = (test: (c: Candidate) => boolean, delta: number) => { for (const c of cands) if (test(c)) c.score += delta; };
+
+  if (hasNeg("atendente") && !/\b(robo|bot|automatic)/.test(n)) boost(c => c.id === "human", 0.25);
+  if (has("problema")) { boost(c => c.id === "support_problem" || c.id.startsWith("sup_"), 0.15); boost(c => !!c.def.custom && (!c.def.action || c.def.action === "reply"), -0.1); }
+  if (has("cancelar")) boost(c => c.id === "cancel" || c.id === "fin_cancelar_renovacao", 0.12);
+  if (has("pagar") && /\b(ja|acabei|fiz|efetuei|realizei|fez)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.15);
+  if (/^(boleto|fatura|segunda via|2 via|link de pagamento)$/.test(n)) boost(c => c.id === "invoice", 0.3);
+  if (/^(extrato|historico)$/.test(n)) boost(c => c.id === "statement", 0.3);
+  return cands.sort((a, b) => b.score - a.score);
+}
+
 export function understand(text: string, defs: IntentDef[], systems: { name: string; aliases?: string[] }[] = [], hintSystem?: string | null): Understanding {
   const entities = extractEntities(text, systems);
   const boostSystem = entities.system ?? hintSystem ?? undefined;
@@ -415,15 +612,18 @@ export function understand(text: string, defs: IntentDef[], systems: { name: str
 
   // um sistema citado dá preferência às respostas daquele sistema
   if (boostSystem) {
-    candidates = candidates.map(c => c.def.system && c.def.system === boostSystem ? { ...c, score: Math.min(1, c.score + 0.04) } : c).sort((a, b) => b.score - a.score);
+    candidates = candidates.map(c => c.def.system && c.def.system === boostSystem ? { ...c, score: c.score + 0.04 } : c).sort((a, b) => b.score - a.score);
   }
+
+  // sinais fortes do texto empurram a intenção certa (ex.: "atendente" → falar com pessoa; "problema" → suporte)
+  candidates = applySignals(text, candidates);
 
   const top = candidates[0] ?? null;
   let decision: Understanding["decision"] = "none";
   if (top) {
     const second = candidates[1];
-    const close = second && top.score - second.score < 0.07 && top.score < 0.8 && (second.def.priority ?? 0) <= (top.def.priority ?? 0);
+    const close = second && top.score - second.score < 0.05 && top.score < 0.85 && (second.def.priority ?? 0) <= (top.def.priority ?? 0);
     decision = top.score >= ACT_AT && !close ? "act" : top.score >= ASK_AT ? "ask" : "none";
   }
-  return { intent: top, candidates: candidates.slice(0, 4), confidence: top?.score ?? 0, decision, entities, mood, greetingOnly };
+  return { intent: top, candidates: candidates.slice(0, 4), confidence: Math.min(1, top?.score ?? 0), decision, entities, mood, greetingOnly };
 }

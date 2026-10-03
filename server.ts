@@ -1005,6 +1005,17 @@ async function startServer() {
       return d;
     }
 
+    // Intervalo da repetição: a cada N semanas, meses ou anos (domínio anual, seguro semestral, aluguel mensal…)
+    type Unit = 'week' | 'month' | 'year';
+    const cleanUnit = (u: any): Unit => (u === 'week' || u === 'year' ? u : 'month');
+    function addStep(date: Date, i: number, every: number, unit: Unit): Date {
+      if (unit === 'week') return new Date(date.getTime() + i * every * 7 * 86400000);
+      return addMonthsClamped(date, i * every * (unit === 'year' ? 12 : 1));
+    }
+    const stepMonths = (every: number, unit: Unit) => (unit === 'week' ? (every * 7) / 30.4 : unit === 'year' ? every * 12 : every);
+    // quantas já deixar criadas numa série sem prazo (cobre ~12 meses; no mínimo 2)
+    const initialOpenCount = (every: number, unit: Unit) => Math.min(60, Math.max(2, Math.ceil(12 / stepMonths(every, unit))));
+
     // Séries "sem prazo" (ex.: aluguel): recurrence = 'monthly' e recurrenceCount = null.
     // Mantém sempre os próximos 12 meses criados, copiando a última conta da série.
     let extendingSeries = false;
@@ -1016,15 +1027,18 @@ async function startServer() {
           where: { recurrence: 'monthly', recurrenceCount: null, parentId: null, dueDate: { not: null } },
           include: { children: { orderBy: { dueDate: 'desc' }, take: 1 } },
         });
-        const horizon = addMonthsClamped(new Date(), 12);
         for (const parent of parents) {
           const last = parent.children[0];
           if (!last?.dueDate || !parent.dueDate) continue;
           const anchor = parent.dueDate;
-          const monthsFromAnchor = (last.dueDate.getUTCFullYear() - anchor.getUTCFullYear()) * 12 + (last.dueDate.getUTCMonth() - anchor.getUTCMonth());
+          const every = Math.max(1, parent.recurrenceEvery || 1), unit = cleanUnit(parent.recurrenceUnit);
+          // série de intervalo longo (anual…): cria a próxima quando faltar menos de um período
+          const horizon = stepMonths(every, unit) > 12 ? addStep(new Date(), 1, every, unit) : addMonthsClamped(new Date(), 12);
+          let k = 0;
+          while (k < 5000 && addStep(anchor, k, every, unit) <= last.dueDate) k++;
           const rows: any[] = [];
-          for (let i = 1; i <= 240; i++) {
-            const due = addMonthsClamped(anchor, monthsFromAnchor + i);
+          for (let i = 0; i < 240; i++) {
+            const due = addStep(anchor, k + i, every, unit);
             if (due > horizon) break;
             rows.push({
               description: last.description, type: last.type, projectId: last.projectId, amount: last.amount,
@@ -1061,7 +1075,9 @@ async function startServer() {
         if (mode !== 'once' && base.dueDate instanceof Date) {
           const requested = Number(plan?.count ?? body.recurrenceCount) || 0;
           const openEnded = mode === 'monthly' && requested <= 0; // sem prazo: cria 12 agora e o resto é gerado conforme o tempo passa
-          const count = openEnded ? 12 : Math.min(120, Math.max(mode === 'installments' ? 2 : 1, requested || 2));
+          const every = mode === 'installments' ? 1 : Math.min(60, Math.max(1, Math.floor(Number(plan?.every)) || 1));
+          const unit: Unit = mode === 'installments' ? 'month' : cleanUnit(plan?.unit);
+          const count = openEnded ? initialOpenCount(every, unit) : Math.min(120, Math.max(mode === 'installments' ? 2 : 1, requested || 2));
           const total = Number(body.amount) || 0;
 
           // parcelas em centavos; a última absorve a diferença do arredondamento
@@ -1073,7 +1089,7 @@ async function startServer() {
           };
 
           const parent = await prisma.payable.create({
-            data: { ...base, recurrence: mode, recurrenceCount: openEnded ? null : count, installments: mode === 'installments' ? count : null },
+            data: { ...base, recurrence: mode, recurrenceCount: openEnded ? null : count, recurrenceEvery: every, recurrenceUnit: unit, installments: mode === 'installments' ? count : null },
           });
           await prisma.payable.createMany({
             data: Array.from({ length: count }, (_, i) => ({
@@ -1081,7 +1097,7 @@ async function startServer() {
               type: body.type,
               projectId: body.projectId || null,
               amount: amountFor(i),
-              dueDate: addMonthsClamped(base.dueDate, i),
+              dueDate: addStep(base.dueDate, i, every, unit),
               notes: body.notes,
               createdById: body.createdById,
               createdByName: body.createdByName,
