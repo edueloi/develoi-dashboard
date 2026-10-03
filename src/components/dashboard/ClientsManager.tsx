@@ -431,7 +431,7 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
               {charges.length > 0 && (
                 <div className="space-y-1.5">
                   {charges.slice(0, 5).map(ch => {
-                    const paid = ch.status === 'RECEIVED' || ch.status === 'CONFIRMED';
+                    const paid = ch.status === 'RECEIVED' || ch.status === 'CONFIRMED' || ch.status === 'RECEIVED_IN_CASH';
                     const href = (paid ? ch.receiptUrl : ch.invoiceUrl) || null;
                     return (
                       <div key={ch.id} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-white/10 px-3 py-2 text-sm">
@@ -453,6 +453,12 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
                 </div>
               )}
 
+              {!charges.some(ch => ch.status === 'PENDING' || ch.status === 'OVERDUE') && (
+                <Button size="sm" fullWidth loading={busy === 'cycle'} iconLeft={<FileText className="w-3.5 h-3.5" />}
+                  onClick={() => asaasCall('cycle', `/api/clients/${client.id}/asaas/charge`, 'POST', { billingType: 'PIX', sendLink: true }, d => d.sent ? 'Fatura gerada e enviada no WhatsApp' : 'Fatura gerada')}>
+                  Gerar fatura do vencimento atual
+                </Button>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <Button size="sm" variant="outline" loading={busy === 'invoice'} iconLeft={<Send className="w-3.5 h-3.5" />}
                   onClick={() => asaasCall('invoice', `/api/clients/${client.id}/asaas/send-invoice`, 'POST', null, () => 'Fatura enviada no WhatsApp')}>

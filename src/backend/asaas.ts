@@ -149,6 +149,34 @@ export async function createSubscription(clientId: string, billingType: BillingT
   return { subscriptionId, charges: charges.length, sent };
 }
 
+// Gera uma fatura avulsa que QUITA o vencimento atual do cliente (ex.: ciclo em atraso sem cobrança aberta).
+// O Asaas não aceita vencimento no passado: a fatura vence hoje (ou na data de vencimento, se for futura) e,
+// ao ser paga, o vencimento do cliente avança normalmente — a referência do ciclo vai em externalReference.
+export async function createCycleCharge(clientId: string, billingType: BillingType, sendLink: boolean) {
+  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!c) throw new AsaasError("Cliente não encontrado.");
+  if (!c.nextDueDate) throw new AsaasError("Defina o próximo vencimento do cliente antes.");
+  if (!(c.billingValue > 0)) throw new AsaasError("Defina o valor da assinatura antes.");
+  if (!BILLING_TYPES.includes(billingType)) throw new AsaasError("Forma de pagamento inválida.");
+  if (await openCharge(clientId)) throw new AsaasError("Este cliente já tem uma fatura em aberto.");
+
+  const customer = await ensureCustomer(c);
+  const cycle = c.nextDueDate.toISOString().slice(0, 10);
+  const today = brtTodayUtc();
+  const dueDate = (c.nextDueDate > today ? c.nextDueDate : today).toISOString().slice(0, 10);
+  const p = await asaas<any>("/payments", "POST", {
+    customer, billingType, value: c.billingValue, dueDate,
+    description: `${await invoiceDescription(c)} (vencimento ${fmtDay(c.nextDueDate)})`,
+    externalReference: `${c.id}|ciclo:${cycle}`,
+  });
+  if (!c.asaasCustomerId) await prisma.client.update({ where: { id: c.id }, data: { asaasCustomerId: customer } });
+  await upsertCharge(c.id, p);
+
+  let sent = false;
+  if (sendLink) { try { sent = await sendInvoice(c.id); } catch { sent = false; } }
+  return { chargeId: p.id, dueDate, sent };
+}
+
 export async function cancelSubscription(clientId: string) {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c?.asaasSubscriptionId) throw new AsaasError("Este cliente não tem assinatura no Asaas.");
@@ -272,6 +300,9 @@ async function findClientFor(p: any) {
   return null;
 }
 
+// "<clientId>|ciclo:2026-09-22" → "2026-09-22"
+const cycleOf = (ref: unknown) => /\|ciclo:(\d{4}-\d{2}-\d{2})$/.exec(String(ref ?? ""))?.[1] ?? null;
+
 const PAID_EVENTS = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
 const PAID_STATUSES = new Set(["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]);
 
@@ -312,7 +343,7 @@ export async function handlePayment(event: string, payload: any): Promise<Paymen
     notes: "Recebido via Asaas",
     asaasPaymentId: p.id,
     dueDate: charge.dueDate,
-    advance: sameDay(charge.dueDate, client.nextDueDate), // só avança se for a fatura do ciclo atual
+    advance: sameDay(charge.dueDate, client.nextDueDate) || cycleOf(p.externalReference) === client.nextDueDate?.toISOString().slice(0, 10), // só avança se for a fatura do ciclo atual
   });
   if (!result) return { clientName: client.name, outcome: "ignorado: cliente não encontrado" };
   if (result.duplicate) return { clientName: client.name, outcome: "já registrado antes (duplicado ignorado)" };
@@ -471,6 +502,10 @@ export function registerAsaasRoutes(app: Express) {
 
   app.post("/api/clients/:id/asaas/subscribe", async (req, res) => {
     try { res.json(await createSubscription(req.params.id, (req.body?.billingType || "UNDEFINED") as BillingType, req.body?.sendLink !== false)); }
+    catch (e) { fail(res, e); }
+  });
+  app.post("/api/clients/:id/asaas/charge", async (req, res) => {
+    try { res.json(await createCycleCharge(req.params.id, (req.body?.billingType || "UNDEFINED") as BillingType, req.body?.sendLink !== false)); }
     catch (e) { fail(res, e); }
   });
   app.delete("/api/clients/:id/asaas/subscription", async (req, res) => {
