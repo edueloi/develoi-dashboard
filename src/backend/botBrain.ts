@@ -22,6 +22,8 @@ export interface BrainCtx {
   lastIntent?: string;
   lastSystem?: string;
   lastAnswer?: string;
+  lastReplyDef?: string;                                // intenção da última resposta (para "explica de outro jeito")
+  repeats: number;                                      // pedidos seguidos de "não entendi"
   fails: number;
   angry: number;
   seen: string[];                                       // respostas já mostradas (para sugerir só o que falta)
@@ -40,7 +42,7 @@ export interface BrainCtx {
   pending?: { type: "choices"; options: PendingChoice[] } | { type: "handoff"; sector: string } | { type: "offer"; action: Offer } | { type: "rating" };
   history: Record<string, number>;
 }
-export const newBrainCtx = (pushName?: string | null): BrainCtx => ({ pushName, fails: 0, angry: 0, seen: [], history: {}, turns: 0, recent: [], facts: {}, style: { formal: false, casual: 0, msgs: 0 }, chitchat: 0, asked: [] });
+export const newBrainCtx = (pushName?: string | null): BrainCtx => ({ pushName, fails: 0, angry: 0, seen: [], history: {}, repeats: 0, turns: 0, recent: [], facts: {}, style: { formal: false, casual: 0, msgs: 0 }, chitchat: 0, asked: [] });
 
 export interface BrainIO {
   say(text: string): Promise<void>;
@@ -155,7 +157,7 @@ function priceText(b: Brain, system?: string | null): string {
 // ─── Decisão ─────────────────────────────────────────────────────────────────
 
 const GENERIC_ONLY = new Set(["bot_identity", "greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you"]);
-const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_");
+const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_") || d.id.startsWith("talk_");
 const isInfo = (d: IntentDef) => !isChat(d) && (!d.action || d.action === "reply") && !["price", "systems_overview", "queue_status", "human"].includes(d.id);
 
 async function remember(def: IntentDef) {
@@ -244,7 +246,7 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   if (u.entities.system) ctx.lastSystem = u.entities.system;
   else if (def.system) ctx.lastSystem = def.system;
   const prevIntent = ctx.lastIntent;
-  if (def.id !== "repeat") ctx.lastIntent = def.id;
+  if (def.id !== "repeat") { ctx.lastIntent = def.id; ctx.lastReplyDef = def.id; ctx.repeats = 0; }
   ctx.fails = 0;
   if (!ctx.seen.includes(def.id)) ctx.seen.push(def.id);
   void remember(def);
@@ -299,8 +301,25 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
     }
     case "queue_status": { await io.queueStatus(); return; }
     case "repeat": {
-      if (ctx.lastAnswer) { await io.say(pick("repeat", REPEAT_LEADS, ctx)); await io.say(ctx.lastAnswer); }
-      else await io.say("Claro! Sobre qual assunto você quer que eu explique melhor? 😊");
+      ctx.repeats += 1;
+      if (ctx.repeats >= 3) { ctx.repeats = 0; await io.say("Pelo visto não estou conseguindo explicar direito. 😕 Vou chamar alguém da equipe para conversar com você."); await io.handoff("Suporte", `${contextNote(ctx)} | A BiIA não conseguiu esclarecer a dúvida.`); return; }
+      const last = brain.defs.find(d => d.id === ctx.lastReplyDef);
+      const variants = (last?.replies ?? []).filter(r => r.trim());
+      if (last && variants.length > 1) {
+        // outro jeito de dizer a mesma coisa (outra variação da resposta)
+        const prev = ctx.history[last.id];
+        const idx = variants.map((_, i) => i).filter(i => i !== prev);
+        const k = idx[Math.floor(Math.random() * idx.length)];
+        ctx.history[last.id] = k;
+        await io.say(pick("repeat", REPEAT_LEADS, ctx));
+        await io.say(fill(variants[k], ctx, ctx.lastSystem ?? last.system));
+        await io.say("Ficou mais claro? Se preferir, chamo alguém da equipe para explicar. 😊");
+      } else if (ctx.lastAnswer) {
+        const short = ctx.lastAnswer.split(/(?<=[.!?])\s+/).slice(0, 2).join(" ");
+        await io.say(pick("repeat", REPEAT_LEADS, ctx));
+        await io.say(short);
+        await io.say("Qual parte ficou confusa? Se preferir, chamo alguém da equipe. 😊");
+      } else await io.say("Claro! Sobre qual assunto você quer que eu explique melhor? 😊");
       return;
     }
     default: break;
@@ -381,7 +400,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   ctx.style = readStyle(t, ctx.style);
   const learnedRamo = !hadRamo && !!ctx.facts.ramo;
   const learnedNome = !hadNome && !!ctx.facts.nome;
-  const finish = (ok: boolean) => { if (ok && spoken.length && ctx.lastIntent !== "repeat") ctx.lastAnswer = spoken.slice(0, 2).join("\n\n"); return ok; };
+  const finish = (ok: boolean) => { if (ok && spoken.length && ctx.lastIntent !== "repeat") ctx.lastAnswer = [...spoken].sort((a, b) => b.length - a.length)[0]; return ok; };
 
   // 1) coleta de dados para o comercial em andamento
   if (ctx.flow) {

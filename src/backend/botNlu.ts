@@ -562,7 +562,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
   },
   {
     id: "addressing", label: "Chamou a BiIA", action: "reply", priority: 0,
-    phrases: ["bia", "biia", "oi bia", "bia voce esta ai", "esta ai", "voce esta ai", "ta ai", "alo", "alô", "tem alguem ai", "ola bia", "bia me ajuda", "ei bia"],
+    phrases: ["bia", "biia", "oi bia", "bia voce esta ai", "esta ai", "voce esta ai", "ta ai", "alo", "alô", "tem alguem ai", "ola bia", "bia me ajuda", "ei bia", "ta por ai", "esta por ai", "voce esta por ai", "cade voce", "voce sumiu", "ainda ta ai", "ta ai ainda", "ta vivo", "tem alguem ai ainda", "oi ta ai", "voce ta ai", "alguem ai", "ainda esta ai", "ta por ai ainda", "esta online"],
     keywords: [["bia", 2], ["biia", 2], ["alo", 2]],
     replies: ["Oi{{, nome}}! Estou aqui sim. 😊 Como posso ajudar?", "Pode falar{{, nome}}, estou por aqui!", "Tô aqui! 🙌 Me conta o que você precisa."],
   },
@@ -598,7 +598,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
 
 // ─── Decisão ─────────────────────────────────────────────────────────────────
 
-export const ACT_AT = 0.56;       // acima disso, age
+export const ACT_AT = 0.6;       // acima disso, age
 export const ASK_AT = 0.38;       // entre os dois, pergunta "você quis dizer…?"
 
 export interface Understanding {
