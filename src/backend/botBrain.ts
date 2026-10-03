@@ -107,6 +107,7 @@ const nameOf = (ctx: BrainCtx) => ctx.facts.nome ?? firstName(ctx.client?.name) 
 
 function fill(text: string, ctx: BrainCtx, system?: string | null): string {
   const nome = nameOf(ctx);
+  if (ctx.turns > 1) text = text.replace(/\{\{\s*saudacao\s*\}\}(\{\{\s*,\s*nome\s*\}\})?[!,.]?\s*/gi, "");
   return deDash(text
     .replace(/\{\{\s*,\s*nome\s*\}\}/gi, nome ? `, ${nome}` : "")
     .replace(/\{\{\s*nome\s*\}\}/gi, nome ?? "")
@@ -434,6 +435,11 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     const id = peek.decision === "act" ? peek.intent?.def.id : undefined;
     if (id === "human") { await io.say("Sem problemas! Vou chamar alguém agora mesmo. 🙌"); const note = leadNote(ctx, f.system, f.first); ctx.flow = undefined; await io.handoff("Comercial", note); return finish(true); }
     if (id === "menu" || id === "goodbye") { ctx.flow = undefined; await execute(peek.intent!.def, peek, t, ctx, io, brain); return finish(true); }
+    if (peek.decision === "act" && peek.intent && isChat(peek.intent.def) && peek.confidence >= 0.7 && !["thanks_but", "my_name"].includes(peek.intent.id)) {
+      await execute(peek.intent.def, peek, t, ctx, io, brain);
+      await io.say(f.step === 0 ? "Voltando ao seu atendimento: qual é o *ramo do seu negócio*?" : "Voltando ao seu atendimento: o que você gostaria de *resolver ou melhorar* com um sistema?");
+      return finish(true);
+    }
     const answer = /^(pular|nao sei|depois|n\/a)$/i.test(strip(t)) ? "não informado" : t.slice(0, 300);
     if (f.step === 0) {
       f.data.ramo = ctx.facts.ramo ?? answer; f.step = 1;
