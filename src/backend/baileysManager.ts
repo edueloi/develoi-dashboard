@@ -668,8 +668,54 @@ async function typing(sock: any, jid: string, text: string) {
   } catch { /* presença é só um charme: nunca atrapalha a resposta */ }
 }
 
+// A BiIA entende o que a pessoa escreve: os "digite 0 para voltar" saem dos textos
+function softenHints(t: string): string {
+  return t
+    .replace(/\s*Posso ajudar em algo mais\? Digite \*?0\*? para voltar ao menu inicial\.?/gi, " Posso ajudar em mais alguma coisa?")
+    .replace(/[,.]?\s*(?:Se preferir,?\s*|Ou\s+|ou\s+)?digite \*?0\*?(?: e [^.!?\n]*)?\s*para voltar(?: ao (?:menu|início)(?: inicial)?)?\.?/gi, ".")
+    .replace(/\n\s*\n\s*Digite \*?0\*? para voltar ao menu inicial\.?/gi, "")
+    .replace(/Para conhecer valores e receber uma proposta, selecione a opção \*?Comercial\*? no menu inicial\.?/gi, "Se quiser conhecer valores ou receber uma proposta, é só me falar que eu chamo o time Comercial. 😉")
+    .replace(/Se precisar falar com um atendente, digite \*?0\*? e escolha o setor desejado no menu inicial\.?/gi, "Se precisar falar com um atendente, é só me pedir.")
+    .replace(/\s*Se preferir voltar, digite \*?0\*?\.?/gi, "")
+    .replace(/\.\s*\./g, ".")
+    .replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// Texto longo vira várias mensagens curtas, como uma pessoa digitaria (cada item de lista em um balão)
+function bubblesOf(text: string): string[] {
+  const out: string[] = [];
+  for (const para of text.split(/\n{2,}/).map(x => x.trim()).filter(Boolean)) {
+    const lines = para.split("\n").map(x => x.trim()).filter(Boolean);
+    const bullets = lines.filter(l => /^[•·\-*]\s/.test(l) && !/^\*[^*]+\*$/.test(l));
+    if (bullets.length >= 2) {
+      const intro = lines.filter(l => !bullets.includes(l)).join(" ");
+      if (intro) out.push(intro);
+      bullets.forEach(b => out.push(b.replace(/^[•·\-*]\s*/, "")));
+    } else out.push(lines.join("\n"));
+  }
+  // no máximo 7 balões: junta o excedente no último
+  while (out.length > 7) { const last = out.pop()!; out[out.length - 1] += `\n\n${last}`; }
+  return out;
+}
+
+const SOLUTION_EMOJI: [RegExp, string][] = [[/sistema|gest[aã]o/i, "🖥️"], [/site|loja virtual|e-?commerce/i, "🌐"], [/automa|whatsapp|bot/i, "🤖"], [/pain[eé]|relat[oó]rio|dash/i, "📊"], [/app|aplicativo/i, "📱"]];
+
+// "Conhecer nossas soluções": apresentação natural, um item por vez, e a conversa continua
+async function sendSolutions(state: any, sock: any, text: string) {
+  const items = text.split("\n").map(l => l.trim()).filter(l => /^[•·\-*]\s/.test(l)).map(l => l.replace(/^[•·\-*]\s*/, ""));
+  const nome = firstNameOf(state.pushName);
+  await botSay(state, sock, `Que bom ter você por aqui${nome ? `, ${nome}` : ""}! 😊 A *Develoi* cria tecnologia para negócios. Olha só o que a gente faz:`);
+  for (const it of items.length ? items : ["*Sistemas de gestão sob medida*: vendas, estoque, financeiro e agenda"]) {
+    const emo = SOLUTION_EMOJI.find(([re]) => re.test(it))?.[1] ?? "✨";
+    await botSay(state, sock, `${emo} ${it.replace(/(\*[^*]+\*)\s[—–]\s/, "$1: ")}`);
+  }
+  await botSay(state, sock, "E se você tem uma *loja*, conheça o *Store BoxSys*: sistema de gestão com PDV, estoque, notas fiscais e loja virtual, com *14 dias de teste grátis*. 😉");
+  await botSay(state, sock, "Me conta qual é o seu negócio que eu te indico o melhor caminho. Se quiser valores ou uma proposta, é só pedir que eu chamo o time Comercial.");
+  brainOf(state).pending = { type: "offer", action: "lead" };
+}
+
 async function botSay(state: any, sock: any, text: string) {
-  text = deDash(text);
+  text = softenHints(deDash(text));
   await typing(sock, state.remoteJid, text);
   await sock.sendMessage(state.remoteJid, { text });
   if (state.conversationId) await recordMsg(state.conversationId, "bot", text);
@@ -1032,6 +1078,8 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
       await recordMsg(state.conversationId, "bot", `${text || "Escolha uma opção:"}\n\n${choices.map(c => `${c.id} - ${c.text}`).join("\n")}`);
     }
   } else if (text) {
+    if (node.type === "message" && /solu[cç][oõ]es/i.test(`${node.title ?? ""} ${text.slice(0, 80)}`)) { await sendSolutions(state, sock, text); return; }
+    if (node.type === "message") { for (const b of bubblesOf(softenHints(text))) await botSay(state, sock, b); return; }
     await botSay(state, sock, text);
   }
 }
