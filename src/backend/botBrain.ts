@@ -8,6 +8,7 @@ import {
   BUILTIN_INTENTS, AFFIRM, DENY, strip, understand, deDash, type IntentDef, type Understanding, type Candidate,
 } from "./botNlu.js";
 import { EXTRA_INTENTS } from "./botData.js";
+import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, type Facts, type Style } from "./botPersona.js";
 
 // ─── Memória e ações ─────────────────────────────────────────────────────────
 
@@ -26,6 +27,10 @@ export interface BrainCtx {
   seen: string[];                                       // respostas já mostradas (para sugerir só o que falta)
   leadDone?: boolean;
   flow?: LeadFlow;
+  facts: Facts;                                         // o que a pessoa contou de si (nome, ramo)
+  style: Style;                                         // jeito de falar: formal ou descontraído
+  chitchat: number;                                     // respostas seguidas de papo social
+  asked: string[];                                      // perguntas de curiosidade já feitas
   turns: number;                                        // quantas mensagens do cliente a BiIA já tratou
   recent: string[];                                     // últimas mensagens do cliente (resumo para o atendente)
   lastAction?: string;                                  // última ação executada (fatura, extrato…)
@@ -35,7 +40,7 @@ export interface BrainCtx {
   pending?: { type: "choices"; options: PendingChoice[] } | { type: "handoff"; sector: string } | { type: "offer"; action: Offer } | { type: "rating" };
   history: Record<string, number>;
 }
-export const newBrainCtx = (pushName?: string | null): BrainCtx => ({ pushName, fails: 0, angry: 0, seen: [], history: {}, turns: 0, recent: [] });
+export const newBrainCtx = (pushName?: string | null): BrainCtx => ({ pushName, fails: 0, angry: 0, seen: [], history: {}, turns: 0, recent: [], facts: {}, style: { formal: false, casual: 0, msgs: 0 }, chitchat: 0, asked: [] });
 
 export interface BrainIO {
   say(text: string): Promise<void>;
@@ -52,7 +57,7 @@ export interface BrainIO {
 // ─── Base de conhecimento (banco, com cache curto) ───────────────────────────
 
 interface Brain { defs: IntentDef[]; systems: { name: string; aliases?: string[] }[]; products: { name: string; description: string | null; price: number; type: string }[] }
-let cache: { at: number; brain: Brain } | null = null;
+let cache: { at: number; sig: string; brain: Brain } | null = null;
 const CACHE_MS = 60_000;
 
 const KNOWN_ALIASES: Record<string, string[]> = {
@@ -67,6 +72,9 @@ export async function loadBrain(force = false): Promise<Brain> {
     prisma.wppBotKnowledge.findMany({ where: { enabled: true } }),
     prisma.product.findMany({ where: { active: true }, select: { name: true, description: true, price: true, type: true } }).catch(() => []),
   ]);
+  // nada mudou na base nem nos produtos: reaproveita o cérebro (e o índice de busca já montado)
+  const sig = rows.map(r => `${r.id}:${r.updatedAt.getTime()}`).sort().join("|") + "#" + products.map(p => `${p.name}:${p.price}`).join("|");
+  if (cache && cache.sig === sig) { cache.at = Date.now(); return cache.brain; }
   const custom: IntentDef[] = rows.map(r => ({
     id: `kb:${r.id}`, label: r.title, custom: true, system: r.system, priority: r.priority,
     phrases: safeJson<string[]>(r.phrases, []),
@@ -78,7 +86,7 @@ export async function loadBrain(force = false): Promise<Brain> {
   const names = new Set<string>([...products.map(p => p.name), ...rows.map(r => r.system).filter((x): x is string => !!x), ...Object.keys(KNOWN_ALIASES)]);
   const systems = [...names].map(name => ({ name, aliases: KNOWN_ALIASES[name] ?? [] }));
   const brain = { defs: [...BUILTIN_INTENTS, ...EXTRA_INTENTS, ...custom], systems, products };
-  cache = { at: Date.now(), brain };
+  cache = { at: Date.now(), sig, brain };
   return brain;
 }
 export const resetBrainCache = () => { cache = null; };
@@ -90,7 +98,7 @@ const firstName = (n?: string | null) => {
   const f = String(n || "").trim().split(/\s+/)[0];
   return f && /^[\p{L}][\p{L}'-]{1,}$/u.test(f) ? f.charAt(0).toUpperCase() + f.slice(1).toLowerCase() : null;
 };
-const nameOf = (ctx: BrainCtx) => firstName(ctx.client?.name) ?? firstName(ctx.pushName);
+const nameOf = (ctx: BrainCtx) => ctx.facts.nome ?? firstName(ctx.client?.name) ?? firstName(ctx.pushName);
 
 function fill(text: string, ctx: BrainCtx, system?: string | null): string {
   const nome = nameOf(ctx);
@@ -98,6 +106,7 @@ function fill(text: string, ctx: BrainCtx, system?: string | null): string {
     .replace(/\{\{\s*,\s*nome\s*\}\}/gi, nome ? `, ${nome}` : "")
     .replace(/\{\{\s*nome\s*\}\}/gi, nome ?? "")
     .replace(/\{\{\s*saudacao\s*\}\}/gi, saud())
+    .replace(/\{\{\s*ramo\s*\}\}/gi, ctx.facts.ramo ?? "sua loja")
     .replace(/\{\{\s*sistema\s*\}\}/gi, system ?? "o sistema"));
 }
 
@@ -145,7 +154,7 @@ function priceText(b: Brain, system?: string | null): string {
 
 // ─── Decisão ─────────────────────────────────────────────────────────────────
 
-const GENERIC_ONLY = new Set(["greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client"]);
+const GENERIC_ONLY = new Set(["greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you"]);
 const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_");
 const isInfo = (d: IntentDef) => !isChat(d) && (!d.action || d.action === "reply") && !["price", "systems_overview", "queue_status", "human"].includes(d.id);
 
@@ -312,7 +321,13 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
     return;
   }
 
-  if (!outro || isChat(def)) return;
+  if (isChat(def)) {
+    ctx.chitchat += 1;
+    if (ctx.chitchat >= 3) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); }
+    return;
+  }
+  ctx.chitchat = 0;
+  if (!outro) return;
 
   // resposta informativa: oferece o próximo passo (ou outros assuntos do mesmo sistema)
   if (def.followUp) {
@@ -329,6 +344,8 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
     await io.choose(pick("related", RELATED_LEADS, ctx), opts.map(o => ({ id: o.id, text: o.text })));
     return;
   }
+  const cur = ctx.turns >= 2 ? curiosity(ctx.asked, ctx.facts) : null;
+  if (cur) { ctx.asked.push(cur.key); await io.say(cur.text); return; }
   await io.say(pick("followup", FOLLOW_UPS, ctx));
 }
 
@@ -341,12 +358,16 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   let spoken: string[] = [];
   const io: BrainIO = {
     ...rawIo,
-    say: async (m: string) => { const x = deDash(m); spoken.push(x); await rawIo.say(x); },
+    say: async (m: string) => { const x = adaptStyle(deDash(m), ctx.style); spoken.push(x); await rawIo.say(x); },
     choose: async (m, o) => rawIo.choose(deDash(m), o.map(c => ({ ...c, text: deDash(c.text) }))),
     handoff: async (sector: string, note?: string) => rawIo.handoff(sector, note ?? contextNote(ctx)),
   };
   ctx.turns += 1;
   ctx.recent = [...ctx.recent, t.slice(0, 120)].slice(-4);
+  const hadRamo = !!ctx.facts.ramo;
+  ctx.facts = extractFacts(t, ctx.facts);
+  ctx.style = readStyle(t, ctx.style);
+  const learnedRamo = !hadRamo && !!ctx.facts.ramo;
   const finish = (ok: boolean) => { if (ok && spoken.length && ctx.lastIntent !== "repeat") ctx.lastAnswer = spoken.slice(0, 2).join("\n\n"); return ok; };
 
   // 1) coleta de dados para o comercial em andamento
@@ -431,6 +452,8 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
 
   if (u.decision === "act" && u.intent) {
     if (u.confidence < 0.7) await logUnknown(text, u);
+    if (learnedRamo) await io.say(pick("ramo", [`Anotei aqui: ${ctx.facts.ramo}. 😊`, `Legal, ${ctx.facts.ramo}! Vou lembrar disso para te ajudar melhor.`], ctx));
+    else { const react = !isChat(u.intent.def) ? leadIn(t, u.mood.angry) : null; if (react) await io.say(react); }
     await execute(u.intent.def, u, t, ctx, io, brain);
 
     // duas dúvidas na mesma mensagem: responde também a segunda (quando as duas são só informação)

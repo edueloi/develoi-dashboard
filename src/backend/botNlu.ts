@@ -2,6 +2,8 @@
 // por frases-exemplo e palavras-chave, tolerando erros de digitação, gírias e abreviações.
 // É puro (não acessa banco): a base de conhecimento editável entra por parâmetro (ver botBrain.ts).
 
+import { LEX_ABBR, LEX_SYN } from "./botLexicon.js";
+
 // Tira os travessões (— e –) dos textos do bot: soa mais natural com vírgula, ponto ou dois-pontos
 export function deDash(t: string): string {
   return t
@@ -44,6 +46,9 @@ const SYN_GROUPS: string[][] = [
 ];
 const SYN = new Map<string, string>();
 for (const g of SYN_GROUPS) for (const w of g) SYN.set(w, g[0]);
+// dicionário ampliado: palavra nova entra no grupo da canônica (sem mexer no que já foi decidido acima)
+for (const [w, canon] of LEX_SYN) if (!SYN.has(w)) SYN.set(w, SYN.get(canon) ?? canon);
+const ABBR_ALL: Record<string, string> = { ...LEX_ABBR, ...ABBR };
 
 const STOP = new Set([
   "de", "da", "do", "das", "dos", "a", "o", "as", "os", "um", "uma", "uns", "umas", "para", "por", "com", "em", "no", "na", "nos", "nas",
@@ -83,7 +88,7 @@ export function tokenize(text: string): Tok[] {
   let negAt = -10;
   words.forEach((w, i) => {
     if (w === "nao" || w === "nunca" || w === "jamais" || w === "sem") negAt = i;
-    const expanded = (ABBR[w] ?? w).split(" ");
+    const expanded = (ABBR_ALL[w] ?? w).split(" ").filter(Boolean);
     for (const e of expanded) {
       const c = SYN.get(e) ?? e;
       out.push({ raw: e, c, s: stem(c), neg: i - negAt > 0 && i - negAt <= 2 });
@@ -154,7 +159,8 @@ interface PhraseRef { def: IntentDef; toks: Tok[]; set: Set<string>; wsum: numbe
 interface Index {
   cen: Map<string, { def: IntentDef; w: number }[]>;      // palavra → peso dela em cada intenção (centróide TF-IDF)
   cenNorm: Map<IntentDef, number>;
-  tri: { def: IntentDef; set: Set<string> }[];             // trigramas de cada frase (mensagens curtas)
+  tri: { def: IntentDef; size: number }[];                  // frases (para mensagens curtas)
+  triPost: Map<string, number[]>;                           // trigrama → frases que o têm
   idf: Map<string, number>;
   post: Map<string, PhraseRef[]>;
   kw: Map<string, { def: IntentDef; w: number }[]>;
@@ -216,9 +222,14 @@ function buildIndex(defs: IntentDef[]): Index {
     });
     cenNorm.set(def, Math.sqrt(norm) || 1);
   }
-  const tri: { def: IntentDef; set: Set<string> }[] = [];
-  for (const r of refs) tri.push({ def: r.def, set: trigrams(r.norm) });
-  return { idf, post, kw, byFirst, vocab: new Set(df.keys()), cen, cenNorm, tri };
+  const tri: { def: IntentDef; size: number }[] = [];
+  const triPost = new Map<string, number[]>();
+  refs.forEach((r, i) => {
+    const g = trigrams(r.norm);
+    tri.push({ def: r.def, size: g.size });
+    for (const x of g) (triPost.get(x) ?? triPost.set(x, []).get(x)!).push(i);
+  });
+  return { idf, post, kw, byFirst, vocab: new Set(df.keys()), cen, cenNorm, tri, triPost };
 }
 
 function indexOf(defs: IntentDef[]): Index {
@@ -241,9 +252,7 @@ function correct(t: Tok, ix: Index): Tok {
 }
 
 const NAME_TOKENS = new Set(["bia", "biia", "bea"]);
-const COS_GAIN = 3.0;
-const COS_CAP = 0.9;
-const TRI_GAIN = 0.7;
+export const TUNE = { cosGain: 3.0, cosCap: 0.9, triGain: 0.7, phraseGain: 0.95, kwGain: 0.85, kwDiv: 3, both: 0.08, wCov: 0.7, prio: 0.005, sysBoost: 0.04, triMin: 0.5, triBase: 0.55, cap1: 1 };
 
 export function rank(defs: IntentDef[], text: string): Candidate[] {
   const ix = indexOf(defs);
@@ -270,7 +279,7 @@ export function rank(defs: IntentDef[], text: string): Candidate[] {
         if (uset.has(pt.s)) cov += (ix.idf.get(pt.s) ?? 1) * ((uset.get(pt.s) && !pt.neg) ? 0.2 : 1);
       }
       for (const [us, neg] of uset) if (r.set.has(us)) used += (ix.idf.get(us) ?? 1) * (neg && !r.toks.some(t => t.s === us && t.neg) ? 0.2 : 1);
-      let sc = 0.7 * (cov / r.wsum) + 0.3 * (used / usum);
+      let sc = TUNE.wCov * (cov / r.wsum) + (1 - TUNE.wCov) * (used / usum);
       if (r.norm.length >= 4 && norm.includes(r.norm)) sc = Math.max(sc, 0.92);
       if (sc > (best.get(r.def) ?? 0)) best.set(r.def, sc);
     }
@@ -297,10 +306,11 @@ export function rank(defs: IntentDef[], text: string): Candidate[] {
   const tri = new Map<IntentDef, number>();
   if (norm.length <= 45) {
     const it = trigrams(norm);
-    for (const r of ix.tri) {
-      let inter = 0;
-      for (const g of it) if (r.set.has(g)) inter++;
-      const d = (2 * inter) / (it.size + r.set.size);
+    const hits = new Map<number, number>();
+    for (const g of it) for (const i of ix.triPost.get(g) ?? []) hits.set(i, (hits.get(i) ?? 0) + 1);
+    for (const [i, inter] of hits) {
+      const r = ix.tri[i];
+      const d = (2 * inter) / (it.size + r.size);
       if (d > (tri.get(r.def) ?? 0)) tri.set(r.def, d);
     }
   }
@@ -308,14 +318,14 @@ export function rank(defs: IntentDef[], text: string): Candidate[] {
   const out: Candidate[] = [];
   for (const def of new Set([...best.keys(), ...kws.keys(), ...dots.keys(), ...tri.keys()])) {
     const b = best.get(def) ?? 0;
-    const k = Math.min(1, (kws.get(def) ?? 0) / 3);
-    const cs = Math.min(COS_CAP, cosOf(def) * COS_GAIN);
+    const k = Math.min(1, (kws.get(def) ?? 0) / TUNE.kwDiv);
+    const cs = Math.min(TUNE.cosCap, cosOf(def) * TUNE.cosGain);
     const td = tri.get(def) ?? 0;
-    const ts = td >= 0.5 ? 0.55 + (td - 0.5) * TRI_GAIN : 0;
-    let base = Math.max(b * 0.95, k * 0.85, cs, ts);
+    const ts = td >= TUNE.triMin ? TUNE.triBase + (td - TUNE.triMin) * TUNE.triGain : 0;
+    let base = Math.max(b * TUNE.phraseGain, k * TUNE.kwGain, cs, ts);
     if (b < 0.35 && def.custom && cs < 0.6 && ts < 0.6) base = Math.min(base, 0.62); // resposta da base só por uma palavra solta não basta
-    const both = b > 0.4 && k > 0.3 ? 0.08 : 0;
-    const score = Math.min(1, base + both) + (def.priority ?? 0) * 0.005; // sem teto: a ordem entre intenções parecidas continua valendo
+    const both = b > 0.4 && k > 0.3 ? TUNE.both : 0;
+    const score = Math.min(TUNE.cap1, base + both) + (def.priority ?? 0) * TUNE.prio; // sem teto: a ordem entre intenções parecidas continua valendo
     if (score > 0.2) out.push({ id: def.id, label: def.label, def, score });
   }
   return out.sort((a, b) => b.score - a.score);
@@ -389,7 +399,7 @@ export function readMood(text: string): Mood {
 // Só uma saudação ("oi", "bom dia, tudo bem?")
 export function isGreetingOnly(text: string): boolean {
   const n = normalize(text).split(" ").filter(Boolean);
-  return n.length > 0 && n.length <= 6 && n.every(w => GREET.has(ABBR[w] ?? w));
+  return n.length > 0 && n.length <= 6 && n.every(w => GREET.has(ABBR_ALL[w] ?? w));
 }
 
 export const AFFIRM = /^(sim|s|isso|claro|pode|pode sim|quero|quero sim|com certeza|ok|beleza|certo|positivo|uhum|aham|yes|por favor|pfv|manda|manda ai|bora|vamos)[\s!.]*$/i;
@@ -497,6 +507,18 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     keywords: [["demora", 2], ["posicao", 2], ["fila", 2], ["falta", 2]],
   },
   {
+    id: "my_name", label: "Disse o nome", action: "reply", priority: 3,
+    phrases: ["meu nome e carlos", "me chamo ana", "pode me chamar de joao", "aqui e a maria", "sou o pedro", "meu nome e maria da silva", "me chamo lucas e tenho uma duvida", "podem me chamar de bia", "meu nome e fernanda prazer"],
+    keywords: [["chamo", 3], ["nome", 1.5]],
+    replies: ["Prazer, {{nome}}! 😊 Como posso te ajudar?", "Muito prazer, {{nome}}! Me conta o que você precisa.", "Oi, {{nome}}! Que bom falar com você. Em que posso ajudar?"],
+  },
+  {
+    id: "and_you", label: "E você?", action: "reply", priority: 1,
+    phrases: ["e voce", "e vc", "e contigo", "e voce como esta", "e por ai", "e com voce", "e vc ta bem", "e voce ta bem", "e tu", "e voce tambem"],
+    keywords: [["contigo", 2]],
+    replies: ["Por aqui tudo ótimo, obrigada por perguntar! 😊 Mas me conta, como posso te ajudar?", "Tudo bem por aqui também! Estou sempre de bom humor, é o jeito robô de ser. 😄 E aí, do que você precisa?", "Ótima, obrigada! 💙 Vamos lá, no que posso ajudar?"],
+  },
+  {
     id: "thanks_but", label: "Obrigado, mas ainda preciso", action: "reply", priority: 5,
     phrases: ["obrigado mas tenho outra duvida", "valeu so mais uma coisa", "obrigado mas ainda preciso", "brigado so mais uma pergunta", "ok obrigado mas e", "obrigada mas ainda nao resolveu", "obrigado so mais uma duvida", "valeu mas ainda tenho uma pergunta", "obrigado e outra coisa", "ah mais uma coisa", "so mais uma coisa", "mais uma duvida", "ainda tenho uma duvida"],
     keywords: [["mais uma", 2.5], ["outra duvida", 2.5]],
@@ -594,16 +616,20 @@ function applySignals(text: string, cands: Candidate[]): Candidate[] {
   const n = normalize(text);
   const boost = (test: (c: Candidate) => boolean, delta: number) => { for (const c of cands) if (test(c)) c.score += delta; };
 
-  if (hasNeg("atendente") && !/\b(robo|bot|automatic)/.test(n)) boost(c => c.id === "human", 0.25);
+  const asksPerson = toks.some(t => ["atendente", "atendentes", "humano", "humana"].includes(t.raw)) || /\b(falar com (uma |um )?(pessoa|alguem)|gente de verdade|pessoa de verdade|alguem de verdade)\b/.test(n);
+  if (asksPerson && !/\b(robo|bot|automatic)/.test(n)) boost(c => c.id === "human", 0.25);
   if (has("problema")) { boost(c => c.id === "support_problem" || c.id.startsWith("sup_"), 0.15); boost(c => !!c.def.custom && (!c.def.action || c.def.action === "reply"), -0.1); }
   if (has("cancelar")) boost(c => c.id === "cancel" || c.id === "fin_cancelar_renovacao", 0.12);
   if (has("pagar") && /\b(ja|acabei|fiz|efetuei|realizei|fez)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.15);
+  if (/\b(fiz|fez|mandei|enviei|realizei|efetuei|acabei de (fazer|mandar|enviar))\b.*\b(pix|boleto|pagamento|transferencia|ted|doc)\b/.test(n) || /\b(pix|boleto|pagamento)\b.*\b(feito|realizado|enviado|efetuado)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.2);
+  if (/\b(quanto (custa|e|fica|sai)|qual (o )?(preco|valor)|preco|valores)\b/.test(n) && !/\b(devo|deve|minha|meu|pago|paguei)\b/.test(n)) boost(c => c.id === "price", 0.3);
   if (/^(boleto|fatura|segunda via|2 via|link de pagamento)$/.test(n)) boost(c => c.id === "invoice", 0.3);
   if (/^(extrato|historico)$/.test(n)) boost(c => c.id === "statement", 0.3);
   return cands.sort((a, b) => b.score - a.score);
 }
 
 export function understand(text: string, defs: IntentDef[], systems: { name: string; aliases?: string[] }[] = [], hintSystem?: string | null): Understanding {
+  const docInText = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(text);
   const entities = extractEntities(text, systems);
   const boostSystem = entities.system ?? hintSystem ?? undefined;
   const mood = readMood(text);
@@ -612,11 +638,19 @@ export function understand(text: string, defs: IntentDef[], systems: { name: str
 
   // um sistema citado dá preferência às respostas daquele sistema
   if (boostSystem) {
-    candidates = candidates.map(c => c.def.system && c.def.system === boostSystem ? { ...c, score: c.score + 0.04 } : c).sort((a, b) => b.score - a.score);
+    candidates = candidates.map(c => c.def.system && c.def.system === boostSystem ? { ...c, score: c.score + TUNE.sysBoost } : c).sort((a, b) => b.score - a.score);
   }
 
   // sinais fortes do texto empurram a intenção certa (ex.: "atendente" → falar com pessoa; "problema" → suporte)
   candidates = applySignals(text, candidates);
+  if (docInText) {
+    const n2 = normalize(text);
+    for (const c of candidates) {
+      if (c.id === "invoice" && /\b(fatura|boleto|segunda via|pagar|pagamento|cobranca|mensalidade)\b/.test(n2)) c.score += 0.4;
+      if (c.id === "statement" && /\b(extrato|historico|pagamentos)\b/.test(n2)) c.score += 0.4;
+    }
+    candidates.sort((a, b) => b.score - a.score);
+  }
 
   const top = candidates[0] ?? null;
   let decision: Understanding["decision"] = "none";
