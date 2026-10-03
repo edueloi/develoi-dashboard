@@ -15,7 +15,7 @@ import path from "path";
 import fs from "fs";
 import { prisma } from "./db.js";
 import { deDash } from "./botNlu.js";
-import { respondTo, newBrainCtx, peekIntent, seedKnowledge, idleNudge, idleClose, type BrainCtx, type BrainIO } from "./botBrain.js";
+import { respondTo, newBrainCtx, peekIntent, seedKnowledge, idleNudge, idleClose, loadContactMemory, saveContactMemory, type BrainCtx, type BrainIO } from "./botBrain.js";
 import { brtParts } from "./time.js";
 
 
@@ -881,6 +881,23 @@ async function handleMessage(msg: any, sock: any) {
     clientStates.set(key, state);
     await recordMsg(conv.id, "client", textMsg, clientPhone);
 
+    // já conversou antes: a BiIA lembra do nome e do ramo
+    try {
+      const mem = await loadContactMemory(clientPhone);
+      const b = brainOf(state);
+      if (mem) {
+        if (mem.name) b.facts.nome = mem.name;
+        if (mem.ramo) b.facts.ramo = mem.ramo;
+        if ((mem.name || mem.ramo) && Date.now() - mem.lastSeenAt.getTime() > 30 * 60 * 1000 && GREETING.test(textMsg.trim())) {
+          const hi = mem.name ? `, ${mem.name}` : "";
+          await botSay(state, sock, mem.ramo
+            ? `Que bom te ver de novo${hi}! 😊 Como andam as coisas na sua ${mem.ramo}?`
+            : `Que bom te ver de novo${hi}! 😊`);
+        }
+      }
+      void saveContactMemory(clientPhone, b, true);
+    } catch { /* memória é um extra */ }
+
     const wanted = clientActionFromText(textMsg);
     if (wanted) await askForDocument(state, sock, wanted);
     else if (await smartReply(state, sock, key, textMsg, clientPhone)) { /* o bot entendeu e já respondeu */ }
@@ -1007,8 +1024,13 @@ async function smartReply(state: any, sock: any, key: string, text: string, clie
       clientStates.delete(key);
     },
   };
-  try { return await respondTo(text, brainOf(state), io, opts); }
-  catch (e) { console.error("[bot] erro no cérebro do bot:", e); return false; }
+  try {
+    const b = brainOf(state);
+    const before = `${b.facts.nome ?? ""}|${b.facts.ramo ?? ""}`;
+    const ok = await respondTo(text, b, io, opts);
+    if (`${b.facts.nome ?? ""}|${b.facts.ramo ?? ""}` !== before) void saveContactMemory(clientPhone, b); // lembra para a próxima conversa
+    return ok;
+  } catch (e) { console.error("[bot] erro no cérebro do bot:", e); return false; }
 }
 
 // Leva o cliente para a fila de um setor (pelo nome), como se ele tivesse escolhido no menu

@@ -510,6 +510,27 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     keywords: [["demora", 2], ["posicao", 2], ["fila", 2], ["falta", 2]],
   },
   {
+    id: "can_chat", label: "Quer conversar", action: "reply", priority: 5,
+    phrases: ["pode conversar", "posso conversar com voce", "quero conversar com voce", "vamos conversar", "bora conversar", "quero bater um papo", "pode bater um papo", "tem um minuto", "tem um tempinho", "posso te perguntar uma coisa", "posso perguntar uma coisa", "posso falar com voce", "preciso desabafar", "quer conversar", "conversa comigo", "fala comigo", "me da atencao", "pode me ouvir", "tem tempo pra mim", "queria conversar", "so queria conversar", "quero conversar", "podemos conversar", "vamos bater um papo", "conversa um pouco comigo"],
+    keywords: [["conversar", 3], ["papo", 2.5], ["desabafar", 3]],
+    replies: ["Claro que pode! 😊 Adoro conversar. Sobre o que você quer falar?", "Pode sim{{, nome}}! Estou aqui para conversar. Me conta o que está na sua cabeça. 💬", "Com todo prazer! 🙌 Pode falar, estou ouvindo.", "Opa, bora! Pode começar quando quiser. 😄"],
+  },
+  {
+    id: "now_time", label: "Que horas são", action: "reply", priority: 3,
+    phrases: ["que horas sao", "que hora e agora", "me diz as horas", "qual a hora", "que horas e", "tem hora ai", "que horas sao agora", "me fala a hora", "sabe que horas sao"],
+    keywords: [["horas", 2.5]],
+  },
+  {
+    id: "now_date", label: "Que dia é hoje", action: "reply", priority: 3,
+    phrases: ["que dia e hoje", "qual a data de hoje", "hoje e que dia", "data de hoje", "em que dia estamos", "que dia da semana e hoje", "hoje e que dia da semana", "me diz a data", "dia de hoje"],
+    keywords: [["data", 1.5], ["hoje", 1]],
+  },
+  {
+    id: "recap", label: "Resumo da conversa", action: "reply", priority: 3,
+    phrases: ["o que eu falei antes", "resume nossa conversa", "o que a gente conversou", "me lembra o que eu disse", "do que estavamos falando", "o que eu perguntei", "faz um resumo da conversa", "o que ja falamos", "o que eu te falei", "recapitula pra mim"],
+    keywords: [["resumo", 2.5], ["resume", 2.5], ["recapitula", 3]],
+  },
+  {
     id: "my_name", label: "Disse o nome", action: "reply", priority: 3,
     phrases: ["meu nome e carlos", "me chamo ana", "pode me chamar de joao", "aqui e a maria", "sou o pedro", "meu nome e maria da silva", "me chamo lucas e tenho uma duvida", "podem me chamar de bia", "meu nome e fernanda prazer"],
     keywords: [["chamo", 3], ["nome", 1.5]],

@@ -781,3 +781,15 @@ model WppBotNluLog {
 
   @@index([outcome, dismissed, createdAt])
 }
+
+// O que a BiIA lembra de cada contato de uma conversa para a outra (nome, ramo, assuntos)
+model WppContactMemory {
+  id         String   @id @default(uuid())
+  phone      String   @unique @db.VarChar(40)
+  name       String?  @db.VarChar(80)
+  ramo       String?  @db.VarChar(80)
+  topics     String?  @db.Text   // JSON: últimos assuntos
+  visits     Int      @default(1)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+}

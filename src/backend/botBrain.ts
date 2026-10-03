@@ -23,6 +23,7 @@ export interface BrainCtx {
   lastIntent?: string;
   lastSystem?: string;
   lastAnswer?: string;
+  mode?: "chat";                                        // papo livre: a pessoa só quer conversar
   lastReplyDef?: string;                                // intenção da última resposta (para "explica de outro jeito")
   repeats: number;                                      // pedidos seguidos de "não entendi"
   fails: number;
@@ -158,7 +159,7 @@ function priceText(b: Brain, system?: string | null): string {
 
 // ─── Decisão ─────────────────────────────────────────────────────────────────
 
-const GENERIC_ONLY = new Set(["bot_identity", "greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you"]);
+const GENERIC_ONLY = new Set(["bot_identity", "greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you", "can_chat", "now_time", "now_date", "recap"]);
 const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_") || d.id.startsWith("talk_");
 const isInfo = (d: IntentDef) => !isChat(d) && (!d.action || d.action === "reply") && !["price", "systems_overview", "queue_status", "human"].includes(d.id);
 
@@ -265,6 +266,22 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
       return;
     }
     case "systems_overview": { await io.say(systemsText(brain)); return; }
+    case "can_chat": { ctx.mode = "chat"; ctx.chitchat = 0; await io.say(reply()); return; }
+    case "now_time": case "now_date": {
+      const now = new Date();
+      const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", ...o }).format(now);
+      await io.say(def.id === "now_time"
+        ? pick("time", [`Agora são ${f({ hour: "2-digit", minute: "2-digit" })}, horário de Brasília. ⏰`, `São ${f({ hour: "2-digit", minute: "2-digit" })} aqui em Brasília. ⏰`], ctx)
+        : pick("date", [`Hoje é ${f({ weekday: "long", day: "numeric", month: "long", year: "numeric" })}. 📅`, `Estamos em ${f({ weekday: "long", day: "numeric", month: "long" })}. 📅`], ctx));
+      return;
+    }
+    case "recap": {
+      const said = ctx.recent.slice(0, -1).filter(x => x.trim().length > 3);
+      const bits = [ctx.facts.nome ? `seu nome é ${ctx.facts.nome}` : null, ctx.facts.ramo ? `você tem ${ctx.facts.ramo}` : null].filter(Boolean);
+      const lines = [bits.length ? `Até aqui eu sei que ${bits.join(" e ")}.` : null, said.length ? `E você me disse: ${said.slice(-3).map(x => `"${x.slice(0, 60)}"`).join(", ")}.` : null].filter(Boolean);
+      await io.say(lines.length ? lines.join(" ") : "A gente acabou de começar, ainda não tem muito o que resumir! 😄 Me conta o que você precisa.");
+      return;
+    }
     case "i_am_client": { ctx.profile = "client"; await io.say(reply()); await clientMenu(ctx, io); return; }
     case "not_client": {
       ctx.profile = "lead";
@@ -355,10 +372,11 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
 
   if (isChat(def)) {
     ctx.chitchat += 1;
-    if (ctx.chitchat >= 3) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); }
+    if (ctx.chitchat >= (ctx.mode === "chat" ? 6 : 3)) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); }
     return;
   }
   ctx.chitchat = 0;
+  ctx.mode = undefined;
   if (!outro) return;
 
   // resposta informativa: oferece o próximo passo (ou outros assuntos do mesmo sistema)
@@ -534,6 +552,19 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     if (greet) await io.say(greet.trim());
     else { const react = !isChat(u.intent.def) ? leadIn(t, u.mood.angry) : null; if (react) await io.say(react); }
     await execute(u.intent.def, u, t, ctx, io, brain);
+    return finish(true);
+  }
+
+  // papo livre: se não for um pedido, a BiIA continua a conversa com naturalidade
+  if (ctx.mode === "chat" && !u.mood.angry && (u.decision !== "act" || (u.intent && u.confidence < 0.8 && isChat(u.intent.def)))) {
+    ctx.chitchat += 1;
+    if (ctx.chitchat >= 6) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); return finish(true); }
+    const nome = nameOf(ctx);
+    await io.say(pick("reflect", [
+      `Interessante${nome ? `, ${nome}` : ""}! Me conta mais sobre isso. 😊`, "Hum, e como você se sente em relação a isso?", "Entendi! E o que você pretende fazer a respeito?",
+      "Que legal você dividir isso comigo. Quer me contar mais?", "Faz sentido. E o que mais está acontecendo por aí?", "Nossa, imagino! E como foi isso pra você?",
+      ctx.facts.ramo ? `E por aí na ${ctx.facts.ramo}, como andam as coisas?` : "E no seu dia a dia, como estão as coisas?",
+    ], ctx));
     return finish(true);
   }
 
@@ -740,4 +771,27 @@ export async function peekIntent(text: string, hintSystem?: string | null): Prom
   const brain = await loadBrain();
   const u = understand(text, brain.defs, brain.systems, hintSystem);
   return u.intent && u.decision === "act" ? { id: u.intent.def.id, confidence: u.confidence } : null;
+}
+
+// ─── Memória entre conversas ─────────────────────────────────────────────────
+export interface ContactMemory { name: string | null; ramo: string | null; visits: number; lastSeenAt: Date }
+
+export async function loadContactMemory(phone: string): Promise<ContactMemory | null> {
+  try {
+    const m = await rawPrisma.wppContactMemory.findUnique({ where: { phone } });
+    return m ? { name: m.name, ramo: m.ramo, visits: m.visits, lastSeenAt: m.lastSeenAt } : null;
+  } catch { return null; }
+}
+
+// Guarda nome e ramo quando mudam (e conta a visita na primeira vez da conversa)
+export async function saveContactMemory(phone: string, ctx: BrainCtx, newVisit = false) {
+  try {
+    const name = ctx.facts.nome ?? null, ramo = ctx.facts.ramo ?? null;
+    if (!name && !ramo && !newVisit) return;
+    await rawPrisma.wppContactMemory.upsert({
+      where: { phone },
+      create: { phone, name, ramo },
+      update: { ...(name ? { name } : {}), ...(ramo ? { ramo } : {}), lastSeenAt: new Date(), ...(newVisit ? { visits: { increment: 1 } } : {}) },
+    });
+  } catch { /* memória é um extra: nunca atrapalha a conversa */ }
 }
