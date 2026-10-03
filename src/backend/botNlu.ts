@@ -611,7 +611,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
   },
   {
     id: "menu", label: "Voltar ao menu", action: "menu", priority: 2,
-    phrases: ["voltar ao menu", "menu principal", "ver opcoes", "quais as opcoes", "o que voce faz", "o que voce pode fazer", "como voce pode me ajudar", "opcoes", "me ajuda", "preciso de ajuda", "voltar ao inicio"],
+    phrases: ["voltar ao menu", "menu principal", "ver opcoes", "quais as opcoes", "o que voce faz", "o que voce pode fazer", "como voce pode me ajudar", "opcoes", "me ajuda", "preciso de ajuda", "voltar ao inicio", "o que mais voce faz", "o que mais voce sabe fazer", "quais outras coisas voce faz", "alem disso o que voce faz", "o que voce sabe fazer", "voce faz o que mais", "o que mais", "mais o que voce faz", "e o que mais voce faz", "me mostra o que voce faz", "quais sao suas funcoes"],
     keywords: [["menu", 3], ["opcoes", 2]],
     replies: ["Claro! Veja o que posso fazer por você: 👇"],
   },
