@@ -588,6 +588,18 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     replies: ["Oi{{, nome}}! Estou aqui sim. 😊 Como posso ajudar?", "Pode falar{{, nome}}, estou por aqui!", "Tô aqui! 🙌 Me conta o que você precisa."],
   },
   {
+    id: "talk_pena_bia", label: "Teve dó / pena da BiIA", action: "reply", priority: 3,
+    phrases: ["que do de voce", "nossa que do de voce", "que pena de voce", "tenho pena de voce", "coitada", "coitadinha", "que triste pra voce", "ai que do", "tadinha", "que vida a sua", "deve ser ruim ser robo", "voce deve ser triste", "sinto muito por voce"],
+    keywords: [["coitada", 3], ["coitadinha", 3], ["tadinha", 3]],
+    replies: ["Hahaha, não precisa ter dó, não! 😄 Minha vida de robô é ótima: não pago conta, não pego trânsito e converso o dia todo.", "Aww, que fofo! 💙 Mas pode ficar tranquilo(a), estou muito bem por aqui.", "Rsrs, obrigada pela preocupação! Sou feliz ajudando as pessoas. E você, como está?", "Que gentileza! Mas não precisa, eu gosto do que faço. 😊"],
+  },
+  {
+    id: "chat_nao_preciso", label: "Não precisa de nada agora", action: "reply", priority: 3,
+    phrases: ["nao preciso de nada", "nao preciso de nada nao", "nao preciso de nada agora", "nao quero nada", "nao preciso", "nada nao", "nada por enquanto", "por enquanto nao preciso", "so estou conversando", "so conversando", "so passei pra falar oi", "esta tudo certo", "ta tudo certo", "tudo certo por aqui", "nao precisa de nada", "estou bem assim", "no momento nao preciso", "nao tenho nada pra resolver", "so queria bater papo", "tudo certo", "tudo resolvido", "ja resolvi", "ja foi resolvido", "era so isso", "so isso mesmo", "e so isso", "por hoje e so", "por hoje e isso", "pode encerrar", "pode fechar", "ja deu", "ja esta bom", "ta bom assim"],
+    keywords: [["nada", 1]],
+    replies: ["Tudo bem{{, nome}}! Se precisar de qualquer coisa, é só chamar. 😊", "Beleza! Agradeço o contato e fico por aqui, qualquer coisa me chama. 🙌", "Sem problemas! Quando precisar de fatura, suporte ou outra dúvida, é só mandar mensagem.", "Combinado! Obrigada pela conversa, estou por aqui se precisar. 💙"],
+  },
+  {
     id: "talk_vida_pessoal", label: "Curiosidade sobre a vida da BiIA (namorado, casada, idade)", action: "reply", priority: 3,
     phrases: ["voce tem namorado", "vc tem namorado", "voce namora", "tem namorado", "voce tem namorada", "voce e casada", "vc e casada", "voce e solteira", "vc e solteira", "voce e casada ou solteira", "voce tem marido", "voce tem filhos", "voce tem familia", "quantos anos voce tem", "qual sua idade", "voce e homem ou mulher", "voce e menina", "onde voce mora", "voce tem irmaos", "qual seu signo", "voce tem pai e mae", "voce tem crush", "esta namorando", "voce esta solteira", "voce e comprometida"],
     keywords: [["namorado", 3], ["casada", 3], ["solteira", 3], ["marido", 3], ["idade", 2]],
@@ -659,6 +671,7 @@ function applySignals(text: string, cands: Candidate[], hints: Hints = {}): Cand
   if (/\b(namorado|namorada|casada|solteira|marido|comprometida)\b/.test(n) && /\b(voce|vc|tu|ce|bia|biia|tem|e|ta|esta)\b/.test(n) && !/\b(seja|minha namorada|meu namorado|casa comigo|casar|namora comigo|me namora)\b/.test(n)) boost(c => c.id === "talk_vida_pessoal", 0.3);
   // "ficou brava?", "tá chateada comigo?" é pergunta sobre o humor da BiIA, não reclamação
   if (/\b(brava|chateada|magoada|zangada|irritada|ofendida|ofendi|ofendeu|raiva de mim)\b/.test(n) && /\b(ficou|esta|ta|voce|vc|se|te|bia|biia)\b/.test(n) && !/\b(sistema|fatura|cobranca|atendimento|empresa)\b/.test(n)) boost(c => c.id === "talk_brava", 0.3);
+  if (/\b(do de voce|do de vc|pena de voce|pena de vc|coitada|coitadinha|tadinha)\b/.test(n)) boost(c => c.id === "talk_pena_bia", 0.25);
   if (has("cancelar")) boost(c => c.id === "cancel" || c.id === "fin_cancelar_renovacao", 0.12);
   if (has("pagar") && /\b(ja|acabei|fiz|efetuei|realizei|fez)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.15);
   if (/\b(fiz|fez|mandei|enviei|realizei|efetuei|acabei de (fazer|mandar|enviar))\b.*\b(pix|boleto|pagamento|transferencia|ted|doc)\b/.test(n) || /\b(pix|boleto|pagamento)\b.*\b(feito|realizado|enviado|efetuado)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.2);

@@ -1126,7 +1126,8 @@ export function startConversationSweeper() {
         const ctx = { lastIntent: st?.brain?.lastIntent, pushName: st?.pushName };
 
         if (idle >= SESSION_IDLE_MS) {
-          if (session?.status === "connected") {
+          // se a pessoa já se despediu ou disse que está tudo certo, não manda aviso de encerramento: fecha em silêncio
+          if (session?.status === "connected" && !st?.brain?.ended) {
             const msg = idleClose(ctx);
             await session.sock.sendMessage(jid, { text: msg }).catch(() => {});
             await recordMsg(c.id, "bot", msg);
@@ -1134,7 +1135,7 @@ export function startConversationSweeper() {
           await closeBotConversation(c.id);
           clientStates.delete(key);
           nudged.delete(c.id);
-        } else if (idle >= IDLE_NUDGE_MS && !nudged.has(c.id) && session?.status === "connected") {
+        } else if (idle >= IDLE_NUDGE_MS && !nudged.has(c.id) && !st?.brain?.ended && session?.status === "connected") {
           const msg = idleNudge(ctx);
           nudged.set(c.id, Date.now());
           await session.sock.sendMessage(jid, { text: msg }).catch(() => {});

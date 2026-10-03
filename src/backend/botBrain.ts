@@ -34,6 +34,7 @@ export interface BrainCtx {
   flow?: LeadFlow;
   facts: Facts;                                         // o que a pessoa contou de si (nome, ramo)
   style: Style;                                         // jeito de falar: formal ou descontraído
+  ended?: boolean;                                      // a pessoa deu a conversa por encerrada (agradeceu, disse que está tudo certo): sem lembrete de inatividade
   chitchat: number;                                     // respostas seguidas de papo social
   asked: string[];                                      // perguntas de curiosidade já feitas
   turns: number;                                        // quantas mensagens do cliente a BiIA já tratou
@@ -251,6 +252,7 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   if (u.entities.system) ctx.lastSystem = u.entities.system;
   else if (def.system) ctx.lastSystem = def.system;
   const prevIntent = ctx.lastIntent;
+  if (def.id !== "repeat") ctx.ended = ["thanks", "goodbye", "chat_nao_preciso"].includes(def.id);
   if (def.id !== "repeat") { ctx.lastIntent = def.id; ctx.lastReplyDef = def.id; ctx.repeats = 0; }
   ctx.fails = 0;
   if (!ctx.seen.includes(def.id)) ctx.seen.push(def.id);
@@ -374,7 +376,7 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
 
   if (isChat(def)) {
     ctx.chitchat += 1;
-    if (ctx.chitchat >= (ctx.mode === "chat" ? 6 : 3)) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); }
+    if (ctx.chitchat >= (ctx.mode === "chat" ? 8 : 5)) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); }
     return;
   }
   ctx.chitchat = 0;
@@ -454,6 +456,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     handoff: async (sector: string, note?: string) => rawIo.handoff(sector, note ?? contextNote(ctx)),
   };
   ctx.turns += 1;
+  ctx.ended = false;
   ctx.recent = [...ctx.recent, t.slice(0, 120)].slice(-4);
   const hadRamo = !!ctx.facts.ramo, hadNome = !!ctx.facts.nome;
   ctx.facts = extractFacts(t, ctx.facts);
