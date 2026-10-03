@@ -18,6 +18,7 @@ import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
 import { registerReceiptRoutes, sendThanksAndReceipt } from "./src/backend/receipts.js";
 import { registerInvoiceRoutes } from "./src/backend/invoicePage.js";
+import { registerBotBrainRoutes } from "./src/backend/botBrain.js";
 import { registerBoxsysRoutes, startBoxsysScheduler, syncBoxsysAccess } from "./src/backend/boxsys.js";
 import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
@@ -862,6 +863,7 @@ async function startServer() {
     registerAsaasRoutes(app);
     registerReceiptRoutes(app);
     registerInvoiceRoutes(app);
+    registerBotBrainRoutes(app);
     registerBoxsysRoutes(app);
     registerWebhookOutRoutes(app);
 

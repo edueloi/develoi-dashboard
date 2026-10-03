@@ -14,6 +14,7 @@ import makeWASocket, {
 import path from "path";
 import fs from "fs";
 import { prisma } from "./db.js";
+import { respondTo, newBrainCtx, peekIntent, seedKnowledge, idleNudge, idleClose, type BrainCtx, type BrainIO } from "./botBrain.js";
 import { brtParts } from "./time.js";
 
 
@@ -41,7 +42,8 @@ const sectorQueues = new Map<string, string[]>(); // Map<sectorId, clientKey[]>
 const INACTIVITY_WARN_MS = 15 * 60 * 1000;
 const INACTIVITY_CLOSE_MS = 20 * 60 * 1000;
 const EXIT_CMD   = /^&sair$/i;
-const BACK_CMD   = /^(0|menu|inicio|início|voltar|cancelar|sair)$/i;
+const BACK_CMD   = /^(0|o|menu|inicio|início|voltar|cancelar|sair)$/i; // "o" (letra) é o zero digitado errado
+
 
 let session: ActiveSession | null = null;
 const SESSIONS_DIR = path.join(process.cwd(), "wpp-sessions");
@@ -417,6 +419,7 @@ export async function sendChoice(jidOrPhone: string, body: string, options: Choi
   if (!session || session.status !== "connected") return false;
   const jid = jidOrPhone.includes("@") ? jidOrPhone : phoneToJid(jidOrPhone);
   const hint = opts.hint ?? "Toque em uma opção ou digite o número.";
+  await typing(session.sock, jid, body);
 
   if (await buttonsEnabled() && options.length) {
     try {
@@ -475,7 +478,8 @@ function extractIncomingText(message: any): string {
 
 // ─── Saudação e textos do menu ───────────────────────────────────────────────
 const GREETING = /^(oi+|olá|ola|oie|ei|opa|hello|hi|bom dia|boa tarde|boa noite|início|inicio|menu)[\s!.,?]*$/i;
-const SESSION_IDLE_MS = 30 * 60 * 1000; // depois disso, quem volta a escrever recebe o menu de novo com a saudação do momento
+const SESSION_IDLE_MS = 25 * 60 * 1000; // sem interação: o bot encerra e quem volta a escrever recebe o menu de novo
+const IDLE_NUDGE_MS = 15 * 60 * 1000;   // antes de encerrar, o bot pergunta se a pessoa ainda está lá
 
 // Bom dia / Boa tarde / Boa noite conforme o horário de Brasília
 export function saudacao(date: Date = new Date()): string {
@@ -554,11 +558,20 @@ async function askIntakeSubject(state: any, sock: any) {
   await botSay(state, sock, "Obrigado! Agora, em uma mensagem, descreva o *assunto* ou o problema que está enfrentando. ✍️");
 }
 
-async function beginSupportIntake(state: any, sock: any, sector: { id: string; name: string }) {
+async function beginSupportIntake(state: any, sock: any, sector: { id: string; name: string }, preset?: { system?: string | null; detail?: string }) {
   const products = await prisma.product.findMany({ where: { active: true, supportEnabled: true }, orderBy: { createdAt: "asc" }, take: 9 });
   state.intake = { sector, step: "system", options: [] as { id: string; label: string }[], docTries: 0 };
   if (products.length === 0) { await askIntakeDoc(state, sock); return; } // sem sistemas cadastrados: pula direto
   state.intake.options = [...products.map((p, i) => ({ id: String(i + 1), label: p.name })), { id: String(products.length + 1), label: "Outro assunto" }];
+  // o cliente já disse de qual sistema fala: pula a pergunta
+  const known = preset?.system ? state.intake.options.find((o: any) => o.label.toLowerCase().includes(String(preset.system).toLowerCase()) || String(preset.system).toLowerCase().includes(o.label.toLowerCase())) : null;
+  if (known) {
+    state.intake.system = known.label;
+    if (preset?.detail) state.intake.detail = preset.detail.slice(0, 1000);
+    await botSay(state, sock, `Entendi, é sobre o *${known.label}*. 👍`);
+    await askIntakeDoc(state, sock);
+    return;
+  }
   await sendSystemChoices(state, `*${sector.name}* 🛠️\nSobre qual sistema ou produto você precisa de ajuda? Selecione uma das opções abaixo:`);
 }
 
@@ -640,7 +653,18 @@ async function resolvePhone(sock: any, msg: any): Promise<string> {
 }
 
 // O bot fala e a fala fica no histórico da conversa
+// "digitando…" no WhatsApp do cliente antes de cada resposta (tempo proporcional ao tamanho do texto)
+async function typing(sock: any, jid: string, text: string) {
+  try {
+    await sock.presenceSubscribe(jid);
+    await sock.sendPresenceUpdate("composing", jid);
+    await new Promise(r => setTimeout(r, Math.min(2600, 600 + text.length * 18)));
+    await sock.sendPresenceUpdate("paused", jid);
+  } catch { /* presença é só um charme: nunca atrapalha a resposta */ }
+}
+
 async function botSay(state: any, sock: any, text: string) {
+  await typing(sock, state.remoteJid, text);
   await sock.sendMessage(state.remoteJid, { text });
   if (state.conversationId) await recordMsg(state.conversationId, "bot", text);
 }
@@ -758,6 +782,9 @@ async function handleMessage(msg: any, sock: any) {
       return;
     }
 
+    // outras formas de perguntar "quanto falta?" também são entendidas
+    if (conv.status === "waiting" && (await smartReply(state, sock, key, textMsg, clientPhone, { inQueue: true }))) return;
+
     if (!conv.clientJid || (!conv.clientName && pushName)) {
       await prisma.wppConversation.update({ where: { id: conv.id }, data: { clientJid: conv.clientJid ?? rawJid, ...(conv.clientName ? {} : { clientName: pushName }) } });
     }
@@ -797,6 +824,7 @@ async function handleMessage(msg: any, sock: any) {
 
     const wanted = clientActionFromText(textMsg);
     if (wanted) await askForDocument(state, sock, wanted);
+    else if (await smartReply(state, sock, key, textMsg, clientPhone)) { /* o bot entendeu e já respondeu */ }
     else await processNode(startNode, state, textMsg, sock, clientPhone);
   } else {
     state.lastActivity = Date.now();
@@ -818,7 +846,17 @@ async function handleMessage(msg: any, sock: any) {
     if (state.intake) { await handleIntakeReply(state, sock, key, textMsg, clientPhone); return; }
 
     // Aguardando o CPF/CNPJ de quem pediu fatura ou extrato
-    if (state.awaiting) { await handleDocumentReply(state, sock, key, textMsg); return; }
+    if (state.awaiting) {
+      if (!/\d/.test(textMsg)) {
+        const peek = await peekIntent(textMsg, brainOf(state).lastSystem);
+        if (peek && peek.confidence >= 0.7 && ["human", "complaint", "cancel", "menu", "goodbye", "support_problem", "hire", "price", "systems_overview"].includes(peek.id)) {
+          state.awaiting = undefined;
+          if (await smartReply(state, sock, key, textMsg, clientPhone)) return;
+        }
+      }
+      await handleDocumentReply(state, sock, key, textMsg);
+      return;
+    }
     const wantedAction = clientActionFromText(textMsg);
     if (wantedAction) { await askForDocument(state, sock, wantedAction); return; }
 
@@ -835,6 +873,7 @@ async function handleMessage(msg: any, sock: any) {
         if (selected) {
           nextNodeId = selected.nextNodeId;
         } else {
+          if (await smartReply(state, sock, key, textMsg, clientPhone)) return;
           await botSay(state, sock, "Desculpe, não compreendi a opção informada. 🙏\nPor favor, selecione uma das opções do menu ou digite *0* para voltar ao início.");
           return;
         }
@@ -849,9 +888,67 @@ async function handleMessage(msg: any, sock: any) {
       }
     } else {
       // ramo informativo sem próximo passo: não deixa o cliente sem resposta
+      if (await smartReply(state, sock, key, textMsg, clientPhone)) return;
       await botSay(state, sock, "Para continuar, digite *0* e retornaremos ao menu inicial. Será um prazer atendê-lo(a). 😊");
     }
   }
+}
+
+// ─── Cérebro do bot: entende a mensagem livre e age ──────────────────────────
+const brainOf = (state: any): BrainCtx => {
+  state.brain = state.brain ?? newBrainCtx(state.pushName);
+  if (state.pushName) state.brain.pushName = state.pushName;
+  return state.brain;
+};
+
+async function smartReply(state: any, sock: any, key: string, text: string, clientPhone: string, opts: { inQueue?: boolean } = {}): Promise<boolean> {
+  const say = async (t: string) => { await botSay(state, sock, t); };
+  const io: BrainIO = {
+    say,
+    choose: async (t, options) => {
+      await sendChoice(state.remoteJid, t, options, { hint: "Responda com a letra da opção." });
+      if (state.conversationId) await recordMsg(state.conversationId, "bot", `${t}\n\n${options.map(c => `${c.id.toUpperCase()} - ${c.text}`).join("\n")}`);
+    },
+    askDoc: async (kind, doc) => {
+      if (doc) { state.awaiting = kind; state.docTries = 0; await handleDocumentReply(state, sock, key, doc); }
+      else await askForDocument(state, sock, kind);
+    },
+    support: async (system, subject) => {
+      const sector = await prisma.wppBotSector.findFirst({ where: { intake: "support", isActive: true } });
+      if (!sector) { await handoffToSector(state, sock, clientPhone, "Suporte", text); return; }
+      await beginSupportIntake(state, sock, { id: sector.id, name: sector.name }, { system, detail: subject });
+    },
+    handoff: async (sectorName) => { await handoffToSector(state, sock, clientPhone, sectorName, text); },
+    menu: async () => {
+      const start = await prisma.wppBotFlowNode.findFirst({ where: { isStart: true, isActive: true } });
+      if (start) { state.currentNodeId = start.id; await processNode(start, state, "", sock, clientPhone); }
+    },
+    queueStatus: async () => {
+      const conv = state.conversationId ? await prisma.wppConversation.findUnique({ where: { id: state.conversationId } }) : null;
+      if (conv && conv.status === "waiting") {
+        const sector = conv.sectorId ? await prisma.wppBotSector.findUnique({ where: { id: conv.sectorId } }) : null;
+        const pos = await queuePosition(conv);
+        await say(positionText(sector?.name ?? "de atendimento", pos));
+      } else {
+        await say("No momento você não está na fila de atendimento. Se quiser falar com alguém da equipe, é só me dizer! 😊");
+      }
+    },
+    goodbye: async () => {
+      if (state.conversationId) await closeBotConversation(state.conversationId);
+      clientStates.delete(key);
+    },
+  };
+  try { return await respondTo(text, brainOf(state), io, opts); }
+  catch (e) { console.error("[bot] erro no cérebro do bot:", e); return false; }
+}
+
+// Leva o cliente para a fila de um setor (pelo nome), como se ele tivesse escolhido no menu
+async function handoffToSector(state: any, sock: any, clientPhone: string, name: string, text: string) {
+  const sectors = await prisma.wppBotSector.findMany({ where: { isActive: true } });
+  const wanted = name.toLowerCase();
+  const sector = sectors.find(s => s.name.toLowerCase().includes(wanted) || wanted.includes(s.name.toLowerCase())) ?? null;
+  if (!sector) { await botSay(state, sock, "No momento não consegui localizar esse setor. Digite *0* para ver o menu e escolher o atendimento. 🙏"); return; }
+  await processNode({ type: "sector", sectorId: sector.id, content: "", options: "[]" }, state, text, sock, clientPhone);
 }
 
 async function processNode(node: any, state: any, textMsg: string, sock: any, clientPhone: string) {
@@ -915,20 +1012,43 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
 }
 
 // Encerra sozinho as conversas só com o bot que ficaram paradas (o cliente sumiu)
+const nudged = new Map<string, number>(); // conversa → quando o lembrete foi enviado
+
 export function startConversationSweeper() {
+  void seedKnowledge(); // base de conhecimento inicial do bot (só cria se estiver vazia)
   const run = async () => {
     try {
-      const old = await prisma.wppConversation.findMany({
-        where: { status: "bot", updatedAt: { lt: new Date(Date.now() - SESSION_IDLE_MS) } },
-        select: { id: true, clientJid: true, clientPhone: true },
+      const cands = await prisma.wppConversation.findMany({
+        where: { status: "bot", updatedAt: { lt: new Date(Date.now() - 10 * 60 * 1000) } },
+        select: { id: true, clientJid: true, clientPhone: true, updatedAt: true },
       });
-      for (const c of old) {
-        await closeBotConversation(c.id);
-        clientStates.delete(normalizeForKey(toJid(c.clientJid || c.clientPhone)));
+      for (const c of cands) {
+        const jid = c.clientJid || toJid(c.clientPhone);
+        const key = normalizeForKey(jid);
+        const st = clientStates.get(key);
+        // a última mensagem do CLIENTE (as do bot não contam como interação)
+        const idle = Date.now() - (st?.lastActivity ?? c.updatedAt.getTime());
+        const ctx = { lastIntent: st?.brain?.lastIntent, pushName: st?.pushName };
+
+        if (idle >= SESSION_IDLE_MS) {
+          if (session?.status === "connected") {
+            const msg = idleClose(ctx);
+            await session.sock.sendMessage(jid, { text: msg }).catch(() => {});
+            await recordMsg(c.id, "bot", msg);
+          }
+          await closeBotConversation(c.id);
+          clientStates.delete(key);
+          nudged.delete(c.id);
+        } else if (idle >= IDLE_NUDGE_MS && !nudged.has(c.id) && session?.status === "connected") {
+          const msg = idleNudge(ctx);
+          nudged.set(c.id, Date.now());
+          await session.sock.sendMessage(jid, { text: msg }).catch(() => {});
+          await recordMsg(c.id, "bot", msg);
+        }
       }
     } catch (e) { console.error("[whatsapp] varredura de conversas:", e); }
   };
-  setInterval(run, 5 * 60 * 1000);
+  setInterval(run, 60 * 1000);
   setTimeout(run, 30_000);
 }
 

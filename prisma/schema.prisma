@@ -749,3 +749,33 @@ model WebhookDelivery {
   @@index([status, nextAttemptAt])
   @@index([endpointId, createdAt])
 }
+
+// Base de conhecimento do bot: perguntas e respostas sobre os sistemas (editável no painel)
+model WppBotKnowledge {
+  id        String   @id @default(uuid())
+  title     String   @db.VarChar(120)
+  system    String?  @db.VarChar(80)
+  phrases   String   @db.Text              // JSON: frases de exemplo que o cliente escreve
+  keywords  String?  @db.Text              // JSON: [[palavra, peso]]
+  answer    String   @db.Text              // variações da resposta separadas por uma linha "---"
+  action    String   @default("reply") @db.VarChar(40) // reply | menu | support | handoff:Comercial …
+  followUp  String?  @db.Text
+  priority  Int      @default(5)
+  enabled   Boolean  @default(true)
+  hits      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// O que o bot não entendeu (ou entendeu com dúvida): ajuda a ensinar novas respostas
+model WppBotNluLog {
+  id         String   @id @default(uuid())
+  text       String   @db.VarChar(500)
+  intentId   String?  @db.VarChar(80)
+  confidence Float    @default(0)
+  outcome    String   @db.VarChar(10) // act | ask | none
+  dismissed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([outcome, dismissed, createdAt])
+}

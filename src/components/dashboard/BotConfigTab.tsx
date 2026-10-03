@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Save, Smartphone, MessageSquare, List, Plus, Trash2, Users, Wand2, Sun } from 'lucide-react';
 import { Button, PanelCard, Input, Select, Textarea, ConfirmModal, Badge } from '../ui';
 import { toast } from 'react-hot-toast';
+import { BotIntelligence } from './BotIntelligence';
 
 interface AttendantRow { name: string; phone: string }
 interface SectorRow { id?: string; name: string; menuKey: string; attendants: AttendantRow[]; intake: string }
@@ -238,6 +239,8 @@ export function BotConfigTab() {
           </div>
         )}
       </PanelCard>
+
+      <BotIntelligence />
 
       <PanelCard title="Setores e Atendentes" icon={Users}>
         <div className="space-y-4">
