@@ -653,6 +653,14 @@ function applySignals(text: string, cands: Candidate[], hints: Hints = {}): Cand
   if ((lastSupport || lastMoney) && /\b(ja|ainda|continua|nada|igual|mesma coisa|mesmo erro|de novo|persiste)\b/.test(n)) boost(c => c.id === "retry_failed", 0.35);
   if (lastSupport && /\b(reiniciei|reiniciar|reinstalei|limpei|atualizei|tentei|testei)\b/.test(n)) boost(c => c.id === "retry_failed", 0.35);
   if (/\b(quem (e|eh) (voce|vc|tu)|quem (esta|ta) (falando|respondendo|ai)|com quem (eu )?(estou|to|falo|tou)|nao sei quem (e|eh) (voce|vc)|se apresent|qual (o )?seu nome|como (voce|vc) se chama)\b/.test(n)) boost(c => c.id === "bot_identity" || c.id === "chat_who_are_you" || c.id === "chat_bot_name", 0.4);
+  // segurança: frases de crise sempre levam à resposta acolhedora (com o CVV), acima de qualquer outra intenção
+  if (/\b(quero (me )?(matar|morrer|sumir|desaparecer)|vou me matar|me matar|nao quero mais viver|nao aguento mais viver|queria (estar )?morto|queria morrer|suicid|acabar com (tudo|minha vida|a minha vida)|tirar (a )?minha vida|me machucar|me cortar|automutila|ninguem sentiria minha falta)\b/.test(n)) boost(c => c.id === "life_crise_grave", 3);
+  // quem conta algo dele ("hoje as vendas foram horríveis", "tô sem nada pra fazer") quer papo, não suporte nem módulo do sistema
+  if (/^(hoje|ontem|agora|to |estou|tou|fiquei|acabei de|vendi|consegui|que (dia|semana|calor|frio|sono|fome))/.test(n) && !/\b(como|qual|quais|quanto|onde|quando|posso|tem|consigo|quero|preciso)\b/.test(n)) {
+    boost(c => c.id.startsWith("life_"), 0.12);
+    boost(c => c.id.startsWith("sup2_") || c.id.startsWith("prod_") || c.id.startsWith("oops_"), -0.1);
+  }
+  if (/^(ajuda|socorro|help|duvida|problema|alguem)$/.test(n)) boost(c => c.id === "oops_palavra_solta", 0.35);
   if (/^(boleto|fatura|segunda via|2 via|link de pagamento)$/.test(n)) boost(c => c.id === "invoice", 0.3);
   if (/^(extrato|historico)$/.test(n)) boost(c => c.id === "statement", 0.3);
   return cands.sort((a, b) => b.score - a.score);

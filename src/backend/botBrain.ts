@@ -8,6 +8,7 @@ import {
   BUILTIN_INTENTS, AFFIRM, DENY, strip, understand, deDash, type IntentDef, type Understanding, type Candidate,
 } from "./botNlu.js";
 import { EXTRA_INTENTS } from "./botData.js";
+import { mathAnswer } from "./botMath.js";
 import { AUGMENT_PHRASES } from "./botAugment.js";
 import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, type Facts, type Style } from "./botPersona.js";
 
@@ -161,7 +162,7 @@ function priceText(b: Brain, system?: string | null): string {
 // ─── Decisão ─────────────────────────────────────────────────────────────────
 
 const GENERIC_ONLY = new Set(["bot_identity", "greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you", "can_chat", "now_time", "now_date", "recap"]);
-const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_") || d.id.startsWith("talk_");
+const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_") || d.id.startsWith("talk_") || d.id.startsWith("life_") || d.id.startsWith("oops_");
 const isInfo = (d: IntentDef) => !isChat(d) && (!d.action || d.action === "reply") && !["price", "systems_overview", "queue_status", "human"].includes(d.id);
 
 async function remember(def: IntentDef) {
@@ -400,6 +401,39 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   await io.say(pick("followup", FOLLOW_UPS, ctx));
 }
 
+// Fala em primeira pessoa sobre a vida ("tô cansado", "estou com fome", "hoje foi um dia puxado")
+function isPersonalStatement(t: string): boolean {
+  const n = strip(t);
+  const words = n.split(/\s+/).filter(Boolean).length;
+  return words >= 3 && words <= 45 && /^(eu |hoje eu |ontem eu |agora eu |ja )?(estou|to|tou|ta |tava|estava|fiquei|me sinto|sinto|ando|acabei de|vou |fui |voltei|cheguei|hoje (foi|esta|ta|ta sendo)|ontem (foi|fui)|que (dia|semana|calor|frio|fome|sono))/.test(n)
+    && !/\b(fatura|boleto|pagamento|sistema|boxsys|senha|erro|nota fiscal|cancelar|assinatura|suporte|financeiro|comercial)\b/.test(n);
+}
+
+const NEG_WORDS = /\b(fome|sede|sono|cansad|exaust|triste|mal|mau|ruim|chatead|nervos|ansios|estressad|doente|gripad|dor|preocupad|desanimad|sozinh|puxad|corrid|pessim|horrivel|calor demais|frio demais)/;
+const POS_WORDS = /\b(feliz|animad|bem|otim|contente|alegre|empolgad|orgulhos|aliviad|tranquil|de boa|vendi|consegui|passei|ganhei|gostei|amei)/;
+
+function personalReply(t: string, ctx: BrainCtx): string {
+  const n = strip(t);
+  const nome = nameOf(ctx);
+  if (NEG_WORDS.test(n)) return pick("pers_neg", [
+    `Poxa${nome ? `, ${nome}` : ""}, imagino. 😕 Se cuida, viu? Quer me contar mais?`,
+    "Entendo. Eu sou um robô, então só imagino como é, mas pode contar comigo para desabafar um pouco.",
+    "Putz, deve estar chato mesmo. E o que você pode fazer para melhorar isso agora?",
+    "Sinto muito por isso. Quer falar mais sobre o assunto? Estou por aqui. 💙",
+  ], ctx);
+  if (POS_WORDS.test(n)) return pick("pers_pos", [
+    "Que bom ouvir isso! 😊 E o que fez o dia ser assim?",
+    `Fico feliz${nome ? `, ${nome}` : ""}! Me conta mais. 🎉`,
+    "Show! Energia boa é tudo. E o que vem agora?",
+  ], ctx);
+  return pick("pers_neu", [
+    "Entendi! E como você está se sentindo com isso?",
+    "Hum, interessante. Me conta mais sobre isso. 😊",
+    `Faz sentido${nome ? `, ${nome}` : ""}. E o que você pretende fazer agora?`,
+    "Obrigada por dividir comigo. E aí, como foi?",
+  ], ctx);
+}
+
 // Divide a mensagem em partes quando traz duas perguntas ("tem nota fiscal? e como funciona o estoque?")
 function clausesOf(t: string): string[] {
   const parts = t.split(/[?!.;]+|\s+e\s+(?=(?:tambem|como|qual|quais|quanto|onde|quando|tem|voces|vcs|queria|quero|preciso)\b)|\s+alem disso\s+/i).map(x => x.trim()).filter(x => x.split(/\s+/).filter(Boolean).length >= 2);
@@ -485,6 +519,14 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     }
   }
 
+  // contas simples ("12 x 8", "10% de 250")
+  const calc = mathAnswer(t);
+  if (calc) {
+    await io.say(calc);
+    await io.say(pick("calc", ["Conta feita! 😊 Se precisar de outra, é só mandar.", "Pronto! Matemática é comigo mesmo. 🤓", "Prontinho. Mais alguma conta, ou posso ajudar com outra coisa?"], ctx));
+    return finish(true);
+  }
+
   // só emojis/figurinha/pontuação ("👍", "😂", "..."): responde com leveza
   if (!/[\p{L}\p{N}]/u.test(t)) {
     const laugh = /[\u{1F602}\u{1F923}\u{1F605}\u{1F606}\u{1F604}]/u.test(t);
@@ -499,6 +541,8 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
 
   const u = understand(t, brain.defs, brain.systems, ctx.lastSystem, { lastIntent: ctx.lastIntent, lastAction: ctx.lastAction });
   if (u.greetingOnly) return false;
+  // "estou com fome e não comi nada" não é teste de teclado: só vale "asdf", "teste" e afins
+  if (u.intent?.id === "chat_test_nonsense" && t.split(/\s+/).filter(Boolean).length >= 3) { u.decision = "none"; u.intent = null; }
 
   // "sim"/"não" soltos
   if (AFFIRM.test(t) || DENY.test(t)) {
@@ -585,6 +629,15 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
       await io.choose("Quase lá! 🤔 Não tenho certeza se entendi. Você quis dizer:", choices.map(c => ({ id: c.id, text: c.text })));
       return finish(true);
     }
+  }
+
+  // a pessoa está contando algo dela ("estou com fome", "hoje o dia foi puxado"): conversa, não menu
+  if (isPersonalStatement(t)) {
+    await logUnknown(text, u);
+    ctx.chitchat += 1;
+    await io.say(personalReply(t, ctx));
+    if (ctx.chitchat >= 4) { ctx.chitchat = 0; await io.say(pick("steer", STEER, ctx)); }
+    return finish(true);
   }
 
   // não entendeu
