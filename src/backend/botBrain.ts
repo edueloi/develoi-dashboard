@@ -304,6 +304,11 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
       ctx.repeats += 1;
       if (ctx.repeats >= 3) { ctx.repeats = 0; await io.say("Pelo visto não estou conseguindo explicar direito. 😕 Vou chamar alguém da equipe para conversar com você."); await io.handoff("Suporte", `${contextNote(ctx)} | A BiIA não conseguiu esclarecer a dúvida.`); return; }
       const last = brain.defs.find(d => d.id === ctx.lastReplyDef);
+      // a última fala foi só papo/cumprimento: não há o que "explicar de outro jeito", então pergunta o que ficou confuso
+      if (!last || isChat(last)) {
+        await io.say(pick("repeatchat", ["Hmm, acho que me perdi! 😅 Pode me explicar melhor o que você quis dizer? Quero te ajudar direitinho.", "Desculpa, não captei sua dúvida. Me conta de novo, com outras palavras? 😊", "Ops, me confundi por aqui! Qual era a sua dúvida? Eu te ajudo."], ctx));
+        return;
+      }
       const variants = (last?.replies ?? []).filter(r => r.trim());
       if (last && variants.length > 1) {
         // outro jeito de dizer a mesma coisa (outra variação da resposta)
