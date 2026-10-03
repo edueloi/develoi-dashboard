@@ -243,6 +243,7 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   const system = u.entities.system ?? ctx.lastSystem ?? def.system ?? null;
   if (u.entities.system) ctx.lastSystem = u.entities.system;
   else if (def.system) ctx.lastSystem = def.system;
+  const prevIntent = ctx.lastIntent;
   if (def.id !== "repeat") ctx.lastIntent = def.id;
   ctx.fails = 0;
   if (!ctx.seen.includes(def.id)) ctx.seen.push(def.id);
@@ -270,8 +271,8 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
     }
     case "topic_change": { ctx.pending = undefined; ctx.flow = undefined; await io.say(reply()); return; }
     case "retry_failed": {
-      const sup = ctx.lastIntent === "support_problem" || (ctx.lastIntent ?? "").startsWith("sup_");
-      const fin = ["invoice", "statement", "payment_done"].includes(ctx.lastIntent ?? "") || (ctx.lastIntent ?? "").startsWith("fin_");
+      const sup = prevIntent === "support_problem" || (prevIntent ?? "").startsWith("sup");
+      const fin = ["invoice", "statement", "payment_done"].includes(prevIntent ?? "") || (prevIntent ?? "").startsWith("fin");
       if (sup || fin) {
         await io.say(pick("retry", ["Poxa, obrigada por tentar. Vou passar para a equipe já com o que você me contou, para você não precisar repetir tudo. 🙏", "Entendi, então vamos chamar uma pessoa. Já deixo tudo anotado para ela. 🙌"], ctx));
         await io.handoff(sup ? "Suporte" : "Financeiro", `${contextNote(ctx)} | O cliente já tentou a orientação da BiIA e o problema continua.`);
@@ -391,7 +392,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     if (id === "menu" || id === "goodbye") { ctx.flow = undefined; await execute(peek.intent!.def, peek, t, ctx, io, brain); return finish(true); }
     const answer = /^(pular|nao sei|depois|n\/a)$/i.test(strip(t)) ? "não informado" : t.slice(0, 300);
     if (f.step === 0) {
-      f.data.ramo = answer; f.step = 1;
+      f.data.ramo = ctx.facts.ramo ?? answer; f.step = 1;
       await io.say(pick("lead2", ["Legal! E o que você gostaria de *resolver ou melhorar* com um sistema? Por exemplo: controlar estoque, emitir notas, vender online.", "Entendi! E qual é a sua maior necessidade hoje? Pode ser controle de estoque, nota fiscal, vendas online, o que vier à cabeça."], ctx));
       return finish(true);
     }

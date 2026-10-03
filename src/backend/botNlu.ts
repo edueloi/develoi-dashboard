@@ -252,7 +252,7 @@ function correct(t: Tok, ix: Index): Tok {
 }
 
 const NAME_TOKENS = new Set(["bia", "biia", "bea"]);
-export const TUNE = { cosGain: 3.0, cosCap: 0.9, triGain: 0.7, phraseGain: 0.95, kwGain: 0.85, kwDiv: 3, both: 0.08, wCov: 0.7, prio: 0.005, sysBoost: 0.04, triMin: 0.5, triBase: 0.55, cap1: 1 };
+export const TUNE = { cosGain: 3.0, cosCap: 0.9, triGain: 0.7, phraseGain: 0.95, kwGain: 0.85, kwDiv: 3, both: 0.08, wCov: 0.7, prio: 0.005, sysBoost: 0.04, triMin: 0.5, triBase: 0.55, cap1: 1, unkBase: 1 };
 
 export function rank(defs: IntentDef[], text: string): Candidate[] {
   const ix = indexOf(defs);
@@ -264,6 +264,9 @@ export function rank(defs: IntentDef[], text: string): Candidate[] {
   if (!toks.length) toks = all.filter(t => t.c !== "nao").map(t => correct(t, ix));
   if (!toks.length) return [];
   const norm = normalize(text);
+  // quantas das palavras da mensagem a BiIA conhece: palavras desconhecidas derrubam a confiança do "perfil" e das letras
+  const knownFrac = toks.filter(t => ix.vocab.has(t.s)).length / toks.length;
+  const unk = knownFrac >= 1 ? 1 : TUNE.unkBase + (1 - TUNE.unkBase) * knownFrac;
   const uset = new Map<string, boolean>(); // palavra → veio com "não" antes
   toks.forEach(t => uset.set(t.s, (uset.get(t.s) ?? false) || t.neg));
   const usum = toks.reduce((a, t) => a + (ix.idf.get(t.s) ?? 1), 0) || 1;
@@ -319,9 +322,9 @@ export function rank(defs: IntentDef[], text: string): Candidate[] {
   for (const def of new Set([...best.keys(), ...kws.keys(), ...dots.keys(), ...tri.keys()])) {
     const b = best.get(def) ?? 0;
     const k = Math.min(1, (kws.get(def) ?? 0) / TUNE.kwDiv);
-    const cs = Math.min(TUNE.cosCap, cosOf(def) * TUNE.cosGain);
+    const cs = Math.min(TUNE.cosCap, cosOf(def) * TUNE.cosGain) * unk;
     const td = tri.get(def) ?? 0;
-    const ts = td >= TUNE.triMin ? TUNE.triBase + (td - TUNE.triMin) * TUNE.triGain : 0;
+    const ts = (td >= TUNE.triMin ? TUNE.triBase + (td - TUNE.triMin) * TUNE.triGain : 0) * unk;
     let base = Math.max(b * TUNE.phraseGain, k * TUNE.kwGain, cs, ts);
     if (b < 0.35 && def.custom && cs < 0.6 && ts < 0.6) base = Math.min(base, 0.62); // resposta da base só por uma palavra solta não basta
     const both = b > 0.4 && k > 0.3 ? TUNE.both : 0;
