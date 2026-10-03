@@ -496,6 +496,19 @@ export function registerAsaasRoutes(app: Express) {
   });
 
   // Confere todas as assinaturas no Asaas agora (a mesma conferência automática de 30 min)
+  // Ao trocar do sandbox para a produção: os cadastros/assinaturas/cobranças criados no teste não existem na conta real.
+  // Limpa esses vínculos (os clientes, pagamentos e recibos do sistema continuam intactos). Só roda em produção.
+  app.post("/api/asaas/reset-sandbox-links", async (req, res) => {
+    try {
+      if (cfg().env !== "production") throw new AsaasError("Só é permitido depois de trocar para a produção (ASAAS_ENV=production).");
+      if (req.body?.confirm !== "LIMPAR") throw new AsaasError('Envie { "confirm": "LIMPAR" } para confirmar.');
+      const clients = await prisma.client.updateMany({ data: { asaasCustomerId: null, asaasSubscriptionId: null, asaasBillingType: null } });
+      const charges = await prisma.asaasCharge.deleteMany({});
+      const logs = await prisma.asaasWebhookLog.deleteMany({});
+      res.json({ clientes: clients.count, cobrancas: charges.count, eventos: logs.count });
+    } catch (e) { fail(res, e); }
+  });
+
   app.post("/api/asaas/sync-all", async (_req, res) => {
     try { res.json({ updated: await syncCharges() }); } catch (e) { fail(res, e); }
   });
