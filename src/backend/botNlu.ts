@@ -588,8 +588,20 @@ export const BUILTIN_INTENTS: IntentDef[] = [
     replies: ["Oi{{, nome}}! Estou aqui sim. 😊 Como posso ajudar?", "Pode falar{{, nome}}, estou por aqui!", "Tô aqui! 🙌 Me conta o que você precisa."],
   },
   {
+    id: "talk_vida_pessoal", label: "Curiosidade sobre a vida da BiIA (namorado, casada, idade)", action: "reply", priority: 3,
+    phrases: ["voce tem namorado", "vc tem namorado", "voce namora", "tem namorado", "voce tem namorada", "voce e casada", "vc e casada", "voce e solteira", "vc e solteira", "voce e casada ou solteira", "voce tem marido", "voce tem filhos", "voce tem familia", "quantos anos voce tem", "qual sua idade", "voce e homem ou mulher", "voce e menina", "onde voce mora", "voce tem irmaos", "qual seu signo", "voce tem pai e mae", "voce tem crush", "esta namorando", "voce esta solteira", "voce e comprometida"],
+    keywords: [["namorado", 3], ["casada", 3], ["solteira", 3], ["marido", 3], ["idade", 2]],
+    replies: ["Hahaha, minha vida amorosa é bem tranquila: sou um programa e só tenho olhos para as suas dúvidas. 😄 Posso te ajudar com alguma coisa?", "Sou solteiríssima, só que de código! 😅 Mas me conta, no que posso ajudar você hoje?", "Ai, que pergunta! Não tenho namorado nem nada disso, meu relacionamento é com a fila de atendimento. 😂 Em que posso ajudar?", "Vida pessoal eu não tenho, sou a BiIA, assistente virtual da Develoi. Mas gosto de conversar! O que você precisa?"],
+  },
+  {
+    id: "talk_brava", label: "Perguntou se a BiIA ficou brava ou chateada", action: "reply", priority: 3,
+    phrases: ["ficou brava", "voce ficou brava", "vc ficou brava", "ficou chateada", "voce ficou chateada", "esta brava", "voce esta brava", "ta brava", "ta chateada", "esta com raiva de mim", "ta com raiva de mim", "voce esta com raiva", "ficou com raiva", "ficou magoada", "se ofendeu", "voce se ofendeu", "ofendi voce", "te ofendi", "desculpa se te ofendi", "nao quis te ofender", "esta irritada", "ta irritada", "voce esta zangada", "ficou zangada", "ta de mal comigo"],
+    keywords: [["brava", 3], ["chateada", 3], ["magoada", 3], ["ofendi", 3], ["zangada", 3]],
+    replies: ["Brava eu? Nada, de jeito nenhum! 😊 Sou bem tranquila, pode conversar à vontade.", "Não fiquei brava, não! Relaxa. 😄 Aqui o clima é sempre leve. No que posso ajudar?", "Imagina, não me ofendi com nada! Pode falar com calma. 💙", "Tô de boa, viu? Sem chateação nenhuma. Me conta o que você precisa."],
+  },
+  {
     id: "friendship", label: "Quer amizade / papo pessoal", action: "reply", priority: 0,
-    phrases: ["quer ser minha amiga", "pode ser minha amiga", "ser minha amiga", "voce e minha amiga", "vamos ser amigos", "gosto de voce", "te amo", "voce e linda", "voce tem namorado", "casa comigo", "voce e legal", "quero conversar com voce", "me faz companhia"],
+    phrases: ["quer ser minha amiga", "pode ser minha amiga", "ser minha amiga", "voce e minha amiga", "vamos ser amigos", "gosto de voce", "te amo", "voce e linda", "casa comigo", "voce e legal", "quero conversar com voce", "me faz companhia"],
     keywords: [["amiga", 3], ["amigo", 2], ["amo", 2], ["linda", 2], ["namorado", 2], ["casa", 1]],
     replies: ["Ai, que fofo! 🥰 Eu adoro conversar, mas sou uma assistente virtual e meu foco é ajudar com a Develoi. Posso te ajudar com alguma coisa agora?", "Obrigada pelo carinho! 😄 Sou só uma robô simpática, mas estou sempre por aqui. Quer que eu te ajude com alguma coisa?", "Que gentileza! 💙 Pode contar comigo para o que precisar sobre fatura, sistemas ou suporte."],
   },
@@ -643,6 +655,10 @@ function applySignals(text: string, cands: Candidate[], hints: Hints = {}): Cand
   const asksPerson = toks.some(t => ["atendente", "atendentes", "humano", "humana"].includes(t.raw)) || /\b(falar com (uma |um )?(pessoa|alguem)|gente de verdade|pessoa de verdade|alguem de verdade)\b/.test(n);
   if (asksPerson && !/\b(robo|bot|automatic)/.test(n)) boost(c => c.id === "human", 0.25);
   if (has("problema")) { boost(c => c.id === "support_problem" || c.id.startsWith("sup_"), 0.15); boost(c => !!c.def.custom && (!c.def.action || c.def.action === "reply"), -0.1); }
+  // curiosidade sobre a vida da BiIA ("tem namorado?", "é casada?") é papo leve, não cantada; só "seja minha namorada" / "casa comigo" é cantada
+  if (/\b(namorado|namorada|casada|solteira|marido|comprometida)\b/.test(n) && /\b(voce|vc|tu|ce|bia|biia|tem|e|ta|esta)\b/.test(n) && !/\b(seja|minha namorada|meu namorado|casa comigo|casar|namora comigo|me namora)\b/.test(n)) boost(c => c.id === "talk_vida_pessoal", 0.3);
+  // "ficou brava?", "tá chateada comigo?" é pergunta sobre o humor da BiIA, não reclamação
+  if (/\b(brava|chateada|magoada|zangada|irritada|ofendida|ofendi|ofendeu|raiva de mim)\b/.test(n) && /\b(ficou|esta|ta|voce|vc|se|te|bia|biia)\b/.test(n) && !/\b(sistema|fatura|cobranca|atendimento|empresa)\b/.test(n)) boost(c => c.id === "talk_brava", 0.3);
   if (has("cancelar")) boost(c => c.id === "cancel" || c.id === "fin_cancelar_renovacao", 0.12);
   if (has("pagar") && /\b(ja|acabei|fiz|efetuei|realizei|fez)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.15);
   if (/\b(fiz|fez|mandei|enviei|realizei|efetuei|acabei de (fazer|mandar|enviar))\b.*\b(pix|boleto|pagamento|transferencia|ted|doc)\b/.test(n) || /\b(pix|boleto|pagamento)\b.*\b(feito|realizado|enviado|efetuado)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.2);
