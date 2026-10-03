@@ -424,7 +424,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
   },
   {
     id: "bot_identity", label: "Você é um robô?", action: "reply",
-    phrases: ["voce e um robo", "voce e humano", "quem e voce", "e uma pessoa", "com quem falo", "voce e real", "e bot", "isso e um robo", "estou falando com um robo", "quem esta falando"],
+    phrases: ["voce e um robo", "voce e humano", "quem e voce", "e uma pessoa", "com quem falo", "voce e real", "e bot", "isso e um robo", "estou falando com um robo", "quem esta falando", "nao sei quem e voce", "nao sei quem e vc", "quem e vc mesmo", "nao conheco voce", "com quem estou falando", "com quem eu falo", "quem esta me respondendo", "quem e voce afinal", "nao sei com quem falo", "quem voce e", "me fala quem e voce", "se apresenta", "pode se apresentar", "qual seu nome", "como voce se chama", "qual o seu nome"],
     keywords: [["robo", 3], ["bot", 3], ["humano", 1]],
     replies: ["Eu sou a *BiIA*, a assistente virtual da *Develoi Soluções Digitais* 🤖. Resolvo muita coisa por aqui na hora, como fatura, extrato e dúvidas sobre os sistemas, e quando precisar eu chamo uma pessoa da nossa equipe.", "Sou a BiIA, uma assistente virtual criada pela equipe da Develoi 🤖. Um robô, mas bem esperta! 😄 Se preferir falar com uma pessoa, é só pedir que eu chamo.", "Prazer, eu sou a BiIA! Sou a assistente digital da Develoi e estou aqui para ajudar com fatura, extrato, dúvidas e o que mais precisar. Se for caso de gente de verdade, eu chamo alguém da equipe. 🙂"],
   },
@@ -631,6 +631,7 @@ function applySignals(text: string, cands: Candidate[], hints: Hints = {}): Cand
   const lastMoney = ["invoice", "statement", "payment_done"].includes(hints.lastIntent ?? "") || (hints.lastIntent ?? "").startsWith("fin");
   if ((lastSupport || lastMoney) && /\b(ja|ainda|continua|nada|igual|mesma coisa|mesmo erro|de novo|persiste)\b/.test(n)) boost(c => c.id === "retry_failed", 0.35);
   if (lastSupport && /\b(reiniciei|reiniciar|reinstalei|limpei|atualizei|tentei|testei)\b/.test(n)) boost(c => c.id === "retry_failed", 0.35);
+  if (/\b(quem (e|eh) (voce|vc|tu)|quem (esta|ta) (falando|respondendo|ai)|com quem (eu )?(estou|to|falo|tou)|nao sei quem (e|eh) (voce|vc)|se apresent|qual (o )?seu nome|como (voce|vc) se chama)\b/.test(n)) boost(c => c.id === "bot_identity" || c.id === "chat_who_are_you" || c.id === "chat_bot_name", 0.4);
   if (/^(boleto|fatura|segunda via|2 via|link de pagamento)$/.test(n)) boost(c => c.id === "invoice", 0.3);
   if (/^(extrato|historico)$/.test(n)) boost(c => c.id === "statement", 0.3);
   return cands.sort((a, b) => b.score - a.score);

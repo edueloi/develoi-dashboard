@@ -8,6 +8,7 @@ import {
   BUILTIN_INTENTS, AFFIRM, DENY, strip, understand, deDash, type IntentDef, type Understanding, type Candidate,
 } from "./botNlu.js";
 import { EXTRA_INTENTS } from "./botData.js";
+import { AUGMENT_PHRASES } from "./botAugment.js";
 import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, type Facts, type Style } from "./botPersona.js";
 
 // ─── Memória e ações ─────────────────────────────────────────────────────────
@@ -87,7 +88,8 @@ export async function loadBrain(force = false): Promise<Brain> {
   }));
   const names = new Set<string>([...products.map(p => p.name), ...rows.map(r => r.system).filter((x): x is string => !!x), ...Object.keys(KNOWN_ALIASES)]);
   const systems = [...names].map(name => ({ name, aliases: KNOWN_ALIASES[name] ?? [] }));
-  const brain = { defs: [...BUILTIN_INTENTS, ...EXTRA_INTENTS, ...custom], systems, products };
+  const builtin = BUILTIN_INTENTS.map(d => (AUGMENT_PHRASES[d.id] ? { ...d, phrases: [...d.phrases, ...AUGMENT_PHRASES[d.id]] } : d));
+  const brain = { defs: [...builtin, ...EXTRA_INTENTS, ...custom], systems, products };
   cache = { at: Date.now(), sig, brain };
   return brain;
 }
