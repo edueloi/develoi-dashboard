@@ -154,7 +154,7 @@ function priceText(b: Brain, system?: string | null): string {
 
 // ─── Decisão ─────────────────────────────────────────────────────────────────
 
-const GENERIC_ONLY = new Set(["greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you"]);
+const GENERIC_ONLY = new Set(["bot_identity", "greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you"]);
 const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_");
 const isInfo = (d: IntentDef) => !isChat(d) && (!d.action || d.action === "reply") && !["price", "systems_overview", "queue_status", "human"].includes(d.id);
 
@@ -219,6 +219,11 @@ async function clientMenu(ctx: BrainCtx, io: BrainIO) {
 async function startLead(ctx: BrainCtx, io: BrainIO, system: string | null, first: string) {
   if (ctx.leadDone) { await io.say("Já anotei as suas informações! 🙌 Vou chamar o time comercial para falar com você."); await io.handoff("Comercial", leadNote(ctx, system, first)); return; }
   ctx.flow = { step: 0, data: {}, system, first };
+  if (ctx.facts.ramo) {
+    ctx.flow.data.ramo = ctx.facts.ramo; ctx.flow.step = 1;
+    await io.say(`Para o time comercial te atender já com tudo em mãos, me conta: o que você gostaria de *resolver ou melhorar* na sua ${ctx.facts.ramo} com um sistema? Por exemplo: controlar estoque, emitir notas, vender online.`);
+    return;
+  }
   await io.say("Para o time comercial te atender já com tudo em mãos, me conta rapidinho: qual é o *ramo do seu negócio*? 🏪");
 }
 
@@ -247,7 +252,7 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   if (u.mood.angry && def.id !== "complaint" && !isChat(def)) await io.say(pick("empathy", EMPATHY, ctx));
 
   switch (def.id) {
-    case "greeting": case "menu": { await io.say(reply()); await (ctx.profile === "client" ? clientMenu(ctx, io) : io.menu(ctx.turns > 1 ? "inline" : "welcome")); return; }
+    case "greeting": case "menu": { await io.say(reply()); await (ctx.profile === "client" ? clientMenu(ctx, io) : io.menu(def.id === "greeting" && ctx.turns <= 1 ? "welcome" : "inline")); return; }
     case "price": {
       await io.say(priceText(brain, system));
       ctx.pending = { type: "offer", action: "lead" };
@@ -313,7 +318,7 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   }
   if (action === "lead") { await startLead(ctx, io, system, text); return; }
   if (action === "goodbye") { await io.goodbye(); return; }
-  if (action === "menu") { await io.menu(); return; }
+  if (action === "menu") { await io.menu("inline"); return; }
   if (typeof action === "string" && action.startsWith("handoff:")) {
     const sector = action.slice(8) || u.entities.sector || "";
     if (!sector) { await askSector(ctx, io, "Com qual setor você prefere falar?"); return; }
@@ -349,6 +354,12 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   await io.say(pick("followup", FOLLOW_UPS, ctx));
 }
 
+// Divide a mensagem em partes quando traz duas perguntas ("tem nota fiscal? e como funciona o estoque?")
+function clausesOf(t: string): string[] {
+  const parts = t.split(/[?!.;]+|\s+e\s+(?=(?:tambem|como|qual|quais|quanto|onde|quando|tem|voces|vcs|queria|quero|preciso)\b)|\s+alem disso\s+/i).map(x => x.trim()).filter(x => x.split(/\s+/).filter(Boolean).length >= 2);
+  return parts.length >= 2 && parts.length <= 3 ? parts : [];
+}
+
 // Devolve true se a BiIA tratou a mensagem (false = deixa o fluxo normal responder, ex.: só uma saudação)
 export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opts: { inQueue?: boolean } = {}): Promise<boolean> {
   const brain = await loadBrain();
@@ -364,10 +375,11 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   };
   ctx.turns += 1;
   ctx.recent = [...ctx.recent, t.slice(0, 120)].slice(-4);
-  const hadRamo = !!ctx.facts.ramo;
+  const hadRamo = !!ctx.facts.ramo, hadNome = !!ctx.facts.nome;
   ctx.facts = extractFacts(t, ctx.facts);
   ctx.style = readStyle(t, ctx.style);
   const learnedRamo = !hadRamo && !!ctx.facts.ramo;
+  const learnedNome = !hadNome && !!ctx.facts.nome;
   const finish = (ok: boolean) => { if (ok && spoken.length && ctx.lastIntent !== "repeat") ctx.lastAnswer = spoken.slice(0, 2).join("\n\n"); return ok; };
 
   // 1) coleta de dados para o comercial em andamento
@@ -424,11 +436,17 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
 
   // só emojis/figurinha/pontuação ("👍", "😂", "..."): responde com leveza
   if (!/[\p{L}\p{N}]/u.test(t)) {
-    const emoji = brain.defs.find(d => d.id === "chat_emoji_only");
-    if (emoji?.replies?.length) { await io.say(fill(pick("emoji", emoji.replies, ctx), ctx)); return finish(true); }
+    const laugh = /[\u{1F602}\u{1F923}\u{1F605}\u{1F606}\u{1F604}]/u.test(t);
+    const nice = /[\u{1F44D}\u{1F44C}\u{1F64F}\u{2764}\u{1F60A}\u{1F600}\u{1F642}\u{1F4AA}\u{1F44F}\u{1F389}]/u.test(t);
+    await io.say(laugh
+      ? pick("emoji", ["😄 Rindo junto por aqui! Posso ajudar com alguma coisa?", "Kkk, que bom que te fiz sorrir! 😊 Do que você precisa?"], ctx)
+      : nice
+        ? pick("emoji", ["Combinado! 😊 Se precisar de algo, é só falar.", "Show! 🙌 Qualquer coisa estou por aqui.", "Perfeito! 💙 Me chama se precisar."], ctx)
+        : pick("emoji", ["Recebi seu sinal! 😊 Se puder me contar com palavras o que precisa, eu te ajudo.", "Hmm, só consegui ler o emoji. 😄 Me escreve o que você precisa?"], ctx));
+    return finish(true);
   }
 
-  const u = understand(t, brain.defs, brain.systems, ctx.lastSystem);
+  const u = understand(t, brain.defs, brain.systems, ctx.lastSystem, { lastIntent: ctx.lastIntent, lastAction: ctx.lastAction });
   if (u.greetingOnly) return false;
 
   // "sim"/"não" soltos
@@ -450,19 +468,45 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     return finish(true);
   }
 
+  // "mudando de assunto, qual o horário?": larga o assunto antigo e responde o que veio depois
+  if (u.intent?.def.id === "topic_change" && u.decision === "act") {
+    const rest = t.replace(/^\s*(n[aã]o[, ]*)?(mudando de assunto|outra coisa|na verdade|deixa pra l[aá]|esquece isso|melhor outro assunto)[,.\s:!-]*/i, "").trim();
+    if (rest.split(/\s+/).filter(Boolean).length >= 2 && rest !== t.trim()) {
+      ctx.pending = undefined; ctx.flow = undefined;
+      return respondTo(rest, ctx, rawIo, opts);
+    }
+  }
+
+  // a pessoa só se apresentou (nome ou ramo): acolhe e pergunta como ajudar, sem forçar uma intenção
+  const weak = !u.intent || u.confidence < 0.9 || isChat(u.intent.def) || ["meta_numero_errado", "not_client", "i_am_client", "my_name"].includes(u.intent.id);
+  if ((learnedRamo || learnedNome) && weak) {
+    const hi = learnedNome ? `Prazer, ${ctx.facts.nome}! 😊` : null;
+    const ra = learnedRamo ? pick("ramo", [`Anotei aqui: ${ctx.facts.ramo}. 😊`, `Legal, ${ctx.facts.ramo}! Vou lembrar disso para te ajudar melhor.`], ctx) : null;
+    await io.say([hi, ra].filter(Boolean).join(" "));
+    if (learnedRamo) { ctx.pending = { type: "offer", action: "lead" }; await io.say(`Quer que eu te mostre o que temos para a sua ${ctx.facts.ramo}? Ou me conta o que você precisa que eu ajudo. 😉`); }
+    else await io.say("Em que posso te ajudar hoje?");
+    return finish(true);
+  }
+
+  // duas perguntas na mesma mensagem ("tem nota fiscal e como funciona o estoque?"): responde as duas
+  const parts = clausesOf(t);
+  if (parts.length >= 2) {
+    const us = parts.slice(0, 2).map(x => understand(x, brain.defs, brain.systems, ctx.lastSystem, { lastIntent: ctx.lastIntent, lastAction: ctx.lastAction }));
+    if (us.every(x => x.decision === "act" && x.intent && isInfo(x.intent.def)) && us[0].intent!.id !== us[1].intent!.id) {
+      await execute(us[0].intent!.def, us[0], parts[0], ctx, io, brain, false);
+      await io.say(pick("other", OTHER_POINT, ctx));
+      await execute(us[1].intent!.def, us[1], parts[1], ctx, io, brain, false);
+      await io.say(pick("followup", FOLLOW_UPS, ctx));
+      return finish(true);
+    }
+  }
+
   if (u.decision === "act" && u.intent) {
     if (u.confidence < 0.7) await logUnknown(text, u);
-    if (learnedRamo) await io.say(pick("ramo", [`Anotei aqui: ${ctx.facts.ramo}. 😊`, `Legal, ${ctx.facts.ramo}! Vou lembrar disso para te ajudar melhor.`], ctx));
+    const greet = (learnedNome ? `Prazer, ${ctx.facts.nome}! 😊 ` : "") + (learnedRamo ? pick("ramo", [`Anotei aqui: ${ctx.facts.ramo}. 😊`, `Legal, ${ctx.facts.ramo}! Vou lembrar disso para te ajudar melhor.`], ctx) : "");
+    if (greet) await io.say(greet.trim());
     else { const react = !isChat(u.intent.def) ? leadIn(t, u.mood.angry) : null; if (react) await io.say(react); }
     await execute(u.intent.def, u, t, ctx, io, brain);
-
-    // duas dúvidas na mesma mensagem: responde também a segunda (quando as duas são só informação)
-    const second = u.candidates[1];
-    if (second && second.score >= 0.7 && isInfo(u.intent.def) && isInfo(second.def) && second.id !== u.intent.id) {
-      await io.say(pick("other", OTHER_POINT, ctx));
-      await execute(second.def, u, t, ctx, io, brain, false);
-      await io.say(pick("followup", FOLLOW_UPS, ctx));
-    }
     return finish(true);
   }
 

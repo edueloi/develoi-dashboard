@@ -410,7 +410,7 @@ export const DENY = /^(nao|n|nao obrigado|nao quero|agora nao|depois|negativo|de
 export const BUILTIN_INTENTS: IntentDef[] = [
   {
     id: "greeting", label: "Saudação", action: "menu", priority: 1,
-    phrases: ["oi", "ola", "bom dia", "boa tarde", "boa noite", "e ai", "opa", "eae", "oie", "hello", "salve", "oi tudo bem", "ola tudo bem", "oi bom dia", "oi boa tarde"],
+    phrases: ["oi", "ola", "bom dia", "boa tarde", "boa noite", "e ai", "opa", "eae", "oie", "hello", "salve", "oi bom dia", "oi boa tarde"],
     keywords: [["oi", 3], ["ola", 3], ["salve", 2]],
     replies: ["{{saudacao}}{{, nome}}! 😊 Que bom ter você por aqui. Como posso ajudar?", "{{saudacao}}{{, nome}}! 👋 Aqui é a BiIA, assistente virtual da Develoi. Me conta o que você precisa que eu já te ajudo!", "Oi{{, nome}}! 😊 A BiIA está por aqui. Do que você precisa hoje?"],
   },
@@ -514,7 +514,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
   },
   {
     id: "and_you", label: "E você?", action: "reply", priority: 1,
-    phrases: ["e voce", "e vc", "e contigo", "e voce como esta", "e por ai", "e com voce", "e vc ta bem", "e voce ta bem", "e tu", "e voce tambem"],
+    phrases: ["e voce", "e vc", "e contigo", "e voce como esta", "e por ai", "e com voce", "e vc ta bem", "e voce ta bem", "e tu", "e voce tambem", "e vc tudo bem", "e voce tudo bem", "kkk e vc", "e ai e voce", "e como voce esta", "e vc como esta", "e voce como vai"],
     keywords: [["contigo", 2]],
     replies: ["Por aqui tudo ótimo, obrigada por perguntar! 😊 Mas me conta, como posso te ajudar?", "Tudo bem por aqui também! Estou sempre de bom humor, é o jeito robô de ser. 😄 E aí, do que você precisa?", "Ótima, obrigada! 💙 Vamos lá, no que posso ajudar?"],
   },
@@ -538,7 +538,7 @@ export const BUILTIN_INTENTS: IntentDef[] = [
   },
   {
     id: "topic_change", label: "Mudar de assunto", action: "reply", priority: 4,
-    phrases: ["mudando de assunto", "outra coisa", "na verdade quero outra coisa", "deixa pra la", "esquece isso", "quero tratar de outro assunto", "cancela isso", "nao era isso", "nao nao era isso", "esquece o que eu falei", "melhor outro assunto", "deixa quieto isso"],
+    phrases: ["mudando de assunto", "outra coisa", "na verdade quero outra coisa", "deixa pra la", "esquece isso", "quero tratar de outro assunto", "cancela isso", "nao era isso", "nao nao era isso", "esquece o que eu falei", "melhor outro assunto", "deixa quieto isso", "nao quis dizer outra coisa", "nao era isso que eu queria", "na verdade e outra coisa", "errei quis dizer outra coisa", "nao nao quis dizer outra coisa", "ops quis dizer outra coisa", "nao e isso"],
     keywords: [["assunto", 2], ["esquece", 2.5]],
     replies: ["Sem problema! 😊 Sobre o que você quer falar agora?", "Tudo bem! Me conta o que você precisa agora.", "Fechado, vamos de outro assunto. O que posso fazer por você?"],
   },
@@ -609,7 +609,7 @@ export interface Understanding {
 }
 
 // Palavras que, sozinhas, quase decidem a intenção. Usam as palavras já padronizadas (sinônimos) do tokenizador.
-function applySignals(text: string, cands: Candidate[]): Candidate[] {
+function applySignals(text: string, cands: Candidate[], hints: Hints = {}): Candidate[] {
   const toks = tokenize(text);
   const has = (c: string) => toks.some(t => t.c === c && !t.neg);
   const hasNeg = (c: string) => toks.some(t => t.c === c);
@@ -623,12 +623,19 @@ function applySignals(text: string, cands: Candidate[]): Candidate[] {
   if (has("pagar") && /\b(ja|acabei|fiz|efetuei|realizei|fez)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.15);
   if (/\b(fiz|fez|mandei|enviei|realizei|efetuei|acabei de (fazer|mandar|enviar))\b.*\b(pix|boleto|pagamento|transferencia|ted|doc)\b/.test(n) || /\b(pix|boleto|pagamento)\b.*\b(feito|realizado|enviado|efetuado)\b/.test(n)) boost(c => c.id === "payment_done" || c.id === "fin_pagamento_nao_identificado", 0.2);
   if (/\b(quanto (custa|e|fica|sai)|qual (o )?(preco|valor)|preco|valores)\b/.test(n) && !/\b(devo|deve|minha|meu|pago|paguei)\b/.test(n)) boost(c => c.id === "price", 0.3);
+  // o assunto anterior muda o significado de frases curtas
+  const lastSupport = hints.lastIntent === "support_problem" || (hints.lastIntent ?? "").startsWith("sup");
+  const lastMoney = ["invoice", "statement", "payment_done"].includes(hints.lastIntent ?? "") || (hints.lastIntent ?? "").startsWith("fin");
+  if ((lastSupport || lastMoney) && /\b(ja|ainda|continua|nada|igual|mesma coisa|mesmo erro|de novo|persiste)\b/.test(n)) boost(c => c.id === "retry_failed", 0.35);
+  if (lastSupport && /\b(reiniciei|reiniciar|reinstalei|limpei|atualizei|tentei|testei)\b/.test(n)) boost(c => c.id === "retry_failed", 0.35);
   if (/^(boleto|fatura|segunda via|2 via|link de pagamento)$/.test(n)) boost(c => c.id === "invoice", 0.3);
   if (/^(extrato|historico)$/.test(n)) boost(c => c.id === "statement", 0.3);
   return cands.sort((a, b) => b.score - a.score);
 }
 
-export function understand(text: string, defs: IntentDef[], systems: { name: string; aliases?: string[] }[] = [], hintSystem?: string | null): Understanding {
+export interface Hints { lastIntent?: string; lastAction?: string }
+
+export function understand(text: string, defs: IntentDef[], systems: { name: string; aliases?: string[] }[] = [], hintSystem?: string | null, hints: Hints = {}): Understanding {
   const docInText = /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b|\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(text);
   const entities = extractEntities(text, systems);
   const boostSystem = entities.system ?? hintSystem ?? undefined;
@@ -642,7 +649,7 @@ export function understand(text: string, defs: IntentDef[], systems: { name: str
   }
 
   // sinais fortes do texto empurram a intenção certa (ex.: "atendente" → falar com pessoa; "problema" → suporte)
-  candidates = applySignals(text, candidates);
+  candidates = applySignals(text, candidates, hints);
   if (docInText) {
     const n2 = normalize(text);
     for (const c of candidates) {
