@@ -363,6 +363,10 @@ model Client {
   asaasCustomerId     String?   @db.VarChar(40)  // cadastro do cliente no Asaas
   asaasSubscriptionId String?   @db.VarChar(40)  // assinatura recorrente no Asaas
   asaasBillingType    String?   @db.VarChar(20)  // UNDEFINED | PIX | BOLETO | CREDIT_CARD
+  // Pix Automático (autorização única; o Asaas cobra sozinho nos meses seguintes)
+  pixAutoId           String?   @db.VarChar(60)
+  pixAutoStatus       String?   @db.VarChar(20)  // CREATED | ACTIVE | REFUSED | CANCELLED | EXPIRED
+  pixAutoQr           String?   @db.Text         // JSON { payload, image } do QR da autorização
   // Loja do cliente no Store BoxSys (criada e bloqueada/liberada por este sistema)
   boxsysTenantId      String?   @db.VarChar(20)
   boxsysSubdomain     String?   @db.VarChar(80)

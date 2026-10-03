@@ -14,6 +14,7 @@ import Values from './pages/Values';
 import FAQ from './pages/FAQ';
 import Login from './pages/Login';
 import Invoice from './pages/Invoice';
+import PixAuth from './pages/PixAuth';
 import Dashboard from './pages/Dashboard';
 import BlogPage from './pages/BlogPage';
 import BlogPostPage from './pages/BlogPostPage';
@@ -61,6 +62,7 @@ function AnimatedRoutes() {
         <Route path="/contato" element={<ContactPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/fatura/:id" element={<Invoice />} />
+        <Route path="/autorizar/:id" element={<PixAuth />} />
         <Route path="/blog" element={<BlogPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/projetos" element={<ProjetosPage />} />
@@ -117,7 +119,7 @@ function AnimatedRoutes() {
 function AppContent() {
   console.log("AppContent component rendering");
   const location = useLocation();
-  const hideGlobalLayout = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/fatura/');
+  const hideGlobalLayout = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/fatura/') || location.pathname.startsWith('/autorizar/');
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {

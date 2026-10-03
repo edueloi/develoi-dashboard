@@ -2,7 +2,7 @@
 // O pagamento continua sendo cobrado e baixado pelo Asaas (webhook).
 import type { Express } from "express";
 import { prisma } from "./db.js";
-import { pixQrFor } from "./asaas.js";
+import { pixQrFor, pixAutoQrFor } from "./asaas.js";
 import { loadSubscriptionInfo, nomeCurto } from "./clientInfo.js";
 import { brtTodayUtc } from "./time.js";
 
@@ -16,6 +16,27 @@ const COMPANY = {
 const PAID = new Set(["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]);
 
 export function registerInvoiceRoutes(app: Express) {
+  // Autorização do Pix Automático: o cliente lê o QR uma vez e o Asaas passa a cobrar sozinho
+  app.get("/api/public/pix-auth/:id", async (req, res) => {
+    try {
+      const c = await prisma.client.findFirst({ where: { pixAutoId: req.params.id } });
+      if (!c) return res.status(404).json({ error: "Autorização não encontrada." });
+      const status = c.pixAutoStatus || "CREATED";
+
+      let qr: { payload: string; image: string } | null = null;
+      if (status === "CREATED") {
+        try { qr = c.pixAutoQr ? JSON.parse(c.pixAutoQr) : null; } catch { qr = null; }
+        if (!qr?.payload) { try { qr = await pixAutoQrFor(req.params.id); } catch { qr = null; } }
+      }
+      const info = await loadSubscriptionInfo(c.id);
+      res.json({
+        status, value: c.billingValue, cycle: c.billingCycle, nextDueDate: c.nextDueDate,
+        product: nomeCurto(info), business: c.businessName, customer: c.name.trim().split(/\s+/)[0],
+        qr, company: COMPANY,
+      });
+    } catch { res.status(500).json({ error: "Não foi possível carregar a autorização." }); }
+  });
+
   app.get("/api/public/invoice/:id", async (req, res) => {
     try {
       const charge = await prisma.asaasCharge.findUnique({ where: { id: req.params.id }, include: { client: true } });

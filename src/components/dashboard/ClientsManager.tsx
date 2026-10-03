@@ -401,22 +401,25 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
             <p className="text-xs text-slate-400 bg-slate-50 dark:bg-white/5 rounded-xl px-3 py-2.5">
               O Asaas ainda não foi configurado no servidor. Adicione <b>ASAAS_API_KEY</b> no .env e reinicie.
             </p>
-          ) : !client.asaasSubscriptionId && !charges.length ? (
+          ) : !client.asaasSubscriptionId && !charges.length && !client.pixAutoId ? (
             <div className="space-y-3">
               <p className="text-xs text-slate-400">Cria a assinatura no Asaas. O bot manda o link de pagamento ao cliente e, quando ele paga, o recebimento entra sozinho e ele recebe o comprovante.</p>
               {!client.document && <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2">Cadastre o CPF/CNPJ do cliente (em Editar). O Asaas exige para gerar a cobrança.</p>}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Select label="Forma de pagamento" value={billingType} onChange={e => setBillingType(e.target.value)}
-                  options={[{ value: 'UNDEFINED', label: 'O cliente escolhe' }, { value: 'PIX', label: 'Pix' }, { value: 'BOLETO', label: 'Boleto' }, { value: 'CREDIT_CARD', label: 'Cartão de crédito' }]} />
+                  options={[{ value: 'UNDEFINED', label: 'O cliente escolhe' }, { value: 'PIX', label: 'Pix' }, { value: 'PIX_AUTO', label: 'Pix Automático (autoriza uma vez)' }, { value: 'BOLETO', label: 'Boleto' }, { value: 'CREDIT_CARD', label: 'Cartão de crédito' }]} />
                 <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 sm:pt-6 cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={sendLink} onChange={e => setSendLink(e.target.checked)} />
                   Enviar o link no WhatsApp agora
                 </label>
               </div>
               <Button fullWidth loading={busy === 'subscribe'} disabled={!client.document}
-                onClick={() => asaasCall('subscribe', `/api/clients/${client.id}/asaas/subscribe`, 'POST', { billingType, sendLink },
-                  d => d.sent ? 'Assinatura criada e link enviado no WhatsApp' : 'Assinatura criada no Asaas')}>
-                CRIAR ASSINATURA NO ASAAS
+                onClick={() => billingType === 'PIX_AUTO'
+                  ? asaasCall('subscribe', `/api/clients/${client.id}/asaas/pix-automatic`, 'POST', { sendLink },
+                      d => d.sent ? 'Pix Automático criado e link de autorização enviado no WhatsApp' : 'Pix Automático criado')
+                  : asaasCall('subscribe', `/api/clients/${client.id}/asaas/subscribe`, 'POST', { billingType, sendLink },
+                      d => d.sent ? 'Assinatura criada e link enviado no WhatsApp' : 'Assinatura criada no Asaas')}>
+                {billingType === 'PIX_AUTO' ? 'CRIAR PIX AUTOMÁTICO' : 'CRIAR ASSINATURA NO ASAAS'}
               </Button>
             </div>
           ) : (
@@ -427,6 +430,15 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
                 </span>
                 {asaas && <span className="text-[10px] font-bold uppercase text-green-700/70">{asaas.env === 'production' ? 'produção' : 'teste (sandbox)'}</span>}
               </div>
+
+              {client.pixAutoId && (
+                <div className={`rounded-xl px-3 py-2.5 text-sm ${client.pixAutoStatus === 'ACTIVE' ? 'bg-green-50 text-green-700' : client.pixAutoStatus === 'REFUSED' || client.pixAutoStatus === 'CANCELLED' || client.pixAutoStatus === 'EXPIRED' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <p className="font-bold">Pix Automático: {({ ACTIVE: 'ativo (cobra sozinho)', CREATED: 'aguardando o cliente autorizar', REFUSED: 'recusado pelo banco', CANCELLED: 'cancelado', EXPIRED: 'expirado' } as Record<string, string>)[client.pixAutoStatus || 'CREATED'] ?? client.pixAutoStatus}</p>
+                  {(client.pixAutoStatus === 'CREATED' || !client.pixAutoStatus) && (
+                    <button className="mt-1 text-xs font-bold underline" onClick={() => asaasCall('pixauto', `/api/clients/${client.id}/asaas/pix-automatic/send`, 'POST', null, () => 'Link de autorização enviado no WhatsApp')}>Reenviar o link de autorização</button>
+                  )}
+                </div>
+              )}
 
               {charges.length > 0 && (
                 <div className="space-y-1.5">

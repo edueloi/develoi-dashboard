@@ -177,6 +177,107 @@ export async function createCycleCharge(clientId: string, billingType: BillingTy
   return { chargeId: p.id, dueDate, sent };
 }
 
+// ─── Pix Automático ──────────────────────────────────────────────────────────
+// O cliente autoriza UMA vez (o QR do primeiro pagamento já pede a autorização no banco) e o Asaas passa a gerar e
+// cobrar as faturas seguintes sozinho (paymentCreationMode SUBSCRIPTION). Cada cobrança chega pelo webhook normal.
+const pickQr = (o: any): { payload: string; image: string } | null => {
+  const src = o?.payload ? o : o?.immediateQrCode?.payload ? o.immediateQrCode : null;
+  return src ? { payload: String(src.payload), image: String(src.encodedImage ?? "") } : null;
+};
+
+export async function pixAutoQrFor(authorizationId: string) {
+  const a = await asaas<any>(`/pix/automatic/authorizations/${encodeURIComponent(authorizationId)}`);
+  return pickQr(a);
+}
+
+export const pixAutoLink = (authorizationId: string) => `${cfg().publicUrl}/autorizar/${authorizationId}`;
+
+export async function createPixAutomatic(clientId: string, sendLink: boolean) {
+  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!c) throw new AsaasError("Cliente não encontrado.");
+  if (c.pixAutoId) throw new AsaasError("Este cliente já tem um Pix Automático.");
+  if (c.asaasSubscriptionId) throw new AsaasError("Este cliente já tem uma assinatura no Asaas. Cancele a atual antes.");
+  if (!c.nextDueDate) throw new AsaasError("Defina o próximo vencimento do cliente antes.");
+  if (!(c.billingValue > 0)) throw new AsaasError("Defina o valor da assinatura antes.");
+  if (c.billingCycle === "one_time") throw new AsaasError("Pix Automático é para assinaturas recorrentes (mensal ou anual).");
+
+  const customer = await ensureCustomer(c);
+  const today = brtTodayUtc();
+  const start = (c.nextDueDate > today ? c.nextDueDate : today).toISOString().slice(0, 10);
+  const auth = await asaas<any>("/pix/automatic/authorizations", "POST", {
+    frequency: c.billingCycle === "yearly" ? "ANNUALLY" : "MONTHLY",
+    contractId: c.id.replace(/-/g, ""), // até 35 caracteres
+    startDate: start,
+    customerId: customer,
+    value: c.billingValue,
+    description: `Assinatura ${nomeCurto(await loadSubscriptionInfo(c.id))}`.slice(0, 35),
+    paymentCreationMode: "SUBSCRIPTION",
+    retryPolicy: "ALLOW_THREE_IN_SEVEN_DAYS", // até 3 novas tentativas em 7 dias se o débito falhar
+    immediateQrCode: { expirationSeconds: 3 * 24 * 3600, originalValue: c.billingValue, description: "Primeira cobrança" },
+  });
+
+  let qr = pickQr(auth);
+  if (!qr) { try { qr = await pixAutoQrFor(auth.id); } catch { qr = null; } }
+  await prisma.client.update({
+    where: { id: c.id },
+    data: {
+      asaasCustomerId: customer, pixAutoId: String(auth.id), pixAutoStatus: String(auth.status || "CREATED"),
+      asaasSubscriptionId: auth.subscriptionId ? String(auth.subscriptionId) : null, asaasBillingType: "PIX",
+      pixAutoQr: qr ? JSON.stringify(qr) : null,
+    },
+  });
+
+  let sent = false;
+  if (sendLink) { try { sent = await sendPixAutoLink(c.id); } catch { sent = false; } }
+  return { authorizationId: auth.id as string, status: String(auth.status || "CREATED"), hasQr: !!qr, sent };
+}
+
+export async function sendPixAutoLink(clientId: string): Promise<boolean> {
+  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!c?.pixAutoId) throw new AsaasError("Este cliente não tem Pix Automático.");
+  if (!c.phone) throw new AsaasError("O cliente não tem WhatsApp cadastrado.");
+  if (!(await clientBotReady())) throw new AsaasError("O bot precisa estar ativado e com o WhatsApp conectado.");
+  const ass = assinaturaTexto(await loadSubscriptionInfo(clientId));
+  return sendMessage(c.phone, [
+    `Olá, ${firstName(c.name)}! 👋`,
+    `Vamos ativar o *Pix Automático* da sua ${ass}: você autoriza uma única vez e as próximas cobranças de *${money(c.billingValue)}* acontecem sozinhas, sem precisar pagar todo mês.`,
+    `📲 Abra o link, leia o QR Code com o app do seu banco e confirme:`,
+    pixAutoLink(c.pixAutoId),
+    `Qualquer dúvida, é só responder por aqui.`,
+  ].join("\n\n"));
+}
+
+// Avisos do Pix Automático (autorização ativada, recusada, cancelada…). A estrutura do aviso não é rígida:
+// o cliente é achado pelo id da autorização, onde quer que ele apareça no conteúdo.
+export async function handlePixAutomaticEvent(event: string, body: unknown): Promise<PaymentOutcome> {
+  const raw = JSON.stringify(body ?? {});
+  const candidates = await prisma.client.findMany({ where: { pixAutoId: { not: null } } });
+  const client = candidates.find(c => raw.includes(c.pixAutoId as string));
+  if (!client) return { outcome: `${event}: autorização não vinculada a nenhum cliente` };
+
+  const map: Record<string, string> = {
+    PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED: "CREATED", PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED: "ACTIVE",
+    PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED: "REFUSED", PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED: "CANCELLED",
+    PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED: "EXPIRED",
+  };
+  const status = map[event];
+  if (!status) {
+    if (event.endsWith("PAYMENT_INSTRUCTION_REFUSED")) await notifyTeam(`⚠️ *Pix Automático recusado* — ${client.name}. O banco recusou a cobrança do mês; o Asaas pode tentar de novo.`);
+    return { clientName: client.name, outcome: `${event} registrado` };
+  }
+  await prisma.client.update({ where: { id: client.id }, data: { pixAutoStatus: status } });
+
+  if (status === "ACTIVE") {
+    await notifyTeam(`✅ *Pix Automático ativado* — ${client.name} (${money(client.billingValue)}/mês)`);
+    if (client.phone && (await clientBotReady())) {
+      await sendMessage(client.phone, `Tudo certo, ${firstName(client.name)}! ✅ O *Pix Automático* da sua assinatura está ativo. As próximas cobranças acontecem sozinhas, no vencimento.`).catch(() => false);
+    }
+  } else if (status === "REFUSED" || status === "CANCELLED") {
+    await notifyTeam(`⚠️ *Pix Automático ${status === "REFUSED" ? "recusado" : "cancelado"}* — ${client.name}. Combine outra forma de pagamento com o cliente.`);
+  }
+  return { clientName: client.name, outcome: `Pix Automático: ${status}` };
+}
+
 export async function cancelSubscription(clientId: string) {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c?.asaasSubscriptionId) throw new AsaasError("Este cliente não tem assinatura no Asaas.");
@@ -423,7 +524,8 @@ export function registerAsaasRoutes(app: Express) {
     }
     try {
       let result: PaymentOutcome = { outcome: "sem cobrança no aviso" };
-      if (payment?.id && typeof event === "string") result = await handlePayment(event, payment);
+      if (typeof event === "string" && event.startsWith("PIX_AUTOMATIC_")) result = await handlePixAutomaticEvent(event, req.body);
+      else if (payment?.id && typeof event === "string") result = await handlePayment(event, payment);
       await logWebhook({ event: evName, asaasPaymentId: payment?.id ?? null, clientName: result.clientName, outcome: result.outcome, ok: true, payload: payment });
       res.json({ received: true });
     } catch (e: any) {
@@ -482,7 +584,9 @@ export function registerAsaasRoutes(app: Express) {
       const body = {
         name: "Develoi Dashboard", url, email: process.env.ASAAS_WEBHOOK_EMAIL || "eduardo.santos@comexport.com.br",
         enabled: true, interrupted: false, apiVersion: 3, authToken: c.webhookToken, sendType: "SEQUENTIALLY",
-        events: ["PAYMENT_CREATED", "PAYMENT_UPDATED", "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED", "PAYMENT_DELETED", "PAYMENT_CHARGEBACK_REQUESTED"],
+        events: ["PAYMENT_CREATED", "PAYMENT_UPDATED", "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED", "PAYMENT_OVERDUE", "PAYMENT_REFUNDED", "PAYMENT_DELETED", "PAYMENT_CHARGEBACK_REQUESTED",
+          "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CREATED", "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED", "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_REFUSED",
+          "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_CANCELLED", "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_EXPIRED", "PIX_AUTOMATIC_RECURRING_PAYMENT_INSTRUCTION_REFUSED"],
       };
       const existing = (await asaas<{ data: any[] }>("/webhooks?limit=50")).data?.find(w => w.url === url);
       res.json(existing ? await asaas(`/webhooks/${existing.id}`, "PUT", body) : await asaas("/webhooks", "POST", body));
@@ -519,6 +623,14 @@ export function registerAsaasRoutes(app: Express) {
   });
   app.post("/api/clients/:id/asaas/charge", async (req, res) => {
     try { res.json(await createCycleCharge(req.params.id, (req.body?.billingType || "UNDEFINED") as BillingType, req.body?.sendLink !== false)); }
+    catch (e) { fail(res, e); }
+  });
+  app.post("/api/clients/:id/asaas/pix-automatic", async (req, res) => {
+    try { res.json(await createPixAutomatic(req.params.id, req.body?.sendLink !== false)); }
+    catch (e) { fail(res, e); }
+  });
+  app.post("/api/clients/:id/asaas/pix-automatic/send", async (req, res) => {
+    try { res.json({ sent: await sendPixAutoLink(req.params.id) }); }
     catch (e) { fail(res, e); }
   });
   app.delete("/api/clients/:id/asaas/subscription", async (req, res) => {

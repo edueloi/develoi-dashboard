@@ -288,6 +288,8 @@ export interface Client {
   asaasCustomerId?: string | null;
   asaasSubscriptionId?: string | null;
   asaasBillingType?: string | null;
+  pixAutoId?: string | null;
+  pixAutoStatus?: 'CREATED' | 'ACTIVE' | 'REFUSED' | 'CANCELLED' | 'EXPIRED' | null;
   boxsysTenantId?: string | null;
   boxsysSubdomain?: string | null;
   boxsysUrl?: string | null;

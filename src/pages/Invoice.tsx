@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Copy, Check, FileText, CreditCard, CheckCircle2, AlertTriangle, Download, ExternalLink, QrCode, ShieldCheck, Lock, MessageCircle } from 'lucide-react';
 
-interface InvoiceData {
+export interface InvoiceData {
   status: 'pending' | 'overdue' | 'paid' | 'cancelled';
   value: number; dueDate: string; paidAt: string | null;
   product: string; business: string | null; customer: string;
@@ -13,8 +13,8 @@ interface InvoiceData {
   company: { name: string; cnpj: string; email: string; phone: string };
 }
 
-const NAVY = '#0D1F4E';
-const GOLD = '#C49A2A';
+export const NAVY = '#0D1F4E';
+export const GOLD = '#C49A2A';
 const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const day = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
@@ -217,7 +217,7 @@ function Thanks({ data }: { data: InvoiceData }) {
   );
 }
 
-function Page({ children, company }: { children: React.ReactNode; company?: InvoiceData['company'] }) {
+export function Page({ children, company }: { children: React.ReactNode; company?: InvoiceData['company'] }) {
   return (
     <div className="min-h-screen px-3 py-4 sm:px-4 sm:py-10" style={{ background: 'linear-gradient(180deg,#E8ECF6 0%,#F6F7FB 60%)', fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div className="mx-auto max-w-xl">
