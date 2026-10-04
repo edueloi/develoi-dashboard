@@ -71,6 +71,17 @@ type Entry =
 export function ReceivablesManager() {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
+
+  // Cobrança/lembrete gentil: a BiIA manda a mensagem na hora, com o link da fatura
+  const remindViaBot = async (c: Client) => {
+    if (!window.confirm(`Enviar agora uma mensagem gentil pela BiIA para ${c.name}?`)) return;
+    try {
+      const res = await fetch(`/api/clients/${c.id}/billing/remind`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível enviar');
+      toast(`Mensagem enviada para ${c.name}`, 'success');
+    } catch (e: any) { toast(e.message, 'error'); }
+  };
   const text = isDark ? '#fff' : '#0D1F4E';
 
   const [clients, setClients] = useState<Client[]>([]);
@@ -255,6 +266,7 @@ export function ReceivablesManager() {
           isSub ? [
             { label: 'Recebimentos', icon: Banknote, onClick: () => setReceiveSub(c!) },
             ...(c!.phone ? [{ label: 'Cobrar no WhatsApp', icon: MessageCircle, onClick: () => window.open(buildWhatsAppLink(c!), '_blank') }] : []),
+            ...(c!.phone && c!.nextDueDate && c!.status !== 'cancelled' && (c!.billingValue ?? 0) > 0 ? [{ label: late ? 'Enviar cobrança gentil pela BiIA' : 'Enviar lembrete pela BiIA', icon: Bot, onClick: () => remindViaBot(c!) }] : []),
             { label: 'Editar assinatura', icon: Edit2, onClick: () => setClientForm({ open: true, client: c }) },
             { label: 'Excluir cliente', icon: Trash2, danger: true, onClick: () => setDeleting(e) },
           ] : [

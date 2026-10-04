@@ -7,6 +7,8 @@ import { Button, Modal, Input, Select, Textarea, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useLiveEvents } from '../../lib/liveEvents';
 import { RowMenu } from './financeShared';
+import { SendMessageModal, fillPlaceholders, type MessageTemplate } from './SendMessageModal';
+import { useAuth } from '../../contexts/AuthContext';
 
 type Status = 'new' | 'contacted' | 'meeting' | 'proposal' | 'won' | 'lost';
 type Priority = 'hot' | 'warm' | 'cold';
@@ -76,6 +78,11 @@ const fillTemplate = (t: string, l: Lead) => {
     .replaceAll('{produto}', l.product ? `Vi que você tem interesse em ${l.product}. ` : '')
     .replaceAll('{produtoSimples}', l.product ?? 'os nossos sistemas');
 };
+const templatesFor = (l: Lead, ready: { id: string; title: string; body: string; productName?: string | null }[]): MessageTemplate[] => {
+  const mine = ready.filter(r => !r.productName || !l.product || r.productName.toLowerCase() === l.product.toLowerCase())
+    .map(r => ({ id: `r-${r.id}`, label: `${r.title}${r.productName ? ` · ${r.productName}` : ''}`, text: fillPlaceholders(r.body, { nome: l.name.split(' ')[0], empresa: l.company ?? '', produto: l.product ?? undefined }) }));
+  return [...TEMPLATES.map(t => ({ id: t.id, label: t.label, text: fillTemplate(t.text, l) })), ...mine];
+};
 const waUrl = (l: Lead, text: string) => {
   const dg = (l.phone || '').replace(/\D/g, '');
   const to = dg.startsWith('55') ? dg : `55${dg}`;
@@ -104,6 +111,9 @@ export const LeadsManager: React.FC = () => {
   const [detail, setDetail] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [losing, setLosing] = useState<Lead | null>(null);
+  const [sending, setSending] = useState<Lead | null>(null);
+  const [ready, setReady] = useState<{ id: string; title: string; body: string; productName?: string | null }[]>([]);
+  const { profile } = useAuth();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<Status | null>(null);
 
@@ -115,6 +125,9 @@ export const LeadsManager: React.FC = () => {
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    fetch(`/api/ready-messages?userId=${profile?.uid ?? ''}`).then(r => r.json()).then(d => setReady(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [profile?.uid]);
   useLiveEvents(['Lead', 'LeadActivity', 'Client', 'Project', 'Product'], () => { load(); });
 
   const changeView = (v: 'board' | 'list') => { setView(v); store.set('develoi:leads:view', v); };
@@ -212,9 +225,8 @@ export const LeadsManager: React.FC = () => {
         </button>
         <div className={`flex items-center gap-1.5 flex-shrink-0 ${compact ? 'mt-2' : 'mt-2 sm:mt-0'}`}>
           {l.phone && (
-            <a href={introUrl(l)} target="_blank" rel="noopener noreferrer" title="Chamar no WhatsApp"
-              onClick={() => { if (l.status === 'new') move(l, 'contacted'); }}
-              className="p-1.5 rounded-lg text-white hover:opacity-90" style={{ background: '#15803D' }}><MessageCircle className="w-4 h-4" /></a>
+            <button type="button" title="Enviar mensagem (BiIA, atendimento ou WhatsApp)" onClick={() => setSending(l)}
+              className="p-1.5 rounded-lg text-white hover:opacity-90" style={{ background: '#15803D' }}><MessageCircle className="w-4 h-4" /></button>
           )}
           {NEXT[l.status] && <Button variant="outline" size="xs" onClick={() => move(l, NEXT[l.status]!)}>{NEXT_LABEL[l.status]}<ChevronRight className="w-3 h-3 ml-0.5" /></Button>}
           <div className="ml-auto">
@@ -340,7 +352,12 @@ export const LeadsManager: React.FC = () => {
           if (r) { toast('Lead salvo', 'success'); setEditing(null); load(); }
         }} />}
 
-      {current && <LeadDetail lead={current} onClose={() => setDetail(null)} onEdit={() => { setEditing(current); setDetail(null); }}
+      {sending && (
+        <SendMessageModal target={{ name: sending.name, subtitle: sending.company ?? undefined, phone: sending.phone ?? '', leadId: sending.id }}
+          templates={templatesFor(sending, ready)} title="Enviar mensagem ao lead" onClose={() => setSending(null)} onSent={() => load()} />
+      )}
+
+      {current && <LeadDetail lead={current} onSend={() => { setSending(current); setDetail(null); }} onClose={() => setDetail(null)} onEdit={() => { setEditing(current); setDetail(null); }}
         onActivity={async b => { if (await call(`/api/leads/${current.id}/activity`, 'POST', b)) { toast('Contato registrado', 'success'); load(); } }}
         onMove={s => (s === 'lost' ? setLosing(current) : move(current, s))} />}
 
@@ -402,15 +419,13 @@ const LeadForm: React.FC<{ lead: Lead | null; products: string[]; onClose: () =>
 };
 
 // ─── Detalhe + histórico ─────────────────────────────────────────────────────
-const LeadDetail: React.FC<{ lead: Lead; onClose: () => void; onEdit: () => void; onActivity: (b: any) => Promise<void>; onMove: (s: Status) => void }> = ({ lead, onClose, onEdit, onActivity, onMove }) => {
+const LeadDetail: React.FC<{ lead: Lead; onSend: () => void; onClose: () => void; onEdit: () => void; onActivity: (b: any) => Promise<void>; onMove: (s: Status) => void }> = ({ lead, onSend, onClose, onEdit, onActivity, onMove }) => {
   const [type, setType] = useState('whatsapp');
   const [text, setText] = useState('');
   const [next, setNext] = useState('');
-  const [tpl, setTpl] = useState('intro');
   const [saving, setSaving] = useState(false);
   const st = stageOf(lead.status), pr = prioOf(lead.priority);
   const iconOf = (t: string) => (ACT_TYPES.find(a => a.value === t)?.icon ?? ArrowRightLeft);
-  const tplText = fillTemplate(TEMPLATES.find(t => t.id === tpl)!.text, lead);
   return (
     <Modal isOpen onClose={onClose} title={lead.name} size="lg">
       <div className="space-y-5">
@@ -439,21 +454,9 @@ const LeadDetail: React.FC<{ lead: Lead; onClose: () => void; onEdit: () => void
         )}
 
         {lead.phone && (
-          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20 p-3 space-y-2">
-            <div className="text-sm font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5"><MessageCircle className="w-4 h-4" />Chamar no WhatsApp</div>
-            <div className="flex flex-wrap gap-1.5">
-              {TEMPLATES.map(t => (
-                <button type="button" key={t.id} onClick={() => setTpl(t.id)} className="px-2.5 py-1 rounded-full text-xs font-semibold border"
-                  style={tpl === t.id ? { background: '#15803D', color: '#fff', borderColor: '#15803D' } : { borderColor: 'rgba(21,128,61,0.3)', color: '#15803D' }}>{t.label}</button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{tplText}</p>
-            <a href={waUrl(lead, tplText)} target="_blank" rel="noopener noreferrer"
-              onClick={() => { void onActivity({ type: 'whatsapp', text: `Mensagem enviada (${TEMPLATES.find(t => t.id === tpl)!.label})` }); }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white" style={{ background: '#15803D' }}>
-              ABRIR CONVERSA<ChevronRight className="w-3.5 h-3.5" />
-            </a>
-          </div>
+          <button type="button" onClick={onSend} className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white text-sm font-black" style={{ background: '#15803D' }}>
+            <MessageCircle className="w-4 h-4" />ENVIAR MENSAGEM (BiIA, atendimento ou WhatsApp)
+          </button>
         )}
 
         <form className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3 space-y-2" onSubmit={async e => {

@@ -163,3 +163,32 @@ export function startBillingScheduler() {
   setInterval(tick, CHECK_EVERY_MS);
   setTimeout(tick, 60 * 1000); // primeira checagem 1 min após subir
 }
+
+// Lembrete gentil disparado à mão (menu da conta a receber): sai na hora, em qualquer horário, e não conta como o aviso automático do vencimento
+export async function sendGentleReminder(clientId: string): Promise<{ ok: boolean; error?: string; preview?: string }> {
+  const c = await prisma.client.findUnique({
+    where: { id: clientId },
+    include: { projects: { include: { project: { select: { name: true } } } }, sale: { select: { productName: true } } },
+  });
+  if (!c) return { ok: false, error: "Cliente não encontrado." };
+  if (!c.phone) return { ok: false, error: "Este cliente não tem telefone cadastrado." };
+  if (!c.nextDueDate || !(c.billingValue > 0)) return { ok: false, error: "Este cliente não tem cobrança em aberto." };
+  if (getSessionInfo().status !== "connected") return { ok: false, error: "O WhatsApp do bot não está conectado." };
+
+  const due = c.nextDueDate;
+  const diff = daysFromToday(due); // negativo = atrasado
+  const charge = await prisma.asaasCharge.findFirst({ where: { clientId: c.id, status: { in: ["PENDING", "OVERDUE"] } }, orderBy: { dueDate: "asc" } });
+  const link = charge ? publicInvoiceUrl(charge.id) : null;
+  const assinatura = assinaturaTexto(subscriptionInfoOf(c));
+  const valor = money(c.billingValue), data = format(due, "dd/MM/yyyy");
+  const late = -diff;
+  const when = diff < 0 ? `venceu em *${data}* (há ${late} ${late === 1 ? "dia" : "dias"})` : diff === 0 ? "vence *hoje*" : `vence em *${data}*`;
+  const text =
+    `Olá, ${firstName(c.name)}! Tudo bem? 😊\n\n` +
+    `Aqui é a *BiIA*, assistente da Develoi. Passando com todo carinho para lembrar que a fatura da sua ${assinatura}, no valor de *${valor}*, ${when}.\n\n` +
+    (diff < 0 ? "Sei que a correria do dia a dia faz a gente esquecer, então deixo o link para facilitar:" : "Para facilitar, deixo o link de pagamento:") +
+    (link ? `\n\n💳 Pix, boleto ou cartão:\n${link}` : "\n\nSe quiser, é só me pedir a fatura por aqui que eu te envio.") +
+    `\n\nSe você já pagou, é só desconsiderar e muito obrigada! 🙏 Qualquer dúvida, estou por aqui.`;
+  const ok = await sendMessage(c.phone, text);
+  return ok ? { ok: true, preview: text } : { ok: false, error: "Não consegui enviar a mensagem. Tente de novo." };
+}

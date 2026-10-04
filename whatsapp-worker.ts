@@ -8,7 +8,7 @@ import "dotenv/config";
 import express from "express";
 import {
   getSessionInfo, sendMessage, sendDocument, sendChoice, offerConversation, acceptWaitingConversation,
-  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, resumeSession, startConversationSweeper, startConversation, notifyQueueChanged,
+  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, resumeSession, startConversationSweeper, startConversation, sendOutreach, notifyQueueChanged,
 } from "./src/backend/wa.js";
 import { registerAsaasKeywords } from "./src/backend/asaas.js";
 

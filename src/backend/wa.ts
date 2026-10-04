@@ -92,6 +92,9 @@ export const disconnectSession = async (): Promise<void> => {
 };
 
 // Encerra conversas só-com-bot paradas (trabalho do processo que mantém o socket)
+export const sendOutreach = (...a: Parameters<typeof real.sendOutreach>) =>
+  isLocal() ? real.sendOutreach(...a)
+    : rpc<Awaited<ReturnType<typeof real.sendOutreach>>>("sendOutreach", a, { ok: false, error: "O serviço do WhatsApp não respondeu. Tente de novo." });
 export const startConversationSweeper = (): void => { if (isLocal()) real.startConversationSweeper(); };
 
 // Retomar a sessão salva é trabalho do worker; no modo proxy não há o que fazer aqui

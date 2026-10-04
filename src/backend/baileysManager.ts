@@ -338,6 +338,53 @@ export async function startConversation(input: {
   return { ok: true, id: conv.id };
 }
 
+// Disparo de uma mensagem pronta pela BiIA (prospecção/relacionamento): a mensagem sai em nome da Develoi, a conversa nasce no modo bot
+// e, se a pessoa responder, a BiIA continua o papo (um "sim" já leva à apresentação e ao Comercial).
+export async function sendOutreach(input: { phone: string; name?: string | null; message: string }): Promise<{ ok: boolean; id?: string; error?: string }> {
+  if (!session || session.status !== "connected") return { ok: false, error: "O WhatsApp do bot não está conectado." };
+  const raw = digits(input.phone);
+  if (raw.length < 10 || raw.length > 13) return { ok: false, error: "Telefone inválido. Informe com DDD (ex.: 15 99999-9999)." };
+  if (!input.message?.trim()) return { ok: false, error: "Escreva a mensagem." };
+  const full = raw.startsWith("55") && raw.length >= 12 ? raw : `55${raw}`;
+
+  let jid = `${full}@s.whatsapp.net`;
+  try {
+    const found = await session.sock.onWhatsApp(jid);
+    const hit = Array.isArray(found) ? found.find((x: any) => x?.exists) : null;
+    if (Array.isArray(found) && !hit) return { ok: false, error: "Este número não tem WhatsApp." };
+    if (hit?.jid) jid = hit.jid;
+  } catch (e) { console.warn("[whatsapp] não consegui conferir o número:", e); }
+  const phone = jidToPhone(jid);
+
+  let conv = await prisma.wppConversation.findFirst({
+    where: { status: { in: ["bot", "waiting", "active"] }, OR: [{ clientJid: jid }, { clientPhone: phone }] },
+    orderBy: { createdAt: "desc" },
+  });
+  if (conv && conv.status !== "bot") return { ok: false, error: conv.status === "active" ? `Este contato já está em atendimento${conv.attendantName ? ` com ${conv.attendantName}` : ""}. Responda pela conversa dele.` : "Este contato está na fila de atendimento." };
+  const startNode = await prisma.wppBotFlowNode.findFirst({ where: { isStart: true, isActive: true } });
+  const name = input.name?.trim() || null;
+  if (!conv) conv = await prisma.wppConversation.create({ data: { clientPhone: phone, clientJid: jid, clientName: name, firstMessage: input.message.slice(0, 1000), status: "bot" } });
+
+  const text = input.message.trim();
+  try { await typing(session.sock, jid, text); await session.sock.sendMessage(jid, { text }); }
+  catch (e) {
+    console.error("Erro ao enviar msg:", e);
+    if (conv.updatedAt.getTime() === conv.createdAt.getTime()) await closeBotConversation(conv.id);
+    return { ok: false, error: "Não consegui enviar a mensagem. Tente de novo." };
+  }
+  await recordMsg(conv.id, "system", "Mensagem enviada pela BiIA (disparo da prospecção).");
+  await recordMsg(conv.id, "bot", text);
+
+  // a BiIA já sabe que acabou de falar com a pessoa: quem responde "sim" segue para a apresentação
+  const key = normalizeForKey(jid);
+  const state: any = { currentNodeId: startNode?.id ?? null, remoteJid: jid, lastActivity: Date.now(), pushName: name, conversationId: conv.id };
+  const b = brainOf(state);
+  if (name) b.facts.nome = name.split(/\s+/)[0];
+  b.pending = { type: "offer", action: "lead" };
+  clientStates.set(key, state);
+  return { ok: true, id: conv.id };
+}
+
 // Mensagem de um atendente cadastrado. Retorna true se foi tratada como mensagem de atendente.
 async function handleAttendantMessage(att: Attendant, text: string): Promise<boolean> {
   const active = await prisma.wppConversation.findFirst({

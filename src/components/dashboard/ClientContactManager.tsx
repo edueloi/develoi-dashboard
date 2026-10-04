@@ -9,6 +9,7 @@ import { Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState } from
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { SendMessageModal, fillPlaceholders } from './SendMessageModal';
 import type { ReadyMessage, ClientContact, MessageCategory, ContactStatus, Product } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -380,7 +381,10 @@ export function ClientContactManager() {
                         </div>
 
                         {/* Telefone */}
-                        <p className="text-sm text-slate-500 dark:text-slate-300 truncate">{contact.clientPhone ?? '—'}</p>
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-500 dark:text-slate-300 truncate">{contact.clientPhone ?? '—'}</p>
+                          <p className="text-[10px] text-slate-400 truncate">{contact.lastContactAt ? `Último contato ${new Date(contact.lastContactAt).toLocaleDateString('pt-BR')}` : 'Sem contato ainda'}{contact.contactCount ? ` · ${contact.contactCount}x` : ''}</p>
+                        </div>
 
                         {/* Cidade */}
                         <p className="text-sm text-slate-500 dark:text-slate-300 truncate">{contact.city ?? '—'}</p>
@@ -403,14 +407,14 @@ export function ClientContactManager() {
                         <p className="text-xs text-slate-400 truncate">{contact.notes ? contact.notes.slice(0, 30) + (contact.notes.length > 30 ? '…' : '') : '—'}</p>
 
                         {/* Ações */}
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex gap-1">
                           <button onClick={() => setViewingContact(contact)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors" title="Ver">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                           {contact.clientPhone && (
                             <button onClick={() => setSendingContact(contact)}
-                              className="p-1.5 rounded-lg text-white transition-colors" style={{ background: '#15803D' }} title="Enviar WA">
+                              className="p-1.5 rounded-lg text-white transition-colors" style={{ background: '#15803D' }} title="Enviar mensagem (BiIA, atendimento ou WhatsApp)">
                               <Send className="w-3.5 h-3.5" />
                             </button>
                           )}
@@ -571,7 +575,7 @@ export function ClientContactManager() {
         <WhatsAppSendModal
           contact={sendingContact} messages={messages}
           onClose={() => setSendingContact(null)}
-          onSent={() => { handleStatusChange(sendingContact, 'contacted'); setSendingContact(null); }}
+          onSent={via => { if (via === 'link') { handleStatusChange(sendingContact, 'contacted'); setSendingContact(null); } else fetchData(); }}
         />
       )}
 
@@ -875,62 +879,17 @@ function MsgPreviewModal({ message, contacts, onClose, onCopy, onSend }: {
 // ─── WhatsAppSendModal ────────────────────────────────────────────────────────
 
 function WhatsAppSendModal({ contact, messages, onClose, onSent }: {
-  contact: ClientContact; messages: ReadyMessage[]; onClose: () => void; onSent: () => void;
+  contact: ClientContact; messages: ReadyMessage[]; onClose: () => void; onSent: (via: 'bot' | 'attendant' | 'link') => void;
 }) {
-  const { show: toast } = useToast();
-  const linkedMsg = messages.find(m => m.id === contact.messageId);
-  const [selectedMsgId, setSelectedMsgId] = useState(linkedMsg?.id ?? '');
-
-  const buildText = (msg?: ReadyMessage) => {
-    if (!msg) return '';
-    return msg.body
-      .replace(/\[Nome\]/g, contact.ownerName ?? contact.clientName ?? '')
-      .replace(/\[Estabelecimento\]/g, contact.establishmentName ?? '');
-  };
-
-  const [text, setText] = useState(buildText(linkedMsg));
-
-  useEffect(() => {
-    const m = messages.find(m => m.id === selectedMsgId);
-    setText(buildText(m));
-  }, [selectedMsgId]);
-
-  const phone = contact.clientPhone?.replace(/\D/g, '') ?? '';
-  const displayName = contact.establishmentName ?? contact.clientName;
-
+  const { profile } = useAuth();
+  const vars = { nome: (contact.ownerName ?? contact.clientName ?? '').split(' ')[0], empresa: contact.establishmentName ?? '', produto: contact.productName ?? undefined, atendente: profile?.displayName?.split(' ')[0] };
+  const templates = messages.map(m => ({ id: m.id, label: m.title, text: fillPlaceholders(m.body, vars) }));
+  if (!templates.length) templates.push({ id: 'livre', label: 'Mensagem livre', text: `Olá, ${vars.nome}! ` });
   return (
-    <Modal isOpen onClose={onClose} title="Enviar via WhatsApp" size="lg">
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-2xl">
-          <div className="w-10 h-10 rounded-xl bg-green-200 dark:bg-green-700 flex items-center justify-center flex-shrink-0">
-            <Phone className="w-5 h-5 text-green-700 dark:text-green-200" />
-          </div>
-          <div>
-            <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>{displayName}</p>
-            <p className="text-xs text-slate-400">{contact.clientPhone}</p>
-          </div>
-        </div>
-
-        <Select label="Usar mensagem pronta (opcional)" value={selectedMsgId} onChange={e => setSelectedMsgId(e.target.value)}>
-          <option value="">— Digitar livremente —</option>
-          {messages.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-        </Select>
-
-        <Textarea label="Mensagem" value={text} onChange={e => setText(e.target.value)} rows={8} />
-
-        <div className="flex gap-2">
-          <button onClick={() => { navigator.clipboard.writeText(text); toast('Copiado!', 'success'); }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-            <Copy className="w-4 h-4" /> Copiar
-          </button>
-          <a href={`https://wa.me/55${phone}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer"
-            onClick={onSent}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-white font-black text-sm hover:opacity-90 transition-all" style={{ background: '#15803D' }}>
-            <Send className="w-4 h-4" /> Abrir WhatsApp
-          </a>
-        </div>
-      </div>
-    </Modal>
+    <SendMessageModal
+      target={{ name: contact.establishmentName ?? contact.clientName, subtitle: contact.ownerName ?? undefined, phone: contact.clientPhone ?? '', contactId: contact.id }}
+      templates={templates} initialId={templates.find(t => t.id === contact.messageId)?.id} title="Enviar mensagem"
+      onClose={onClose} onSent={onSent} />
   );
 }
 
