@@ -43,12 +43,13 @@ export function registerLeadRoutes(app: Express) {
   app.get("/api/leads/options", async (_req, res) => {
     try {
       const [projects, products] = await Promise.all([
-        prisma.project.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
-        prisma.product.findMany({ where: { active: true }, select: { name: true }, orderBy: { name: "asc" } }),
+        prisma.project.findMany({ select: { name: true, description: true }, orderBy: { name: "asc" } }),
+        prisma.product.findMany({ where: { active: true }, select: { name: true, description: true }, orderBy: { name: "asc" } }),
       ]);
       const seen = new Set<string>();
-      const names = [...projects, ...products].map(p => p.name.trim()).filter(n => { const k = n.toLowerCase(); if (!n || seen.has(k)) return false; seen.add(k); return true; });
-      res.json({ products: names });
+      const all = [...projects, ...products].map(p => ({ name: p.name.replace(/\s+/g, " ").trim(), description: p.description ?? "" }));
+      const items = all.filter(p => { const k = p.name.toLowerCase(); if (!p.name || seen.has(k)) return false; seen.add(k); return true; });
+      res.json({ products: items.map(p => p.name), items });
     } catch (e) { fail(res, e); }
   });
 

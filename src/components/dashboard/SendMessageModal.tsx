@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, Headphones, Copy, ExternalLink, Phone } from 'lucide-react';
+import { Bot, Headphones, Copy, Phone } from 'lucide-react';
 import { Modal, Select, Textarea } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -73,11 +73,7 @@ export const SendMessageModal: React.FC<{
         <div className="flex gap-2">
           <button type="button" onClick={() => { navigator.clipboard.writeText(text); toast('Copiado!', 'success'); }}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"><Copy className="w-3.5 h-3.5" />Copiar</button>
-          <a href={`https://wa.me/${digits.startsWith('55') ? digits : `55${digits}`}?text=${encodeURIComponent(text)}`} target="_blank" rel="noopener noreferrer" onClick={() => {
-              void fetch('/api/outreach/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: target.phone, name: target.name, source: target.leadId ? 'lead' : target.contactId ? 'contact' : target.source, refId: target.leadId || target.contactId || target.refId, via: 'link', message: text, byName: profile?.displayName }) }).catch(() => {});
-              onSent('link');
-            }}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300"><ExternalLink className="w-3.5 h-3.5" />Abrir no WhatsApp</a>
+
         </div>
       </div>
     </Modal>

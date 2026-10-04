@@ -11,6 +11,8 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { SendMessageModal, fillPlaceholders } from './SendMessageModal';
 import { UnifiedContacts, SentMessages } from './UnifiedContacts';
+import { SendFromMessageModal } from './SendFromMessageModal';
+import { DEFAULT_MESSAGES, generateProductMessages, pitchFor } from './defaultMessages';
 import type { ReadyMessage, ClientContact, MessageCategory, ContactStatus, Product } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -66,38 +68,6 @@ const SEGMENT_OPTIONS = [
   'Construção / Reformas', 'Educação / Cursos', 'Outro',
 ];
 
-// Mensagens padrão — carregadas se banco vazio
-const DEFAULT_MESSAGES: Omit<ReadyMessage, 'id' | 'createdAt' | 'userId'>[] = [
-  { title: 'Abordagem inicial fria', category: 'approach', isDefault: true, isFavorite: false, tags: ['abordagem'],
-    body: `Oi, tudo bem? 👋\n\nVi o perfil de vocês e achei muito bonito o trabalho! Estou entrando em contato porque temos uma plataforma feita para negócios como o seu, que vai muito além de uma agenda online.\n\nReúne em um só lugar:\n• Site profissional próprio\n• Automação de WhatsApp\n• Controle de clientes\n• Tudo sem precisar de um TI\n\nPosso te mandar o link para conhecer? São 30 dias grátis, sem precisar de cartão. 😊` },
-  { title: 'Abordagem mais curta', category: 'approach', isDefault: true, isFavorite: false, tags: ['abordagem', 'rápida'],
-    body: `Oi, tudo bem? Vi o trabalho de vocês e queria apresentar algo que pode organizar o negócio de vez.\n\nA Develoi cria sites, sistemas e chatbots para negócios que querem crescer com tecnologia.\n\nPosso te mandar o link? É rápido e gratuito para conhecer! 🚀` },
-  { title: 'Foco no site profissional', category: 'approach', isDefault: true, isFavorite: false, tags: ['site', 'abordagem'],
-    body: `Oi, [Nome]! Tudo bem? 😊\n\nPassando porque vi que [estabelecimento] ainda não tem um site profissional — e hoje isso faz toda a diferença para atrair clientes pelo Google.\n\nCriamos sites modernos, responsivos e com integração direta no WhatsApp.\n\n📱 Os clientes te encontram, clicam e já falam com você.\n\nPosso te mostrar alguns exemplos? São só 5 minutos!` },
-  { title: 'Foco no chatbot WhatsApp', category: 'approach', isDefault: true, isFavorite: false, tags: ['chatbot', 'whatsapp'],
-    body: `Oi, [Nome]! 👋\n\nImagina seu WhatsApp respondendo sozinho fora do horário, qualificando clientes e mandando propostas automáticas — sem você fazer nada.\n\nÉ exatamente isso que fazemos na Develoi com nossos chatbots.\n\nNegócios que usam economizam horas por semana e não perdem mais nenhum cliente.\n\nQuer ver como funciona?` },
-  { title: 'Follow-up — 1 dia depois', category: 'followup', isDefault: true, isFavorite: false, tags: ['followup'],
-    body: `Oi, [Nome]! Tudo bem? 😊\n\nOntem te mandei uma mensagem sobre como podemos ajudar [estabelecimento] com tecnologia.\n\nSei que a rotina é corrida — só passei para ver se teve chance de ver.\n\nQualquer dúvida é só falar! Fico no aguardo. 🙏` },
-  { title: 'Follow-up — após proposta', category: 'followup', isDefault: true, isFavorite: false, tags: ['followup', 'proposta'],
-    body: `Olá, [Nome]! Tudo bem?\n\nEnviei a proposta há alguns dias e queria saber se teve a chance de ver. 😊\n\nSe tiver alguma dúvida sobre os valores, o que está incluso ou o prazo, estou à disposição para explicar tudo!\n\nO que achou?` },
-  { title: 'Proposta — Site Institucional', category: 'proposal', isDefault: true, isFavorite: false, tags: ['proposta', 'site'],
-    body: `Olá, [Nome]! 😊\n\nComo combinado, segue a proposta:\n\n🖥️ *Site Institucional Profissional*\n✅ Design exclusivo e moderno\n✅ 100% responsivo (celular + desktop)\n✅ Otimizado para o Google (SEO)\n✅ Integração com WhatsApp\n✅ Formulário de contato\n✅ Hospedagem + domínio 1 ano\n✅ Suporte por 30 dias\n\n💰 Investimento: R$ [valor]\n⏱️ Prazo: [X] dias úteis\n\nQuer agendar uma conversa rápida para tirar dúvidas? 🚀` },
-  { title: 'Proposta — Chatbot WhatsApp', category: 'proposal', isDefault: true, isFavorite: false, tags: ['proposta', 'chatbot'],
-    body: `Olá, [Nome]! 😊\n\nSegue a proposta para o chatbot do WhatsApp:\n\n🤖 *Chatbot Profissional*\n✅ Atendimento automático 24h/7 dias\n✅ Menu personalizado\n✅ Respostas para dúvidas frequentes\n✅ Transferência para atendente humano\n✅ Configuração completa incluída\n\n💰 Investimento: R$ [valor]\n⚡ Ativação em [X] dias\n\nPosso fazer uma demonstração ao vivo? É gratuita! 😊` },
-  { title: 'Fechamento — condição especial', category: 'closing', isDefault: true, isFavorite: false, tags: ['fechamento', 'urgência'],
-    body: `Oi, [Nome]! 😊\n\nTemos uma condição especial disponível esta semana:\n\n🎯 [Desconto ou benefício]\n📅 Válido até [data]\n\nSeria uma pena perder! Posso reservar uma vaga para você?\n\nMe avisa que acertamos os detalhes rapidinho. 🚀` },
-  { title: 'Recuperação — cliente que sumiu', category: 'recovery', isDefault: true, isFavorite: false, tags: ['recuperação'],
-    body: `Oi, [Nome]! Faz um tempo que não conversamos! 😊\n\nTudo bem por aí?\n\nQueria ver se você teve chance de pensar na proposta, ou se tem interesse em conhecer alguma novidade que lançamos.\n\nEstamos com projetos muito legais! Posso te mostrar?` },
-  { title: 'Não atendeu — deixar recado', category: 'followup', isDefault: true, isFavorite: false, tags: ['não atendeu', 'recado'],
-    body: `Oi, [Nome]! Tentei te ligar agora mas não consegui falar.\n\nSou [Seu Nome] da Develoi — entro em contato sobre uma solução digital para [estabelecimento].\n\nQuando tiver um momento, pode me retornar? 😊\n\n📞 [Seu número]` },
-  { title: 'Onboarding — boas-vindas', category: 'onboarding', isDefault: true, isFavorite: false, tags: ['onboarding'],
-    body: `Bem-vindo(a) à Develoi, [Nome]! 🎉🚀\n\nFicamos muito felizes em ter você como cliente!\n\nNos próximos dias você vai receber:\n📋 Formulário de briefing\n📅 Confirmação do prazo\n💬 Acesso ao painel do projeto\n\nQualquer dúvida, é só chamar! Estamos juntos. 💪` },
-  { title: 'Upsell — para cliente ativo', category: 'upsell', isDefault: true, isFavorite: false, tags: ['upsell'],
-    body: `Olá, [Nome]! Tudo bem? 😊\n\nEspero que esteja satisfeito com [produto atual]!\n\nTinha uma novidade que acho que vai te interessar: [novo produto/funcionalidade].\n\nPode complementar muito o que você já tem e trazer resultados ainda melhores. 💡\n\nPosso te apresentar em 10 minutos?` },
-  { title: 'Suporte — resposta a problema', category: 'support', isDefault: true, isFavorite: false, tags: ['suporte'],
-    body: `Olá, [Nome]! Obrigado por entrar em contato. 😊\n\nRecebi sua mensagem sobre [problema/dúvida] e já estou verificando.\n\nRetornarei em breve com a solução. Se precisar de algo enquanto isso, pode me chamar!\n\nEstamos aqui para ajudar. 🙏` },
-];
-
 type TabView = 'contacts' | 'history' | 'messages';
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
@@ -111,6 +81,8 @@ export function ClientContactManager() {
 
   const [tabView, setTabView] = useState<TabView>('contacts');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [genOpen, setGenOpen] = useState(false);
+  const [sendMsg, setSendMsg] = useState<ReadyMessage | null>(null);
   useEffect(() => { setRefreshKey(k => k + 1); }, [tabView]);
   const [messages, setMessages] = useState<ReadyMessage[]>([]);
   const [contacts, setContacts] = useState<ClientContact[]>([]);
@@ -144,11 +116,12 @@ export function ClientContactManager() {
       const [msgRes, contactRes, prodRes] = await Promise.all([
         fetch(`/api/ready-messages?userId=${userId}`),
         fetch(`/api/client-contacts?userId=${userId}`),
-        fetch('/api/products'),
+        fetch('/api/leads/options'),
       ]);
       const msgs: ReadyMessage[] = await msgRes.json();
       setContacts(await contactRes.json());
-      setProducts(await prodRes.json());
+      const opts = await prodRes.json();
+      setProducts(((opts.products ?? []) as string[]).map(n => ({ id: n, name: n }) as Product));
 
       // Seed de mensagens padrão se vazio
       if (msgs.length === 0) {
@@ -259,6 +232,9 @@ export function ClientContactManager() {
           </h2>
           <p className="text-sm text-slate-400 mt-0.5">Todos os contatos (prospecção, clientes e vendas), mensagens prontas e o registro do que foi enviado</p>
         </div>
+        {tabView === 'messages' && (
+          <Button variant="outline" iconLeft={<Sparkles className="w-4 h-4" />} onClick={() => setGenOpen(true)}>GERAR POR PRODUTO</Button>
+        )}
         {tabView !== 'history' && (
         <Button
           iconLeft={<Plus className="w-4 h-4" />}
@@ -372,7 +348,7 @@ export function ClientContactManager() {
                               className={`p-1.5 rounded-lg transition-colors ${msg.isFavorite ? 'text-amber-400' : 'text-slate-300 hover:text-amber-400'}`}>
                               <Star className="w-3.5 h-3.5" fill={msg.isFavorite ? 'currentColor' : 'none'} />
                             </button>
-                            {!msg.isDefault && (
+                            {(
                               <button onClick={() => { setEditingMsg(msg); setIsMsgFormOpen(true); }}
                                 className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors">
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -412,11 +388,11 @@ export function ClientContactManager() {
                           <Copy className="w-3.5 h-3.5" /> COPIAR
                         </button>
                         <button
-                          onClick={() => { setSendingContact(null); setPreviewMsg(msg); }}
+                          onClick={() => setSendMsg(msg)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-black text-white transition-all hover:opacity-90"
                           style={{ background: '#15803D' }}
                         >
-                          <Send className="w-3.5 h-3.5" /> ENVIAR WA
+                          <Send className="w-3.5 h-3.5" /> ENVIAR
                         </button>
                       </div>
                     </motion.div>
@@ -467,8 +443,15 @@ export function ClientContactManager() {
           contacts={contacts}
           onClose={() => setPreviewMsg(null)}
           onCopy={() => { navigator.clipboard.writeText(previewMsg.body); toast('Copiado!', 'success'); setPreviewMsg(null); }}
-          onSend={contact => { setSendingContact(contact); setPreviewMsg(null); }}
+          onSend={() => { setSendMsg(previewMsg); setPreviewMsg(null); }}
         />
+      )}
+
+      {sendMsg && <SendFromMessageModal message={sendMsg} onClose={() => setSendMsg(null)} onSent={() => { fetchData(); setRefreshKey(k => k + 1); }} />}
+
+      {genOpen && (
+        <GenerateMessagesModal existingTitles={messages.map(x => x.title)} userId={userId} onClose={() => setGenOpen(false)}
+          onCreated={list => { setMessages(prev => [...list, ...prev]); setGenOpen(false); toast(`${list.length} mensagem(ns) criada(s)`, 'success'); }} />
       )}
 
       {isMsgFormOpen && (
@@ -712,11 +695,9 @@ function ContactDetailModal({ contact, messages, onClose, onEdit, onSend, onStat
 
 function MsgPreviewModal({ message, contacts, onClose, onCopy, onSend }: {
   message: ReadyMessage; contacts: ClientContact[];
-  onClose: () => void; onCopy: () => void; onSend: (c: ClientContact) => void;
+  onClose: () => void; onCopy: () => void; onSend: () => void;
 }) {
   const catCfg = CATEGORY_CONFIG[message.category];
-  const [selectedContactId, setSelectedContactId] = useState('');
-  const contactsWithPhone = contacts.filter(c => c.clientPhone);
 
   return (
     <Modal isOpen onClose={onClose} title={message.title} size="md">
@@ -727,30 +708,14 @@ function MsgPreviewModal({ message, contacts, onClose, onCopy, onSend }: {
         <div className="bg-slate-50 dark:bg-white/5 rounded-2xl p-4 text-sm leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-wrap max-h-64 overflow-y-auto">
           {message.body}
         </div>
-        {contactsWithPhone.length > 0 && (
-          <Select label="Enviar para um contato da lista" value={selectedContactId} onChange={e => setSelectedContactId(e.target.value)}>
-            <option value="">Selecionar contato...</option>
-            {contactsWithPhone.map(c => (
-              <option key={c.id} value={c.id}>{c.establishmentName ?? c.clientName} — {c.clientPhone}</option>
-            ))}
-          </Select>
-        )}
         <div className="flex gap-2">
           <button onClick={onCopy} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
             <Copy className="w-4 h-4" /> Copiar
           </button>
-          {selectedContactId ? (
-            <button onClick={() => onSend(contacts.find(c => c.id === selectedContactId)!)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-black text-sm hover:opacity-90 transition-all" style={{ background: '#15803D' }}>
-              <Send className="w-4 h-4" /> Enviar WA
-            </button>
-          ) : (
-            <a href={`https://wa.me/?text=${encodeURIComponent(message.body)}`} target="_blank" rel="noopener noreferrer"
-              onClick={onClose}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-black text-sm hover:opacity-90 transition-all" style={{ background: '#15803D' }}>
-              <Send className="w-4 h-4" /> Abrir WA
-            </a>
-          )}
+          <button onClick={() => onSend()}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white font-black text-sm hover:opacity-90 transition-all" style={{ background: '#15803D' }}>
+            <Send className="w-4 h-4" /> Enviar pela BiIA
+          </button>
         </div>
       </div>
     </Modal>
@@ -771,6 +736,69 @@ function WhatsAppSendModal({ contact, messages, onClose, onSent }: {
       target={{ name: contact.establishmentName ?? contact.clientName, subtitle: contact.ownerName ?? undefined, phone: contact.clientPhone ?? '', contactId: contact.id }}
       templates={templates} initialId={templates.find(t => t.id === contact.messageId)?.id} title="Enviar mensagem"
       onClose={onClose} onSent={onSent} />
+  );
+}
+
+// ─── Gerar mensagens de um produto ───────────────────────────────────────────
+function GenerateMessagesModal({ existingTitles, userId, onClose, onCreated }: {
+  existingTitles: string[]; userId: string; onClose: () => void; onCreated: (list: ReadyMessage[]) => void;
+}) {
+  const { show: toast } = useToast();
+  const [items, setItems] = useState<{ name: string; description: string }[]>([]);
+  const [name, setName] = useState('');
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { fetch('/api/leads/options').then(r => r.json()).then(d => { setItems(d.items ?? []); if (d.items?.[0]) setName(d.items[0].name); }).catch(() => {}); }, []);
+  const item = items.find(x => x.name === name);
+  const generated = useMemo(() => (name ? generateProductMessages(name, item?.description) : []), [name, item]);
+  const known = name ? pitchFor(name, item?.description).known : true;
+  useEffect(() => { setPicked(Object.fromEntries(generated.map(g => [g.title, !existingTitles.includes(g.title)]))); }, [generated]); // eslint-disable-line
+
+  const create = async () => {
+    const chosen = generated.filter(g => picked[g.title]);
+    if (!chosen.length) return toast('Marque ao menos uma mensagem', 'error');
+    setSaving(true);
+    try {
+      const created: ReadyMessage[] = [];
+      for (const g of chosen) {
+        const r = await fetch('/api/ready-messages', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...g, id: uuidv4(), userId, productId: name, createdAt: new Date().toISOString() }),
+        });
+        if (r.ok) created.push(await r.json());
+      }
+      onCreated(created);
+    } catch { toast('Não foi possível criar as mensagens', 'error'); }
+    setSaving(false);
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title="Gerar mensagens de um produto" size="xl"
+      footer={<Button loading={saving} fullWidth onClick={create}>CRIAR {Object.values(picked).filter(Boolean).length} MENSAGEM(NS)</Button>}>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-500">Escolha um produto e eu monto um conjunto de mensagens no tom de conversa: primeiro contato, retomar, demonstração, proposta, fechamento e recuperação. Depois você edita o que quiser.</p>
+        <Select label="Produto" value={name} onChange={e => setName(e.target.value)}>
+          {items.map(i => <option key={i.name} value={i.name}>{i.name}</option>)}
+        </Select>
+        {!known && (
+          <div className="flex gap-2 text-xs rounded-xl p-3 bg-amber-50 text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>Este produto ainda não tem uma descrição cadastrada, então os textos ficaram genéricos. Revise e edite antes de enviar para alguém.</span>
+          </div>
+        )}
+        <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+          {generated.map(g => (
+            <label key={g.title} className="flex gap-3 rounded-xl border border-slate-200 dark:border-white/10 p-3 cursor-pointer">
+              <input type="checkbox" className="mt-1" checked={!!picked[g.title]} onChange={e => setPicked(p => ({ ...p, [g.title]: e.target.checked }))} />
+              <div className="min-w-0">
+                <p className="text-sm font-black text-slate-900 dark:text-white">{g.title}{existingTitles.includes(g.title) && <span className="ml-2 text-[10px] font-bold text-slate-400">já existe</span>}</p>
+                <p className="text-xs text-slate-500 whitespace-pre-wrap mt-1">{g.body}</p>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -809,7 +837,7 @@ function MessageFormModal({ message, products, userId, onClose, onSaved }: {
         title, category,
         productId: productId || undefined,
         productName: sp?.name,
-        body, isDefault: false, isFavorite: message?.isFavorite ?? false,
+        body, isDefault: message?.isDefault ?? false, isFavorite: message?.isFavorite ?? false,
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         createdAt: message?.createdAt ?? new Date().toISOString(),
       };
