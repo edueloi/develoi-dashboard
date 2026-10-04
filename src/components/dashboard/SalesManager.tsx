@@ -135,6 +135,17 @@ export function SalesManager() {
   const wonMonth = won.filter(x => { const d = dateOf(x); return d.getFullYear() === nowD.getFullYear() && d.getMonth() === nowD.getMonth(); });
   const ticket = totalWon ? totalRevenue / totalWon : 0;
 
+  const undoWon = async (sale: Sale) => {
+    if (!window.confirm(`Desfazer o fechamento de ${sale.clientName}? A venda volta para negociação, o lead volta para a Proposta na Prospecção e o cliente criado é removido (se ainda não tiver recebimentos).`)) return;
+    try {
+      const r = await fetch(`/api/sales/${sale.id}/revert-to-prospecting`, { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'erro');
+      setSales(prev => prev.map(x => (x.id === sale.id ? { ...x, status: 'negotiation', closedAt: undefined } as Sale : x)));
+      toast(d.clientKept ? `Voltou para negociação. O cliente foi mantido porque ${d.clientKept}.` : 'Voltou para negociação', 'success');
+    } catch (e: any) { toast(e.message === 'erro' ? 'Não deu para desfazer agora.' : e.message, 'error'); }
+  };
+
   // atalhos de andamento direto na linha
   const quick = async (sale: Sale, status: SaleStatus) => {
     try {
@@ -290,6 +301,7 @@ export function SalesManager() {
                         ...(sale.status === 'lead' ? [{ label: 'Mover para negociação', icon: Clock, onClick: () => quick(sale, 'negotiation') }] : []),
                         ...(sale.status === 'lead' || sale.status === 'negotiation' ? [{ label: 'Marcar como perdida', icon: XCircle, onClick: () => quick(sale, 'lost') }] : []),
                         ...(sale.status === 'lost' || sale.status === 'cancelled' ? [{ label: 'Reabrir como lead', icon: UserPlus, onClick: () => quick(sale, 'lead') }] : []),
+                        ...(sale.status === 'won' ? [{ label: 'Desfazer fechamento (voltar à negociação)', icon: Clock, onClick: () => undoWon(sale) }] : []),
                         { label: 'Remover', icon: Trash2, danger: true, onClick: () => setDeletingId(sale.id) },
                       ]} />
                     </div>

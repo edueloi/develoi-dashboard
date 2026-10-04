@@ -127,6 +127,16 @@ export function ClientsManager() {
     if (n === 0) return 'Teste termina hoje';
     return `Em teste · termina em ${n} ${n === 1 ? 'dia' : 'dias'}`;
   };
+  const backToProspecting = async (c: Client) => {
+    if (!window.confirm(`Voltar ${c.name} para a Prospecção? O negócio volta para a etapa Proposta e a venda volta para negociação. O cadastro de cliente é removido, a menos que já tenha recebimentos, cobranças ou loja.`)) return;
+    try {
+      const res = await fetch(`/api/clients/${c.id}/revert-to-prospecting`, { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'erro');
+      toast(d.clientKept ? `Voltou para a Prospecção. O cliente foi mantido porque ${d.clientKept}.` : 'Voltou para a Prospecção', 'success');
+      fetchData();
+    } catch (e: any) { toast(e.message === 'erro' ? 'Não deu para voltar agora.' : e.message, 'error'); }
+  };
   const extendTrial = async (c: Client, days: number) => {
     try {
       const res = await fetch(`/api/clients/${c.id}/trial/extend`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days }) });
@@ -269,6 +279,7 @@ export function ClientsManager() {
                       { label: 'Estender teste em 7 dias', icon: Clock, onClick: () => extendTrial(c, 7) },
                     ] : c.status === 'active' ? [{ label: 'Colocar em período de teste', icon: Clock, onClick: () => extendTrial(c, 14) }] : []),
                     { label: 'Editar', icon: Edit2, onClick: () => setFormState({ open: true, client: c }) },
+                    { label: 'Voltar para Prospecção', icon: RefreshCw, onClick: () => backToProspecting(c) },
                     { label: 'Excluir', icon: Trash2, danger: true, onClick: () => setDeleting(c) },
                   ]} />
                 </div>

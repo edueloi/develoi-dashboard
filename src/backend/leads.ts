@@ -60,6 +60,59 @@ async function ensureSale(lead: any, saleStatus: string) {
   return sale;
 }
 
+// Desfaz um avanço errado: o negócio volta para a Prospecção (etapa Proposta), a venda volta para negociação
+// e o cliente criado na conversão é removido, a menos que já tenha recebimentos, cobranças ou loja (aí fica e o aviso explica).
+export async function revertToProspecting(opts: { leadId?: string; saleId?: string; clientId?: string }) {
+  let lead = opts.leadId ? await prisma.lead.findUnique({ where: { id: opts.leadId } }) : null;
+  let sale = opts.saleId ? await prisma.sale.findUnique({ where: { id: opts.saleId } }) : null;
+  let client = opts.clientId ? await prisma.client.findUnique({ where: { id: opts.clientId } }) : null;
+
+  if (!lead && sale) lead = await prisma.lead.findFirst({ where: { saleId: sale.id } });
+  if (!lead && client) lead = await prisma.lead.findFirst({ where: { OR: [{ clientId: client.id }, ...(client.saleId ? [{ saleId: client.saleId }] : [])] } });
+  if (!sale && lead?.saleId) sale = await prisma.sale.findUnique({ where: { id: lead.saleId } });
+  if (!sale && client?.saleId) sale = await prisma.sale.findUnique({ where: { id: client.saleId } });
+  if (!client && lead?.clientId) client = await prisma.client.findUnique({ where: { id: lead.clientId } });
+  if (!client && sale) client = await prisma.client.findFirst({ where: { saleId: sale.id } });
+  if (!lead && !sale && !client) throw new Error("Não encontrei nada para voltar.");
+
+  // sem lead ainda (venda ou cliente que nasceram direto): cria o lead com os dados que existem
+  if (!lead) {
+    lead = await prisma.lead.create({
+      data: {
+        name: client?.name ?? sale!.clientName, company: client?.businessName ?? null, phone: client?.phone ?? sale?.clientPhone ?? null, email: client?.email ?? sale?.clientEmail ?? null,
+        source: "outro", product: sale?.productName && sale.productName !== "A definir" ? sale.productName : null, value: client?.billingValue ?? sale?.value ?? 0, status: "proposal",
+      },
+    });
+    await prisma.leadActivity.create({ data: { leadId: lead.id, type: "status", text: "Lead recriado a partir de uma venda/cliente que voltou para a Prospecção" } });
+  }
+
+  if (sale && (sale.status === "won" || sale.status === "lost" || sale.status === "cancelled")) {
+    sale = await prisma.sale.update({ where: { id: sale.id }, data: { status: "negotiation", closedAt: null } });
+  }
+
+  let clientRemoved = false, clientKept: string | null = null;
+  if (client) {
+    const [pays, charges, recs] = await Promise.all([
+      prisma.clientPayment.count({ where: { clientId: client.id } }),
+      prisma.asaasCharge.count({ where: { clientId: client.id } }),
+      prisma.receivable.count({ where: { clientId: client.id } }),
+    ]);
+    if (pays || charges || recs || client.boxsysTenantId || client.asaasSubscriptionId) {
+      clientKept = pays || charges || recs ? "ele já tem recebimentos ou cobranças registrados" : "ele já tem loja no BoxSys ou assinatura no Asaas";
+    } else {
+      await prisma.client.delete({ where: { id: client.id } });
+      clientRemoved = true;
+    }
+  }
+
+  const updated = await prisma.lead.update({
+    where: { id: lead.id },
+    data: { status: "proposal", clientId: clientRemoved ? null : (clientKept ? client!.id : null), saleId: sale?.id ?? lead.saleId, lostReason: null },
+  });
+  await prisma.leadActivity.create({ data: { leadId: lead.id, type: "status", text: `Voltou para a Prospecção (Proposta).${clientRemoved ? " O cliente criado por engano foi removido." : clientKept ? ` O cliente foi mantido porque ${clientKept}.` : ""}` } });
+  return { lead: updated, clientRemoved, clientKept };
+}
+
 // Quando a venda muda lá em Vendas, o lead da Prospecção acompanha
 export async function syncLeadFromSale(sale: { id: string; status: string }) {
   const lead = await prisma.lead.findFirst({ where: { saleId: sale.id } });
@@ -209,6 +262,10 @@ export function registerLeadRoutes(app: Express) {
       res.json({ lead: updated, clientId, reused: !!existing });
     } catch (e) { fail(res, e); }
   });
+
+  app.post("/api/leads/:id/revert", async (req, res) => { try { res.json(await revertToProspecting({ leadId: req.params.id })); } catch (e) { fail(res, e); } });
+  app.post("/api/sales/:id/revert-to-prospecting", async (req, res) => { try { res.json(await revertToProspecting({ saleId: req.params.id })); } catch (e) { fail(res, e); } });
+  app.post("/api/clients/:id/revert-to-prospecting", async (req, res) => { try { res.json(await revertToProspecting({ clientId: req.params.id })); } catch (e) { fail(res, e); } });
 
   app.delete("/api/leads/:id", async (req, res) => {
     try { await prisma.lead.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }

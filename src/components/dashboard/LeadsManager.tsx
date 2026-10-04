@@ -153,6 +153,11 @@ export const LeadsManager: React.FC = () => {
     }
     if (await call(`/api/leads/${l.id}/status`, 'POST', { status, lostReason })) load();
   };
+  const undoWon = async (l: Lead) => {
+    if (!confirm(`Desfazer o ganho de ${l.name}? Ele volta para a etapa Proposta, a venda volta para negociação e o cliente criado é removido (se ainda não tiver recebimentos).`)) return;
+    const r = await call(`/api/leads/${l.id}/revert`, 'POST');
+    if (r) { toast(r.clientKept ? `Voltou para a Proposta. O cliente foi mantido porque ${r.clientKept}.` : 'Voltou para a Proposta', 'success'); load(); }
+  };
   const setFollow = async (l: Lead, date: string | null) => { if (await call(`/api/leads/${l.id}`, 'PATCH', { nextFollowUp: date })) load(); };
 
   // filtros comuns (busca, produto, origem, temperatura, follow-up)
@@ -261,7 +266,7 @@ export const LeadsManager: React.FC = () => {
                 { label: 'Falar amanhã', icon: CalendarClock, onClick: () => setFollow(l, inDays(1)) },
                 { label: 'Falar em 1 semana', icon: CalendarClock, onClick: () => setFollow(l, inDays(7)) },
                 { label: 'Marcar como perdido', icon: XCircle, onClick: () => setLosing(l) },
-              ] : [{ label: 'Reabrir', icon: RotateCcw, onClick: () => move(l, 'new') }]),
+              ] : l.status === 'won' ? [{ label: 'Desfazer ganho (voltar para Proposta)', icon: RotateCcw, onClick: () => undoWon(l) }] : [{ label: 'Reabrir', icon: RotateCcw, onClick: () => move(l, 'new') }]),
               ...(l.status !== 'won' ? [{ label: 'Converter em cliente', icon: UserPlus, onClick: () => move(l, 'won') }] : []),
               { label: 'Excluir', icon: Trash2, danger: true, onClick: async () => { if (confirm(`Excluir o lead ${l.name}?`)) { if (await call(`/api/leads/${l.id}`, 'DELETE')) load(); } } },
             ]} />
