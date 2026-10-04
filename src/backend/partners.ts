@@ -204,7 +204,7 @@ export function registerPartnerRoutes(app: Express) {
       if (!name) return fail(res, new Error("Informe o nome do sócio."), 400);
       const pct = Number(req.body?.sharePercent);
       if (!(pct >= 0 && pct <= 100)) return fail(res, new Error("A porcentagem deve ficar entre 0 e 100."), 400);
-      res.json(await prisma.partner.create({ data: { name, sharePercent: pct, email: req.body?.email || null, role: req.body?.role || null, color: req.body?.color || null } }));
+      res.json(await prisma.partner.create({ data: { name, sharePercent: pct, email: req.body?.email || null, role: req.body?.role || null, color: req.body?.color || null, birthDate: req.body?.birthDate ? new Date(req.body.birthDate) : null } }));
     } catch (e) { fail(res, e); }
   });
   app.patch("/api/partners/:id", async (req, res) => {
@@ -213,6 +213,7 @@ export function registerPartnerRoutes(app: Express) {
       if (req.body?.name !== undefined) d.name = String(req.body.name).trim();
       if (req.body?.sharePercent !== undefined) { const p = Number(req.body.sharePercent); if (!(p >= 0 && p <= 100)) return fail(res, new Error("A porcentagem deve ficar entre 0 e 100."), 400); d.sharePercent = p; }
       for (const k of ["email", "role", "color", "responsibilities"]) if (req.body?.[k] !== undefined) d[k] = req.body[k] || null;
+      if (req.body?.birthDate !== undefined) d.birthDate = req.body.birthDate ? new Date(req.body.birthDate) : null;
       if (req.body?.active !== undefined) d.active = !!req.body.active;
       res.json(await prisma.partner.update({ where: { id: req.params.id }, data: d }));
     } catch (e) { fail(res, e); }

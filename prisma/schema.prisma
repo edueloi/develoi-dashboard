@@ -601,6 +601,7 @@ model TeamRecipient {
   notifyPayables    Boolean  @default(true)  // resumo de contas a pagar
   notifyReceivables Boolean  @default(true)  // resumo de contas a receber
   notifyMeetings    Boolean  @default(true)  // lembrete de reuniões
+  notifyBirthdays   Boolean  @default(true)  // aniversário de sócios e clientes
   active            Boolean  @default(true)
   createdAt         DateTime @default(now())
 
@@ -864,6 +865,7 @@ model Partner {
   active          Boolean  @default(true)
   sortOrder       Int      @default(0)
   responsibilities String? @db.Text // o que esse sócio é responsável por fazer, na função dele
+  birthDate       DateTime? // data de nascimento, para lembrete de aniversário
   createdAt       DateTime @default(now())
 
   goals       BusinessGoal[]

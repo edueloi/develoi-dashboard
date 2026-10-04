@@ -18,7 +18,7 @@ const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curr
 const digits = (v: string) => String(v || "").replace(/\D/g, "");
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-export interface TeamNoticeResult { recipient: string; kind: "payables" | "receivables" | "meeting"; sent: boolean; detail?: string }
+export interface TeamNoticeResult { recipient: string; kind: "payables" | "receivables" | "meeting" | "birthdays"; sent: boolean; detail?: string }
 
 function lines(items: string[]) {
   const shown = items.slice(0, MAX_LINES);
@@ -89,6 +89,31 @@ async function buildReceivablesDigest(): Promise<string | null> {
   ].filter(Boolean).join("\n\n");
 }
 
+async function buildBirthdaysDigest(): Promise<string | null> {
+  const { month: tm, day: td } = brtParts();
+  const tomorrow = new Date(brtTodayUtc().getTime() + DAY_MS);
+  const tmw = tomorrow.getUTCMonth() + 1, tdw = tomorrow.getUTCDate();
+  const match = (b: Date | null, m: number, d: number) => !!b && b.getUTCMonth() + 1 === m && b.getUTCDate() === d;
+
+  const [clients, partners] = await Promise.all([
+    prisma.client.findMany({ where: { birthDate: { not: null }, status: { not: "cancelled" } }, select: { name: true, birthDate: true } }),
+    prisma.partner.findMany({ where: { birthDate: { not: null }, active: true }, select: { name: true, birthDate: true } }),
+  ]);
+  const listFor = (m: number, d: number) => [
+    ...clients.filter(c => match(c.birthDate, m, d)).map(c => `• ${c.name} (cliente)`),
+    ...partners.filter(p => match(p.birthDate, m, d)).map(p => `• ${p.name} (sócio)`),
+  ];
+  const today = listFor(tm, td);
+  const tomorrowList = listFor(tmw, tdw);
+  if (!today.length && !tomorrowList.length) return null;
+
+  return [
+    `🎂 *Aniversários*`,
+    today.length ? `🎉 *Hoje:*\n${lines(today)}` : null,
+    tomorrowList.length ? `🔔 *Amanhã:*\n${lines(tomorrowList)}` : null,
+  ].filter(Boolean).join("\n\n");
+}
+
 function meetingMessage(m: { title: string; startsAt: Date; location: string | null; notes: string | null; attendees: { recipient: { name: string } }[] }) {
   const hoursLeft = Math.max(0, Math.round((m.startsAt.getTime() - Date.now()) / 3_600_000));
   const when = hoursLeft >= 20 ? "amanhã" : hoursLeft <= 1 ? "em breve" : `em ${hoursLeft}h`;
@@ -117,11 +142,12 @@ export async function runTeamNotices(opts: { dryRun?: boolean; ignoreHours?: boo
 
   // 1) resumos diários
   if (inDigestWindow) {
-    const [payables, receivables] = await Promise.all([buildPayablesDigest(), buildReceivablesDigest()]);
+    const [payables, receivables, birthdays] = await Promise.all([buildPayablesDigest(), buildReceivablesDigest(), buildBirthdaysDigest()]);
     for (const r of recipients) {
       for (const [kind, flag, text] of [
         ["payables", r.notifyPayables, payables],
         ["receivables", r.notifyReceivables, receivables],
+        ["birthdays", r.notifyBirthdays, birthdays],
       ] as const) {
         if (!flag || !text) continue;
         const key = `${kind}:${r.id}:${dateKey}`;
@@ -189,6 +215,7 @@ export function registerTeamNoticeRoutes(app: Express) {
     ...(b.notifyPayables !== undefined && { notifyPayables: !!b.notifyPayables }),
     ...(b.notifyReceivables !== undefined && { notifyReceivables: !!b.notifyReceivables }),
     ...(b.notifyMeetings !== undefined && { notifyMeetings: !!b.notifyMeetings }),
+    ...(b.notifyBirthdays !== undefined && { notifyBirthdays: !!b.notifyBirthdays }),
     ...(b.active !== undefined && { active: !!b.active }),
   });
 

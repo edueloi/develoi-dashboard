@@ -5,7 +5,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, Save, Star,
 } from 'lucide-react';
 import {
-  Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar,
+  Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
 } from '../ui';
 import type { BadgeColor } from '../ui/Badge';
 import { useToast } from '../ui/Toast';
@@ -17,7 +17,7 @@ import { format } from 'date-fns';
 
 // ─── Tipos locais (espelham o Prisma) ─────────────────────────────────────────
 
-interface Partner { id: string; name: string; sharePercent: number; email?: string | null; role?: string | null; color?: string | null; active: boolean; responsibilities?: string | null }
+interface Partner { id: string; name: string; sharePercent: number; email?: string | null; role?: string | null; color?: string | null; active: boolean; responsibilities?: string | null; birthDate?: string | null }
 interface BusinessPlan {
   missionText?: string | null; visionText?: string | null; valuesText?: string | null;
   swotStrengths?: string | null; swotWeaknesses?: string | null; swotOpportunities?: string | null; swotThreats?: string | null;
@@ -556,7 +556,10 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
                 </div>
                 <div>
                   <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.name}</p>
-                  <p className="text-[11px] text-slate-400">{p.role || 'Sócio'} · {p.sharePercent}% da sociedade</p>
+                  <p className="text-[11px] text-slate-400">
+                    {p.role || 'Sócio'} · {p.sharePercent}% da sociedade
+                    {p.birthDate && ` · 🎂 ${format(new Date(p.birthDate), 'dd/MM')}`}
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -642,6 +645,7 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
 function ResponsibilitiesModal({ partner, onClose, onSuccess }: { partner: Partner; onClose: () => void; onSuccess: () => void }) {
   const { show: toast } = useToast();
   const [text, setText] = useState(partner.responsibilities || '');
+  const [birthDate, setBirthDate] = useState<string | null>(partner.birthDate ? partner.birthDate.slice(0, 10) : null);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -649,10 +653,10 @@ function ResponsibilitiesModal({ partner, onClose, onSuccess }: { partner: Partn
     setSaving(true);
     try {
       const res = await fetch(`/api/partners/${partner.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsibilities: text }),
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsibilities: text, birthDate }),
       });
       if (!res.ok) throw new Error();
-      toast('Responsabilidades atualizadas', 'success');
+      toast('Informações atualizadas', 'success');
       onSuccess();
     } catch {
       toast('Não deu para salvar agora. Tente de novo.', 'error');
@@ -662,9 +666,14 @@ function ResponsibilitiesModal({ partner, onClose, onSuccess }: { partner: Partn
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={`Responsabilidades de ${partner.name}`} size="md">
+    <Modal isOpen={true} onClose={onClose} title={`Informações de ${partner.name}`} size="md">
       <form onSubmit={handleSubmit} className="space-y-5">
         <Textarea label="O que esse sócio é responsável por fazer na função dele" value={text} onChange={e => setText(e.target.value)} rows={8} placeholder="Ex: Cuidar do desenvolvimento técnico, decidir arquitetura dos sistemas, atender chamados críticos..." />
+        <div className="flex flex-col gap-1.5">
+          <label className="ds-label">Data de aniversário</label>
+          <DatePicker value={birthDate} onChange={setBirthDate} />
+          <p className="text-[11px] text-slate-400">Quem tiver o aviso de aniversário ativado recebe um lembrete no WhatsApp no dia.</p>
+        </div>
         <Button type="submit" loading={saving} fullWidth size="lg">SALVAR</Button>
       </form>
     </Modal>
