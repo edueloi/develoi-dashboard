@@ -71,6 +71,7 @@ import { SalesManager } from '../components/dashboard/SalesManager';
 import { ClientsManager } from '../components/dashboard/ClientsManager';
 import { ReceivablesManager } from '../components/dashboard/ReceivablesManager';
 import { PayablesManager } from '../components/dashboard/PayablesManager';
+import { LeadsManager } from '../components/dashboard/LeadsManager';
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
@@ -116,6 +117,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   products:        '/dashboard/produtos',
   'client-contact':'/dashboard/contatos',
   clients:         '/dashboard/clientes',
+  leads:           '/dashboard/prospeccao',
   receivables:     '/dashboard/contas-a-receber',
   payables:        '/dashboard/contas-a-pagar',
   'profile':       '/dashboard/perfil',
@@ -232,6 +234,7 @@ export default function Dashboard() {
     products:        'Produtos & Planos',
     'client-contact':'Contato com Clientes',
     clients:         'Clientes',
+    leads:           'Prospecção',
     receivables:     'Contas a Receber',
     payables:        'Contas a Pagar',
     'wa-inbox':      'Atendimento WhatsApp',
@@ -245,7 +248,7 @@ export default function Dashboard() {
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'leads', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -319,6 +322,7 @@ export default function Dashboard() {
 
           <NavSection label="Comercial">
             <NavItem icon={BarChart2} label="Vendas" active={activeTab === 'sales'} onClick={() => goTo('sales')} />
+            <NavItem icon={Target} label="Prospecção" active={activeTab === 'leads'} onClick={() => goTo('leads')} />
             <NavItem icon={Users} label="Clientes" active={activeTab === 'clients'} onClick={() => goTo('clients')} />
             <NavItem icon={ShoppingBag} label="Produtos & Planos" active={activeTab === 'products'} onClick={() => goTo('products')} />
             <NavItem icon={PhoneCall} label="Contato com Clientes" active={activeTab === 'client-contact'} onClick={() => goTo('client-contact')} />
@@ -777,6 +781,7 @@ export default function Dashboard() {
               {activeTab === 'clients' && <ClientsManager />}
               {activeTab === 'receivables' && <ReceivablesManager />}
               {activeTab === 'payables' && <PayablesManager />}
+              {activeTab === 'leads' && <LeadsManager />}
               {activeTab === 'profile' && <MyProfile />}
             </AnimatePresence>
           </div>

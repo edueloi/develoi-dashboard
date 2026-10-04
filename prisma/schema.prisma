@@ -793,3 +793,39 @@ model WppContactMemory {
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
 }
+
+// Prospecção: funil de leads (novo → contatado → reunião → proposta → ganho/perdido)
+model Lead {
+  id            String    @id @default(uuid())
+  name          String    @db.VarChar(150) // pessoa de contato
+  company       String?   @db.VarChar(150) // nome do estabelecimento/empresa
+  phone         String?   @db.VarChar(40)
+  email         String?   @db.VarChar(150)
+  city          String?   @db.VarChar(100)
+  source        String    @default("manual") @db.VarChar(40) // manual | indicacao | instagram | site | whatsapp | bia | planilha | outro
+  product       String?   @db.VarChar(120) // produto de interesse
+  status        String    @default("new") @db.VarChar(20) // new | contacted | meeting | proposal | won | lost
+  value         Float     @default(0) // valor mensal estimado
+  nextFollowUp  DateTime? // próximo contato combinado
+  lastContactAt DateTime?
+  notes         String?   @db.Text
+  lostReason    String?   @db.VarChar(200)
+  clientId      String?   // cliente criado a partir deste lead
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  activities    LeadActivity[]
+
+  @@index([status])
+  @@index([nextFollowUp])
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String   @default("note") @db.VarChar(20) // note | call | whatsapp | email | meeting | status
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+}

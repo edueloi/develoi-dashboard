@@ -165,6 +165,7 @@ export type ActiveTab =
   | 'products'
   | 'client-contact'
   | 'clients'
+  | 'leads'
   | 'receivables'
   | 'payables'
   | 'profile';
