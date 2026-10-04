@@ -8,6 +8,8 @@ import {
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, Badge, EmptyState,
 } from '../ui';
+import { Pagination, usePagination } from '../ui/Pagination';
+import { RowMenu } from './financeShared';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Sale, SaleStatus, Product } from './types';
@@ -38,7 +40,11 @@ export function SalesManager() {
   const [users, setUsers] = useState<{ uid: string; displayName: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | SaleStatus>('all');
+  const [tab, setTab] = useState<'open' | 'won' | 'closed' | 'all'>('open');
+  const [filterOrigin, setFilterOrigin] = useState('all');
+  const [filterSeller, setFilterSeller] = useState('all');
+  const [period, setPeriod] = useState<'all' | 'month' | 'last' | '30d' | 'year'>('all');
+  const [sort, setSort] = useState<'recent' | 'old' | 'value' | 'name'>('recent');
   const [filterProduct, setFilterProduct] = useState('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
@@ -77,23 +83,71 @@ export function SalesManager() {
     }
   };
 
-  const filtered = sales.filter(s => {
-    const q = search.toLowerCase();
-    const matchSearch = !q
-      || s.clientName.toLowerCase().includes(q)
-      || s.productName.toLowerCase().includes(q)
-      || (s.clientEmail?.toLowerCase().includes(q) ?? false);
-    const matchStatus = filterStatus === 'all' || s.status === filterStatus;
-    const matchProduct = filterProduct === 'all' || s.productId === filterProduct;
-    return matchSearch && matchStatus && matchProduct;
+  const TABS: { id: 'open' | 'won' | 'closed' | 'all'; label: string; match: (x: Sale) => boolean }[] = [
+    { id: 'open', label: 'Em andamento', match: x => x.status === 'lead' || x.status === 'negotiation' },
+    { id: 'won', label: 'Finalizadas (fechadas)', match: x => x.status === 'won' },
+    { id: 'closed', label: 'Perdidas e canceladas', match: x => x.status === 'lost' || x.status === 'cancelled' },
+    { id: 'all', label: 'Todas', match: () => true },
+  ];
+  const dateOf = (x: Sale) => new Date(x.status === 'won' ? (x.closedAt ?? x.createdAt) : x.createdAt);
+  const inPeriod = (x: Sale) => {
+    if (period === 'all') return true;
+    const d = dateOf(x), now = new Date();
+    if (period === 'month') return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    if (period === 'last') { const l = new Date(now.getFullYear(), now.getMonth() - 1, 1); return d.getFullYear() === l.getFullYear() && d.getMonth() === l.getMonth(); }
+    if (period === '30d') return now.getTime() - d.getTime() <= 30 * 86400000;
+    return d.getFullYear() === now.getFullYear();
+  };
+  const origins = [...new Set(sales.map(x => x.origin).filter(Boolean) as string[])].sort();
+  const sellers = [...new Set(sales.map(x => x.soldByName).filter(Boolean) as string[])].sort();
+
+  // tudo menos a aba: usado para contar cada aba respeitando os filtros
+  const base = sales.filter(x => {
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q || x.clientName.toLowerCase().includes(q) || x.productName.toLowerCase().includes(q) || (x.clientEmail?.toLowerCase().includes(q) ?? false) || (x.clientPhone ?? '').includes(q);
+    return matchSearch
+      && (filterProduct === 'all' || x.productId === filterProduct)
+      && (filterOrigin === 'all' || x.origin === filterOrigin)
+      && (filterSeller === 'all' || x.soldByName === filterSeller)
+      && inPeriod(x);
   });
+  const tabCount = (id: string) => base.filter(TABS.find(t => t.id === id)!.match).length;
+  const STAGE_ORDER: Record<string, number> = { negotiation: 0, lead: 1, won: 0, lost: 0, cancelled: 1 };
+  const filtered = base.filter(TABS.find(t => t.id === tab)!.match).sort((a, b) => {
+    if (tab === 'open' && STAGE_ORDER[a.status] !== STAGE_ORDER[b.status]) return STAGE_ORDER[a.status] - STAGE_ORDER[b.status];
+    if (sort === 'value') return b.value - a.value;
+    if (sort === 'name') return a.clientName.localeCompare(b.clientName);
+    const diff = dateOf(b).getTime() - dateOf(a).getTime();
+    return sort === 'old' ? -diff : diff;
+  });
+  const { page, pageSize, paginatedData, setPage, setPageSize } = usePagination(filtered, 10);
+  const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // Métricas
-  const totalRevenue = sales.filter(s => s.status === 'won').reduce((a, s) => a + s.value, 0);
-  const totalWon = sales.filter(s => s.status === 'won').length;
-  const conversionRate = sales.length > 0
-    ? Math.round((totalWon / sales.length) * 100)
-    : 0;
+  const won = sales.filter(x => x.status === 'won');
+  const totalRevenue = won.reduce((a, x) => a + x.value, 0);
+  const totalWon = won.length;
+  const decided = sales.filter(x => x.status === 'won' || x.status === 'lost').length;
+  const conversionRate = decided > 0 ? Math.round((totalWon / decided) * 100) : 0;
+  const open = sales.filter(x => x.status === 'lead' || x.status === 'negotiation');
+  const negotiating = sales.filter(x => x.status === 'negotiation');
+  const nowD = new Date();
+  const wonMonth = won.filter(x => { const d = dateOf(x); return d.getFullYear() === nowD.getFullYear() && d.getMonth() === nowD.getMonth(); });
+  const ticket = totalWon ? totalRevenue / totalWon : 0;
+
+  // atalhos de andamento direto na linha
+  const quick = async (sale: Sale, status: SaleStatus) => {
+    try {
+      const r = await fetch(`/api/sales/${sale.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, ...(status === 'won' ? { closedAt: new Date().toISOString() } : {}) }),
+      });
+      if (!r.ok) throw new Error();
+      const updated = await r.json();
+      setSales(prev => prev.map(x => (x.id === updated.id ? updated : x)));
+      toast(status === 'won' ? 'Venda fechada! Cliente criado automaticamente.' : status === 'negotiation' ? 'Movida para negociação' : status === 'lost' ? 'Marcada como perdida' : 'Atualizada', 'success');
+    } catch { toast('Não foi possível atualizar', 'error'); }
+  };
 
   return (
     <div className="space-y-4">
@@ -121,54 +175,57 @@ export function SalesManager() {
         </div>
       </div>
 
-      {/* Pipeline por status */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        {(Object.keys(STATUS_CONFIG) as SaleStatus[]).map(st => {
-          const count = sales.filter(s => s.status === st).length;
-          const revenue = sales.filter(s => s.status === st).reduce((a, s) => a + s.value, 0);
-          const cfg = STATUS_CONFIG[st];
-          return (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(filterStatus === st ? 'all' : st)}
-              className={`rounded-xl p-2.5 border text-left transition-all ${
-                filterStatus === st
-                  ? 'shadow-md'
-                  : 'bg-white dark:bg-white/5 border-slate-200/60 dark:border-white/10 hover:shadow-sm'
-              }`}
-              style={filterStatus === st ? { background: cfg.bg, borderColor: cfg.color } : {}}
-            >
-              <p className="text-xs font-black uppercase tracking-widest mb-1" style={{ color: cfg.color }}>{cfg.label}</p>
-              <p className="text-lg font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{count}</p>
-              <p className="text-[10px] text-slate-400 font-medium truncate">
-                {revenue > 0 ? revenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
-              </p>
-            </button>
-          );
-        })}
+      {/* Indicadores */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {[
+          { label: 'Em andamento', value: String(open.length), sub: `${money(open.reduce((a, x) => a + x.value, 0))} em negociação`, color: '#C49A2A' },
+          { label: 'Fechadas no mês', value: String(wonMonth.length), sub: money(wonMonth.reduce((a, x) => a + x.value, 0)), color: '#15803D' },
+          { label: 'Ticket médio', value: ticket ? money(ticket) : '—', sub: `${totalWon} venda(s) fechada(s)`, color: '#2563EB' },
+          { label: 'Conversão', value: `${conversionRate}%`, sub: `${negotiating.length} em negociação agora`, color: '#7C3AED' },
+        ].map(k => (
+          <div key={k.label} className="rounded-xl p-3 border bg-white dark:bg-white/5 border-slate-200/60 dark:border-white/10 min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: k.color }}>{k.label}</p>
+            <p className="text-lg font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{k.value}</p>
+            <p className="text-[10px] text-slate-400 font-medium truncate">{k.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Abas */}
+      <div className="flex flex-wrap gap-2">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} className="px-3.5 py-2 rounded-xl text-xs font-black border transition-all"
+            style={tab === t.id ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { background: 'transparent', color: '#64748B', borderColor: 'rgba(100,116,139,0.25)' }}>
+            {t.label} <span className="opacity-70">· {tabCount(t.id)}</span>
+          </button>
+        ))}
       </div>
 
       {/* Filtros */}
       <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3 flex flex-wrap gap-2">
-        <div className="flex-1 min-w-[180px] relative">
+        <div className="flex-1 min-w-[200px] relative">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar cliente ou produto..."
+            placeholder="Buscar cliente, produto, e-mail ou telefone..."
             className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] transition-colors"
             style={{ color: isDark ? '#fff' : '#1e293b' }}
           />
         </div>
-        <select
-          value={filterProduct}
-          onChange={e => setFilterProduct(e.target.value)}
-          className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none font-medium"
-          style={{ color: isDark ? '#fff' : '#1e293b' }}
-        >
-          <option value="all">Todos os produtos</option>
-          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        {([
+          [filterProduct, setFilterProduct, [['all', 'Todos os produtos'], ...products.map(x => [x.id, x.name])]],
+          [filterOrigin, setFilterOrigin, [['all', 'Todas as origens'], ...origins.map(o => [o, o])]],
+          [filterSeller, setFilterSeller, [['all', 'Todos os vendedores'], ...sellers.map(o => [o, o])]],
+          [period, setPeriod, [['all', 'Todo o período'], ['month', 'Este mês'], ['last', 'Mês passado'], ['30d', 'Últimos 30 dias'], ['year', 'Este ano']]],
+          [sort, setSort, [['recent', 'Mais recentes'], ['old', 'Mais antigas'], ['value', 'Maior valor'], ['name', 'Nome (A-Z)']]],
+        ] as [string, (v: any) => void, string[][]][]).map(([val, set, opts], i) => (
+          <select key={i} value={val} onChange={e => set(e.target.value)}
+            className="px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none font-medium max-w-[190px]"
+            style={{ color: isDark ? '#fff' : '#1e293b' }}>
+            {opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        ))}
       </div>
 
       {/* Lista de vendas */}
@@ -177,95 +234,72 @@ export function SalesManager() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={TrendingUp}
-          title="Nenhuma venda encontrada"
-          description="Registre sua primeira venda ou lead."
-          action={<Button onClick={() => setIsFormOpen(true)}>REGISTRAR VENDA</Button>}
+          title={sales.length ? 'Nada nesta aba com esses filtros' : 'Nenhuma venda encontrada'}
+          description={sales.length ? 'Troque de aba ou limpe os filtros.' : 'Registre sua primeira venda ou lead.'}
+          action={<Button onClick={() => { setEditingSale(null); setIsFormOpen(true); }}>REGISTRAR VENDA</Button>}
         />
       ) : (
         <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
           <div className="divide-y divide-slate-100 dark:divide-white/5">
-            <AnimatePresence>
-              {filtered.map((sale, i) => {
-                const cfg = STATUS_CONFIG[sale.status];
-                const StatusIcon = cfg.icon;
-                return (
-                  <motion.div
-                    key={sale.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group"
-                  >
-                    {/* Status icon */}
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: cfg.bg }}
-                    >
+            {paginatedData.map((sale, i) => {
+              const cfg = STATUS_CONFIG[sale.status];
+              const StatusIcon = cfg.icon;
+              const prev = paginatedData[i - 1];
+              const showHeader = tab === 'open' && (!prev || prev.status !== sale.status);
+              return (
+                <React.Fragment key={sale.id}>
+                  {showHeader && (
+                    <div className="px-4 py-2 text-[10px] font-black uppercase tracking-widest flex items-center gap-2" style={{ background: cfg.bg, color: cfg.color }}>
+                      <StatusIcon className="w-3 h-3" />{sale.status === 'negotiation' ? 'Em negociação' : 'Leads novos'} · {filtered.filter(x => x.status === sale.status).length}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: cfg.bg }}>
                       <StatusIcon className="w-4 h-4" style={{ color: cfg.color }} />
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
+                    <button className="flex-1 min-w-0 text-left" onClick={() => setViewingSale(sale)}>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
-                          {sale.clientName}
-                        </p>
-                        <span
-                          className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest flex-shrink-0"
-                          style={{ background: cfg.bg, color: cfg.color }}
-                        >
-                          {cfg.label}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        <span className="text-xs text-slate-400 truncate">{sale.productName}</span>
-                        {sale.origin && (
-                          <span className="text-[10px] font-bold text-slate-300 uppercase">{sale.origin}</span>
+                        <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{sale.clientName}</p>
+                        {tab !== 'open' && (
+                          <span className="text-[9px] font-black px-2 py-0.5 rounded-lg uppercase tracking-widest flex-shrink-0" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
                         )}
-                        <span className="text-[10px] text-slate-300">
-                          {format(new Date(sale.createdAt), "dd/MM/yyyy", { locale: ptBR })}
+                      </div>
+                      <div className="flex items-center gap-x-3 gap-y-0.5 mt-0.5 flex-wrap">
+                        <span className="text-xs text-slate-400 truncate">{sale.productName}</span>
+                        {sale.origin && <span className="text-[10px] font-bold text-slate-400 uppercase">{sale.origin}</span>}
+                        {sale.soldByName && <span className="text-[10px] text-slate-400">· {sale.soldByName}</span>}
+                        <span className="text-[10px] text-slate-400">
+                          {sale.status === 'won' && sale.closedAt ? `Fechada em ${format(new Date(sale.closedAt), 'dd/MM/yyyy', { locale: ptBR })}` : format(new Date(sale.createdAt), 'dd/MM/yyyy', { locale: ptBR })}
                         </span>
                       </div>
-                    </div>
+                    </button>
 
-                    {/* Valor */}
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-black" style={{ color: sale.status === 'won' ? '#15803D' : (isDark ? '#fff' : '#0D1F4E') }}>
-                        {sale.value > 0
-                          ? sale.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                          : '—'}
-                      </p>
-                      {sale.paymentMethod && (
-                        <p className="text-[10px] text-slate-400 uppercase font-bold">{PAYMENT_LABELS[sale.paymentMethod]}</p>
-                      )}
+                      <p className="text-sm font-black" style={{ color: sale.status === 'won' ? '#15803D' : (isDark ? '#fff' : '#0D1F4E') }}>{sale.value > 0 ? money(sale.value) : '—'}</p>
+                      {sale.paymentMethod && <p className="text-[10px] text-slate-400 uppercase font-bold">{PAYMENT_LABELS[sale.paymentMethod]}</p>}
                     </div>
 
-                    {/* Ações */}
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button
-                        onClick={() => setViewingSale(sale)}
-                        className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-slate-400 hover:text-slate-600"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => { setEditingSale(sale); setIsFormOpen(true); }}
-                        className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-slate-400 hover:text-slate-600"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setDeletingId(sale.id)}
-                        className="p-2 rounded-xl hover:bg-red-50 transition-colors text-slate-300 hover:text-red-500"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {sale.status === 'lead' && <Button size="xs" variant="outline" onClick={() => quick(sale, 'negotiation')}>Negociar</Button>}
+                      {sale.status === 'negotiation' && <Button size="xs" onClick={() => { setEditingSale({ ...sale, status: 'won' }); setIsFormOpen(true); }}>Fechar venda</Button>}
+                      <RowMenu items={[
+                        { label: 'Ver detalhes', icon: Eye, onClick: () => setViewingSale(sale) },
+                        { label: 'Editar', icon: Edit2, onClick: () => { setEditingSale(sale); setIsFormOpen(true); } },
+                        ...(sale.clientPhone ? [{ label: 'Chamar no WhatsApp', icon: Phone, onClick: () => window.open(`https://wa.me/${sale.clientPhone!.replace(/\D/g, '').replace(/^(?!55)/, '55')}`, '_blank') }] : []),
+                        ...(sale.status === 'lead' ? [{ label: 'Mover para negociação', icon: Clock, onClick: () => quick(sale, 'negotiation') }] : []),
+                        ...(sale.status === 'lead' || sale.status === 'negotiation' ? [{ label: 'Marcar como perdida', icon: XCircle, onClick: () => quick(sale, 'lost') }] : []),
+                        ...(sale.status === 'lost' || sale.status === 'cancelled' ? [{ label: 'Reabrir como lead', icon: UserPlus, onClick: () => quick(sale, 'lead') }] : []),
+                        { label: 'Remover', icon: Trash2, danger: true, onClick: () => setDeletingId(sale.id) },
+                      ]} />
                     </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                  </div>
+                </React.Fragment>
+              );
+            })}
+          </div>
+          <div className="border-t border-slate-100 dark:border-white/5 p-2">
+            <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
           </div>
         </div>
       )}
