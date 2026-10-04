@@ -169,7 +169,11 @@ export default function Dashboard() {
           const currentParams = new URLSearchParams(window.location.search);
           const currentProjParam = currentParams.get('projeto');
           const fromUrl = currentProjParam ? data.find((p: Project) => p.id === currentProjParam) : null;
-          setSelectedProject(fromUrl || data[0]);
+          // projeto da URL > último projeto escolhido por este usuário > primeiro da lista
+          let saved: string | null = null;
+          try { saved = localStorage.getItem(`develoi:projeto:${profile.uid}`); } catch { /* sem storage */ }
+          const fromSaved = saved ? data.find((p: Project) => p.id === saved) : null;
+          setSelectedProject(fromUrl || fromSaved || data[0]);
         } else if (data.length > 0) {
           // Keep selectedProject up to date with new data (like progress/status changes) without overriding selection
           setSelectedProject(prev => {
@@ -185,6 +189,12 @@ export default function Dashboard() {
     const interval = setInterval(fetchProjects, 5000);
     return () => clearInterval(interval);
   }, [profile]);
+
+  // lembra o projeto escolhido (por usuário) para não voltar ao primeiro da lista ao recarregar a página
+  useEffect(() => {
+    if (!profile || !selectedProject) return;
+    try { localStorage.setItem(`develoi:projeto:${profile.uid}`, selectedProject.id); } catch { /* sem storage */ }
+  }, [profile, selectedProject?.id]); // eslint-disable-line
 
   const projectIdsKey = projects.map(p => p.id).sort().join(',');
 
