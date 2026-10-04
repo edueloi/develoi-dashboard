@@ -132,8 +132,103 @@ export function BusinessPlanManager() {
 
 // ─── Visão Geral ───────────────────────────────────────────────────────────────
 
+const SWOT_CONFIG = {
+  swotStrengths:     { label: 'Forças',         icon: Star,         color: '#15803D', bg: 'rgba(21,128,61,0.06)',  border: 'rgba(21,128,61,0.25)' },
+  swotWeaknesses:    { label: 'Fraquezas',      icon: AlertTriangle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', border: 'rgba(196,154,42,0.3)' },
+  swotOpportunities: { label: 'Oportunidades',  icon: Compass,      color: '#2563EB', bg: 'rgba(37,99,235,0.06)',  border: 'rgba(37,99,235,0.25)' },
+  swotThreats:       { label: 'Ameaças',        icon: ShieldCheck,  color: '#DC2626', bg: 'rgba(220,38,38,0.06)',  border: 'rgba(220,38,38,0.25)' },
+} as const;
+
+function InfoBlock({ icon: Icon, label, text, color, isDark }: { icon: any; label: string; text?: string | null; color: string; isDark: boolean }) {
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
+          <Icon className="w-3.5 h-3.5" style={{ color }} />
+        </div>
+        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      </div>
+      {text ? (
+        <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: isDark ? 'rgba(255,255,255,0.85)' : '#334155' }}>{text}</p>
+      ) : (
+        <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>
+      )}
+    </div>
+  );
+}
+
+function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_CONFIG; text?: string | null; isDark: boolean }) {
+  const cfg = SWOT_CONFIG[field];
+  const items = (text || '').split('\n').map(s => s.trim()).filter(Boolean);
+  return (
+    <div className="rounded-2xl p-4 sm:p-5 border" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : cfg.bg, borderColor: cfg.border }}>
+      <div className="flex items-center gap-2 mb-3">
+        <cfg.icon className="w-4 h-4" style={{ color: cfg.color }} />
+        <p className="text-xs font-black uppercase tracking-widest" style={{ color: cfg.color }}>{cfg.label}</p>
+      </div>
+      {items.length ? (
+        <ul className="space-y-2">
+          {items.map((it, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.85)' : '#334155' }}>
+              <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: cfg.color }} />
+              <span>{it}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>
+      )}
+    </div>
+  );
+}
+
 function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
   const { isDark } = useTheme();
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Quem somos</h3>
+          {plan.updatedAt && (
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Atualizado em {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}
+            </p>
+          )}
+        </div>
+        <Button size="sm" variant="outline" iconLeft={<Edit2 className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>EDITAR VISÃO GERAL</Button>
+      </div>
+
+      <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm p-5 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <InfoBlock icon={Compass} label="Missão" text={plan.missionText} color="#0D1F4E" isDark={isDark} />
+          <InfoBlock icon={Target} label="Visão" text={plan.visionText} color="#2563EB" isDark={isDark} />
+          <InfoBlock icon={Star} label="Valores" text={plan.valuesText} color="#C49A2A" isDark={isDark} />
+        </div>
+        <div className="h-px my-6" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <InfoBlock icon={Users} label="Mercado-Alvo / Público" text={plan.targetMarket} color="#15803D" isDark={isDark} />
+          <InfoBlock icon={Trophy} label="Modelo de Negócio" text={plan.businessModel} color="#C49A2A" isDark={isDark} />
+        </div>
+      </div>
+
+      <div>
+        <p className="text-sm font-black mb-3" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Análise SWOT</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <SwotQuadrant field="swotStrengths" text={plan.swotStrengths} isDark={isDark} />
+          <SwotQuadrant field="swotWeaknesses" text={plan.swotWeaknesses} isDark={isDark} />
+          <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
+          <SwotQuadrant field="swotThreats" text={plan.swotThreats} isDark={isDark} />
+        </div>
+      </div>
+
+      {editing && <OverviewEditModal plan={plan} onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
+    </div>
+  );
+}
+
+function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; onClose: () => void; onSuccess: () => void }) {
   const { profile } = useAuth();
   const { show: toast } = useToast();
   const [form, setForm] = useState({
@@ -146,7 +241,8 @@ function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLTextAreaElement>) => setForm(prev => ({ ...prev, [k]: e.target.value }));
 
-  const save = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setSaving(true);
     try {
       const res = await fetch('/api/business-plan', {
@@ -155,7 +251,7 @@ function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
       });
       if (!res.ok) throw new Error();
       toast('Plano de negócio atualizado', 'success');
-      onSaved();
+      onSuccess();
     } catch {
       toast('Não deu para salvar agora. Tente de novo.', 'error');
     } finally {
@@ -164,8 +260,8 @@ function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
   };
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 sm:p-5 space-y-4">
+    <Modal isOpen={true} onClose={onClose} title="Editar Visão Geral" size="2xl">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Textarea label="Missão" value={form.missionText} onChange={set('missionText')} rows={4} placeholder="Por que a Develoi existe?" />
           <Textarea label="Visão" value={form.visionText} onChange={set('visionText')} rows={4} placeholder="Onde queremos chegar?" />
@@ -175,25 +271,17 @@ function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
           <Textarea label="Mercado-Alvo / Público" value={form.targetMarket} onChange={set('targetMarket')} rows={3} placeholder="Quem são nossos clientes ideais?" />
           <Textarea label="Modelo de Negócio" value={form.businessModel} onChange={set('businessModel')} rows={3} placeholder="Como a Develoi ganha dinheiro (planos, assinaturas...)" />
         </div>
-      </div>
-
-      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 sm:p-5 space-y-3">
-        <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Análise SWOT</p>
+        <div className="h-px" style={{ background: '#f1f5f9' }} />
+        <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Análise SWOT</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Textarea label="Forças" value={form.swotStrengths} onChange={set('swotStrengths')} rows={4} placeholder="O que fazemos bem?" />
           <Textarea label="Fraquezas" value={form.swotWeaknesses} onChange={set('swotWeaknesses')} rows={4} placeholder="Onde precisamos melhorar?" />
           <Textarea label="Oportunidades" value={form.swotOpportunities} onChange={set('swotOpportunities')} rows={4} placeholder="O que podemos aproveitar no mercado?" />
           <Textarea label="Ameaças" value={form.swotThreats} onChange={set('swotThreats')} rows={4} placeholder="O que pode atrapalhar o crescimento?" />
         </div>
-      </div>
-
-      <Button onClick={save} loading={saving} iconLeft={<Save className="w-4 h-4" />}>SALVAR PLANO</Button>
-      {plan.updatedAt && (
-        <p className="text-[11px] text-slate-400">
-          Última atualização: {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}
-        </p>
-      )}
-    </div>
+        <Button type="submit" loading={saving} fullWidth size="lg" iconLeft={<Save className="w-4 h-4" />}>SALVAR PLANO</Button>
+      </form>
+    </Modal>
   );
 }
 
