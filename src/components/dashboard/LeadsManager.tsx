@@ -114,6 +114,12 @@ export const LeadsManager: React.FC = () => {
   const [sending, setSending] = useState<Lead | null>(null);
   const [ready, setReady] = useState<{ id: string; title: string; body: string; productName?: string | null }[]>([]);
   const { profile } = useAuth();
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const on = () => setNarrow(window.innerWidth < 768);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<Status | null>(null);
 
@@ -188,7 +194,9 @@ export const LeadsManager: React.FC = () => {
   }, [leads]);
 
   const current = detail ? leads.find(l => l.id === detail) ?? null : null;
-  const visibleCols = view === 'board' ? STAGES : [];
+  const mode: 'board' | 'list' = narrow ? 'list' : view;
+  const visibleCols = STAGES.filter(x => x.id !== 'won' && x.id !== 'lost');
+  const wonCol = stageOf('won'), lostCol = stageOf('lost');
   const listRows = useMemo(() => sortLeads(filtered.filter(l => (tab === 'open' ? isOpen(l) : l.status === tab))), [filtered, tab]); // eslint-disable-line
   const sources = useMemo(() => [...new Set(leads.map(l => l.source))], [leads]);
   const productOptions = useMemo(() => [...new Set([...products, ...leads.map(l => l.product).filter(Boolean) as string[]])].sort(), [products, leads]);
@@ -197,8 +205,8 @@ export const LeadsManager: React.FC = () => {
     const st = stageOf(l.status), f = followState(l), pr = prioOf(l.priority);
     const idle = isOpen(l) ? daysSince(l.lastContactAt ?? l.createdAt) : 0;
     return (
-      <div draggable={view === 'board'} onDragStart={() => setDragId(l.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }}
-        className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-3 ${view === 'board' ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === l.id ? 'opacity-40' : ''} ${compact ? '' : 'sm:flex sm:items-center sm:gap-3'}`}
+      <div draggable={mode === 'board'} onDragStart={() => setDragId(l.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }}
+        className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-3 ${mode === 'board' ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === l.id ? 'opacity-40' : ''} ${compact ? '' : 'sm:flex sm:items-center sm:gap-3'}`}
         style={{ borderLeft: `3px solid ${pr.color}` }}>
         <button className="flex-1 min-w-0 text-left block w-full" onClick={() => setDetail(l.id)}>
           <div className="flex items-center gap-1.5 flex-wrap">
@@ -223,7 +231,7 @@ export const LeadsManager: React.FC = () => {
             {l.status === 'lost' && l.lostReason && <span className="text-[10px] text-slate-500">{l.lostReason}</span>}
           </div>
         </button>
-        <div className={`flex items-center gap-1.5 flex-shrink-0 ${compact ? 'mt-2' : 'mt-2 sm:mt-0'}`}>
+        <div className={`flex items-center flex-wrap gap-1.5 flex-shrink-0 ${compact ? 'mt-2' : 'mt-2 sm:mt-0'}`}>
           {l.phone && (
             <button type="button" title="Enviar mensagem (BiIA, atendimento ou WhatsApp)" onClick={() => setSending(l)}
               className="p-1.5 rounded-lg text-white hover:opacity-90" style={{ background: '#15803D' }}><MessageCircle className="w-4 h-4" /></button>
@@ -247,6 +255,18 @@ export const LeadsManager: React.FC = () => {
     );
   };
 
+  // alvo de soltar do quadro (colunas e zonas de ganho/perdido)
+  const dropProps = (colId: Status) => ({
+    onDragOver: (e: React.DragEvent) => { if (dragId) { e.preventDefault(); setOverCol(colId); } },
+    onDragLeave: () => setOverCol(c => (c === colId ? null : c)),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault(); setOverCol(null);
+      const l = leads.find(x => x.id === dragId); setDragId(null);
+      if (!l || l.status === colId) return;
+      if (colId === 'lost') setLosing(l); else move(l, colId);
+    },
+  });
+
   const kpis = [
     { icon: Target, label: 'Em aberto', value: String(kpi.open), color: '#0D1F4E' },
     { icon: CalendarClock, label: 'Follow-ups hoje/atrasados', value: String(kpi.follow), color: kpi.follow ? '#B91C1C' : '#475569' },
@@ -258,9 +278,9 @@ export const LeadsManager: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
         {kpis.map(k => (
-          <div key={k.label} className="rounded-2xl border p-3.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 min-w-0">
+          <div key={k.label} className="rounded-2xl border p-3 sm:p-3.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 min-w-0">
             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500"><k.icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: k.color }} /><span className="truncate">{k.label}</span></div>
             <div className="mt-1 text-lg font-bold truncate" style={{ color: k.color }}>{k.value}</div>
           </div>
@@ -273,35 +293,37 @@ export const LeadsManager: React.FC = () => {
       )}
 
       {/* Busca, filtros e ações */}
-      <div className="flex flex-col lg:flex-row gap-2 lg:items-center">
-        <div className="relative flex-1 min-w-0">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome, empresa, telefone, cidade…" className="pl-9" />
-        </div>
-        <div className="grid grid-cols-3 gap-2 lg:flex">
-          <Select aria-label="Produto" value={fProduct} onChange={e => setFProduct(e.target.value)} placeholder="Produto" options={[{ value: '', label: 'Todos os produtos' }, ...productOptions.map(p => ({ value: p, label: p }))]} />
-          <Select aria-label="Origem" value={fSource} onChange={e => setFSource(e.target.value)} placeholder="Origem" options={[{ value: '', label: 'Todas as origens' }, ...sources.map(s => ({ value: s, label: SOURCES.find(x => x.value === s)?.label ?? s }))]} />
-          <Select aria-label="Temperatura" value={fPrio} onChange={e => setFPrio(e.target.value)} placeholder="Temperatura" options={[{ value: '', label: 'Toda temperatura' }, ...PRIORITIES.map(p => ({ value: p.id, label: p.label }))]} />
-        </div>
-        <div className="flex gap-2">
-          <div className="flex rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-            {([['board', LayoutGrid, 'Quadro'], ['list', List, 'Lista']] as const).map(([id, I, t]) => (
-              <button key={id} onClick={() => changeView(id)} title={t} className="px-3 py-2" style={view === id ? { background: '#0D1F4E', color: '#fff' } : { color: '#64748B' }}><I className="w-4 h-4" /></button>
-            ))}
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nome, empresa, telefone, cidade…" className="pl-9" />
           </div>
-          <Button variant="outline" onClick={() => setImporting(true)}><Upload className="w-4 h-4 mr-1.5" />IMPORTAR</Button>
-          <Button onClick={() => setEditing('new')}><Plus className="w-4 h-4 mr-1.5" />NOVO LEAD</Button>
+          <div className="flex gap-2">
+            <div className="hidden md:flex rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden flex-shrink-0">
+              {([['board', LayoutGrid, 'Quadro'], ['list', List, 'Lista']] as const).map(([id, I, t]) => (
+                <button key={id} onClick={() => changeView(id)} title={t} className="px-3 py-2" style={view === id ? { background: '#0D1F4E', color: '#fff' } : { color: '#64748B' }}><I className="w-4 h-4" /></button>
+              ))}
+            </div>
+            <Button variant="outline" onClick={() => setImporting(true)} title="Importar lista"><Upload className="w-4 h-4 sm:mr-1.5" /><span className="hidden sm:inline">IMPORTAR</span></Button>
+            <Button className="flex-1 sm:flex-none" onClick={() => setEditing('new')}><Plus className="w-4 h-4 mr-1.5" />NOVO LEAD</Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <Select aria-label="Produto" value={fProduct} onChange={e => setFProduct(e.target.value)} placeholder="Produto" options={[{ value: '', label: 'Todos os produtos' }, ...productOptions.map(p => ({ value: p, label: p }))]} />
+          <Select aria-label="Origem" value={fSource} onChange={e => setFSource(e.target.value)} placeholder="Origem" options={[{ value: '', label: 'Todas as origens' }, ...sources.map(x => ({ value: x, label: SOURCES.find(y => y.value === x)?.label ?? x }))]} />
+          <Select aria-label="Temperatura" value={fPrio} onChange={e => setFPrio(e.target.value)} placeholder="Temperatura" options={[{ value: '', label: 'Toda temperatura' }, ...PRIORITIES.map(p => ({ value: p.id, label: p.label }))]} />
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {view === 'list' && [{ id: 'open' as const, label: 'Em aberto', color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)' }, ...STAGES].map(s => (
-          <button key={s.id} onClick={() => setTab(s.id)} className="px-3 py-1.5 rounded-full text-xs font-bold border"
+      <div className="flex gap-2 overflow-x-auto sm:flex-wrap pb-1 -mx-1 px-1">
+        {mode === 'list' && [{ id: 'open' as const, label: 'Em aberto', color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)' }, ...STAGES].map(s => (
+          <button key={s.id} onClick={() => setTab(s.id)} className="px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap flex-shrink-0"
             style={tab === s.id ? { background: s.color, color: '#fff', borderColor: s.color } : { background: s.bg, color: s.color, borderColor: 'transparent' }}>
             {s.label} · {counts[s.id] ?? 0}
           </button>
         ))}
-        <button onClick={() => setOnlyFollow(v => !v)} className="px-3 py-1.5 rounded-full text-xs font-bold border ml-auto"
+        <button onClick={() => setOnlyFollow(v => !v)} className="px-3 py-1.5 rounded-full text-xs font-bold border ml-auto whitespace-nowrap flex-shrink-0"
           style={onlyFollow ? { background: '#B91C1C', color: '#fff', borderColor: '#B91C1C' } : { background: 'rgba(185,28,28,0.08)', color: '#B91C1C', borderColor: 'transparent' }}>
           <CalendarClock className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />Follow-up pendente
         </button>
@@ -311,34 +333,47 @@ export const LeadsManager: React.FC = () => {
         : leads.length === 0 ? (
           <EmptyState icon={Target} title="Nenhum lead ainda" description="Cadastre quem você quer prospectar ou importe uma lista de contatos."
             action={<div className="flex gap-2 justify-center"><Button onClick={() => setEditing('new')}>NOVO LEAD</Button><Button variant="outline" onClick={() => setImporting(true)}>IMPORTAR LISTA</Button></div>} />
-        ) : view === 'board' ? (
-          <div className="flex gap-3 overflow-x-auto pb-3 -mx-1 px-1 items-start">
-            {visibleCols.map(col => {
-              const rows = sortLeads(filtered.filter(l => l.status === col.id));
-              const total = rows.reduce((s, l) => s + (l.value || 0), 0);
-              return (
-                <div key={col.id}
-                  onDragOver={e => { if (dragId) { e.preventDefault(); setOverCol(col.id); } }}
-                  onDragLeave={() => setOverCol(c => (c === col.id ? null : c))}
-                  onDrop={e => {
-                    e.preventDefault(); setOverCol(null);
-                    const l = leads.find(x => x.id === dragId); setDragId(null);
-                    if (!l || l.status === col.id) return;
-                    if (col.id === 'lost') setLosing(l); else move(l, col.id);
-                  }}
-                  className="w-[280px] flex-shrink-0 rounded-2xl p-2.5 transition-colors"
-                  style={{ background: overCol === col.id ? col.bg : 'rgba(100,116,139,0.07)', outline: overCol === col.id ? `2px dashed ${col.color}` : 'none' }}>
-                  <div className="flex items-center justify-between px-1 mb-2">
-                    <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: col.color }}>{col.label} · {rows.length}</span>
-                    {total > 0 && <span className="text-[11px] font-bold text-slate-500">{money(total)}</span>}
+        ) : mode === 'board' ? (
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
+              {visibleCols.map(col => {
+                const rows = sortLeads(filtered.filter(l => l.status === col.id));
+                const total = rows.reduce((sum, l) => sum + (l.value || 0), 0);
+                return (
+                  <div key={col.id} {...dropProps(col.id)}
+                    className="min-w-0 rounded-2xl p-2.5 transition-colors"
+                    style={{ background: overCol === col.id ? col.bg : 'rgba(100,116,139,0.07)', outline: overCol === col.id ? `2px dashed ${col.color}` : 'none' }}>
+                    <div className="flex items-center justify-between gap-2 px-1 mb-2">
+                      <span className="text-xs font-extrabold uppercase tracking-wide truncate" style={{ color: col.color }}>{col.label} · {rows.length}</span>
+                      {total > 0 && <span className="text-[11px] font-bold text-slate-500 flex-shrink-0">{money(total)}</span>}
+                    </div>
+                    <div className="space-y-2 min-h-[60px] max-h-[62vh] overflow-y-auto pr-0.5">
+                      {rows.map(l => <Card key={l.id} l={l} compact />)}
+                      {rows.length === 0 && <div className="text-center text-[11px] text-slate-400 py-5">Arraste um lead para cá</div>}
+                    </div>
                   </div>
-                  <div className="space-y-2 min-h-[60px]">
-                    {rows.map(l => <Card key={l.id} l={l} compact />)}
-                    {rows.length === 0 && <div className="text-center text-[11px] text-slate-400 py-5">Arraste um lead para cá</div>}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[wonCol, lostCol].map(col => {
+                const rows = filtered.filter(l => l.status === col.id);
+                const total = rows.reduce((sum, l) => sum + (l.value || 0), 0);
+                return (
+                  <button type="button" key={col.id} {...dropProps(col.id)} onClick={() => { setTab(col.id); changeView('list'); }}
+                    className="text-left rounded-2xl p-3 transition-colors border"
+                    style={{ background: overCol === col.id ? col.bg : 'rgba(100,116,139,0.05)', borderColor: overCol === col.id ? col.color : 'rgba(100,116,139,0.15)', borderStyle: overCol === col.id ? 'dashed' : 'solid' }}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: col.color }}>{col.label} · {rows.length}</span>
+                      {total > 0 && <span className="text-[11px] font-bold text-slate-500">{money(total)}</span>}
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-1 truncate">
+                      {rows.length ? rows.slice(0, 3).map(l => l.name).join(', ') + (rows.length > 3 ? '…' : '') : `Solte aqui para marcar como ${col.label.toLowerCase()}`}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ) : listRows.length === 0 ? (
           <EmptyState icon={Target} title="Nenhum lead nesse filtro" description="Troque a etapa ou limpe a busca." />
