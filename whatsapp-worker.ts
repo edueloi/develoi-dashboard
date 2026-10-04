@@ -18,7 +18,7 @@ const TOKEN = process.env.WA_INTERNAL_TOKEN || "";
 // Só estas funções podem ser chamadas pela API
 const allowed: Record<string, (...args: any[]) => any> = {
   sendMessage, sendDocument, sendChoice, offerConversation, acceptWaitingConversation,
-  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, startConversation, notifyQueueChanged,
+  closeActiveConversation, setClientConversation, releaseClient, connectSession, disconnectSession, startConversation, sendOutreach, notifyQueueChanged,
 };
 
 const app = express();
