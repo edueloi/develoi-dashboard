@@ -569,6 +569,7 @@ model WppConversation {
   subject        String?   @db.VarChar(255)   // sistema/assunto escolhido no suporte
   clientDocument String?   @db.VarChar(20)    // CPF/CNPJ informado
   linkedClientId String?   @db.VarChar(36)    // cliente cadastrado encontrado pelo documento
+  outbound       Boolean   @default(false)   // começou por nós (prospecção/disparo): o bot não manda lembrete nem aviso de encerramento
   closedBy       String?   @db.VarChar(20)  // attendant, client, system
   closedAt       DateTime? 
   createdAt      DateTime  @default(now())
@@ -850,4 +851,39 @@ model OutreachLog {
 
   @@index([phone])
   @@index([createdAt])
+}
+
+// Sociedade: sócios e a divisão do lucro (receitas recebidas menos despesas pagas, mês a mês)
+model Partner {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(120)
+  sharePercent Float    @default(0) // % do lucro distribuível
+  email        String?  @db.VarChar(150)
+  role         String?  @db.VarChar(80)
+  color        String?  @db.VarChar(9)
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+model ProfitConfig {
+  id                      String   @id @default("main")
+  reservePercent          Float    @default(0)    // % do lucro que fica no caixa da empresa antes de dividir
+  reimbursementsAsExpense Boolean  @default(true) // reembolsos pagos entram como despesa no cálculo
+  updatedAt               DateTime @updatedAt
+}
+
+// Fotografia de um mês fechado: os percentuais e valores daquele mês não mudam mesmo que a sociedade mude depois
+model ProfitClosing {
+  id            String   @id @default(uuid())
+  month         String   @unique @db.VarChar(7) // AAAA-MM
+  revenue       Float
+  expenses      Float
+  profit        Float
+  reserve       Float
+  distributable Float
+  shares        Json     // [{ partnerId, name, percent, amount, paid, paidAt }]
+  notes         String?  @db.Text
+  closedByName  String?  @db.VarChar(100)
+  closedAt      DateTime @default(now())
 }

@@ -22,6 +22,7 @@ import { registerBotBrainRoutes } from "./src/backend/botBrain.js";
 import { registerLeadRoutes, syncLeadFromSale } from "./src/backend/leads.js";
 import { registerOutreachRoutes } from "./src/backend/outreach.js";
 import { registerTrialRoutes } from "./src/backend/clientTrial.js";
+import { registerPartnerRoutes } from "./src/backend/partners.js";
 import { registerBoxsysRoutes, startBoxsysScheduler, syncBoxsysAccess } from "./src/backend/boxsys.js";
 import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
@@ -872,6 +873,7 @@ async function startServer() {
     registerLeadRoutes(app);
     registerOutreachRoutes(app);
     registerTrialRoutes(app);
+    registerPartnerRoutes(app);
     registerWebhookOutRoutes(app);
 
     // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp

@@ -323,7 +323,7 @@ export async function startConversation(input: {
     conv = await prisma.wppConversation.update({ where: { id: conv.id }, data: { status: "active", ...who, ...(input.name ? { clientName: input.name } : {}) } });
   } else {
     conv = await prisma.wppConversation.create({
-      data: { clientPhone: phone, clientJid: jid, clientName: input.name?.trim() || null, sectorId: input.sectorId || null, firstMessage: input.message.slice(0, 1000), status: "active", ...who },
+      data: { clientPhone: phone, clientJid: jid, clientName: input.name?.trim() || null, sectorId: input.sectorId || null, firstMessage: input.message.slice(0, 1000), status: "active", outbound: true, ...who },
     });
   }
 
@@ -363,7 +363,7 @@ export async function sendOutreach(input: { phone: string; name?: string | null;
   if (conv && conv.status !== "bot") return { ok: false, error: conv.status === "active" ? `Este contato já está em atendimento${conv.attendantName ? ` com ${conv.attendantName}` : ""}. Responda pela conversa dele.` : "Este contato está na fila de atendimento." };
   const startNode = await prisma.wppBotFlowNode.findFirst({ where: { isStart: true, isActive: true } });
   const name = input.name?.trim() || null;
-  if (!conv) conv = await prisma.wppConversation.create({ data: { clientPhone: phone, clientJid: jid, clientName: name, firstMessage: input.message.slice(0, 1000), status: "bot" } });
+  if (!conv) conv = await prisma.wppConversation.create({ data: { clientPhone: phone, clientJid: jid, clientName: name, firstMessage: input.message.slice(0, 1000), status: "bot", outbound: true } });
 
   const text = input.message.trim();
   try { await typing(session.sock, jid, text); await session.sock.sendMessage(jid, { text }); }
@@ -528,6 +528,7 @@ function extractIncomingText(message: any): string {
 
 // ─── Saudação e textos do menu ───────────────────────────────────────────────
 const GREETING = /^(oi+|olá|ola|oie|ei|opa|hello|hi|bom dia|boa tarde|boa noite|início|inicio|menu)[\s!.,?]*$/i;
+const OUTBOUND_QUIET_MS = 30 * 60 * 1000; // conversa iniciada por nós sem resposta há mais de 30 min: se o cliente responde agora, a BiIA recebe e avisa quem iniciou
 const SESSION_IDLE_MS = 25 * 60 * 1000; // sem interação: o bot encerra e quem volta a escrever recebe o menu de novo
 const IDLE_NUDGE_MS = 15 * 60 * 1000;   // antes de encerrar, o bot pergunta se a pessoa ainda está lá
 
@@ -768,6 +769,29 @@ async function botSay(state: any, sock: any, text: string) {
   if (state.conversationId) await recordMsg(state.conversationId, "bot", text);
 }
 
+// O cliente respondeu a uma mensagem nossa depois de muito tempo: sem menu e sem "conversa encerrada", só um recebido caloroso e aviso a quem começou a conversa
+async function outboundReplyAfterQuiet(state: any, sock: any, conv: any, textMsg: string) {
+  const who = (conv.attendantName ?? "").trim();
+  const first = who.split(/\s+/)[0] || "a equipe";
+  const nome = firstNameOf(state.pushName ?? conv.clientName);
+  const opts = [
+    `Oi${nome ? `, ${nome}` : ""}! Recebi a sua mensagem. 😊 Já avisei ${who ? `a ${first}` : "o time"} e ${who ? "ela" : "ele"} continua a conversa com você por aqui.`,
+    `Que bom ter o seu retorno${nome ? `, ${nome}` : ""}! Já passei para ${who ? first : "o time"}, que vai falar com você em instantes. 🙌`,
+    `Oi${nome ? `, ${nome}` : ""}, obrigada por responder! ${who ? first : "O time"} já foi avisado${who ? "a" : ""} e retorna logo.`,
+  ].map(t => t.replace("avisadoa", "avisada"));
+  await botSay(state, sock, opts[Math.floor(Math.random() * opts.length)]);
+  await recordMsg(conv.id, "system", `O cliente respondeu depois de mais de 30 minutos. A BiIA avisou e deixou a conversa com ${who || "o atendente"}.`);
+  // avisa quem iniciou a conversa, pelo WhatsApp dela(e) quando está cadastrada(o) como atendente
+  try {
+    const sectors = await prisma.wppBotSector.findMany({ select: { attendants: true } });
+    const att = sectors.flatMap(sec => parseAttendants(sec.attendants)).find(a => a.name.trim().toLowerCase() === who.toLowerCase() && a.phone);
+    if (att) {
+      const snippet = textMsg.length > 220 ? `${textMsg.slice(0, 220)}…` : textMsg;
+      await sendMessage(att.phone, `💬 *${clientLabel(conv)}* respondeu à sua mensagem:\n"${snippet}"\n\nA conversa está em *Em atendimento* no painel. É só responder por lá para continuar.`);
+    }
+  } catch (e) { console.warn("[whatsapp] não consegui avisar quem iniciou a conversa:", e); }
+}
+
 async function closeBotConversation(id: string) {
   await prisma.wppConversation.update({ where: { id }, data: { status: "closed", closedBy: "system", closedAt: new Date() } });
 }
@@ -877,7 +901,12 @@ async function handleMessage(msg: any, sock: any) {
     state.status = conv.status === "active" ? "in_chat" : "waiting";
     state.lastActivity = Date.now();
     clientStates.set(key, state);
+    // conversa iniciada por nós e o cliente só respondeu depois de um bom tempo: a BiIA recebe, avisa quem iniciou e deixa a conversa com essa pessoa
+    const quietFor = Date.now() - conv.updatedAt.getTime();
+    const firstReply = conv.status === "active" && conv.outbound && quietFor > OUTBOUND_QUIET_MS
+      && (await prisma.wppConversationMessage.count({ where: { conversationId: conv.id, fromRole: "client" } })) === 0;
     await recordMsg(conv.id, "client", textMsg, clientPhone);
+    if (firstReply) { await outboundReplyAfterQuiet(state, sock, conv, textMsg); return; }
 
     // Quem espera na fila pode perguntar a posição ("fila")
     if (conv.status === "waiting" && /^(fila|posi[cç][aã]o|minha posi[cç][aã]o|status)$/i.test(textMsg.trim())) {
@@ -1162,7 +1191,7 @@ export function startConversationSweeper() {
     try {
       const cands = await prisma.wppConversation.findMany({
         where: { status: "bot", updatedAt: { lt: new Date(Date.now() - 10 * 60 * 1000) } },
-        select: { id: true, clientJid: true, clientPhone: true, updatedAt: true },
+        select: { id: true, clientJid: true, clientPhone: true, updatedAt: true, outbound: true },
       });
       for (const c of cands) {
         const jid = c.clientJid || toJid(c.clientPhone);
@@ -1174,7 +1203,7 @@ export function startConversationSweeper() {
 
         if (idle >= SESSION_IDLE_MS) {
           // se a pessoa já se despediu ou disse que está tudo certo, não manda aviso de encerramento: fecha em silêncio
-          if (session?.status === "connected" && !st?.brain?.ended) {
+          if (session?.status === "connected" && !st?.brain?.ended && !c.outbound) {
             const msg = idleClose(ctx);
             await session.sock.sendMessage(jid, { text: msg }).catch(() => {});
             await recordMsg(c.id, "bot", msg);
@@ -1182,7 +1211,7 @@ export function startConversationSweeper() {
           await closeBotConversation(c.id);
           clientStates.delete(key);
           nudged.delete(c.id);
-        } else if (idle >= IDLE_NUDGE_MS && !nudged.has(c.id) && !st?.brain?.ended && session?.status === "connected") {
+        } else if (idle >= IDLE_NUDGE_MS && !nudged.has(c.id) && !st?.brain?.ended && !c.outbound && session?.status === "connected") {
           const msg = idleNudge(ctx);
           nudged.set(c.id, Date.now());
           await session.sock.sendMessage(jid, { text: msg }).catch(() => {});
