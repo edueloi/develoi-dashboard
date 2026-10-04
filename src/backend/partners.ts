@@ -212,7 +212,7 @@ export function registerPartnerRoutes(app: Express) {
       const d: any = {};
       if (req.body?.name !== undefined) d.name = String(req.body.name).trim();
       if (req.body?.sharePercent !== undefined) { const p = Number(req.body.sharePercent); if (!(p >= 0 && p <= 100)) return fail(res, new Error("A porcentagem deve ficar entre 0 e 100."), 400); d.sharePercent = p; }
-      for (const k of ["email", "role", "color"]) if (req.body?.[k] !== undefined) d[k] = req.body[k] || null;
+      for (const k of ["email", "role", "color", "responsibilities"]) if (req.body?.[k] !== undefined) d[k] = req.body[k] || null;
       if (req.body?.active !== undefined) d.active = !!req.body.active;
       res.json(await prisma.partner.update({ where: { id: req.params.id }, data: d }));
     } catch (e) { fail(res, e); }

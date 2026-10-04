@@ -10,7 +10,7 @@ import {
   Globe, Heart, Star, Save, X, ExternalLink, UserPlus, Pencil, Eye,
   Sparkles, Image, BookOpen, Moon, Sun, Menu, FolderOpen, ListTodo, Users2,
   ShoppingBag, BarChart2, PhoneCall, UserCircle, Zap, Camera, Loader2,
-  DollarSign, Wallet, MessageCircle, Bell, Webhook,
+  DollarSign, Wallet, MessageCircle, Bell, Webhook, Compass,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -74,6 +74,7 @@ import { ReceivablesManager } from '../components/dashboard/ReceivablesManager';
 import { PayablesManager } from '../components/dashboard/PayablesManager';
 import { LeadsManager } from '../components/dashboard/LeadsManager';
 import { PartnersManager } from '../components/dashboard/PartnersManager';
+import { BusinessPlanManager } from '../components/dashboard/BusinessPlanManager';
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
@@ -123,6 +124,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   receivables:     '/dashboard/contas-a-receber',
   payables:        '/dashboard/contas-a-pagar',
   partners:        '/dashboard/sociedade',
+  'business-plan': '/dashboard/plano-de-negocio',
   'profile':       '/dashboard/perfil',
 };
 
@@ -138,6 +140,7 @@ function pathToTab(pathname: string): ActiveTab {
 
 export default function Dashboard() {
   const { profile, logout } = useAuth();
+  const isAdmin = profile?.role === 'admin' || profile?.email?.toLowerCase() === 'admin@develoi.com.br' || profile?.email?.toLowerCase() === 'edueloi.ee@gmail.com';
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -251,6 +254,7 @@ export default function Dashboard() {
     receivables:     'Contas a Receber',
     payables:        'Contas a Pagar',
     partners:        'Sociedade & Lucros',
+    'business-plan': 'Plano de Negócio',
     'wa-inbox':      'Atendimento WhatsApp',
     'wa-bot':        'Atendimento · Bot',
     'wa-queue':      'Atendimento · Fila',
@@ -262,7 +266,7 @@ export default function Dashboard() {
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'leads', 'partners', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'leads', 'partners', 'client-contact', 'clients', 'receivables', 'payables', 'business-plan', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -346,6 +350,7 @@ export default function Dashboard() {
             <NavItem icon={DollarSign} label="Contas a Receber" active={activeTab === 'receivables'} onClick={() => goTo('receivables')} />
             <NavItem icon={Wallet} label="Contas a Pagar" active={activeTab === 'payables'} onClick={() => goTo('payables')} />
             <NavItem icon={PieChart} label="Sociedade & Lucros" active={activeTab === 'partners'} onClick={() => goTo('partners')} />
+            {isAdmin && <NavItem icon={Compass} label="Plano de Negócio" active={activeTab === 'business-plan'} onClick={() => goTo('business-plan')} />}
           </NavSection>
 
           <NavSection label="Atendimento WhatsApp">
@@ -798,6 +803,9 @@ export default function Dashboard() {
               {activeTab === 'payables' && <PayablesManager />}
               {activeTab === 'leads' && <LeadsManager />}
               {activeTab === 'partners' && <PartnersManager />}
+              {activeTab === 'business-plan' && (isAdmin ? <BusinessPlanManager /> : (
+                <EmptyState icon={ShieldCheck} title="Acesso restrito" description="Essa área é só para os sócios da Develoi." />
+              ))}
               {activeTab === 'profile' && <MyProfile />}
             </AnimatePresence>
           </div>

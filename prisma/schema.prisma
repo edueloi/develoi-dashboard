@@ -855,15 +855,19 @@ model OutreachLog {
 
 // Sociedade: sócios e a divisão do lucro (receitas recebidas menos despesas pagas, mês a mês)
 model Partner {
-  id           String   @id @default(uuid())
-  name         String   @db.VarChar(120)
-  sharePercent Float    @default(0) // % do lucro distribuível
-  email        String?  @db.VarChar(150)
-  role         String?  @db.VarChar(80)
-  color        String?  @db.VarChar(9)
-  active       Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(120)
+  sharePercent    Float    @default(0) // % do lucro distribuível
+  email           String?  @db.VarChar(150)
+  role            String?  @db.VarChar(80)
+  color           String?  @db.VarChar(9)
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  responsibilities String? @db.Text // o que esse sócio é responsável por fazer, na função dele
+  createdAt       DateTime @default(now())
+
+  goals       BusinessGoal[]
+  evaluations PartnerEvaluation[]
 }
 
 model ProfitConfig {
@@ -891,4 +895,62 @@ model ProfitClosing {
   notes         String?  @db.Text
   closedByName  String?  @db.VarChar(100)
   closedAt      DateTime @default(now())
+}
+
+// ─── Plano de Negócio ──────────────────────────────────────────────────────────
+// Documento vivo da empresa: missão, análise, modelo de negócio e checklist jurídico/societário.
+// É um "singleton" (uma linha só, id fixo "main"), igual ao ProfitConfig.
+model BusinessPlan {
+  id                String   @id @default("main")
+  missionText       String?  @db.Text
+  visionText        String?  @db.Text
+  valuesText        String?  @db.Text
+  swotStrengths     String?  @db.Text // forças
+  swotWeaknesses    String?  @db.Text // fraquezas
+  swotOpportunities String?  @db.Text // oportunidades
+  swotThreats       String?  @db.Text // ameaças
+  targetMarket      String?  @db.Text // público-alvo / mercado
+  businessModel     String?  @db.Text // como a Develoi ganha dinheiro (modelo SaaS, planos, etc.)
+  legalChecklist    Json?    // [{ id, label, done }] — pontos jurídicos/societários comuns de empresa SaaS
+  legalNotes        String?  @db.Text // observações sobre contrato social, regime tributário, LGPD, etc.
+  updatedByName     String?  @db.VarChar(100)
+  updatedAt         DateTime @updatedAt
+}
+
+// Metas da empresa ou de um sócio específico, com acompanhamento de progresso
+model BusinessGoal {
+  id          String    @id @default(uuid())
+  title       String
+  description String?   @db.Text
+  scope       String    @default("company") @db.VarChar(10) // company | partner
+  partnerId   String?
+  partner     Partner?  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  targetDate  DateTime?
+  status      String    @default("in_progress") @db.VarChar(15) // not_started | in_progress | done | at_risk
+  progress    Int       @default(0) // 0 a 100
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// Linha do tempo de conquistas da empresa
+model Achievement {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  achievedAt  DateTime
+  createdAt   DateTime @default(now())
+}
+
+// Avaliação periódica de um sócio: pontos fortes, pontos a melhorar e metas para o próximo período
+model PartnerEvaluation {
+  id              String   @id @default(uuid())
+  partnerId       String
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  period          String   @db.VarChar(20) // ex: "2026-T4" ou "2026-10"
+  score           Int?     // nota geral de 1 a 5
+  strengths       String?  @db.Text
+  improvements    String?  @db.Text
+  goalsNextPeriod String?  @db.Text
+  evaluatedByName String?  @db.VarChar(100)
+  createdAt       DateTime @default(now())
 }

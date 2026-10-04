@@ -101,6 +101,7 @@ function AnimatedRoutes() {
           '/dashboard/contas-a-receber',
           '/dashboard/contas-a-pagar',
           '/dashboard/sociedade',
+          '/dashboard/plano-de-negocio',
           '/dashboard/perfil',
         ].map(path => (
           <Route

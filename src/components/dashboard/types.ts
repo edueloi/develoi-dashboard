@@ -169,6 +169,7 @@ export type ActiveTab =
   | 'receivables'
   | 'payables'
   | 'partners'
+  | 'business-plan'
   | 'profile';
 
 // ─── Produtos / Planos ────────────────────────────────────────────────────────
