@@ -16,12 +16,13 @@ import { PAY_METHODS, money, parseDay, fmtDate, startOfToday, firstOfMonth, Stat
 type View = 'month' | 'overdue' | 'all';
 type Source = 'all' | 'subscription' | 'manual';
 
-export interface RowState { key: 'ok' | 'soon' | 'overdue' | 'blocked' | 'paused' | 'cancelled' | 'none'; label: string; color: string; bg: string; icon: any }
+export interface RowState { key: 'ok' | 'soon' | 'overdue' | 'blocked' | 'paused' | 'cancelled' | 'none' | 'trial'; label: string; color: string; bg: string; icon: any }
 
 export function clientState(c: Client, today: Date): RowState {
   const due = parseDay(c.nextDueDate);
   const diff = due ? differenceInCalendarDays(due, today) : null;
   if (c.status === 'cancelled') return { key: 'cancelled', label: 'Cancelado', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)', icon: AlertCircle };
+  if (c.inTrial && c.status === 'active') return { key: 'trial', label: 'Em teste', color: '#7C3AED', bg: 'rgba(124,58,237,0.1)', icon: Clock };
   if (c.status === 'paused' && diff !== null && diff < 0) return { key: 'blocked', label: 'Bloqueado', color: '#7F1D1D', bg: 'rgba(127,29,29,0.12)', icon: ShieldAlert };
   if (c.status === 'paused') return { key: 'paused', label: 'Pausado', color: '#C49A2A', bg: 'rgba(196,154,42,0.12)', icon: Clock };
   if (diff === null) return { key: 'none', label: 'Sem vencimento', color: '#94A3B8', bg: 'rgba(148,163,184,0.12)', icon: Clock };
@@ -131,7 +132,7 @@ export function ReceivablesManager() {
   // ── monta as linhas ──
   const entries = useMemo<Entry[]>(() => {
     const subs: Entry[] = source === 'manual' ? [] : clients
-      .filter(c => c.status !== 'cancelled' || view === 'all')
+      .filter(c => !c.inTrial && (c.status !== 'cancelled' || view === 'all'))
       .map(c => ({ kind: 'sub' as const, id: `c-${c.id}`, name: c.name, amount: c.billingValue || 0, due: c.nextDueDate ?? null, state: clientState(c, today), client: c }));
     const man: Entry[] = source === 'subscription' ? [] : manual
       .filter(r => r.status === 'pending')

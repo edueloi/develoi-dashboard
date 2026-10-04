@@ -40,20 +40,22 @@ const strongPassword = () => crypto.randomBytes(9).toString("base64").replace(/[
 // Vencimento do Develoi vira o "Vence" do painel do BoxSys (fim do dia, horário de Brasília) e o valor mensal vai junto
 const endOfDayBrt = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1, 2, 59, 0));
 
-async function pushBilling(c: { boxsysTenantId: string | null; billingValue: number; nextDueDate: Date | null }) {
+async function pushBilling(c: { boxsysTenantId: string | null; billingValue: number; nextDueDate: Date | null; inTrial?: boolean; trialEndsAt?: Date | null }) {
   const body: Record<string, unknown> = { subscriptionAmount: c.billingValue || 0 };
-  if (c.nextDueDate) body.trialEndsAt = endOfDayBrt(c.nextDueDate).toISOString();
+  const end = c.inTrial && c.trialEndsAt ? c.trialEndsAt : c.nextDueDate;
+  if (end) body.trialEndsAt = endOfDayBrt(end).toISOString();
   await boxsys(`/tenants/${c.boxsysTenantId}`, "PATCH", body);
 }
 
 export async function syncBoxsysAccess(clientId: string): Promise<void> {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c?.boxsysTenantId || !cfg().key) return;
-  const desired = c.status === "active" ? "active" : "suspended";
+  const desired = c.status === "active" || c.inTrial ? "active" : "suspended"; // quem está em teste nunca é bloqueado
   try {
     await pushBilling(c);
     // cliente em dia (ou na tolerância) com a loja ainda em "teste" vencido: o BoxSys barraria sozinho; vira "ativo" para valer a regra daqui
-    if (desired === "active" && c.nextDueDate && c.nextDueDate.getTime() < Date.now()) {
+    const limit = c.inTrial ? (c.trialEndsAt ?? c.nextDueDate) : c.nextDueDate;
+    if (desired === "active" && limit && limit.getTime() < Date.now()) {
       const t = await boxsys<any>(`/tenants/${c.boxsysTenantId}`);
       if (t.status === "trial") await boxsys(`/tenants/${c.boxsysTenantId}/unblock`, "POST");
     }

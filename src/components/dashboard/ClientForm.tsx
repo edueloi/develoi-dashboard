@@ -35,6 +35,8 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
   const [commissionType, setCommissionType] = useState<'' | CommissionType>(client?.commissionType ?? '');
   const [commissionValue, setCommissionValue] = useState(client?.commissionValue != null ? String(client.commissionValue) : '');
   const [notes, setNotes] = useState(client?.notes ?? '');
+  const [inTrial, setInTrial] = useState(!!client?.inTrial);
+  const [trialEndsAt, setTrialEndsAt] = useState<string>(dateStr(client?.trialEndsAt) ?? format(new Date(Date.now() + 14 * 86400000), 'yyyy-MM-dd'));
   const [saving, setSaving] = useState(false);
   const [makeStore, setMakeStore] = useState(false);
   const [store, setStore] = useState({ storeName: '', subdomain: '', planId: '', trialDays: '14', sendAccess: true });
@@ -56,7 +58,7 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nextDueDate) return toast('Informe o próximo vencimento.', 'warning');
+    if (!nextDueDate && !inTrial) return toast('Informe o próximo vencimento.', 'warning');
     setSaving(true);
     try {
       const payload = {
@@ -71,6 +73,8 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
         startDate,
         nextDueDate,
         status,
+        inTrial,
+        trialEndsAt: inTrial ? trialEndsAt : null,
         reminderDaysBefore: Number(reminderDays) || 0,
         graceDaysAfter: Number(graceDays) || 0,
         soldById: soldById || null,
@@ -190,6 +194,25 @@ export function ClientFormModal({ client, users, onClose, onSaved }: {
             )}
           </div>
         </details>
+
+        <div className="rounded-xl border border-violet-200 dark:border-violet-500/30 bg-violet-50/50 dark:bg-violet-500/5 p-4 space-y-3">
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input type="checkbox" className="w-4 h-4 mt-0.5 accent-violet-600" checked={inTrial} onChange={e => setInTrial(e.target.checked)} />
+            <span className="text-sm font-bold">Cliente em período de teste
+              <span className="block text-[11px] font-normal text-slate-500">Não gera fatura, não recebe cobrança e não é bloqueado nem pausado sozinho. Quando o teste acabar, converta em assinante na lista de clientes.</span></span>
+          </label>
+          {inTrial && (
+            <div className="space-y-2">
+              <Input label="O teste termina em" type="date" value={trialEndsAt} onChange={e => setTrialEndsAt(e.target.value)} />
+              <div className="flex flex-wrap gap-1.5">
+                {[7, 14, 30].map(n => (
+                  <button type="button" key={n} onClick={() => setTrialEndsAt(format(new Date(Date.now() + n * 86400000), 'yyyy-MM-dd'))}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white dark:bg-white/10 border border-violet-200 dark:border-violet-500/30 text-violet-700 dark:text-violet-300">{n} dias</button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {!editing && (
           <div className="rounded-xl border border-slate-200 dark:border-white/10 p-4 space-y-4">

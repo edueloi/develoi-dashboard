@@ -114,6 +114,7 @@ async function invoiceDescription(c: { id: string; name: string; businessName: s
 export async function createSubscription(clientId: string, billingType: BillingType, sendLink: boolean) {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c) throw new AsaasError("Cliente não encontrado.");
+  if (c.inTrial) throw new AsaasError("Este cliente está em período de teste e não gera fatura. Converta em assinante primeiro.");
   if (c.asaasSubscriptionId) throw new AsaasError("Este cliente já tem uma assinatura no Asaas.");
   if (!c.nextDueDate) throw new AsaasError("Defina o próximo vencimento do cliente antes.");
   if (!(c.billingValue > 0)) throw new AsaasError("Defina o valor da assinatura antes.");
@@ -155,6 +156,7 @@ export async function createSubscription(clientId: string, billingType: BillingT
 export async function createCycleCharge(clientId: string, billingType: BillingType, sendLink: boolean) {
   const c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c) throw new AsaasError("Cliente não encontrado.");
+  if (c.inTrial) throw new AsaasError("Este cliente está em período de teste e não gera fatura. Converta em assinante primeiro.");
   if (!c.nextDueDate) throw new AsaasError("Defina o próximo vencimento do cliente antes.");
   if (!(c.billingValue > 0)) throw new AsaasError("Defina o valor da assinatura antes.");
   if (!BILLING_TYPES.includes(billingType)) throw new AsaasError("Forma de pagamento inválida.");

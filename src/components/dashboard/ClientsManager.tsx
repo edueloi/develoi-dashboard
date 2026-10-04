@@ -16,8 +16,10 @@ import { BoxsysSection } from './BoxsysSection';
 import { BoxsysImportModal } from './BoxsysImport';
 import { useLiveEvents } from '../../lib/liveEvents';
 import { ClientFormModal, CYCLE_LABEL } from './ClientForm';
+import { Pagination, usePagination } from '../ui/Pagination';
 
-type Filter = 'all' | 'active' | 'late' | 'inactive';
+type Filter = 'all' | 'active' | 'trial' | 'late' | 'inactive';
+type Sort = 'name' | 'due' | 'value' | 'recent';
 
 const STATUS_LABEL: Record<ClientStatus, string> = { active: 'Ativo', paused: 'Pausado', cancelled: 'Cancelado' };
 
@@ -52,6 +54,9 @@ export function ClientsManager() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>('name');
+  const [system, setSystem] = useState('');
+  const [converting, setConverting] = useState<Client | null>(null);
   const [formState, setFormState] = useState<{ open: boolean; client: Client | null }>({ open: false, client: null });
   const [importOpen, setImportOpen] = useState(false);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -88,22 +93,48 @@ export function ClientsManager() {
   const isLate = (c: Client) => ['overdue', 'blocked'].includes(stateKey(c));
   const isInactive = (c: Client) => c.status !== 'active';
 
+  const systemNames = useMemo(() => [...new Set(clients.flatMap(c => (c.projects ?? []).map(p => p.project?.name).filter(Boolean) as string[]))].sort(), [clients]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return clients
-      .filter(c => {
-        if (filter === 'active' && c.status !== 'active') return false;
-        if (filter === 'late' && !isLate(c)) return false;
-        if (filter === 'inactive' && !isInactive(c)) return false;
-        return !q || c.name.toLowerCase().includes(q) || (c.businessName ?? '').toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.phone ?? '').includes(q) || (c.document ?? '').includes(q);
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [clients, filter, search]); // eslint-disable-line
+    const list = clients.filter(c => {
+      if (filter === 'active' && !(c.status === 'active' && !c.inTrial)) return false;
+      if (filter === 'trial' && !c.inTrial) return false;
+      if (filter === 'late' && !isLate(c)) return false;
+      if (filter === 'inactive' && !isInactive(c)) return false;
+      if (system && !(c.projects ?? []).some(p => p.project?.name === system)) return false;
+      return !q || c.name.toLowerCase().includes(q) || (c.businessName ?? '').toLowerCase().includes(q) || (c.email ?? '').toLowerCase().includes(q) || (c.phone ?? '').includes(q) || (c.document ?? '').includes(q);
+    });
+    return list.sort((a, b) => {
+      if (sort === 'due') return (a.nextDueDate ?? '9').localeCompare(b.nextDueDate ?? '9');
+      if (sort === 'value') return (b.billingValue || 0) - (a.billingValue || 0);
+      if (sort === 'recent') return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+      return a.name.localeCompare(b.name);
+    });
+  }, [clients, filter, search, sort, system]); // eslint-disable-line
+  const { page, pageSize, paginatedData, setPage, setPageSize } = usePagination(filtered, 10);
 
-  const active = clients.filter(c => c.status === 'active');
+  const trialClients = clients.filter(c => c.inTrial && c.status !== 'cancelled');
+  const active = clients.filter(c => c.status === 'active' && !c.inTrial);
   const mrr = active.reduce((a, c) => a + (c.billingCycle === 'one_time' ? 0 : c.billingCycle === 'yearly' ? c.billingValue / 12 : c.billingValue), 0);
   const soon = clients.filter(c => stateKey(c) === 'soon').length;
   const late = clients.filter(isLate).length;
+  const trialLeft = (c: Client) => { const d = parseDay(c.trialEndsAt); return d ? differenceInCalendarDays(d, today) : null; };
+  const trialText = (c: Client) => {
+    const n = trialLeft(c);
+    if (n === null) return 'Em teste';
+    if (n < 0) return `Teste terminou há ${-n} ${-n === 1 ? 'dia' : 'dias'}`;
+    if (n === 0) return 'Teste termina hoje';
+    return `Em teste · termina em ${n} ${n === 1 ? 'dia' : 'dias'}`;
+  };
+  const extendTrial = async (c: Client, days: number) => {
+    try {
+      const res = await fetch(`/api/clients/${c.id}/trial/extend`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ days }) });
+      if (!res.ok) throw new Error();
+      toast(`Teste estendido em ${days} dias`, 'success');
+      fetchData();
+    } catch { toast('Não deu para estender agora.', 'error'); }
+  };
 
   const undoPayment = async (id: string) => {
     try {
@@ -130,7 +161,8 @@ export function ClientsManager() {
 
   const filters: { value: Filter; label: string }[] = [
     { value: 'all', label: `Todos (${clients.length})` },
-    { value: 'active', label: `Ativos (${active.length})` },
+    { value: 'active', label: `Assinantes (${active.length})` },
+    { value: 'trial', label: `Em teste (${trialClients.length})` },
     { value: 'late', label: late ? `Atrasados (${late})` : 'Atrasados' },
     { value: 'inactive', label: 'Pausados / cancelados' },
   ];
@@ -148,8 +180,9 @@ export function ClientsManager() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-        <Stat label="Clientes ativos" value={String(active.length)} color="#2563EB" icon={Users} text={text} />
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3">
+        <Stat label="Assinantes ativos" value={String(active.length)} color="#2563EB" icon={Users} text={text} />
+        <Stat label="Em período de teste" value={String(trialClients.length)} color="#7C3AED" icon={Clock} text={text} />
         <Stat label="Receita mensal" value={money(mrr)} color="#15803D" icon={DollarSign} text={text} />
         <Stat label="Vencendo em breve" value={String(soon)} color="#C49A2A" icon={Clock} text={text} />
         <Stat label="Atrasados" value={String(late)} color="#DC2626" icon={ShieldAlert} text={text} />
@@ -167,8 +200,12 @@ export function ClientsManager() {
             </button>
           ))}
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome, e-mail, telefone ou CPF/CNPJ…" />
+        </div>
+        <div className="grid grid-cols-2 gap-2 lg:flex">
+          <Select aria-label="Sistema" value={system} onChange={e => setSystem(e.target.value)} options={[{ value: '', label: 'Todos os sistemas' }, ...systemNames.map(n => ({ value: n, label: n }))]} />
+          <Select aria-label="Ordenar" value={sort} onChange={e => setSort(e.target.value as Sort)} options={[{ value: 'name', label: 'Nome (A-Z)' }, { value: 'due', label: 'Vencimento mais próximo' }, { value: 'value', label: 'Maior valor' }, { value: 'recent', label: 'Cadastro mais recente' }]} />
         </div>
       </div>
 
@@ -178,12 +215,12 @@ export function ClientsManager() {
         <EmptyState icon={Users} title="Nenhum cliente encontrado" description="Cadastre um cliente ou converta uma venda fechada." action={<Button onClick={openNew}>NOVO CLIENTE</Button>} />
       ) : (
         <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-white/5">
-          {filtered.map(c => {
+          {paginatedData.map(c => {
             const st = clientState(c, today);
             const since = tenure(c.startDate);
             const bday = birthdayIn(c.birthDate, today);
             const systems = (c.projects ?? []).map(p => p.project?.name).filter(Boolean).join(', ');
-            const canReceive = !!c.nextDueDate && c.status !== 'cancelled';
+            const canReceive = !!c.nextDueDate && c.status !== 'cancelled' && !c.inTrial;
             return (
               <div key={c.id} onClick={() => setViewingId(c.id)}
                 className="flex items-center gap-3 px-3.5 sm:px-4 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer">
@@ -194,6 +231,9 @@ export function ClientsManager() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-bold truncate" style={{ color: text }}>{c.name}{c.businessName && <span className="font-medium text-slate-400"> · {c.businessName}</span>}</p>
+                    {c.inTrial && c.status === 'active' && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: st.bg, color: st.color }}>{trialText(c)}</span>
+                    )}
                     {c.status !== 'active' && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md" style={{ background: st.bg, color: st.color }}>{STATUS_LABEL[c.status]}</span>
                     )}
@@ -212,17 +252,22 @@ export function ClientsManager() {
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-black" style={{ color: text }}>{c.billingValue > 0 ? money(c.billingValue) : '—'}</p>
-                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: st.key === 'overdue' || st.key === 'blocked' ? st.color : '#94A3B8' }}>
-                    {CYCLE_LABEL[c.billingCycle]} · {st.label}
+                  <p className="text-sm font-black" style={{ color: text }}>{c.inTrial ? 'Teste' : c.billingValue > 0 ? money(c.billingValue) : '—'}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: st.key === 'overdue' || st.key === 'blocked' || st.key === 'trial' ? st.color : '#94A3B8' }}>
+                    {c.inTrial ? 'Sem cobrança' : `${CYCLE_LABEL[c.billingCycle]} · ${st.label}`}
                   </p>
                 </div>
 
                 <div onClick={e => e.stopPropagation()} className="flex items-center gap-1">
                   {canReceive && <Button size="sm" onClick={() => setReceiveOf(c)}>Receber</Button>}
+                  {c.inTrial && c.status !== 'cancelled' && <Button size="sm" variant="outline" onClick={() => setConverting(c)}>Virar assinante</Button>}
                   <RowMenu items={[
                     { label: 'Ver detalhes', icon: Users, onClick: () => setViewingId(c.id) },
                     ...(canReceive ? [{ label: 'Registrar recebimento', icon: Banknote, onClick: () => setReceiveOf(c) }] : []),
+                    ...(c.inTrial ? [
+                      { label: 'Converter em assinante', icon: CheckCircle2, onClick: () => setConverting(c) },
+                      { label: 'Estender teste em 7 dias', icon: Clock, onClick: () => extendTrial(c, 7) },
+                    ] : c.status === 'active' ? [{ label: 'Colocar em período de teste', icon: Clock, onClick: () => extendTrial(c, 14) }] : []),
                     { label: 'Editar', icon: Edit2, onClick: () => setFormState({ open: true, client: c }) },
                     { label: 'Excluir', icon: Trash2, danger: true, onClick: () => setDeleting(c) },
                   ]} />
@@ -230,8 +275,11 @@ export function ClientsManager() {
               </div>
             );
           })}
+          <div className="p-2"><Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} /></div>
         </div>
       )}
+
+      {converting && <ConvertTrialModal client={converting} onClose={() => setConverting(null)} onDone={() => { setConverting(null); fetchData(); }} />}
 
       {importOpen && <BoxsysImportModal onClose={() => setImportOpen(false)} onDone={() => { setImportOpen(false); fetchData(); }} />}
 
@@ -276,6 +324,38 @@ export function ClientsManager() {
         variant="danger"
       />
     </div>
+  );
+}
+
+// ─── Virar assinante ─────────────────────────────────────────────────────────
+function ConvertTrialModal({ client, onClose, onDone }: { client: Client; onClose: () => void; onDone: () => void }) {
+  const { show: toast } = useToast();
+  const [value, setValue] = useState(client.billingValue ? String(client.billingValue) : '');
+  const [cycle, setCycle] = useState<'monthly' | 'yearly'>(client.billingCycle === 'yearly' ? 'yearly' : 'monthly');
+  const [due, setDue] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [saving, setSaving] = useState(false);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/clients/${client.id}/trial/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billingValue: Number(value), billingCycle: cycle, dueDate: due }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'erro');
+      toast(`${client.name} agora é assinante`, 'success');
+      onDone();
+    } catch (err: any) { toast(err.message === 'erro' ? 'Não deu para converter agora.' : err.message, 'error'); }
+    setSaving(false);
+  };
+  return (
+    <Modal isOpen onClose={onClose} title={`Virar assinante: ${client.name}`} size="sm"
+      footer={<Button type="submit" form="convert-form" loading={saving} fullWidth>CONVERTER EM ASSINANTE</Button>}>
+      <form id="convert-form" onSubmit={submit} className="space-y-3">
+        <p className="text-xs text-slate-500">A partir daqui o cliente passa a ter fatura, avisos de cobrança e bloqueio por atraso. O primeiro vencimento é a data abaixo.</p>
+        <Input label="Valor da assinatura" addonLeft="R$" type="number" step="0.01" required value={value} onChange={e => setValue(e.target.value)} />
+        <Select label="Cobrança" value={cycle} onChange={e => setCycle(e.target.value as 'monthly' | 'yearly')} options={[{ value: 'monthly', label: 'Mensal' }, { value: 'yearly', label: 'Anual' }]} />
+        <Input label="Primeiro vencimento" type="date" required value={due} onChange={e => setDue(e.target.value)} />
+      </form>
+    </Modal>
   );
 }
 

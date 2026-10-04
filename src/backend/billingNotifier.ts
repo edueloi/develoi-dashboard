@@ -49,7 +49,7 @@ export function pickNotice(diff: number, reminderDaysBefore: number, graceDaysAf
 // O aviso "bloqueada" é só cortesia: fica pendente (block_pending) e sai na próxima janela de envio.
 export async function enforceOverdueBlocks(): Promise<number> {
   const clients = await prisma.client.findMany({
-    where: { status: "active", nextDueDate: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } },
+    where: { status: "active", inTrial: false, nextDueDate: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } },
   });
   let blocked = 0;
   for (const c of clients) {
@@ -106,7 +106,7 @@ export async function runBillingNotices(opts: { dryRun?: boolean } = {}): Promis
   await sendPendingBlockedNotices(results, dryRun);
 
   const clients = await prisma.client.findMany({
-    where: { status: "active", nextDueDate: { not: null }, phone: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } }, // sem valor definido (teste/cortesia) não recebe cobrança
+    where: { status: "active", inTrial: false, nextDueDate: { not: null }, phone: { not: null }, billingCycle: { not: "one_time" }, billingValue: { gt: 0 } }, // sem valor definido (teste/cortesia) não recebe cobrança
     include: { billingNotices: true, projects: { include: { project: { select: { name: true } } } }, sale: { select: { productName: true } } },
   });
 
@@ -172,6 +172,7 @@ export async function sendGentleReminder(clientId: string): Promise<{ ok: boolea
   });
   if (!c) return { ok: false, error: "Cliente não encontrado." };
   if (!c.phone) return { ok: false, error: "Este cliente não tem telefone cadastrado." };
+  if (c.inTrial) return { ok: false, error: "Este cliente está em período de teste e não tem cobrança." };
   if (!c.nextDueDate || !(c.billingValue > 0)) return { ok: false, error: "Este cliente não tem cobrança em aberto." };
   if (getSessionInfo().status !== "connected") return { ok: false, error: "O WhatsApp do bot não está conectado." };
 

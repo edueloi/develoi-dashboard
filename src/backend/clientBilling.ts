@@ -39,8 +39,9 @@ export interface PaymentInput {
 // (botão manual ou webhook do Asaas). Sem isso não dá para saber quem está em atraso.
 // Idempotente por asaasPaymentId: o Asaas pode repetir o mesmo evento.
 export async function registerClientPayment(clientId: string, input: PaymentInput = {}) {
-  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  let c = await prisma.client.findUnique({ where: { id: clientId } });
   if (!c) return null;
+  if (c.inTrial) c = await prisma.client.update({ where: { id: c.id }, data: { inTrial: false, trialEndsAt: null } }); // pagou: deixou de ser teste
 
   if (input.asaasPaymentId) {
     const already = await prisma.clientPayment.findUnique({ where: { asaasPaymentId: input.asaasPaymentId } });

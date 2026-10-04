@@ -278,6 +278,8 @@ export interface Client {
   birthDate?: string;
   startDate?: string;
   status: ClientStatus;
+  inTrial?: boolean;
+  trialEndsAt?: string | null;
   saleId?: string;
   sale?: { productName: string; productCategory: string } | null;
   billingValue: number;

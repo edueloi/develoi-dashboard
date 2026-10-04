@@ -345,6 +345,8 @@ model Client {
   birthDate          DateTime?
   startDate          DateTime? // data de início de uso do sistema/serviço
   status             String    @default("active") // active | paused | cancelled
+  inTrial            Boolean   @default(false) // período de teste: não gera fatura, não envia cobrança e não é bloqueado/pausado sozinho
+  trialEndsAt        DateTime? // fim do período de teste
   saleId             String?   @unique // venda de origem (Sale.id), opcional
   billingValue       Float     @default(0)
   billingCycle       String    @default("monthly") // monthly | yearly | custom | one_time

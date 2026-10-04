@@ -21,6 +21,7 @@ import { registerInvoiceRoutes } from "./src/backend/invoicePage.js";
 import { registerBotBrainRoutes } from "./src/backend/botBrain.js";
 import { registerLeadRoutes } from "./src/backend/leads.js";
 import { registerOutreachRoutes } from "./src/backend/outreach.js";
+import { registerTrialRoutes } from "./src/backend/clientTrial.js";
 import { registerBoxsysRoutes, startBoxsysScheduler, syncBoxsysAccess } from "./src/backend/boxsys.js";
 import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
 import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
@@ -869,6 +870,7 @@ async function startServer() {
     registerBoxsysRoutes(app);
     registerLeadRoutes(app);
     registerOutreachRoutes(app);
+    registerTrialRoutes(app);
     registerWebhookOutRoutes(app);
 
     // Simula (dryRun=1) ou dispara agora os avisos de cobrança por WhatsApp
@@ -909,6 +911,7 @@ async function startServer() {
             dueDay,
             birthDate: data.birthDate ? new Date(data.birthDate) : null,
             startDate: data.startDate ? new Date(data.startDate) : null,
+            trialEndsAt: data.inTrial && data.trialEndsAt ? new Date(data.trialEndsAt) : null,
             nextDueDate,
           }
         });
@@ -947,6 +950,7 @@ async function startServer() {
             dueDay,
             birthDate: data.birthDate ? new Date(data.birthDate) : undefined,
             startDate: data.startDate ? new Date(data.startDate) : undefined,
+            trialEndsAt: 'trialEndsAt' in data ? (data.trialEndsAt ? new Date(data.trialEndsAt) : null) : undefined,
             nextDueDate,
           }
         });
