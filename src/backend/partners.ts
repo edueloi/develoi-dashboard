@@ -17,6 +17,9 @@ const stampEnd = (m: string) => new Date(dayEnd(m).getTime() + 3 * 3600_000);
 const monthOfDay = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 const monthOfStamp = (d: Date) => monthOfDay(new Date(d.getTime() - 3 * 3600_000));
 
+// a conta "pai" de uma série/parcelamento é só um agrupador (as contas reais são as de cada mês): não entra nas somas
+const NOT_GROUP_PARENT = { OR: [{ recurrence: "none" }, { parentId: { not: null } }] };
+
 type Basis = "planned" | "cash";
 type Policy = "debt_first" | "expense" | "ignore";
 interface Cfg { reservePercent: number; reimbursementsAsExpense: boolean; basis: Basis; policy: Policy }
@@ -46,7 +49,7 @@ function figures(revenue: number, expenses: number, reservePercent: number, debt
 // dívidas com sócios: gastos tipo "Reembolso" (dinheiro que alguém adiantou) ainda não devolvidos
 interface Debt { id: string; description: string; by: string | null; dueDate: Date | null; amount: number; remaining: number }
 async function openDebts(): Promise<Debt[]> {
-  const rows = await prisma.payable.findMany({ where: { type: "reimbursement", reimbursed: false, status: { not: "paid" } }, include: { payments: true } });
+  const rows = await prisma.payable.findMany({ where: { type: "reimbursement", reimbursed: false, status: { not: "paid" }, ...NOT_GROUP_PARENT }, include: { payments: true } });
   return rows
     .map(p => ({ id: p.id, description: p.description, by: p.createdByName, dueDate: p.dueDate, amount: p.amount, remaining: round2(p.amount - p.payments.reduce((s, x) => s + x.amount, 0)) }))
     .filter(d => d.remaining > 0.004)
@@ -69,7 +72,7 @@ async function plannedDetail(month: string, cfg: Cfg): Promise<Detail> {
     prisma.clientPayment.findMany({ where: { dueDate: { gte: dayStart(month), lt: dayEnd(month) } }, include: { client: { select: { id: true, name: true, businessName: true } } } }),
     prisma.receivable.findMany({ where: { dueDate: { gte: dayStart(month), lt: dayEnd(month) } } }),
     prisma.client.findMany({ where: { status: "active", inTrial: false, billingValue: { gt: 0 }, nextDueDate: { not: null } }, select: { id: true, name: true, businessName: true, billingValue: true, billingCycle: true, nextDueDate: true } }),
-    prisma.payable.findMany({ where: { dueDate: { gte: dayStart(month), lt: dayEnd(month) } }, include: { payments: true } }),
+    prisma.payable.findMany({ where: { dueDate: { gte: dayStart(month), lt: dayEnd(month) }, ...NOT_GROUP_PARENT }, include: { payments: true } }),
   ]);
 
   // assinaturas: recebidas (com vencimento no mês) + as que ainda vão entrar
