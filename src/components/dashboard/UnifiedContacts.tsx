@@ -62,6 +62,7 @@ export const UnifiedContacts: React.FC<{
     sale: rows.filter(r => r.sources.some(s => s.type === 'sale')).length,
     manual: rows.filter(r => r.sources.some(s => s.type === 'manual')).length,
     never: rows.filter(r => !r.lastContactAt).length,
+    done: rows.filter(r => !!r.lastContactAt).length,
   }), [rows]);
 
   const filtered = useMemo(() => {
@@ -103,7 +104,7 @@ export const UnifiedContacts: React.FC<{
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {cards.map(c => (
           <button key={c.id} onClick={() => setSrc(c.id as any)} className="rounded-xl p-3 border text-center transition-all bg-white dark:bg-white/5"
             style={src === c.id ? { borderColor: c.color, boxShadow: `0 0 0 1px ${c.color}` } : { borderColor: 'rgba(148,163,184,0.25)' }}>
@@ -111,6 +112,11 @@ export const UnifiedContacts: React.FC<{
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{c.label}</p>
           </button>
         ))}
+        <button onClick={() => { setTouched(t => (t === 'done' ? 'all' : 'done')); }} className="rounded-xl p-3 border text-center transition-all bg-white dark:bg-white/5"
+          style={touched === 'done' ? { borderColor: '#15803D', boxShadow: '0 0 0 1px #15803D' } : { borderColor: 'rgba(148,163,184,0.25)' }}>
+          <p className="text-lg font-black text-green-700">{stats.done}</p>
+          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Contatados</p>
+        </button>
         <button onClick={() => { setTouched(t => (t === 'never' ? 'all' : 'never')); }} className="rounded-xl p-3 border text-center transition-all bg-white dark:bg-white/5"
           style={touched === 'never' ? { borderColor: '#DC2626', boxShadow: '0 0 0 1px #DC2626' } : { borderColor: 'rgba(148,163,184,0.25)' }}>
           <p className="text-lg font-black text-red-600">{stats.never}</p>
@@ -125,7 +131,7 @@ export const UnifiedContacts: React.FC<{
             className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E] text-slate-800 dark:text-white" />
         </div>
         <select className={sel} value={touched} onChange={e => setTouched(e.target.value as any)}>
-          <option value="all">Todos</option><option value="never">Nunca contatados</option><option value="done">Já contatados</option>
+          <option value="all">Todos</option><option value="done">Contatados</option><option value="never">Sem contato ainda</option>
         </select>
         <select className={sel} value={sort} onChange={e => setSort(e.target.value as any)}>
           <option value="name">Nome (A-Z)</option><option value="last">Contato mais recente</option><option value="never">Sem contato primeiro</option>
