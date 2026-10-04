@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `OutreachLog` ADD COLUMN `byEmail` VARCHAR(150) NULL,
+    ADD COLUMN `byId` VARCHAR(64) NULL;
+

@@ -844,6 +844,8 @@ model OutreachLog {
   via       String   @default("bot") @db.VarChar(20) // bot | attendant | link | billing
   message   String   @db.Text
   byName    String?  @db.VarChar(100)
+  byEmail   String?  @db.VarChar(150) // login de quem enviou
+  byId      String?  @db.VarChar(64)
   createdAt DateTime @default(now())
 
   @@index([phone])

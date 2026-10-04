@@ -53,7 +53,7 @@ export const SendFromMessageModal: React.FC<{ message: ReadyMessage; onClose: ()
     try {
       const res = await fetch('/api/outreach/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: via, ...target, message: text, attendantId: profile?.uid, attendantName: profile?.displayName || 'Atendente' }),
+        body: JSON.stringify({ mode: via, ...target, message: text, attendantId: profile?.uid, attendantEmail: profile?.email, attendantName: profile?.displayName || 'Atendente' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Não foi possível enviar');

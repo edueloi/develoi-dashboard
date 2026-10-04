@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { Button, Modal, Input, Select, Textarea, EmptyState, DatePicker } from '../ui';
 import { useToast } from '../ui/Toast';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import type { Client, ClientPayment, Receivable } from './types';
 import { differenceInCalendarDays, format, isSameMonth, addMonths } from 'date-fns';
@@ -72,12 +73,13 @@ type Entry =
 export function ReceivablesManager() {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
+  const { profile } = useAuth();
 
   // Cobrança/lembrete gentil: a BiIA manda a mensagem na hora, com o link da fatura
   const remindViaBot = async (c: Client) => {
     if (!window.confirm(`Enviar agora uma mensagem gentil pela BiIA para ${c.name}?`)) return;
     try {
-      const res = await fetch(`/api/clients/${c.id}/billing/remind`, { method: 'POST' });
+      const res = await fetch(`/api/clients/${c.id}/billing/remind`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ byName: profile?.displayName, byEmail: profile?.email, byId: profile?.uid }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Não foi possível enviar');
       toast(`Mensagem enviada para ${c.name}`, 'success');

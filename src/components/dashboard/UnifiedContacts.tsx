@@ -14,7 +14,7 @@ export interface UContact {
   key: string; name: string; company: string | null; phone: string; city: string | null;
   sources: Src[]; lastContactAt: string | null; contactCount: number; refs: Record<string, string>;
 }
-export interface LogRow { id: string; phone: string; name: string | null; source: string; via: string; message: string; byName: string | null; createdAt: string }
+export interface LogRow { id: string; phone: string; name: string | null; source: string; via: string; message: string; byName: string | null; byEmail?: string | null; createdAt: string }
 
 const SRC: Record<SrcType, { label: string; color: string; bg: string }> = {
   client: { label: 'Cliente',    color: '#15803D', bg: 'rgba(21,128,61,0.12)' },
@@ -183,36 +183,88 @@ export const UnifiedContacts: React.FC<{
   );
 };
 
-// ─── Histórico de um contato ─────────────────────────────────────────────────
-const ContactHistoryModal: React.FC<{ contact: UContact; onClose: () => void }> = ({ contact, onClose }) => {
-  const [rows, setRows] = useState<LogRow[] | null>(null);
-  useEffect(() => { fetch(`/api/outreach/log?phone=${encodeURIComponent(contact.phone)}`).then(r => r.json()).then(setRows).catch(() => setRows([])); }, [contact.phone]);
+// ─── Linha do tempo de um contato ────────────────────────────────────────────
+const dayLabel = (iso: string) => {
+  const d = new Date(iso), t = new Date();
+  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  const y = new Date(); y.setDate(t.getDate() - 1);
+  const base = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  return same(d, t) ? `Hoje · ${base}` : same(d, y) ? `Ontem · ${base}` : base.charAt(0).toUpperCase() + base.slice(1);
+};
+const hourOf = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+const Timeline: React.FC<{ rows: LogRow[]; highlight?: string }> = ({ rows, highlight }) => {
+  const groups: { day: string; items: LogRow[] }[] = [];
+  for (const r of rows) {
+    const day = dayLabel(r.createdAt);
+    const g = groups[groups.length - 1];
+    if (g && g.day === day) g.items.push(r); else groups.push({ day, items: [r] });
+  }
   return (
-    <Modal isOpen onClose={onClose} title={`Mensagens enviadas: ${contact.company || contact.name}`} size="lg">
+    <div className="space-y-5">
+      {groups.map(g => (
+        <div key={g.day}>
+          <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-2">{g.day}</p>
+          <ol className="relative border-l-2 border-slate-200 dark:border-white/10 ml-2 space-y-4">
+            {g.items.map(r => {
+              const v = VIA[r.via] ?? VIA.bot, I = v.icon;
+              return (
+                <li key={r.id} className="ml-5 relative">
+                  <span className="absolute -left-[31px] top-0.5 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900" style={{ background: v.bg, color: v.color }}><I className="w-3 h-3" /></span>
+                  <div className="rounded-xl border p-3" style={{ borderColor: r.id === highlight ? v.color : 'rgba(148,163,184,0.25)', background: r.id === highlight ? v.bg : undefined }}>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                      <span className="font-black text-slate-900 dark:text-white text-xs">{hourOf(r.createdAt)}</span>
+                      <span className="font-black px-1.5 py-0.5 rounded-md uppercase tracking-wide" style={{ background: v.bg, color: v.color }}>{v.label}</span>
+                      <span className="text-slate-500 dark:text-slate-300">
+                        enviado por <b>{r.byName || 'não identificado'}</b>{r.byEmail ? <span className="text-slate-400"> ({r.byEmail})</span> : null}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 whitespace-pre-wrap break-words">{r.message}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ─── Histórico de um contato ─────────────────────────────────────────────────
+const PhoneTimelineModal: React.FC<{ title: string; phone: string; highlight?: string; onClose: () => void }> = ({ title, phone, highlight, onClose }) => {
+  const [rows, setRows] = useState<LogRow[] | null>(null);
+  useEffect(() => { fetch(`/api/outreach/log?phone=${encodeURIComponent(phone)}`).then(r => r.json()).then(setRows).catch(() => setRows([])); }, [phone]);
+  return (
+    <Modal isOpen onClose={onClose} title={`Linha do tempo: ${title}`} size="lg">
       {rows === null ? <div className="text-center py-8 text-sm text-slate-400">Carregando...</div>
         : rows.length === 0 ? <p className="text-sm text-slate-400 py-6 text-center">Nenhuma mensagem enviada para este contato pelo painel.</p>
-        : <LogList rows={rows} showName={false} />}
+        : <Timeline rows={rows} highlight={highlight} />}
     </Modal>
   );
 };
 
-const LogList: React.FC<{ rows: LogRow[]; showName: boolean }> = ({ rows, showName }) => {
-  const [open, setOpen] = useState<string | null>(null);
+const ContactHistoryModal: React.FC<{ contact: UContact; onClose: () => void }> = ({ contact, onClose }) => (
+  <PhoneTimelineModal title={contact.company || contact.name} phone={contact.phone} onClose={onClose} />
+);
+
+const LogList: React.FC<{ rows: LogRow[]; showName: boolean; onOpen?: (r: LogRow) => void }> = ({ rows, showName, onOpen }) => {
   return (
     <div className="space-y-2">
       {rows.map(r => {
-        const v = VIA[r.via] ?? VIA.bot, I = v.icon, isOpen = open === r.id;
+        const v = VIA[r.via] ?? VIA.bot, I = v.icon;
         return (
-          <div key={r.id} className="rounded-xl border border-slate-200/70 dark:border-white/10 p-3">
+          <button type="button" key={r.id} onClick={() => onOpen?.(r)} className="w-full text-left rounded-xl border border-slate-200/70 dark:border-white/10 p-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
             <div className="flex items-center gap-2 flex-wrap text-[11px]">
               <span className="font-black px-2 py-0.5 rounded-md uppercase tracking-wide flex items-center gap-1" style={{ background: v.bg, color: v.color }}><I className="w-3 h-3" />{v.label}</span>
               {showName && <span className="font-bold text-slate-700 dark:text-slate-200 truncate">{r.name || r.phone}</span>}
               {showName && <span className="text-slate-400">{r.phone}</span>}
-              <span className="text-slate-400 ml-auto">{fmtWhen(r.createdAt)}{r.byName ? ` · ${r.byName}` : ''}</span>
+              <span className="text-slate-400 ml-auto">{fmtWhen(r.createdAt)}</span>
             </div>
-            <p className={`text-xs text-slate-600 dark:text-slate-300 mt-1.5 whitespace-pre-wrap break-words ${isOpen ? '' : 'line-clamp-3'}`}>{r.message}</p>
-            {r.message.length > 160 && <button className="text-[11px] font-bold text-blue-600 mt-1" onClick={() => setOpen(isOpen ? null : r.id)}>{isOpen ? 'Mostrar menos' : 'Ver mensagem completa'}</button>}
-          </div>
+            <p className="text-[11px] text-slate-500 mt-1">por <b>{r.byName || 'não identificado'}</b>{r.byEmail ? ` (${r.byEmail})` : ''}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1.5 whitespace-pre-wrap break-words line-clamp-2">{r.message}</p>
+            <p className="text-[11px] font-bold text-blue-600 mt-1">Ver linha do tempo</p>
+          </button>
         );
       })}
     </div>
@@ -225,6 +277,7 @@ export const SentMessages: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [via, setVia] = useState('all');
+  const [open, setOpen] = useState<LogRow | null>(null);
   useEffect(() => {
     setLoading(true);
     fetch('/api/outreach/log?limit=1000').then(r => r.json()).then(d => setRows(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoading(false));
@@ -263,10 +316,11 @@ export const SentMessages: React.FC<{ refreshKey: number }> = ({ refreshKey }) =
         : filtered.length === 0 ? <EmptyState icon={History} title="Nenhuma mensagem enviada ainda" description="Tudo que você disparar pelo painel (BiIA, atendimento, cobrança e links do WhatsApp) fica registrado aqui." />
         : (
           <div className="space-y-3">
-            <LogList rows={paginatedData} showName />
+            <LogList rows={paginatedData} showName onOpen={setOpen} />
             <Pagination total={filtered.length} page={page} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={setPageSize} />
           </div>
         )}
+      {open && <PhoneTimelineModal title={open.name || open.phone} phone={open.phone} highlight={open.id} onClose={() => setOpen(null)} />}
     </div>
   );
 };

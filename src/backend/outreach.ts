@@ -16,10 +16,10 @@ const SALE_STAGE: Record<string, string> = { lead: "Lead", negotiation: "Negocia
 const CLIENT_STAGE: Record<string, string> = { active: "Ativo", paused: "Bloqueado", cancelled: "Cancelado" };
 const CONTACT_STAGE: Record<string, string> = { new: "Novo", pending: "A contatar", callback: "Retornar", no_answer: "Não atendeu", interested: "Interessado", negotiation: "Negociação", won: "Cliente", lost: "Perdido" };
 
-async function writeLog(d: { phone: string; name?: string | null; source?: string | null; refId?: string | null; via: string; message: string; byName?: string | null }) {
+async function writeLog(d: { phone: string; name?: string | null; source?: string | null; refId?: string | null; via: string; message: string; byName?: string | null; byEmail?: string | null; byId?: string | null }) {
   try {
     await prisma.outreachLog.create({
-      data: { phone: phoneKey(d.phone), name: d.name?.slice(0, 150) ?? null, source: d.source ?? "other", refId: d.refId ?? null, via: d.via, message: d.message, byName: d.byName?.slice(0, 100) ?? null },
+      data: { phone: phoneKey(d.phone), name: d.name?.slice(0, 150) ?? null, source: d.source ?? "other", refId: d.refId ?? null, via: d.via, message: d.message, byName: d.byName?.slice(0, 100) ?? null, byEmail: d.byEmail?.slice(0, 150) ?? null, byId: d.byId?.slice(0, 64) ?? null },
     });
   } catch (e) { console.error("[outreach] não consegui gravar o registro:", e); }
 }
@@ -28,7 +28,7 @@ export function registerOutreachRoutes(app: Express) {
   // mode "bot": a BiIA envia e continua o papo se a pessoa responder · mode "attendant": abre a conversa em atendimento com quem enviou
   app.post("/api/outreach/send", async (req, res) => {
     try {
-      const { mode, phone, name, message, leadId, contactId, source, refId, attendantId, attendantName, sectorId } = req.body ?? {};
+      const { mode, phone, name, message, leadId, contactId, source, refId, attendantId, attendantName, attendantEmail, sectorId } = req.body ?? {};
       const text = String(message ?? "").trim();
       const r = mode === "attendant"
         ? await startConversation({ phone: String(phone ?? ""), name, message: text, attendantId, attendantName: attendantName || "Atendente", sectorId })
@@ -48,7 +48,7 @@ export function registerOutreachRoutes(app: Express) {
         const c = await prisma.clientContact.findUnique({ where: { id: String(contactId) } });
         if (c) await prisma.clientContact.update({ where: { id: c.id }, data: { lastContactAt: new Date(), contactCount: c.contactCount + 1, ...(c.status === "new" ? { status: "contacted" } : {}) } });
       }
-      await writeLog({ phone: String(phone), name, source: leadId ? "lead" : contactId ? "contact" : source, refId: leadId || contactId || refId, via: mode === "attendant" ? "attendant" : "bot", message: text, byName: attendantName });
+      await writeLog({ phone: String(phone), name, source: leadId ? "lead" : contactId ? "contact" : source, refId: leadId || contactId || refId, via: mode === "attendant" ? "attendant" : "bot", message: text, byName: attendantName, byEmail: attendantEmail, byId: attendantId });
       res.json({ ok: true, conversationId: r.id });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -56,9 +56,9 @@ export function registerOutreachRoutes(app: Express) {
   // abriu o WhatsApp pelo link (não dá para confirmar o envio, mas fica registrado que foi preparado)
   app.post("/api/outreach/log", async (req, res) => {
     try {
-      const { phone, name, source, refId, via, message, byName } = req.body ?? {};
+      const { phone, name, source, refId, via, message, byName, byEmail, byId } = req.body ?? {};
       if (!phone || !String(message ?? "").trim()) return res.status(400).json({ error: "Dados incompletos." });
-      await writeLog({ phone, name, source, refId, via: via === "link" ? "link" : "link", message: String(message), byName });
+      await writeLog({ phone, name, source, refId, via: "link", message: String(message), byName, byEmail, byId });
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -126,7 +126,7 @@ export function registerOutreachRoutes(app: Express) {
       const r = await sendGentleReminder(req.params.id);
       if (!r.ok) return res.status(400).json({ error: r.error });
       const c = await prisma.client.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, phone: true } });
-      if (c?.phone) await writeLog({ phone: c.phone, name: c.name, source: "client", refId: c.id, via: "billing", message: r.preview ?? "Lembrete de cobrança", byName: String(req.body?.byName ?? "") || null });
+      if (c?.phone) await writeLog({ phone: c.phone, name: c.name, source: "client", refId: c.id, via: "billing", message: r.preview ?? "Lembrete de cobrança", byName: String(req.body?.byName ?? "") || null, byEmail: String(req.body?.byEmail ?? "") || null, byId: String(req.body?.byId ?? "") || null });
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
