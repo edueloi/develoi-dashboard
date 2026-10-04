@@ -206,15 +206,15 @@ export const LeadsManager: React.FC = () => {
     const idle = isOpen(l) ? daysSince(l.lastContactAt ?? l.createdAt) : 0;
     return (
       <div draggable={mode === 'board'} onDragStart={() => setDragId(l.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }}
-        className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-3 ${mode === 'board' ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === l.id ? 'opacity-40' : ''} ${compact ? '' : 'sm:flex sm:items-center sm:gap-3'}`}
+        className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 ${compact ? 'p-2.5' : 'p-3'} ${mode === 'board' ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === l.id ? 'opacity-40' : ''} ${compact ? '' : 'sm:flex sm:items-center sm:gap-3'}`}
         style={{ borderLeft: `3px solid ${pr.color}` }}>
         <button className="flex-1 min-w-0 text-left block w-full" onClick={() => setDetail(l.id)}>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-sm text-slate-900 dark:text-white truncate max-w-full">{l.name}</span>
+          <div className={`flex items-center gap-1.5 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
+            <span className={`font-bold text-sm text-slate-900 dark:text-white truncate ${compact ? 'min-w-0 flex-1' : 'max-w-full'}`}>{l.name}</span>
             {!compact && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>{st.label}</span>}
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: pr.bg, color: pr.color }}>{pr.label}</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: pr.bg, color: pr.color }}>{pr.label}</span>
           </div>
-          <div className="text-xs text-slate-500 mt-0.5 break-words">
+          <div className={`text-xs text-slate-500 mt-0.5 ${compact ? 'truncate' : 'break-words'}`}>
             {[l.company, l.city].filter(Boolean).join(' · ') || 'Sem empresa'}
           </div>
           {(l.product || l.value > 0) && (
@@ -231,7 +231,7 @@ export const LeadsManager: React.FC = () => {
             {l.status === 'lost' && l.lostReason && <span className="text-[10px] text-slate-500">{l.lostReason}</span>}
           </div>
         </button>
-        <div className={`flex items-center flex-wrap gap-1.5 flex-shrink-0 ${compact ? 'mt-2' : 'mt-2 sm:mt-0'}`}>
+        <div className={`flex items-center ${compact ? 'gap-1.5 mt-1.5' : 'flex-wrap gap-1.5 mt-2 sm:mt-0'} flex-shrink-0`}>
           {l.phone && (
             <button type="button" title="Enviar mensagem (BiIA, atendimento ou WhatsApp)" onClick={() => setSending(l)}
               className="p-1.5 rounded-lg text-white hover:opacity-90" style={{ background: '#15803D' }}><MessageCircle className="w-4 h-4" /></button>
@@ -277,7 +277,7 @@ export const LeadsManager: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 w-full min-w-0 max-w-full">
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3">
         {kpis.map(k => (
           <div key={k.label} className="rounded-2xl border p-3 sm:p-3.5 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 min-w-0">
@@ -316,13 +316,28 @@ export const LeadsManager: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto sm:flex-wrap pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto sm:flex-wrap items-center pb-1">
         {mode === 'list' && [{ id: 'open' as const, label: 'Em aberto', color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)' }, ...STAGES].map(s => (
           <button key={s.id} onClick={() => setTab(s.id)} className="px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap flex-shrink-0"
             style={tab === s.id ? { background: s.color, color: '#fff', borderColor: s.color } : { background: s.bg, color: s.color, borderColor: 'transparent' }}>
             {s.label} · {counts[s.id] ?? 0}
           </button>
         ))}
+        {mode === 'board' && (
+          <>
+            <span className="text-[11px] font-semibold text-slate-400 mr-1 hidden lg:inline">Solte aqui para encerrar:</span>
+            {[wonCol, lostCol].map(col => {
+              const n = filtered.filter(l => l.status === col.id).length;
+              return (
+                <button type="button" key={col.id} {...dropProps(col.id)} onClick={() => { setTab(col.id); changeView('list'); }}
+                  className="px-3 py-1.5 rounded-full text-xs font-bold border whitespace-nowrap flex-shrink-0 transition-all"
+                  style={{ background: overCol === col.id ? col.color : col.bg, color: overCol === col.id ? '#fff' : col.color, borderColor: overCol === col.id ? col.color : 'transparent', transform: overCol === col.id ? 'scale(1.06)' : 'none' }}>
+                  {col.label} · {n}
+                </button>
+              );
+            })}
+          </>
+        )}
         <button onClick={() => setOnlyFollow(v => !v)} className="px-3 py-1.5 rounded-full text-xs font-bold border ml-auto whitespace-nowrap flex-shrink-0"
           style={onlyFollow ? { background: '#B91C1C', color: '#fff', borderColor: '#B91C1C' } : { background: 'rgba(185,28,28,0.08)', color: '#B91C1C', borderColor: 'transparent' }}>
           <CalendarClock className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />Follow-up pendente
@@ -334,46 +349,29 @@ export const LeadsManager: React.FC = () => {
           <EmptyState icon={Target} title="Nenhum lead ainda" description="Cadastre quem você quer prospectar ou importe uma lista de contatos."
             action={<div className="flex gap-2 justify-center"><Button onClick={() => setEditing('new')}>NOVO LEAD</Button><Button variant="outline" onClick={() => setImporting(true)}>IMPORTAR LISTA</Button></div>} />
         ) : mode === 'board' ? (
-          <div className="space-y-3">
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4 items-start">
-              {visibleCols.map(col => {
-                const rows = sortLeads(filtered.filter(l => l.status === col.id));
-                const total = rows.reduce((sum, l) => sum + (l.value || 0), 0);
-                return (
-                  <div key={col.id} {...dropProps(col.id)}
-                    className="min-w-0 rounded-2xl p-2.5 transition-colors"
-                    style={{ background: overCol === col.id ? col.bg : 'rgba(100,116,139,0.07)', outline: overCol === col.id ? `2px dashed ${col.color}` : 'none' }}>
-                    <div className="flex items-center justify-between gap-2 px-1 mb-2">
-                      <span className="text-xs font-extrabold uppercase tracking-wide truncate" style={{ color: col.color }}>{col.label} · {rows.length}</span>
-                      {total > 0 && <span className="text-[11px] font-bold text-slate-500 flex-shrink-0">{money(total)}</span>}
-                    </div>
-                    <div className="space-y-2 min-h-[60px] max-h-[max(280px,calc(100vh-26rem))] overflow-y-auto overscroll-contain pr-0.5">
-                      {rows.map(l => <Card key={l.id} l={l} compact />)}
-                      {rows.length === 0 && <div className="text-center text-[11px] text-slate-400 py-5">Arraste um lead para cá</div>}
-                    </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[repeat(4,minmax(0,1fr))]">
+            {visibleCols.map(col => {
+              const rows = sortLeads(filtered.filter(l => l.status === col.id));
+              const total = rows.reduce((sum, l) => sum + (l.value || 0), 0);
+              return (
+                <div key={col.id} {...dropProps(col.id)}
+                  className="min-w-0 rounded-2xl p-2.5 transition-colors flex flex-col h-[max(320px,calc(100vh-20rem))]"
+                  style={{ background: overCol === col.id ? col.bg : 'rgba(100,116,139,0.07)', outline: overCol === col.id ? `2px dashed ${col.color}` : 'none' }}>
+                  <div className="flex items-center justify-between gap-2 px-1 mb-2 flex-shrink-0">
+                    <span className="text-xs font-extrabold uppercase tracking-wide truncate" style={{ color: col.color }}>{col.label} · {rows.length}</span>
+                    {total > 0 && <span className="text-[11px] font-bold text-slate-500 flex-shrink-0">{money(total)}</span>}
                   </div>
-                );
-              })}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[wonCol, lostCol].map(col => {
-                const rows = filtered.filter(l => l.status === col.id);
-                const total = rows.reduce((sum, l) => sum + (l.value || 0), 0);
-                return (
-                  <button type="button" key={col.id} {...dropProps(col.id)} onClick={() => { setTab(col.id); changeView('list'); }}
-                    className="text-left rounded-2xl p-3 transition-colors border"
-                    style={{ background: overCol === col.id ? col.bg : 'rgba(100,116,139,0.05)', borderColor: overCol === col.id ? col.color : 'rgba(100,116,139,0.15)', borderStyle: overCol === col.id ? 'dashed' : 'solid' }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-extrabold uppercase tracking-wide" style={{ color: col.color }}>{col.label} · {rows.length}</span>
-                      {total > 0 && <span className="text-[11px] font-bold text-slate-500">{money(total)}</span>}
-                    </div>
-                    <div className="text-[11px] text-slate-500 mt-1 truncate">
-                      {rows.length ? rows.slice(0, 3).map(l => l.name).join(', ') + (rows.length > 3 ? '…' : '') : `Solte aqui para marcar como ${col.label.toLowerCase()}`}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                  <div className="space-y-2 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5">
+                    {rows.map(l => <Card key={l.id} l={l} compact />)}
+                    {rows.length === 0 && (
+                      <div className="h-full min-h-[120px] rounded-xl border-2 border-dashed flex items-center justify-center text-center text-[11px] text-slate-400 px-3" style={{ borderColor: 'rgba(100,116,139,0.2)' }}>
+                        Arraste um lead para cá
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : listRows.length === 0 ? (
           <EmptyState icon={Target} title="Nenhum lead nesse filtro" description="Troque a etapa ou limpe a busca." />
