@@ -871,6 +871,7 @@ model ProfitConfig {
   reservePercent          Float    @default(0)    // % do lucro que fica no caixa da empresa antes de dividir
   reimbursementsAsExpense Boolean  @default(true) // reembolsos pagos entram como despesa no cálculo
   updatedAt               DateTime @updatedAt
+  basis                   String   @default("planned") @db.VarChar(10) // planned = tudo que vence no mes (a receber - a pagar) | cash = so o que ja entrou e saiu
 }
 
 // Fotografia de um mês fechado: os percentuais e valores daquele mês não mudam mesmo que a sociedade mude depois
@@ -882,6 +883,7 @@ model ProfitClosing {
   profit        Float
   reserve       Float
   distributable Float
+  basis         String   @default("planned") @db.VarChar(10)
   shares        Json     // [{ partnerId, name, percent, amount, paid, paidAt }]
   notes         String?  @db.Text
   closedByName  String?  @db.VarChar(100)

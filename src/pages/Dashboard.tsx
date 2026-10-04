@@ -335,8 +335,8 @@ export default function Dashboard() {
           </NavSection>
 
           <NavSection label="Comercial">
-            <NavItem icon={BarChart2} label="Vendas" active={activeTab === 'sales'} onClick={() => goTo('sales')} />
             <NavItem icon={Target} label="Prospecção" active={activeTab === 'leads'} onClick={() => goTo('leads')} />
+            <NavItem icon={BarChart2} label="Vendas" active={activeTab === 'sales'} onClick={() => goTo('sales')} />
             <NavItem icon={Users} label="Clientes" active={activeTab === 'clients'} onClick={() => goTo('clients')} />
             <NavItem icon={ShoppingBag} label="Produtos & Planos" active={activeTab === 'products'} onClick={() => goTo('products')} />
             <NavItem icon={PhoneCall} label="Contato com Clientes" active={activeTab === 'client-contact'} onClick={() => goTo('client-contact')} />

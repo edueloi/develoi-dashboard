@@ -10,12 +10,14 @@ import { useLiveEvents } from '../../lib/liveEvents';
 import { money } from './financeShared';
 
 interface Partner { id: string; name: string; sharePercent: number; email?: string | null; role?: string | null; color?: string | null; active: boolean }
-interface Config { reservePercent: number; reimbursementsAsExpense: boolean }
+interface Config { reservePercent: number; reimbursementsAsExpense: boolean; basis: 'planned' | 'cash' }
 interface Share { partnerId: string; name: string; percent: number; amount: number; color?: string | null; paid?: boolean; paidAt?: string | null }
 interface MonthData {
-  month: string; closed: boolean; closedAt?: string | null; closedByName?: string | null;
+  month: string; basis: 'planned' | 'cash'; closed: boolean; closedAt?: string | null; closedByName?: string | null;
+  revenueDone: number; revenuePending: number; expensesDone: number; expensesPending: number;
+  compare: { basis: 'planned' | 'cash'; revenue: number; expenses: number; profit: number };
   revenue: number; expenses: number; profit: number; reserve: number; distributable: number; reservePercent: number;
-  revenueBy: { label: string; amount: number }[]; expensesBy: { label: string; amount: number }[];
+  revenueBy: { label: string; amount: number; done: number }[]; expensesBy: { label: string; amount: number; done: number }[];
   topClients: { label: string; amount: number }[]; topExpenses: { label: string; amount: number }[];
   shares: Share[]; percentTotal: number;
 }
@@ -107,7 +109,7 @@ export const PartnersManager: React.FC = () => {
   const [view, setView] = useState<'month' | 'year' | 'history'>('month');
   const [month, setMonth] = useState(nowMonth());
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [config, setConfig] = useState<Config>({ reservePercent: 0, reimbursementsAsExpense: true });
+  const [config, setConfig] = useState<Config>({ reservePercent: 0, reimbursementsAsExpense: true, basis: 'planned' });
   const [data, setData] = useState<MonthData | null>(null);
   const [year, setYear] = useState<YearData | null>(null);
   const [history, setHistory] = useState<{ month: string; row: YearMonth }[]>([]);
@@ -141,6 +143,11 @@ export const PartnersManager: React.FC = () => {
     const d = await res.json().catch(() => ({}));
     if (!res.ok) { toast(d.error || 'Não foi possível concluir', 'error'); return null; }
     return d;
+  };
+  const setBasis = async (basis: 'planned' | 'cash') => {
+    if (config.basis === basis) return;
+    const d = await post('/api/partners-config', 'PATCH', { basis });
+    if (d) { setConfig(d); load(); }
   };
   const closeMonth = async () => {
     if (!window.confirm(`Fechar ${labelOf(month)}? Os valores e as porcentagens deste mês ficam guardados e não mudam mais, mesmo que a sociedade mude depois.`)) return;
@@ -204,22 +211,46 @@ export const PartnersManager: React.FC = () => {
             </div>
           </div>
 
+          {/* base do cálculo */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-bold text-slate-500">Base do cálculo:</span>
+            <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5">
+              {([['planned', 'Previsto (tudo que vence no mês)'], ['cash', 'Realizado (só o que já entrou e saiu)']] as const).map(([id, label]) => (
+                <button key={id} onClick={() => !data.closed && setBasis(id)} disabled={data.closed} className="px-3 py-1.5 rounded-lg font-black transition-all disabled:cursor-default"
+                  style={data.basis === id ? { background: '#fff', color: '#0D1F4E', boxShadow: '0 1px 3px rgba(0,0,0,.12)' } : { color: '#64748B' }}>{label}</button>
+              ))}
+            </div>
+            <span className="text-slate-400">{data.basis === 'planned' ? 'Contas a receber menos contas a pagar do mês, já pagas ou não.' : 'Só o dinheiro que realmente entrou e saiu neste mês.'}</span>
+          </div>
+
           {/* da receita ao lucro de cada sócio */}
           <div className="grid grid-cols-2 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr] gap-2 items-stretch">
             {([
-              ['Receita recebida', data.revenue, '#15803D', TrendingUp],
-              ['Despesas pagas', data.expenses, '#DC2626', TrendingDown],
-              ['Lucro do mês', data.profit, data.profit >= 0 ? '#0D1F4E' : '#DC2626', Wallet],
-              [`Reserva da empresa (${pct(data.reservePercent)})`, data.reserve, '#64748B', PiggyBank],
-              ['A dividir entre os sócios', data.distributable, '#C49A2A', Landmark],
-            ] as const).flatMap(([label, value, color, Icon], i) => [
+              [data.basis === 'planned' ? 'A receber no mês' : 'Receita recebida', data.revenue, '#15803D', TrendingUp, data.basis === 'planned' ? `Já recebido ${money(data.revenueDone)} · falta ${money(data.revenuePending)}` : null],
+              [data.basis === 'planned' ? 'A pagar no mês' : 'Despesas pagas', data.expenses, '#DC2626', TrendingDown, data.basis === 'planned' ? `Já pago ${money(data.expensesDone)} · falta ${money(data.expensesPending)}` : null],
+              ['Lucro do mês (a receber − a pagar)', data.profit, data.profit >= 0 ? '#0D1F4E' : '#DC2626', Wallet, null],
+              [`Reserva da empresa (${pct(data.reservePercent)})`, data.reserve, '#64748B', PiggyBank, null],
+              ['A dividir entre os sócios', data.distributable, '#C49A2A', Landmark, null],
+            ] as const).flatMap(([label, value, color, Icon, sub], i) => [
               ...(i > 0 ? [<div key={`s${i}`} className="hidden lg:flex items-center justify-center text-slate-300 font-black text-lg">{['−', '=', '−', '='][i - 1]}</div>] : []),
               <div key={label} className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 p-3.5 min-w-0">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500"><Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} /><span className="truncate">{label}</span></div>
                 <div className="mt-1 text-lg font-black truncate" style={{ color }}>{money(value)}</div>
+                {sub && <div className="text-[10px] font-semibold text-slate-400 truncate mt-0.5">{sub}</div>}
               </div>,
             ])}
           </div>
+          {data.basis === 'planned' && data.revenue > 0 && (
+            <div className="grid sm:grid-cols-2 gap-3">
+              {([['Recebimentos do mês', data.revenueDone, data.revenue, '#15803D'], ['Pagamentos do mês', data.expensesDone, data.expenses, '#DC2626']] as const).map(([l, done, total, c]) => (
+                <div key={l}>
+                  <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1"><span>{l}</span><span>{total ? Math.round((done / total) * 100) : 0}% concluído</span></div>
+                  <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full" style={{ width: `${total ? Math.min(100, (done / total) * 100) : 0}%`, background: c }} /></div>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="text-[11px] text-slate-400">Na outra base o lucro seria {money(data.compare.profit)} ({data.compare.basis === 'cash' ? 'realizado' : 'previsto'}).</p>
           {data.profit < 0 && <p className="text-xs font-semibold text-red-600">Neste mês as despesas passaram da receita. Não há lucro para dividir.</p>}
 
           <div className="grid lg:grid-cols-[320px_1fr] gap-4">
@@ -263,12 +294,12 @@ export const PartnersManager: React.FC = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <Card title="De onde veio a receita">
-              {data.revenueBy.length === 0 ? <p className="text-sm text-slate-400">Nenhum recebimento neste mês.</p> : data.revenueBy.map(r => <Row key={r.label} label={r.label} amount={r.amount} max={maxRev} color="#15803D" />)}
+            <Card title={data.basis === 'planned' ? 'O que vai entrar (contas a receber)' : 'De onde veio a receita'}>
+              {data.revenueBy.length === 0 ? <p className="text-sm text-slate-400">Nada a receber neste mês.</p> : data.revenueBy.map(r => <Row key={r.label} label={r.label} amount={r.amount} max={maxRev} color="#15803D" />)}
               {data.topClients.length > 0 && <><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-4 mb-2">Maiores pagadores</p>{data.topClients.map(r => <Row key={r.label} label={r.label} amount={r.amount} max={data.topClients[0].amount} color="#2563EB" />)}</>}
             </Card>
-            <Card title="Para onde foi o dinheiro">
-              {data.expensesBy.length === 0 ? <p className="text-sm text-slate-400">Nenhuma despesa paga neste mês.</p> : data.expensesBy.map(r => <Row key={r.label} label={r.label} amount={r.amount} max={maxExp} color="#DC2626" />)}
+            <Card title={data.basis === 'planned' ? 'O que vai sair (contas a pagar)' : 'Para onde foi o dinheiro'}>
+              {data.expensesBy.length === 0 ? <p className="text-sm text-slate-400">Nada a pagar neste mês.</p> : data.expensesBy.map(r => <Row key={r.label} label={r.label} amount={r.amount} max={maxExp} color="#DC2626" />)}
               {data.topExpenses.length > 0 && <><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mt-4 mb-2">Maiores despesas</p>{data.topExpenses.map(r => <Row key={r.label} label={r.label} amount={r.amount} max={data.topExpenses[0].amount} color="#EA580C" />)}</>}
             </Card>
           </div>
@@ -439,7 +470,7 @@ const ManageModal: React.FC<{ partners: Partner[]; config: Config; onClose: () =
             <span className="text-sm font-semibold">Reembolsos pagos entram como despesa
               <span className="block text-[11px] font-normal text-slate-500">Quando você devolve a um sócio o dinheiro que ele adiantou (tipo "Reembolso" em Contas a Pagar). Desmarque se isso não deve reduzir o lucro.</span></span>
           </label>
-          <p className="text-[11px] text-slate-500">Como é calculado: lucro do mês = tudo que foi recebido (assinaturas e contas a receber) menos tudo que foi pago (contas a pagar), pela data em que o dinheiro entrou ou saiu. Do lucro, tira-se a reserva e o resto é dividido pelas porcentagens.</p>
+          <p className="text-[11px] text-slate-500">Como é calculado: lucro do mês = contas a receber (assinaturas dos clientes e contas avulsas) menos contas a pagar. No modo Previsto entra tudo que vence no mês; no modo Realizado, só o que já foi recebido e pago. Do lucro tira-se a reserva e o resto é dividido pelas porcentagens. Clientes em período de teste não entram.</p>
         </div>
       </div>
     </Modal>
