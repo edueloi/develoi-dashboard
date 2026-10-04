@@ -7,7 +7,7 @@ const faqs = [
   {
     category: 'Serviços',
     question: 'Quais serviços a Develoi oferece?',
-    answer: 'Desenvolvemos sites e landing pages, sistemas web sob medida, chatbots para WhatsApp, dashboards e relatórios gerenciais, automações e integrações com APIs. Também temos produtos prontos por assinatura: Agendelle (agendamento) e PsiFlux (gestão para psicólogos).',
+    answer: 'Desenvolvemos sites e landing pages, sistemas web sob medida, chatbots para WhatsApp, dashboards e relatórios gerenciais, automações e integrações com APIs. Também temos produtos prontos por assinatura: Agendelle (agendamento) e Plaelo (gestão para psicólogos — plaelo.com.br).',
   },
   {
     category: 'Serviços',

@@ -4,12 +4,12 @@ import { useRef } from 'react';
 
 const solutions = [
   {
-    title: 'PsiFlux',
+    title: 'Plaelo',
     subtitle: 'Sistema completo para saúde mental',
     description:
       'Agenda, prontuário, teleconsulta, financeiro e IA — tudo em uma plataforma criada para psicólogos e clínicas de saúde mental.',
-    logo: 'https://psiflux.com.br/assets/logo-psiflux-AdcS1aCJ.png',
-    url: 'https://psiflux.com.br/',
+    logo: 'https://plaelo.com.br/images/logo-sistema/logo-plaelo.png',
+    url: 'https://plaelo.com.br/',
     features: ['Agenda Inteligente', 'Teleconsulta & IA', 'LGPD Compliant', 'Prontuário Digital'],
     stats: [
       { value: '2.000+', label: 'Profissionais' },

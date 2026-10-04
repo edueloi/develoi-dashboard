@@ -1448,7 +1448,7 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
     <Modal isOpen={true} onClose={onClose} title="Novo Projeto" size="md">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: PsiFlux" />
+          <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Plaelo" />
           <Input label="Cliente" required value={client} onChange={e => setClient(e.target.value)} placeholder="Ex: João Silva" />
         </div>
         
@@ -1619,7 +1619,7 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
         {activeSection === 'geral' && (
           <div className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: PsiFlux" />
+              <Input label="Nome do Projeto" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Plaelo" />
               <Input label="Cliente" required value={client} onChange={e => setClient(e.target.value)} placeholder="Ex: João Silva" />
             </div>
 
