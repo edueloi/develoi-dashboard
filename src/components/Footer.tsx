@@ -65,7 +65,7 @@ export default function Footer() {
             </h4>
             <ul className="space-y-4">
               <li className="text-sm dash-text-2 font-medium">contato@develoi.com.br</li>
-              <li className="text-sm dash-text-2 font-medium">(15) 99702-6791</li>
+              <li className="text-sm dash-text-2 font-medium">(15) 99241-8299</li>
               <li className="text-sm dash-text-2 font-medium">Tatuí/SP</li>
             </ul>
           </div>

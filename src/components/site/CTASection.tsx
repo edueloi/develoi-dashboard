@@ -20,7 +20,7 @@ export default function CTASection() {
                 Se você quer organizar seu negócio, crescer com mais controle e ter uma solução que realmente funcione, fale com a gente.
               </p>
             </div>
-            <a href="https://wa.me/5515997026791" target="_blank" rel="noopener noreferrer"
+            <a href="https://wa.me/5515992418299" target="_blank" rel="noopener noreferrer"
               className="flex-shrink-0 inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:opacity-90 hover:-translate-y-px group"
               style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 6px 20px rgba(196,154,42,0.35)' }}>
               FALAR COM A DEVELOI

@@ -248,7 +248,7 @@ export default function FAQ() {
               </div>
               <div className="flex flex-col sm:flex-row gap-3 flex-shrink-0">
                 <a
-                  href="https://wa.me/5515997026791?text=Olá%2C%20tenho%20uma%20dúvida%20sobre%20os%20serviços%20da%20Develoi."
+                  href="https://wa.me/5515992418299?text=Olá%2C%20tenho%20uma%20dúvida%20sobre%20os%20serviços%20da%20Develoi."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90 hover:-translate-y-px"

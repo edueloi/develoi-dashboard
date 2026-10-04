@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 
 const contactItems = [
   { icon: Mail, label: 'E-mail', value: 'contato@develoi.com.br', href: 'mailto:contato@develoi.com.br' },
-  { icon: Phone, label: 'WhatsApp', value: '(15) 99702-6791', href: 'https://wa.me/5515997026791' },
+  { icon: Phone, label: 'WhatsApp', value: '(15) 99241-8299', href: 'https://wa.me/5515992418299' },
   { icon: MapPin, label: 'Localização', value: 'Tatuí/SP', href: '#' },
 ];
 

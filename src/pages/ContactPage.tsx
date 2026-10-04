@@ -6,14 +6,14 @@ import {
   MessageSquare, Clock, ArrowRight, ExternalLink,
 } from 'lucide-react';
 
-const WHATSAPP_NUMBER = '5515997026791';
+const WHATSAPP_NUMBER = '5515992418299';
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=Olá%2C%20vim%20pelo%20site%20e%20gostaria%20de%20saber%20mais%20sobre%20os%20serviços%20da%20Develoi.`;
 
 const contactCards = [
   {
     icon: Phone,
     label: 'WhatsApp',
-    value: '(15) 99702-6791',
+    value: '(15) 99241-8299',
     sub: 'Resposta rápida em horário comercial',
     href: WHATSAPP_URL,
     cta: 'Chamar no WhatsApp',
@@ -440,7 +440,7 @@ export default function ContactPage() {
                   {[
                     { icon: Clock, text: 'Seg a Sex, das 08h às 18h' },
                     { icon: Mail, text: 'contato@develoi.com.br' },
-                    { icon: Phone, text: '(15) 99702-6791' },
+                    { icon: Phone, text: '(15) 99241-8299' },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-3">
                       <item.icon className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-gold)' }} />

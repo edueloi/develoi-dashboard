@@ -18,7 +18,7 @@ interface Option {
 
 // ─── Knowledge base / respostas da IA ────────────────────────────────────────
 
-const WA_NUMBER = '5515997026791';
+const WA_NUMBER = '5515992418299';
 const WA_BASE = `https://wa.me/${WA_NUMBER}`;
 
 function waLink(msg: string) {
