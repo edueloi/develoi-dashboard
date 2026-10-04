@@ -830,3 +830,19 @@ model LeadActivity {
 
   @@index([leadId])
 }
+
+// Registro das mensagens disparadas pelo painel (prospecção, relacionamento e cobrança)
+model OutreachLog {
+  id        String   @id @default(uuid())
+  phone     String   @db.VarChar(30) // só dígitos, sem o 55
+  name      String?  @db.VarChar(150)
+  source    String   @default("other") @db.VarChar(20) // lead | client | sale | contact | other
+  refId     String?  @db.VarChar(64)
+  via       String   @default("bot") @db.VarChar(20) // bot | attendant | link | billing
+  message   String   @db.Text
+  byName    String?  @db.VarChar(100)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([createdAt])
+}

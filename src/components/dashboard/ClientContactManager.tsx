@@ -10,6 +10,7 @@ import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { SendMessageModal, fillPlaceholders } from './SendMessageModal';
+import { UnifiedContacts, SentMessages } from './UnifiedContacts';
 import type { ReadyMessage, ClientContact, MessageCategory, ContactStatus, Product } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
@@ -97,7 +98,7 @@ const DEFAULT_MESSAGES: Omit<ReadyMessage, 'id' | 'createdAt' | 'userId'>[] = [
     body: `Olá, [Nome]! Obrigado por entrar em contato. 😊\n\nRecebi sua mensagem sobre [problema/dúvida] e já estou verificando.\n\nRetornarei em breve com a solução. Se precisar de algo enquanto isso, pode me chamar!\n\nEstamos aqui para ajudar. 🙏` },
 ];
 
-type TabView = 'contacts' | 'messages';
+type TabView = 'contacts' | 'history' | 'messages';
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
@@ -109,6 +110,8 @@ export function ClientContactManager() {
   const userId = profile?.uid ?? '';
 
   const [tabView, setTabView] = useState<TabView>('contacts');
+  const [refreshKey, setRefreshKey] = useState(0);
+  useEffect(() => { setRefreshKey(k => k + 1); }, [tabView]);
   const [messages, setMessages] = useState<ReadyMessage[]>([]);
   const [contacts, setContacts] = useState<ClientContact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -254,8 +257,9 @@ export function ClientContactManager() {
           <h2 className="text-lg font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
             Contato com Clientes
           </h2>
-          <p className="text-sm text-slate-400 mt-0.5">Minha lista de prospecção e mensagens prontas</p>
+          <p className="text-sm text-slate-400 mt-0.5">Todos os contatos (prospecção, clientes e vendas), mensagens prontas e o registro do que foi enviado</p>
         </div>
+        {tabView !== 'history' && (
         <Button
           iconLeft={<Plus className="w-4 h-4" />}
           onClick={() => {
@@ -265,32 +269,14 @@ export function ClientContactManager() {
         >
           {tabView === 'contacts' ? 'NOVO CONTATO' : 'NOVA MENSAGEM'}
         </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {[
-          { label: 'Total',       value: stats.total,      color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)' },
-          { label: 'Novos',       value: stats.new,        color: '#2563EB', bg: 'rgba(37,99,235,0.1)' },
-          { label: 'A Contatar',  value: stats.pending,    color: '#C49A2A', bg: 'rgba(196,154,42,0.1)' },
-          { label: 'Não Atendeu', value: stats.noAnswer,   color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-          { label: 'Interessados',value: stats.interested, color: '#15803D', bg: 'rgba(21,128,61,0.1)' },
-          { label: 'Clientes',    value: stats.won,        color: '#059669', bg: 'rgba(5,150,105,0.1)' },
-        ].map((s, i) => (
-          <motion.div key={s.label}
-            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-            className="bg-white dark:bg-white/5 rounded-xl p-3 shadow-sm border border-slate-200/60 dark:border-white/10 flex flex-col items-center text-center"
-          >
-            <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-tight mt-0.5">{s.label}</p>
-          </motion.div>
-        ))}
+        )}
       </div>
 
       {/* Tabs — estilo Agendelle */}
       <div className="flex gap-1 border-b border-slate-200 dark:border-white/10">
         {([
-          ['contacts', 'Minha Lista de Contatos', pendingBadge],
+          ['contacts', 'Minha Lista de Contatos', 0],
+          ['history', 'Mensagens Enviadas', 0],
           ['messages', 'Mensagens Prontas', 0],
         ] as const).map(([id, label, badge]) => (
           <button
@@ -319,120 +305,15 @@ export function ClientContactManager() {
       <AnimatePresence mode="wait">
         {tabView === 'contacts' ? (
           <motion.div key="contacts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-            {/* Filtros */}
-            <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-2.5 flex flex-wrap gap-2 items-center">
-              <div className="flex-1 min-w-[200px] relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={contactSearch} onChange={e => setContactSearch(e.target.value)}
-                  placeholder="Nome, telefone ou cidade..."
-                  className="w-full h-9 pl-9 pr-3 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E]"
-                  style={{ color: isDark ? '#fff' : '#1e293b' }}
-                />
-              </div>
-              <select
-                value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)}
-                className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none font-medium"
-                style={{ color: isDark ? '#fff' : '#1e293b' }}
-              >
-                <option value="all">Todos os Status</option>
-                {(Object.keys(STATUS_CONFIG) as ContactStatus[]).map(s => (
-                  <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-                ))}
-              </select>
-            </div>
+            <UnifiedContacts
+              messages={messages} refreshKey={refreshKey} onChanged={() => { fetchData(); setRefreshKey(k => k + 1); }}
+              onEditManual={id => { const c = contacts.find(x => x.id === id); if (c) { setEditingContact(c); setIsContactFormOpen(true); } }}
+              onDeleteManual={id => setDeletingContactId(id)} />
+          </motion.div>
 
-            {/* Tabela */}
-            {loading ? (
-              <div className="text-center py-12 text-sm text-slate-400">Carregando...</div>
-            ) : filteredContacts.length === 0 ? (
-              <EmptyState icon={User} title="Nenhum contato encontrado"
-                description="Adicione clientes e prospects para acompanhar sua prospecção."
-                action={<Button onClick={() => setIsContactFormOpen(true)}>ADICIONAR CONTATO</Button>} />
-            ) : (
-              <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
-                {/* Header tabela */}
-                <div className="hidden md:grid px-6 py-3 border-b border-slate-100 dark:border-white/5 text-[10px] font-black text-slate-400 uppercase tracking-widest"
-                  style={{ gridTemplateColumns: '2fr 1.2fr 0.8fr 1fr 0.7fr auto' }}>
-                  {['Contato', 'WhatsApp', 'Cidade', 'Status', 'Notas', 'Ações'].map(h => <span key={h}>{h}</span>)}
-                </div>
-
-                <div className="divide-y divide-slate-100 dark:divide-white/5">
-                  {filteredContacts.map((contact, i) => {
-                    const stCfg = STATUS_CONFIG[contact.status];
-                    const displayName = contact.establishmentName || contact.clientName;
-                    const sub = contact.ownerName && contact.ownerName !== displayName ? contact.ownerName : contact.segment;
-                    return (
-                      <motion.div key={contact.id}
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                        className="grid grid-cols-1 md:px-4 px-3 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group items-center gap-2"
-                        style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,1.2fr) minmax(0,0.8fr) minmax(0,1fr) minmax(0,0.7fr) auto' }}
-                      >
-                        {/* Nome */}
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 text-white"
-                            style={{ background: stCfg.color }}>
-                            {displayName[0]?.toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{displayName}</p>
-                            {sub && <p className="text-xs text-slate-400 truncate">{sub}</p>}
-                          </div>
-                        </div>
-
-                        {/* Telefone */}
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-500 dark:text-slate-300 truncate">{contact.clientPhone ?? '—'}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{contact.lastContactAt ? `Último contato ${new Date(contact.lastContactAt).toLocaleDateString('pt-BR')}` : 'Sem contato ainda'}{contact.contactCount ? ` · ${contact.contactCount}x` : ''}</p>
-                        </div>
-
-                        {/* Cidade */}
-                        <p className="text-sm text-slate-500 dark:text-slate-300 truncate">{contact.city ?? '—'}</p>
-
-                        {/* Status — select inline igual Agendelle */}
-                        <div>
-                          <select
-                            value={contact.status}
-                            onChange={e => handleStatusChange(contact, e.target.value as ContactStatus)}
-                            className="px-2 py-1 text-[10px] font-black rounded-lg border cursor-pointer uppercase tracking-widest focus:outline-none w-full"
-                            style={{ background: stCfg.bg, color: stCfg.color, borderColor: `${stCfg.color}30` }}
-                          >
-                            {(Object.keys(STATUS_CONFIG) as ContactStatus[]).map(s => (
-                              <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Notas */}
-                        <p className="text-xs text-slate-400 truncate">{contact.notes ? contact.notes.slice(0, 30) + (contact.notes.length > 30 ? '…' : '') : '—'}</p>
-
-                        {/* Ações */}
-                        <div className="flex gap-1">
-                          <button onClick={() => setViewingContact(contact)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors" title="Ver">
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          {contact.clientPhone && (
-                            <button onClick={() => setSendingContact(contact)}
-                              className="p-1.5 rounded-lg text-white transition-colors" style={{ background: '#15803D' }} title="Enviar mensagem (BiIA, atendimento ou WhatsApp)">
-                              <Send className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          <button onClick={() => { setEditingContact(contact); setIsContactFormOpen(true); }}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 transition-colors" title="Editar">
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => setDeletingContactId(contact.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-500 transition-colors" title="Excluir">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+        ) : tabView === 'history' ? (
+          <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <SentMessages refreshKey={refreshKey} />
           </motion.div>
 
         ) : (

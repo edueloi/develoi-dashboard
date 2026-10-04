@@ -9,7 +9,7 @@ export const rawPrisma = new PrismaClient();
 // Tabelas internas/ruidosas que não geram evento
 const IGNORED_MODELS = new Set([
   "SystemEvent", "WebhookEndpoint", "WebhookDelivery", "AsaasWebhookLog", "TeamNoticeLog",
-  "ClientBillingNotice", "BlogAnalytics", "WppInstance", "WppBotNluLog", "WppContactMemory",
+  "ClientBillingNotice", "BlogAnalytics", "WppInstance", "WppBotNluLog", "WppContactMemory", "OutreachLog",
 ]);
 
 const ACTION_OF: Record<string, "created" | "updated" | "deleted"> = {

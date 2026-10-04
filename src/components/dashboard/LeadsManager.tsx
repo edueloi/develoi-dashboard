@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Pencil, Trash2, Eye, XCircle, RotateCcw, UserPlus, Plus, Search, MessageCircle, ChevronRight, Upload, Target, CalendarClock, TrendingUp, Trophy,
-  Phone, Mail, Video, StickyNote, ArrowRightLeft, LayoutGrid, List, Flame, Percent, Hourglass,
+  Hand, Phone, Mail, Video, StickyNote, ArrowRightLeft, LayoutGrid, List, Flame, Percent, Hourglass,
 } from 'lucide-react';
 import { Button, Modal, Input, Select, Textarea, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
@@ -205,8 +205,8 @@ export const LeadsManager: React.FC = () => {
     const st = stageOf(l.status), f = followState(l), pr = prioOf(l.priority);
     const idle = isOpen(l) ? daysSince(l.lastContactAt ?? l.createdAt) : 0;
     return (
-      <div draggable={mode === 'board'} onDragStart={() => setDragId(l.id)} onDragEnd={() => { setDragId(null); setOverCol(null); }}
-        className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 ${compact ? 'p-2.5' : 'p-3'} ${mode === 'board' ? 'cursor-grab active:cursor-grabbing' : ''} ${dragId === l.id ? 'opacity-40' : ''} ${compact ? '' : 'sm:flex sm:items-center sm:gap-3'}`}
+      <div data-lead-card
+        className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 ${compact ? 'p-2.5' : 'p-3'} ${dragId === l.id ? 'opacity-40' : ''} ${compact ? '' : 'sm:flex sm:items-center sm:gap-3'}`}
         style={{ borderLeft: `3px solid ${pr.color}` }}>
         <button className="flex-1 min-w-0 text-left block w-full" onClick={() => setDetail(l.id)}>
           <div className={`flex items-center gap-1.5 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
@@ -232,6 +232,20 @@ export const LeadsManager: React.FC = () => {
           </div>
         </button>
         <div className={`flex items-center ${compact ? 'gap-1.5 mt-1.5' : 'flex-wrap gap-1.5 mt-2 sm:mt-0'} flex-shrink-0`}>
+          {mode === 'board' && (
+            <span draggable title="Segure aqui e arraste para outra etapa"
+              onDragStart={e => {
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', l.id);
+                const card = (e.currentTarget as HTMLElement).closest('[data-lead-card]');
+                if (card) e.dataTransfer.setDragImage(card as Element, 24, 24);
+                setTimeout(() => setDragId(l.id), 0);
+              }}
+              onDragEnd={() => { setDragId(null); setOverCol(null); }}
+              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing select-none flex-shrink-0 touch-none">
+              <Hand className="w-4 h-4" />
+            </span>
+          )}
           {l.phone && (
             <button type="button" title="Enviar mensagem (BiIA, atendimento ou WhatsApp)" onClick={() => setSending(l)}
               className="p-1.5 rounded-lg text-white hover:opacity-90" style={{ background: '#15803D' }}><MessageCircle className="w-4 h-4" /></button>
@@ -242,6 +256,7 @@ export const LeadsManager: React.FC = () => {
               { label: 'Abrir / registrar contato', icon: Eye, onClick: () => setDetail(l.id) },
               { label: 'Editar', icon: Pencil, onClick: () => setEditing(l) },
               ...(isOpen(l) ? [
+                ...STAGES.filter(x => x.id !== l.status && x.id !== 'won' && x.id !== 'lost').map(x => ({ label: `Mover para ${x.label}`, icon: ArrowRightLeft, onClick: () => move(l, x.id) })),
                 { label: 'Falar amanhã', icon: CalendarClock, onClick: () => setFollow(l, inDays(1)) },
                 { label: 'Falar em 1 semana', icon: CalendarClock, onClick: () => setFollow(l, inDays(7)) },
                 { label: 'Marcar como perdido', icon: XCircle, onClick: () => setLosing(l) },
@@ -258,7 +273,7 @@ export const LeadsManager: React.FC = () => {
   // alvo de soltar do quadro (colunas e zonas de ganho/perdido)
   const dropProps = (colId: Status) => ({
     onDragOver: (e: React.DragEvent) => { if (dragId) { e.preventDefault(); setOverCol(colId); } },
-    onDragLeave: () => setOverCol(c => (c === colId ? null : c)),
+    onDragLeave: (e: React.DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setOverCol(c => (c === colId ? null : c)); },
     onDrop: (e: React.DragEvent) => {
       e.preventDefault(); setOverCol(null);
       const l = leads.find(x => x.id === dragId); setDragId(null);
@@ -325,7 +340,7 @@ export const LeadsManager: React.FC = () => {
         ))}
         {mode === 'board' && (
           <>
-            <span className="text-[11px] font-semibold text-slate-400 mr-1 hidden lg:inline">Solte aqui para encerrar:</span>
+            <span className="text-[11px] font-semibold text-slate-400 mr-1 hidden md:inline"><Hand className="w-3.5 h-3.5 inline -mt-0.5 mr-1" />Segure a mãozinha do card e arraste para outra coluna ou solte em:</span>
             {[wonCol, lostCol].map(col => {
               const n = filtered.filter(l => l.status === col.id).length;
               return (
