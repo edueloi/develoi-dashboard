@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, Plus, ChevronLeft, ChevronRight, Lock, Unlock, CheckCircle2, Wallet, TrendingUp, TrendingDown, PiggyBank, Landmark,
-  Trash2, AlertCircle, History, CalendarRange, CalendarDays, Settings2, ArrowRight,
+  Trash2, AlertCircle, History, CalendarRange, RotateCcw, CalendarDays, Settings2, ArrowRight,
 } from 'lucide-react';
 import { Button, Modal, Input, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
@@ -10,19 +10,21 @@ import { useLiveEvents } from '../../lib/liveEvents';
 import { money } from './financeShared';
 
 interface Partner { id: string; name: string; sharePercent: number; email?: string | null; role?: string | null; color?: string | null; active: boolean }
-interface Config { reservePercent: number; reimbursementsAsExpense: boolean; basis: 'planned' | 'cash' }
+interface Config { reservePercent: number; reimbursementsAsExpense: boolean; basis: 'planned' | 'cash'; policy?: 'debt_first' | 'expense' | 'ignore' }
 interface Share { partnerId: string; name: string; percent: number; amount: number; color?: string | null; paid?: boolean; paidAt?: string | null }
 interface MonthData {
   month: string; basis: 'planned' | 'cash'; closed: boolean; closedAt?: string | null; closedByName?: string | null;
   revenueDone: number; revenuePending: number; expensesDone: number; expensesPending: number;
+  policy: 'debt_first' | 'expense' | 'ignore'; debtPaid: number; debtBefore: number; debtAfter: number;
+  debts: { id: string; description: string; by: string | null; dueDate: string | null; amount: number; remaining: number }[];
   compare: { basis: 'planned' | 'cash'; revenue: number; expenses: number; profit: number };
   revenue: number; expenses: number; profit: number; reserve: number; distributable: number; reservePercent: number;
   revenueBy: { label: string; amount: number; done: number }[]; expensesBy: { label: string; amount: number; done: number }[];
   topClients: { label: string; amount: number }[]; topExpenses: { label: string; amount: number }[];
   shares: Share[]; percentTotal: number;
 }
-interface YearMonth { month: string; closed: boolean; future: boolean; revenue: number; expenses: number; profit: number; reserve: number; distributable: number; shares: Share[] }
-interface YearData { year: number; months: YearMonth[]; totals: { revenue: number; expenses: number; profit: number; reserve: number; distributable: number }; partners: { id: string; name: string; color: string | null; amount: number; paid: number }[] }
+interface YearMonth { month: string; closed: boolean; future: boolean; revenue: number; expenses: number; profit: number; debtPaid: number; reserve: number; distributable: number; shares: Share[] }
+interface YearData { year: number; debtNow: number; months: YearMonth[]; totals: { revenue: number; expenses: number; profit: number; debtPaid: number; reserve: number; distributable: number }; partners: { id: string; name: string; color: string | null; amount: number; paid: number }[] }
 
 const PALETTE = ['#0D1F4E', '#C49A2A', '#15803D', '#7C3AED', '#DC2626', '#0891B2', '#EA580C', '#DB2777'];
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -109,7 +111,7 @@ export const PartnersManager: React.FC = () => {
   const [view, setView] = useState<'month' | 'year' | 'history'>('month');
   const [month, setMonth] = useState(nowMonth());
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [config, setConfig] = useState<Config>({ reservePercent: 0, reimbursementsAsExpense: true, basis: 'planned' });
+  const [config, setConfig] = useState<Config>({ reservePercent: 0, reimbursementsAsExpense: false, basis: 'planned', policy: 'debt_first' });
   const [data, setData] = useState<MonthData | null>(null);
   const [year, setYear] = useState<YearData | null>(null);
   const [history, setHistory] = useState<{ month: string; row: YearMonth }[]>([]);
@@ -150,11 +152,12 @@ export const PartnersManager: React.FC = () => {
     if (d) { setConfig(d); load(); }
   };
   const closeMonth = async () => {
-    if (!window.confirm(`Fechar ${labelOf(month)}? Os valores e as porcentagens deste mês ficam guardados e não mudam mais, mesmo que a sociedade mude depois.`)) return;
+    const q = data && data.debtPaid > 0 ? ` Também serão registrados em Contas a Pagar os ${money(data.debtPaid)} de reembolsos quitados com o lucro deste mês.` : '';
+    if (!window.confirm(`Fechar ${labelOf(month)}? Os valores e as porcentagens deste mês ficam guardados e não mudam mais, mesmo que a sociedade mude depois.${q}`)) return;
     if (await post('/api/partners/closings', 'POST', { month, byName: profile?.displayName })) { toast('Mês fechado', 'success'); load(); }
   };
   const reopen = async (m: string) => {
-    if (!window.confirm(`Reabrir ${labelOf(m)}? Os repasses marcados nele serão apagados.`)) return;
+    if (!window.confirm(`Reabrir ${labelOf(m)}? Os repasses marcados nele serão apagados e as quitações de reembolso feitas neste fechamento serão desfeitas.`)) return;
     if (await post(`/api/partners/closings/${m}`, 'DELETE')) { toast('Mês reaberto', 'success'); load(); }
   };
   const markPaid = async (m: string, partnerId: string, paid: boolean) => { if (await post(`/api/partners/closings/${m}/paid`, 'POST', { partnerId, paid })) load(); };
@@ -224,15 +227,16 @@ export const PartnersManager: React.FC = () => {
           </div>
 
           {/* da receita ao lucro de cada sócio */}
-          <div className="grid grid-cols-2 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr] gap-2 items-stretch">
+          <div className="grid grid-cols-2 lg:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr_auto_1fr] gap-2 items-stretch">
             {([
               [data.basis === 'planned' ? 'A receber no mês' : 'Receita recebida', data.revenue, '#15803D', TrendingUp, data.basis === 'planned' ? `Já recebido ${money(data.revenueDone)} · falta ${money(data.revenuePending)}` : null],
               [data.basis === 'planned' ? 'A pagar no mês' : 'Despesas pagas', data.expenses, '#DC2626', TrendingDown, data.basis === 'planned' ? `Já pago ${money(data.expensesDone)} · falta ${money(data.expensesPending)}` : null],
               ['Lucro do mês (a receber − a pagar)', data.profit, data.profit >= 0 ? '#0D1F4E' : '#DC2626', Wallet, null],
+              ['Quitação de reembolsos', data.debtPaid, '#2563EB', RotateCcw, data.policy === 'debt_first' ? (data.debtBefore > 0 || data.debtPaid > 0 ? `Dívida: ${money(data.debtBefore)} → ${money(data.debtAfter)}` : 'Sem dívidas com sócios') : 'Desligada nas regras'],
               [`Reserva da empresa (${pct(data.reservePercent)})`, data.reserve, '#64748B', PiggyBank, null],
               ['A dividir entre os sócios', data.distributable, '#C49A2A', Landmark, null],
             ] as const).flatMap(([label, value, color, Icon, sub], i) => [
-              ...(i > 0 ? [<div key={`s${i}`} className="hidden lg:flex items-center justify-center text-slate-300 font-black text-lg">{['−', '=', '−', '='][i - 1]}</div>] : []),
+              ...(i > 0 ? [<div key={`s${i}`} className="hidden lg:flex items-center justify-center text-slate-300 font-black text-lg">{['−', '=', '−', '−', '='][i - 1]}</div>] : []),
               <div key={label} className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 p-3.5 min-w-0">
                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500"><Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} /><span className="truncate">{label}</span></div>
                 <div className="mt-1 text-lg font-black truncate" style={{ color }}>{money(value)}</div>
@@ -240,6 +244,28 @@ export const PartnersManager: React.FC = () => {
               </div>,
             ])}
           </div>
+          {data.policy === 'debt_first' && (data.debts.length > 0 || data.debtPaid > 0) && (
+            <Card title="Dívidas com sócios: quitar antes de dividir o lucro">
+              <p className="text-xs text-slate-500 mb-3">Gastos que os sócios adiantaram no sistema (tipo <b>Reembolso</b> em Contas a Pagar). Enquanto houver dívida, o lucro do mês vai primeiro para quitá-la. Só o que sobrar depois (menos a reserva) é dividido entre os sócios.</p>
+              <div className="space-y-2">
+                {data.debts.map(d => (
+                  <div key={d.id} className="flex items-center gap-3 text-xs">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 truncate flex-1">{d.description}{d.by ? <span className="text-slate-400"> · {d.by}</span> : null}</span>
+                    <span className="text-slate-400">{money(d.amount)}</span>
+                    <span className="font-black text-blue-700 w-24 text-right">falta {money(d.remaining)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-white/5 text-xs flex flex-wrap gap-x-4 gap-y-1 font-bold">
+                <span className="text-slate-500">Dívida total hoje: <span className="text-slate-900 dark:text-white">{money(data.debtBefore)}</span></span>
+                <span className="text-blue-700">Quitada com o lucro deste mês: {money(data.debtPaid)}</span>
+                <span className={data.debtAfter > 0 ? 'text-amber-700' : 'text-green-700'}>{data.debtAfter > 0 ? `Ainda falta quitar: ${money(data.debtAfter)}` : 'Tudo quitado: daqui para frente o lucro vai para os sócios'}</span>
+              </div>
+            </Card>
+          )}
+          {data.policy === 'debt_first' && data.debts.length === 0 && data.debtPaid === 0 && (
+            <p className="text-[11px] text-slate-400">Sem dívidas de reembolso com os sócios. Se algum sócio adiantou gastos, registre em Contas a Pagar com o tipo "Reembolso" e o lucro passa a quitá-los primeiro.</p>
+          )}
           {data.basis === 'planned' && data.revenue > 0 && (
             <div className="grid sm:grid-cols-2 gap-3">
               {([['Recebimentos do mês', data.revenueDone, data.revenue, '#15803D'], ['Pagamentos do mês', data.expensesDone, data.expenses, '#DC2626']] as const).map(([l, done, total, c]) => (
@@ -314,8 +340,8 @@ export const PartnersManager: React.FC = () => {
             <div className="px-3 text-sm font-black text-[#0D1F4E] dark:text-white min-w-[80px] text-center">{year.year}</div>
             <button onClick={() => setMonth(`${y + 1}-${month.slice(5)}`)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10"><ChevronRight className="w-4 h-4" /></button>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-            {([['Receita no ano', year.totals.revenue, '#15803D'], ['Despesas no ano', year.totals.expenses, '#DC2626'], ['Lucro no ano', year.totals.profit, '#0D1F4E'], ['Reserva', year.totals.reserve, '#64748B'], ['Dividido entre sócios', year.totals.distributable, '#C49A2A']] as const).map(([l, v, c]) => (
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
+            {([['Receita no ano', year.totals.revenue, '#15803D'], ['Despesas no ano', year.totals.expenses, '#DC2626'], ['Lucro no ano', year.totals.profit, '#0D1F4E'], ['Reembolsos quitados', year.totals.debtPaid, '#2563EB'], ['Reserva', year.totals.reserve, '#64748B'], ['Dividido entre sócios', year.totals.distributable, '#C49A2A']] as const).map(([l, v, c]) => (
               <div key={l} className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 p-3.5 min-w-0">
                 <p className="text-[11px] font-bold text-slate-500 truncate">{l}</p><p className="text-lg font-black truncate" style={{ color: c }}>{money(v)}</p>
               </div>
@@ -405,7 +431,7 @@ const ManageModal: React.FC<{ partners: Partner[]; config: Config; onClose: () =
   const { show: toast } = useToast();
   const [rows, setRows] = useState<Partner[]>(partners.filter(p => p.active));
   const [reserve, setReserve] = useState(String(config.reservePercent));
-  const [reimb, setReimb] = useState(config.reimbursementsAsExpense);
+  const [policy, setPolicy] = useState<'debt_first' | 'expense' | 'ignore'>(config.policy ?? 'debt_first');
   const [saving, setSaving] = useState(false);
   const sum = rows.reduce((s, p) => s + (Number(p.sharePercent) || 0), 0);
 
@@ -433,7 +459,7 @@ const ManageModal: React.FC<{ partners: Partner[]; config: Config; onClose: () =
           : await fetch(`/api/partners/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'erro');
       }
-      const c = await fetch('/api/partners-config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservePercent: Number(reserve) || 0, reimbursementsAsExpense: reimb }) });
+      const c = await fetch('/api/partners-config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reservePercent: Number(reserve) || 0, reimbursementPolicy: policy }) });
       if (!c.ok) throw new Error((await c.json().catch(() => ({}))).error || 'erro');
       toast('Sociedade salva', 'success');
       onChanged(); onClose();
@@ -465,12 +491,22 @@ const ManageModal: React.FC<{ partners: Partner[]; config: Config; onClose: () =
         <div className="rounded-xl border border-slate-200 dark:border-white/10 p-4 space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-slate-400">Regras do cálculo</p>
           <Input label="Reserva da empresa (% do lucro que fica no caixa antes de dividir)" type="number" step="0.01" min="0" max="100" value={reserve} onChange={e => setReserve(e.target.value)} />
-          <label className="flex items-start gap-2.5 cursor-pointer">
-            <input type="checkbox" className="w-4 h-4 mt-0.5 accent-indigo-600" checked={reimb} onChange={e => setReimb(e.target.checked)} />
-            <span className="text-sm font-semibold">Reembolsos pagos entram como despesa
-              <span className="block text-[11px] font-normal text-slate-500">Quando você devolve a um sócio o dinheiro que ele adiantou (tipo "Reembolso" em Contas a Pagar). Desmarque se isso não deve reduzir o lucro.</span></span>
-          </label>
-          <p className="text-[11px] text-slate-500">Como é calculado: lucro do mês = contas a receber (assinaturas dos clientes e contas avulsas) menos contas a pagar. No modo Previsto entra tudo que vence no mês; no modo Realizado, só o que já foi recebido e pago. Do lucro tira-se a reserva e o resto é dividido pelas porcentagens. Clientes em período de teste não entram.</p>
+          <div>
+            <p className="ds-label mb-1.5">Reembolsos aos sócios (gastos adiantados no sistema)</p>
+            <div className="space-y-1.5">
+              {([
+                ['debt_first', 'Quitar primeiro com o lucro (recomendado)', 'O lucro do mês paga as dívidas de reembolso antes de qualquer divisão. Ao fechar o mês, a quitação é registrada em Contas a Pagar. Quitou tudo, o lucro vai para os sócios.'],
+                ['expense', 'Tratar como despesa comum', 'O reembolso reduz o lucro no mês em que vence ou é pago, como qualquer outra conta.'],
+                ['ignore', 'Ignorar no cálculo', 'Reembolsos não entram na conta da sociedade.'],
+              ] as const).map(([id, t, d]) => (
+                <label key={id} className="flex items-start gap-2.5 cursor-pointer rounded-lg border p-2.5" style={policy === id ? { borderColor: '#0D1F4E', background: 'rgba(13,31,78,0.04)' } : { borderColor: 'rgba(148,163,184,0.3)' }}>
+                  <input type="radio" name="policy" className="mt-0.5 accent-indigo-600" checked={policy === id} onChange={() => setPolicy(id)} />
+                  <span className="text-sm font-semibold">{t}<span className="block text-[11px] font-normal text-slate-500">{d}</span></span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500">Como é calculado: lucro do mês = contas a receber (assinaturas dos clientes e contas avulsas) menos contas a pagar. No modo Previsto entra tudo que vence no mês; no modo Realizado, só o que já foi recebido e pago. Do lucro saem primeiro as dívidas de reembolso (se a regra estiver ligada), depois a reserva, e o resto é dividido pelas porcentagens. Clientes em período de teste não entram.</p>
         </div>
       </div>
     </Modal>

@@ -872,6 +872,7 @@ model ProfitConfig {
   reimbursementsAsExpense Boolean  @default(true) // reembolsos pagos entram como despesa no cálculo
   updatedAt               DateTime @updatedAt
   basis                   String   @default("planned") @db.VarChar(10) // planned = tudo que vence no mes (a receber - a pagar) | cash = so o que ja entrou e saiu
+  reimbursementPolicy      String   @default("debt_first") @db.VarChar(12) // debt_first = quita os reembolsos com o lucro antes de dividir | expense = reembolso e despesa | ignore = nao entra
 }
 
 // Fotografia de um mês fechado: os percentuais e valores daquele mês não mudam mesmo que a sociedade mude depois
@@ -884,6 +885,8 @@ model ProfitClosing {
   reserve       Float
   distributable Float
   basis         String   @default("planned") @db.VarChar(10)
+  debtPaid      Float    @default(0) // quanto do lucro quitou reembolsos devidos aos socios
+  debtPayments  Json?    // pagamentos gerados no fechamento (para desfazer ao reabrir)
   shares        Json     // [{ partnerId, name, percent, amount, paid, paidAt }]
   notes         String?  @db.Text
   closedByName  String?  @db.VarChar(100)

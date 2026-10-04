@@ -18,11 +18,14 @@ const monthOfDay = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() 
 const monthOfStamp = (d: Date) => monthOfDay(new Date(d.getTime() - 3 * 3600_000));
 
 type Basis = "planned" | "cash";
-interface Cfg { reservePercent: number; reimbursementsAsExpense: boolean; basis: Basis }
+type Policy = "debt_first" | "expense" | "ignore";
+interface Cfg { reservePercent: number; reimbursementsAsExpense: boolean; basis: Basis; policy: Policy }
 
 async function config(): Promise<Cfg> {
   const c = (await prisma.profitConfig.findUnique({ where: { id: "main" } })) ?? (await prisma.profitConfig.create({ data: { id: "main" } }));
-  return { reservePercent: c.reservePercent, reimbursementsAsExpense: c.reimbursementsAsExpense, basis: c.basis === "cash" ? "cash" : "planned" };
+  const policy: Policy = c.reimbursementPolicy === "expense" || c.reimbursementPolicy === "ignore" ? c.reimbursementPolicy : "debt_first";
+  // só a política "expense" põe o reembolso entre as despesas; em "debt_first" ele é uma dívida quitada com o lucro antes da divisão
+  return { reservePercent: c.reservePercent, reimbursementsAsExpense: policy === "expense", basis: c.basis === "cash" ? "cash" : "planned", policy };
 }
 
 type Share = { partnerId: string; name: string; percent: number; amount: number; color?: string | null; paid?: boolean; paidAt?: string | null };
@@ -31,11 +34,23 @@ type PartnerLite = { id: string; name: string; sharePercent: number; color: stri
 function divide(distributable: number, partners: PartnerLite[]): Share[] {
   return partners.map(p => ({ partnerId: p.id, name: p.name, percent: p.sharePercent, color: p.color, amount: distributable > 0 ? round2(distributable * p.sharePercent / 100) : 0 }));
 }
-function figures(revenue: number, expenses: number, reservePercent: number) {
+// lucro = receita - despesas; do lucro sai primeiro a quitação das dívidas de reembolso, depois a reserva, e o resto é dos sócios
+function figures(revenue: number, expenses: number, reservePercent: number, debtPaid = 0) {
   const profit = round2(revenue - expenses);
-  const reserve = profit > 0 ? round2(profit * reservePercent / 100) : 0;
-  const distributable = profit > 0 ? round2(profit - reserve) : 0;
-  return { revenue: round2(revenue), expenses: round2(expenses), profit, reserve, distributable };
+  const afterDebt = round2(profit - debtPaid);
+  const reserve = afterDebt > 0 ? round2(afterDebt * reservePercent / 100) : 0;
+  const distributable = afterDebt > 0 ? round2(afterDebt - reserve) : 0;
+  return { revenue: round2(revenue), expenses: round2(expenses), profit, debtPaid: round2(debtPaid), reserve, distributable };
+}
+
+// dívidas com sócios: gastos tipo "Reembolso" (dinheiro que alguém adiantou) ainda não devolvidos
+interface Debt { id: string; description: string; by: string | null; dueDate: Date | null; amount: number; remaining: number }
+async function openDebts(): Promise<Debt[]> {
+  const rows = await prisma.payable.findMany({ where: { type: "reimbursement", reimbursed: false, status: { not: "paid" } }, include: { payments: true } });
+  return rows
+    .map(p => ({ id: p.id, description: p.description, by: p.createdByName, dueDate: p.dueDate, amount: p.amount, remaining: round2(p.amount - p.payments.reduce((s, x) => s + x.amount, 0)) }))
+    .filter(d => d.remaining > 0.004)
+    .sort((a, b) => (a.dueDate?.getTime() ?? Infinity) - (b.dueDate?.getTime() ?? Infinity));
 }
 const activePartners = async (): Promise<PartnerLite[]> =>
   (await prisma.partner.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] })).map(p => ({ id: p.id, name: p.name, sharePercent: p.sharePercent, color: p.color }));
@@ -119,6 +134,60 @@ async function cashDetail(month: string, cfg: Cfg): Promise<Detail> {
 const detailOf = (basis: Basis, month: string, cfg: Cfg) => (basis === "cash" ? cashDetail(month, cfg) : plannedDetail(month, cfg));
 const totalOf = (d: Detail) => ({ revenue: d.revenueDone + d.revenuePending, expenses: d.expensesDone + d.expensesPending });
 
+// Os 12 meses do ano em ordem: cada mês aberto usa parte do lucro para quitar a dívida de reembolsos que ainda existe
+async function chainYear(year: number, cfg: Cfg) {
+  const monthsList = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
+  const [closings, partners, details, debts] = await Promise.all([
+    prisma.profitClosing.findMany({ where: { month: { startsWith: `${year}-` } } }),
+    activePartners(),
+    Promise.all(monthsList.map(m => detailOf(cfg.basis, m, cfg))),
+    cfg.policy === "debt_first" ? openDebts() : Promise.resolve([] as Debt[]),
+  ]);
+  const closed = new Map(closings.map(c => [c.month, c]));
+  const nowMonth = monthOfStamp(new Date());
+  const debtNow = round2(debts.reduce((s, d) => s + d.remaining, 0));
+  let left = debtNow;
+  const months = monthsList.map((m, i) => {
+    const c = closed.get(m);
+    const t = totalOf(details[i]);
+    const before = left;
+    if (c) {
+      const f = { revenue: c.revenue, expenses: c.expenses, profit: c.profit, debtPaid: c.debtPaid, reserve: c.reserve, distributable: c.distributable };
+      return { month: m, closed: true, future: m > nowMonth, ...f, debtBefore: before, debtAfter: before, shares: c.shares as unknown as Share[], detail: details[i] };
+    }
+    const profit0 = round2(t.revenue - t.expenses);
+    const pay = cfg.policy === "debt_first" ? Math.min(Math.max(profit0, 0), left) : 0;
+    left = round2(left - pay);
+    const f = figures(t.revenue, t.expenses, cfg.reservePercent, pay);
+    return { month: m, closed: false, future: m > nowMonth, ...f, debtBefore: before, debtAfter: left, shares: divide(f.distributable, partners), detail: details[i] };
+  });
+  return { months, partners, debts, debtNow };
+}
+
+// Aplica a quitação do fechamento nos próprios gastos de reembolso (mais antigos primeiro) e guarda como desfazer
+async function applyDebtPayments(month: string, amount: number) {
+  const done: { paymentId: string; payableId: string; prevStatus: string; prevReimbursed: boolean }[] = [];
+  let left = amount;
+  for (const d of await openDebts()) {
+    if (left <= 0.004) break;
+    const pay = round2(Math.min(left, d.remaining));
+    const p = await prisma.payable.findUnique({ where: { id: d.id } });
+    if (!p) continue;
+    const payment = await prisma.payablePayment.create({ data: { payableId: d.id, amount: pay, date: new Date(dayEnd(month).getTime() - 86400000), method: "Quitação pela Sociedade", notes: `Fechamento ${month}` } });
+    const full = pay >= d.remaining - 0.004;
+    await prisma.payable.update({ where: { id: d.id }, data: { status: full ? "paid" : "partial", paidDate: full ? new Date() : p.paidDate, reimbursed: full ? true : p.reimbursed } });
+    done.push({ paymentId: payment.id, payableId: d.id, prevStatus: p.status, prevReimbursed: p.reimbursed });
+    left = round2(left - pay);
+  }
+  return done;
+}
+async function undoDebtPayments(list: { paymentId: string; payableId: string; prevStatus: string; prevReimbursed: boolean }[]) {
+  for (const x of list) {
+    await prisma.payablePayment.deleteMany({ where: { id: x.paymentId } });
+    await prisma.payable.update({ where: { id: x.payableId }, data: { status: x.prevStatus, reimbursed: x.prevReimbursed, paidDate: null } }).catch(() => {});
+  }
+}
+
 export function registerPartnerRoutes(app: Express) {
   const fail = (res: any, e: any, code = 500) => res.status(code).json({ error: e.message ?? String(e) });
 
@@ -157,6 +226,7 @@ export function registerPartnerRoutes(app: Express) {
         ...(req.body?.reservePercent !== undefined ? { reservePercent: reserve } : {}),
         ...(req.body?.reimbursementsAsExpense !== undefined ? { reimbursementsAsExpense: !!req.body.reimbursementsAsExpense } : {}),
         ...(req.body?.basis === "planned" || req.body?.basis === "cash" ? { basis: req.body.basis } : {}),
+        ...(["debt_first", "expense", "ignore"].includes(req.body?.reimbursementPolicy) ? { reimbursementPolicy: req.body.reimbursementPolicy } : {}),
       } });
       res.json(await config());
     } catch (e) { fail(res, e); }
@@ -169,20 +239,20 @@ export function registerPartnerRoutes(app: Express) {
       if (!MONTH_RE.test(month)) return fail(res, new Error("Mês inválido."), 400);
       const cfg = await config();
       const closing = await prisma.profitClosing.findUnique({ where: { month } });
-      const basis: Basis = closing ? (closing.basis === "cash" ? "cash" : "planned") : cfg.basis;
-      const [d, other] = await Promise.all([detailOf(basis, month, cfg), detailOf(basis === "cash" ? "planned" : "cash", month, cfg)]);
-      const live = figures(totalOf(d).revenue, totalOf(d).expenses, cfg.reservePercent);
-      const f = closing ? { revenue: closing.revenue, expenses: closing.expenses, profit: closing.profit, reserve: closing.reserve, distributable: closing.distributable } : live;
-      const partners = await activePartners();
-      const shares: Share[] = closing ? (closing.shares as unknown as Share[]) : divide(f.distributable, partners);
+      const useCfg: Cfg = closing ? { ...cfg, basis: closing.basis === "cash" ? "cash" : "planned" } : cfg;
+      const chain = await chainYear(Number(month.slice(0, 4)), useCfg);
+      const m = chain.months.find(x => x.month === month)!;
+      const d = m.detail;
+      const other = await detailOf(useCfg.basis === "cash" ? "planned" : "cash", month, cfg);
       const o = figures(totalOf(other).revenue, totalOf(other).expenses, cfg.reservePercent);
       res.json({
-        month, basis, closed: !!closing, closedAt: closing?.closedAt ?? null, closedByName: closing?.closedByName ?? null, notes: closing?.notes ?? null,
-        ...f, reservePercent: cfg.reservePercent,
+        month, basis: useCfg.basis, policy: cfg.policy, closed: m.closed, closedAt: closing?.closedAt ?? null, closedByName: closing?.closedByName ?? null, notes: closing?.notes ?? null,
+        revenue: m.revenue, expenses: m.expenses, profit: m.profit, debtPaid: m.debtPaid, reserve: m.reserve, distributable: m.distributable, reservePercent: cfg.reservePercent,
         revenueDone: round2(d.revenueDone), revenuePending: round2(d.revenuePending), expensesDone: round2(d.expensesDone), expensesPending: round2(d.expensesPending),
-        compare: { basis: basis === "cash" ? "planned" : "cash", revenue: o.revenue, expenses: o.expenses, profit: o.profit },
+        debtBefore: m.debtBefore, debtAfter: m.debtAfter, debts: chain.debts.map(x => ({ id: x.id, description: x.description, by: x.by, dueDate: x.dueDate, amount: x.amount, remaining: x.remaining })),
+        compare: { basis: useCfg.basis === "cash" ? "planned" : "cash", revenue: o.revenue, expenses: o.expenses, profit: o.profit },
         revenueBy: d.revenueBy, expensesBy: d.expensesBy, topClients: d.topClients, topExpenses: d.topExpenses,
-        shares, percentTotal: round2(partners.reduce((s, p) => s + p.sharePercent, 0)),
+        shares: m.shares, percentTotal: round2(chain.partners.reduce((s, p) => s + p.sharePercent, 0)),
       });
     } catch (e) { fail(res, e); }
   });
@@ -193,31 +263,18 @@ export function registerPartnerRoutes(app: Express) {
       const year = Number(req.params.year);
       if (!(year >= 2000 && year <= 2100)) return fail(res, new Error("Ano inválido."), 400);
       const cfg = await config();
-      const monthsList = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
-      const [closings, partners, details] = await Promise.all([
-        prisma.profitClosing.findMany({ where: { month: { startsWith: `${year}-` } } }),
-        activePartners(),
-        Promise.all(monthsList.map(m => detailOf(cfg.basis, m, cfg))),
-      ]);
-      const closed = new Map(closings.map(c => [c.month, c]));
-      const nowMonth = monthOfStamp(new Date());
-      const months = monthsList.map((m, i) => {
-        const c = closed.get(m);
-        const t = totalOf(details[i]);
-        const f = c ? { revenue: c.revenue, expenses: c.expenses, profit: c.profit, reserve: c.reserve, distributable: c.distributable } : figures(t.revenue, t.expenses, cfg.reservePercent);
-        const shares: Share[] = c ? (c.shares as unknown as Share[]) : divide(f.distributable, partners);
-        return { month: m, closed: !!c, future: m > nowMonth, ...f, shares };
-      });
+      const chain = await chainYear(year, cfg);
+      const months = chain.months.map(({ detail: _d, ...rest }) => rest);
       const totalBy = new Map<string, { name: string; color: string | null; amount: number; paid: number }>();
       for (const m of months) for (const s of m.shares) {
         const x = totalBy.get(s.partnerId) ?? { name: s.name, color: s.color ?? null, amount: 0, paid: 0 };
         x.amount += s.amount; if (s.paid) x.paid += s.amount;
         totalBy.set(s.partnerId, x);
       }
-      const sum = (k: "revenue" | "expenses" | "profit" | "reserve" | "distributable") => round2(months.reduce((s, m) => s + m[k], 0));
+      const sum = (k: "revenue" | "expenses" | "profit" | "reserve" | "distributable" | "debtPaid") => round2(months.reduce((s, m) => s + m[k], 0));
       res.json({
-        year, basis: cfg.basis, months,
-        totals: { revenue: sum("revenue"), expenses: sum("expenses"), profit: sum("profit"), reserve: sum("reserve"), distributable: sum("distributable") },
+        year, basis: cfg.basis, policy: cfg.policy, debtNow: chain.debtNow, months,
+        totals: { revenue: sum("revenue"), expenses: sum("expenses"), profit: sum("profit"), debtPaid: sum("debtPaid"), reserve: sum("reserve"), distributable: sum("distributable") },
         partners: [...totalBy.entries()].map(([id, v]) => ({ id, ...v, amount: round2(v.amount), paid: round2(v.paid) })),
       });
     } catch (e) { fail(res, e); }
@@ -234,14 +291,21 @@ export function registerPartnerRoutes(app: Express) {
       if (!partners.length) return fail(res, new Error("Cadastre os sócios antes de fechar um mês."), 400);
       const total = partners.reduce((s, p) => s + p.sharePercent, 0);
       if (Math.abs(total - 100) > 0.01) return fail(res, new Error(`As porcentagens dos sócios somam ${round2(total)}%. Ajuste para fechar em 100%.`), 400);
-      const d = await detailOf(cfg.basis, month, cfg);
-      const f = figures(totalOf(d).revenue, totalOf(d).expenses, cfg.reservePercent);
-      const shares = divide(f.distributable, partners).map(s => ({ ...s, paid: false, paidAt: null }));
-      res.json(await prisma.profitClosing.create({ data: { month, ...f, basis: cfg.basis, shares: shares as any, notes: req.body?.notes || null, closedByName: req.body?.byName || null } }));
+      const m = (await chainYear(Number(month.slice(0, 4)), cfg)).months.find(x => x.month === month)!;
+      const applied = m.debtPaid > 0 ? await applyDebtPayments(month, m.debtPaid) : [];
+      const shares = m.shares.map(s => ({ ...s, paid: false, paidAt: null }));
+      res.json(await prisma.profitClosing.create({
+        data: { month, revenue: m.revenue, expenses: m.expenses, profit: m.profit, reserve: m.reserve, distributable: m.distributable, debtPaid: m.debtPaid, debtPayments: applied as any, basis: cfg.basis, shares: shares as any, notes: req.body?.notes || null, closedByName: req.body?.byName || null },
+      }));
     } catch (e) { fail(res, e); }
   });
   app.delete("/api/partners/closings/:month", async (req, res) => {
-    try { await prisma.profitClosing.delete({ where: { month: req.params.month } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
+    try {
+      const c = await prisma.profitClosing.findUnique({ where: { month: req.params.month } });
+      if (c?.debtPayments) await undoDebtPayments(c.debtPayments as any);
+      await prisma.profitClosing.delete({ where: { month: req.params.month } });
+      res.json({ ok: true });
+    } catch (e) { fail(res, e); }
   });
   app.post("/api/partners/closings/:month/paid", async (req, res) => {
     try {
