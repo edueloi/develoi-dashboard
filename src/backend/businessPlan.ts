@@ -156,6 +156,18 @@ export function registerBusinessPlanRoutes(app: Express) {
     } catch (e) { fail(res, e); }
   });
 
+  app.patch("/api/partner-evaluations/:id", async (req, res) => {
+    try {
+      const allowed = ["period", "score", "strengths", "improvements", "goalsNextPeriod", "evaluatedByName"];
+      const data: any = {};
+      for (const k of allowed) if (k in (req.body ?? {})) data[k] = req.body[k];
+      res.json(await prisma.partnerEvaluation.update({
+        where: { id: req.params.id }, data,
+        include: { partner: { select: { id: true, name: true, color: true, role: true } } },
+      }));
+    } catch (e) { fail(res, e); }
+  });
+
   app.delete("/api/partner-evaluations/:id", async (req, res) => {
     try { await prisma.partnerEvaluation.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
   });

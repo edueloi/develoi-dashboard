@@ -438,6 +438,7 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
   const { show: toast } = useToast();
   const [editingResp, setEditingResp] = useState<Partner | null>(null);
   const [evalPartner, setEvalPartner] = useState<Partner | null>(null);
+  const [editingEval, setEditingEval] = useState<PartnerEvaluation | null>(null);
   const [deletingEvalId, setDeletingEvalId] = useState<string | null>(null);
 
   const handleDeleteEval = async () => {
@@ -514,6 +515,9 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
                               ))}
                             </span>
                           )}
+                          <button onClick={() => setEditingEval(ev)} className="p-1 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50">
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
                           <button onClick={() => setDeletingEvalId(ev.id)} className="p-1 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -533,6 +537,14 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
 
       {editingResp && <ResponsibilitiesModal partner={editingResp} onClose={() => setEditingResp(null)} onSuccess={() => { setEditingResp(null); onRefresh(); }} />}
       {evalPartner && <EvaluationFormModal partner={evalPartner} onClose={() => setEvalPartner(null)} onSuccess={() => { setEvalPartner(null); onRefresh(); }} />}
+      {editingEval && (
+        <EvaluationFormModal
+          partner={partners.find(p => p.id === editingEval.partnerId) || editingEval.partner || { id: editingEval.partnerId, name: 'Sócio' }}
+          evaluation={editingEval}
+          onClose={() => setEditingEval(null)}
+          onSuccess={() => { setEditingEval(null); onRefresh(); }}
+        />
+      )}
       <ConfirmModal isOpen={!!deletingEvalId} onClose={() => setDeletingEvalId(null)} onConfirm={handleDeleteEval}
         title="Remover Avaliação" message="Tem certeza que quer remover esta avaliação?" confirmLabel="REMOVER" variant="danger" />
     </div>
@@ -571,26 +583,26 @@ function ResponsibilitiesModal({ partner, onClose, onSuccess }: { partner: Partn
   );
 }
 
-function EvaluationFormModal({ partner, onClose, onSuccess }: { partner: Partner; onClose: () => void; onSuccess: () => void }) {
+function EvaluationFormModal({ partner, evaluation, onClose, onSuccess }: { partner: { id: string; name: string }; evaluation?: PartnerEvaluation; onClose: () => void; onSuccess: () => void }) {
   const { profile } = useAuth();
   const { show: toast } = useToast();
-  const [period, setPeriod] = useState(format(new Date(), "yyyy-'T'Q"));
-  const [score, setScore] = useState(5);
-  const [strengths, setStrengths] = useState('');
-  const [improvements, setImprovements] = useState('');
-  const [goalsNextPeriod, setGoalsNextPeriod] = useState('');
+  const [period, setPeriod] = useState(evaluation?.period || format(new Date(), "yyyy-'T'Q"));
+  const [score, setScore] = useState(evaluation?.score ?? 5);
+  const [strengths, setStrengths] = useState(evaluation?.strengths || '');
+  const [improvements, setImprovements] = useState(evaluation?.improvements || '');
+  const [goalsNextPeriod, setGoalsNextPeriod] = useState(evaluation?.goalsNextPeriod || '');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch('/api/partner-evaluations', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const res = await fetch(evaluation ? `/api/partner-evaluations/${evaluation.id}` : '/api/partner-evaluations', {
+        method: evaluation ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ partnerId: partner.id, period, score, strengths, improvements, goalsNextPeriod, evaluatedByName: profile?.displayName }),
       });
       if (!res.ok) throw new Error();
-      toast('Avaliação registrada', 'success');
+      toast(evaluation ? 'Avaliação atualizada' : 'Avaliação registrada', 'success');
       onSuccess();
     } catch {
       toast('Não deu para salvar agora. Confira os dados e tente de novo.', 'error');
@@ -600,7 +612,7 @@ function EvaluationFormModal({ partner, onClose, onSuccess }: { partner: Partner
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title={`Avaliar ${partner.name}`} size="md">
+    <Modal isOpen={true} onClose={onClose} title={evaluation ? `Editar avaliação de ${partner.name}` : `Avaliar ${partner.name}`} size="md">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input label="Período" required value={period} onChange={e => setPeriod(e.target.value)} placeholder="Ex: 2026-T4" />
