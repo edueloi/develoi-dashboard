@@ -347,7 +347,7 @@ export const LeadsManager: React.FC = () => {
                       <span className="text-xs font-extrabold uppercase tracking-wide truncate" style={{ color: col.color }}>{col.label} · {rows.length}</span>
                       {total > 0 && <span className="text-[11px] font-bold text-slate-500 flex-shrink-0">{money(total)}</span>}
                     </div>
-                    <div className="space-y-2 min-h-[60px] max-h-[62vh] overflow-y-auto pr-0.5">
+                    <div className="space-y-2 min-h-[60px] max-h-[max(280px,calc(100vh-26rem))] overflow-y-auto overscroll-contain pr-0.5">
                       {rows.map(l => <Card key={l.id} l={l} compact />)}
                       {rows.length === 0 && <div className="text-center text-[11px] text-slate-400 py-5">Arraste um lead para cá</div>}
                     </div>
