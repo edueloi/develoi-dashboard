@@ -28,6 +28,7 @@ function pick(body: any, partial: boolean) {
   set("city", str(body.city, 100));
   set("source", str(body.source, 40) ?? "manual");
   set("product", str(body.product, 120));
+  set("priority", ["hot", "warm", "cold"].includes(body.priority) ? body.priority : "warm");
   set("value", Number(body.value) > 0 ? Number(body.value) : 0);
   set("nextFollowUp", day(body.nextFollowUp));
   set("notes", body.notes === undefined || body.notes === null ? null : String(body.notes));
@@ -37,6 +38,19 @@ function pick(body: any, partial: boolean) {
 export function registerLeadRoutes(app: Express) {
   const fail = (res: any, e: any, code = 500) => res.status(code).json({ error: e.message ?? String(e) });
   const log = (leadId: string, type: string, text: string) => prisma.leadActivity.create({ data: { leadId, type, text } });
+
+  // Opções de "produto de interesse": projetos/sistemas cadastrados + produtos & planos, sem repetir
+  app.get("/api/leads/options", async (_req, res) => {
+    try {
+      const [projects, products] = await Promise.all([
+        prisma.project.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+        prisma.product.findMany({ where: { active: true }, select: { name: true }, orderBy: { name: "asc" } }),
+      ]);
+      const seen = new Set<string>();
+      const names = [...projects, ...products].map(p => p.name.trim()).filter(n => { const k = n.toLowerCase(); if (!n || seen.has(k)) return false; seen.add(k); return true; });
+      res.json({ products: names });
+    } catch (e) { fail(res, e); }
+  });
 
   app.get("/api/leads", async (_req, res) => {
     try {
