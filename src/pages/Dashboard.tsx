@@ -60,6 +60,7 @@ import { BotConfigTab } from '../components/dashboard/BotConfigTab';
 import { WhatsappInbox } from '../components/dashboard/WhatsappInbox';
 import { WhatsappNewConversation } from '../components/dashboard/WhatsappNewConversation';
 import { useWaCounts } from '../lib/useWaCounts';
+import { PieChart } from 'lucide-react';
 import { Bot as WaBotIcon, Clock as WaClockIcon, UserCheck as WaUserIcon, CheckCircle2 as WaDoneIcon, SendHorizonal as WaSendIcon } from 'lucide-react';
 import { TeamNoticesTab } from '../components/dashboard/TeamNoticesTab';
 import { WebhooksTab } from '../components/dashboard/WebhooksTab';
@@ -72,6 +73,7 @@ import { ClientsManager } from '../components/dashboard/ClientsManager';
 import { ReceivablesManager } from '../components/dashboard/ReceivablesManager';
 import { PayablesManager } from '../components/dashboard/PayablesManager';
 import { LeadsManager } from '../components/dashboard/LeadsManager';
+import { PartnersManager } from '../components/dashboard/PartnersManager';
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
@@ -120,6 +122,7 @@ const TAB_TO_PATH: Record<ActiveTab, string> = {
   leads:           '/dashboard/prospeccao',
   receivables:     '/dashboard/contas-a-receber',
   payables:        '/dashboard/contas-a-pagar',
+  partners:        '/dashboard/sociedade',
   'profile':       '/dashboard/perfil',
 };
 
@@ -247,6 +250,7 @@ export default function Dashboard() {
     leads:           'Prospecção',
     receivables:     'Contas a Receber',
     payables:        'Contas a Pagar',
+    partners:        'Sociedade & Lucros',
     'wa-inbox':      'Atendimento WhatsApp',
     'wa-bot':        'Atendimento · Bot',
     'wa-queue':      'Atendimento · Fila',
@@ -258,7 +262,7 @@ export default function Dashboard() {
     'profile':       'Meu Perfil',
   };
 
-  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'leads', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
+  const hideSelectorTabs: ActiveTab[] = ['projects', 'members', 'portfolio', 'team', 'site-values', 'blog', 'cases', 'bot', 'wa-inbox', 'wa-bot', 'wa-queue', 'wa-active', 'wa-closed', 'wa-new', 'team-notices', 'webhooks', 'posts', 'sales', 'products', 'leads', 'partners', 'client-contact', 'clients', 'receivables', 'payables', 'profile'];
 
   return (
     <div className={`min-h-screen flex font-sans ${isDark ? 'dark' : ''}`} style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
@@ -341,6 +345,7 @@ export default function Dashboard() {
           <NavSection label="Financeiro">
             <NavItem icon={DollarSign} label="Contas a Receber" active={activeTab === 'receivables'} onClick={() => goTo('receivables')} />
             <NavItem icon={Wallet} label="Contas a Pagar" active={activeTab === 'payables'} onClick={() => goTo('payables')} />
+            <NavItem icon={PieChart} label="Sociedade & Lucros" active={activeTab === 'partners'} onClick={() => goTo('partners')} />
           </NavSection>
 
           <NavSection label="Atendimento WhatsApp">
@@ -792,6 +797,7 @@ export default function Dashboard() {
               {activeTab === 'receivables' && <ReceivablesManager />}
               {activeTab === 'payables' && <PayablesManager />}
               {activeTab === 'leads' && <LeadsManager />}
+              {activeTab === 'partners' && <PartnersManager />}
               {activeTab === 'profile' && <MyProfile />}
             </AnimatePresence>
           </div>
