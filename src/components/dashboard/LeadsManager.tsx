@@ -16,7 +16,7 @@ interface Activity { id: string; type: string; text: string; createdAt: string }
 interface Lead {
   id: string; name: string; company?: string | null; phone?: string | null; email?: string | null; city?: string | null;
   source: string; product?: string | null; status: Status; priority: Priority; value: number; nextFollowUp?: string | null; lastContactAt?: string | null;
-  notes?: string | null; lostReason?: string | null; clientId?: string | null; createdAt: string; updatedAt: string; activities: Activity[];
+  notes?: string | null; lostReason?: string | null; clientId?: string | null; saleId?: string | null; createdAt: string; updatedAt: string; activities: Activity[];
 }
 
 const STAGES: { id: Status; label: string; color: string; bg: string }[] = [
@@ -228,6 +228,7 @@ export const LeadsManager: React.FC = () => {
             {f === 'today' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Falar hoje</span>}
             {f === 'future' && <span className="text-[10px] font-semibold text-slate-500">Retorno {fmtDay(l.nextFollowUp)}</span>}
             {idle >= 7 && <span className="text-[10px] font-semibold text-slate-400"><Hourglass className="w-3 h-3 inline -mt-0.5 mr-0.5" />{idle} dias sem contato</span>}
+            {l.saleId && isOpen(l) && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Em Vendas</span>}
             {l.status === 'lost' && l.lostReason && <span className="text-[10px] text-slate-500">{l.lostReason}</span>}
           </div>
         </button>
@@ -481,6 +482,7 @@ const LeadDetail: React.FC<{ lead: Lead; onSend: () => void; onClose: () => void
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: st.bg, color: st.color }}>{st.label}</span>
           <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: pr.bg, color: pr.color }}>{pr.label}</span>
           {lead.lostReason && <span className="text-xs text-slate-500">Motivo: {lead.lostReason}</span>}
+          {lead.saleId && !lead.clientId && <span className="text-xs font-semibold text-amber-700">Acompanhado em Vendas</span>}
           {lead.clientId && <span className="text-xs font-semibold text-emerald-700">Já é cliente</span>}
           <Button variant="outline" size="sm" className="ml-auto" onClick={onEdit}>EDITAR</Button>
         </div>

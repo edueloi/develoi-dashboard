@@ -814,6 +814,7 @@ model Lead {
   notes         String?   @db.Text
   lostReason    String?   @db.VarChar(200)
   clientId      String?   // cliente criado a partir deste lead
+  saleId        String?   // venda acompanhada em Vendas (nasce na reunião/proposta)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   activities    LeadActivity[]

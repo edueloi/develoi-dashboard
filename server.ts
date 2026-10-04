@@ -19,7 +19,7 @@ import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js
 import { registerReceiptRoutes, sendThanksAndReceipt } from "./src/backend/receipts.js";
 import { registerInvoiceRoutes } from "./src/backend/invoicePage.js";
 import { registerBotBrainRoutes } from "./src/backend/botBrain.js";
-import { registerLeadRoutes } from "./src/backend/leads.js";
+import { registerLeadRoutes, syncLeadFromSale } from "./src/backend/leads.js";
 import { registerOutreachRoutes } from "./src/backend/outreach.js";
 import { registerTrialRoutes } from "./src/backend/clientTrial.js";
 import { registerBoxsysRoutes, startBoxsysScheduler, syncBoxsysAccess } from "./src/backend/boxsys.js";
@@ -779,6 +779,7 @@ async function startServer() {
           data: { ...req.body, closedAt: req.body.closedAt ? new Date(req.body.closedAt) : undefined }
         });
         if (sale.status === 'won') await ensureClientForWonSale(sale.id);
+        await syncLeadFromSale(sale).catch(() => {});
         res.json(sale);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });

@@ -35,6 +35,44 @@ function pick(body: any, partial: boolean) {
   return out;
 }
 
+const SALE_OF_STAGE: Record<string, string> = { meeting: "lead", proposal: "negotiation", won: "won", lost: "lost" };
+const SALE_NAME = (l: { name: string; company: string | null }) => (l.company ? `${l.company} (${l.name})` : l.name);
+
+// Cria (ou atualiza) a venda do lead em Vendas: reunião vira "lead", proposta vira "negociação", ganho vira "fechada"
+async function ensureSale(lead: any, saleStatus: string) {
+  let sale = lead.saleId ? await prisma.sale.findUnique({ where: { id: lead.saleId } }) : null;
+  if (!sale) {
+    const product = lead.product ? await prisma.product.findFirst({ where: { name: lead.product } }) : null;
+    sale = await prisma.sale.create({
+      data: {
+        clientName: SALE_NAME(lead), clientEmail: lead.email, clientPhone: lead.phone,
+        productId: product?.id ?? lead.product ?? "", productName: product?.name ?? lead.product ?? "A definir",
+        value: lead.value || 0, status: saleStatus, origin: "Prospecção", notes: `Veio da Prospecção${lead.city ? ` (${lead.city})` : ""}.`,
+        closedAt: saleStatus === "won" ? new Date() : null,
+      },
+    });
+    await prisma.lead.update({ where: { id: lead.id }, data: { saleId: sale.id } });
+  } else if (sale.status !== saleStatus && sale.status !== "won") {
+    sale = await prisma.sale.update({ where: { id: sale.id }, data: { status: saleStatus, closedAt: saleStatus === "won" ? new Date() : sale.closedAt } });
+  } else if (saleStatus === "won" && sale.status !== "won") {
+    sale = await prisma.sale.update({ where: { id: sale.id }, data: { status: "won", closedAt: new Date() } });
+  }
+  return sale;
+}
+
+// Quando a venda muda lá em Vendas, o lead da Prospecção acompanha
+export async function syncLeadFromSale(sale: { id: string; status: string }) {
+  const lead = await prisma.lead.findFirst({ where: { saleId: sale.id } });
+  if (!lead) return;
+  const map: Record<string, string> = { lead: "meeting", negotiation: "proposal", won: "won", lost: "lost", cancelled: "lost" };
+  const next = map[sale.status];
+  if (!next || next === lead.status) return;
+  if (next === "meeting" && lead.status !== "new" && lead.status !== "contacted") return; // não rebaixa quem já está mais adiante
+  const client = next === "won" ? await prisma.client.findFirst({ where: { saleId: sale.id }, select: { id: true } }) : null;
+  await prisma.lead.update({ where: { id: lead.id }, data: { status: next, ...(client ? { clientId: client.id } : {}), ...(next === "won" || next === "lost" ? { nextFollowUp: null } : {}) } });
+  await prisma.leadActivity.create({ data: { leadId: lead.id, type: "status", text: `Atualizado pela tela de Vendas: ${STATUS_LABEL[next]}` } });
+}
+
 export function registerLeadRoutes(app: Express) {
   const fail = (res: any, e: any, code = 500) => res.status(code).json({ error: e.message ?? String(e) });
   const log = (leadId: string, type: string, text: string) => prisma.leadActivity.create({ data: { leadId, type, text } });
@@ -94,7 +132,14 @@ export function registerLeadRoutes(app: Express) {
     try {
       const data = pick(req.body, true);
       if (data.name === null) return fail(res, new Error("O nome não pode ficar vazio"), 400);
-      res.json(await prisma.lead.update({ where: { id: req.params.id }, data: data as any }));
+      const lead = await prisma.lead.update({ where: { id: req.params.id }, data: data as any });
+      if (lead.saleId) {
+        const sale = await prisma.sale.findUnique({ where: { id: lead.saleId } });
+        if (sale && sale.status !== "won") {
+          await prisma.sale.update({ where: { id: sale.id }, data: { clientName: SALE_NAME(lead), clientEmail: lead.email, clientPhone: lead.phone, value: lead.value || 0, ...(lead.product ? { productName: lead.product } : {}) } });
+        }
+      }
+      res.json(lead);
     } catch (e) { fail(res, e); }
   });
 
@@ -111,7 +156,17 @@ export function registerLeadRoutes(app: Express) {
         data: { status, lostReason, ...(status !== "new" && !before.lastContactAt ? { lastContactAt: new Date() } : {}) },
       });
       await log(lead.id, "status", `Etapa: ${STATUS_LABEL[before.status] ?? before.status} → ${STATUS_LABEL[status]}${lostReason ? ` (${lostReason})` : ""}`);
-      res.json(lead);
+      // reunião e proposta abrem a venda em Vendas; perdido encerra a venda; voltar para o começo devolve a venda para "lead"
+      const target = SALE_OF_STAGE[status] ?? (lead.saleId ? "lead" : undefined);
+      if (target && (target !== "won")) {
+        if (target === "lost" && !lead.saleId) { /* nada vendido ainda: não cria venda perdida */ }
+        else {
+          const sale = await ensureSale(lead, target);
+          if (!before.saleId) await log(lead.id, "status", `Venda criada em Vendas (${target === "negotiation" ? "negociação" : "lead"})`);
+          if (sale.status !== target && sale.status !== "won") await prisma.sale.update({ where: { id: sale.id }, data: { status: target } });
+        }
+      }
+      res.json(await prisma.lead.findUnique({ where: { id: lead.id } }));
     } catch (e) { fail(res, e); }
   });
 
@@ -131,19 +186,26 @@ export function registerLeadRoutes(app: Express) {
     } catch (e) { fail(res, e); }
   });
 
-  // Ganho: cria o cliente (ou reaproveita o que já existe com o mesmo telefone) e marca o lead como ganho
+  // Ganho: fecha a venda em Vendas e cria o cliente (ou liga a um que já existe com o mesmo telefone)
   app.post("/api/leads/:id/convert", async (req, res) => {
     try {
       const lead = await prisma.lead.findUnique({ where: { id: req.params.id } });
       if (!lead) return fail(res, new Error("Lead não encontrado"), 404);
       if (lead.clientId) return res.json({ lead, clientId: lead.clientId });
+      const sale = await ensureSale(lead, "won");
       const ph = digits(lead.phone);
-      const existing = ph ? (await prisma.client.findMany({ select: { id: true, phone: true } })).find(c => digits(c.phone) === ph) : undefined;
-      const clientId = existing?.id ?? (await prisma.client.create({
-        data: { name: lead.name, businessName: lead.company, phone: lead.phone, email: lead.email, status: "active", billingValue: lead.value, startDate: new Date() },
-      })).id;
-      const updated = await prisma.lead.update({ where: { id: lead.id }, data: { status: "won", clientId, lostReason: null, nextFollowUp: null } });
-      await log(lead.id, "status", existing ? "Ganho: ligado a um cliente que já existia" : "Ganho: cliente criado");
+      const existing = ph ? (await prisma.client.findMany({ select: { id: true, phone: true, saleId: true } })).find(c => digits(c.phone) === ph) : undefined;
+      const byInSale = await prisma.client.findFirst({ where: { saleId: sale.id }, select: { id: true } });
+      let clientId = existing?.id ?? byInSale?.id;
+      if (!clientId) {
+        clientId = (await prisma.client.create({
+          data: { name: lead.name, businessName: lead.company, phone: lead.phone, email: lead.email, status: "active", billingValue: lead.value, startDate: new Date(), saleId: sale.id },
+        })).id;
+      } else if (existing && !existing.saleId) {
+        await prisma.client.update({ where: { id: existing.id }, data: { saleId: sale.id } });
+      }
+      const updated = await prisma.lead.update({ where: { id: lead.id }, data: { status: "won", clientId, saleId: sale.id, lostReason: null, nextFollowUp: null } });
+      await log(lead.id, "status", existing ? "Ganho: venda fechada e ligada a um cliente que já existia" : "Ganho: venda fechada e cliente criado");
       res.json({ lead: updated, clientId, reused: !!existing });
     } catch (e) { fail(res, e); }
   });
