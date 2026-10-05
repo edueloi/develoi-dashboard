@@ -794,6 +794,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           feature={feature}
           onClose={() => setEditing(false)}
           onSuccess={() => { setEditing(false); onRefresh(); }}
+          onChanged={onRefresh}
         />
       )}
 
@@ -1028,7 +1029,7 @@ function BoardCard({ provided, feature, onRefresh }: { provided: any; feature: F
         </div>
       </div>
       {editing && (
-        <EditFeatureModal feature={feature} onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onRefresh(); }} />
+        <EditFeatureModal feature={feature} onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onRefresh(); }} onChanged={onRefresh} />
       )}
     </>
   );
@@ -1345,8 +1346,9 @@ function CommentsPanel({ projectId, featureId }: { projectId: string; featureId:
 
 // ─── EditFeatureModal ─────────────────────────────────────────────────────────
 
-function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; onClose: () => void; onSuccess: () => void }) {
+function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature: Feature; onClose: () => void; onSuccess: () => void; onChanged?: () => void }) {
   const { profile, isAdmin } = useAuth();
+  const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [title,       setTitle]       = useState(feature.title);
   const [desc,        setDesc]        = useState(feature.description || '');
   const [type,        setType]        = useState(feature.type || 'task');
@@ -1399,6 +1401,14 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
+  const quickPatch = async (body: Record<string, unknown>) => {
+    await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, actorId: profile?.uid, actorName: profile?.displayName }),
+    });
+    onChanged?.();
+  };
+
   const handleDelete = async () => {
     setLoading(true);
     try {
@@ -1422,16 +1432,31 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
   return (
     <SidePanel isOpen onClose={onClose}
       title={<span className="flex items-center gap-2 min-w-0"><span className="flex-shrink-0">{TYPE_ICONS[type]}</span><span className="text-[11px] font-black text-indigo-600 tracking-widest flex-shrink-0">{feature.key || '—'}</span><span className="text-xs font-bold text-slate-400 flex-shrink-0">{typeLabel}</span></span> as any}
-      footer={
+      footer={mode === 'view' ? (
         <div className="flex gap-2 sm:justify-between items-center">
           <button type="button" onClick={() => setConfirmDelete(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button>
           <div className="flex gap-2 flex-1 sm:flex-none">
-            <Button type="button" variant="outline" onClick={onClose} className="hidden sm:inline-flex">CANCELAR</Button>
+            <Button type="button" variant="outline" onClick={onClose} className="hidden sm:inline-flex">FECHAR</Button>
+            <Button type="button" fullWidth className="sm:w-56" iconLeft={<Pencil className="w-4 h-4" />} onClick={() => setMode('edit')}>EDITAR TICKET</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2 sm:justify-between items-center">
+          <button type="button" onClick={() => setConfirmDelete(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button>
+          <div className="flex gap-2 flex-1 sm:flex-none">
+            <Button type="button" variant="outline" onClick={() => setMode('view')} className="hidden sm:inline-flex">CANCELAR</Button>
             <Button type="submit" form="ticket-form" loading={loading} fullWidth className="sm:w-56">SALVAR ALTERAÇÕES</Button>
           </div>
         </div>
-      }>
-      {(full: boolean) => (<>
+      )}>
+      {(full: boolean) => mode === 'view' ? (<>
+        <TicketView feature={feature} full={full} sprintName={sprints.find(sp => sp.id === feature.sprintId)?.name} team={team} me={profile?.displayName || ''} onPatch={quickPatch} />
+        {confirmDelete && (
+          <ConfirmModal isOpen onClose={() => setConfirmDelete(false)} onConfirm={handleDelete}
+            title="Excluir Ticket" message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
+            confirmLabel="EXCLUIR" variant="danger" />
+        )}
+      </>) : (<>
       <form id="ticket-form" onSubmit={handleSubmit} className={cn('grid items-start', full ? 'grid-cols-[minmax(0,1fr)_320px] gap-8' : 'grid-cols-1 gap-5')}>
         {/* ── conteúdo ── */}
         <div className="space-y-5 min-w-0">
@@ -1509,6 +1534,111 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
       )}
       </>)}
     </SidePanel>
+  );
+}
+
+// ─── Visualização do ticket: tudo à mão (descrição, subtarefas, quem mexeu e comentários) ───
+
+const STATUS_LABEL: Record<string, string> = { todo: 'A Fazer', 'in-progress': 'Em Desenvolvimento', review: 'Em Revisão', testing: 'Em Teste', done: 'Concluído' };
+const STATUS_COLOR: Record<string, string> = { todo: '#64748B', 'in-progress': '#2563EB', review: '#7C3AED', testing: '#C49A2A', done: '#15803D' };
+
+function TicketView({ feature, full, sprintName, team, me, onPatch }: {
+  feature: Feature; full: boolean; sprintName?: string; team: string[]; me: string; onPatch: (b: Record<string, unknown>) => Promise<void>;
+}) {
+  const acts = parseActivities(feature.activities);
+  const done = acts.filter(a => a.done).length;
+  const [newAct, setNewAct] = useState('');
+  const type = feature.type || 'task';
+  const lines = (t?: string | null) => (t || '').split('\n').map(x => x.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+  const dl = feature.deadline ? Math.ceil((new Date(feature.deadline).getTime() - Date.now()) / 86400000) : null;
+  const sec = (icon: React.ReactNode, label: string, extra?: React.ReactNode) => (
+    <div className="flex items-center gap-2 mb-3"><span className="text-slate-400">{icon}</span><h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500">{label}</h3>{extra}<div className="h-px bg-slate-100 flex-1" /></div>
+  );
+  const list = (items: string[], color: string) => (
+    <ul className="space-y-1.5">{items.map((it, i) => <li key={i} className="flex gap-2 text-sm text-slate-700 leading-snug"><span className="w-1.5 h-1.5 rounded-full mt-[7px] flex-shrink-0" style={{ background: color }} /><span className="break-words min-w-0">{it}</span></li>)}</ul>
+  );
+  const toggle = (id: string) => onPatch({ activities: stringifyActivities(acts.map(a => (a.id === id ? { ...a, done: !a.done } : a))) });
+  const addAct = async () => { const t = newAct.trim(); if (!t) return; setNewAct(''); await onPatch({ activities: stringifyActivities([...acts, { id: uuidv4(), text: t, done: false }]) }); };
+  const reqs = lines(feature.functionalRequirements), acc = lines(feature.acceptanceCriteria), obj = (feature.businessRules || '').trim();
+
+  const left = (
+    <div className="space-y-7 min-w-0">
+      <section>
+        {sec(<FileText className="w-4 h-4" />, type === 'bug' ? 'Como reproduzir' : 'Descrição')}
+        {feature.description?.trim() ? <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line break-words">{feature.description}</p> : <p className="text-sm text-slate-400 italic">Sem descrição. Use "Editar ticket" para preencher.</p>}
+        {obj && <div className="mt-4 rounded-xl bg-indigo-50/60 border border-indigo-100 p-3"><p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Objetivo</p><p className="text-sm text-slate-700 whitespace-pre-line">{obj}</p></div>}
+      </section>
+      {reqs.length > 0 && <section>{sec(<ClipboardList className="w-4 h-4" />, type === 'bug' ? 'Comportamento atual' : type === 'epic' ? 'Escopo' : 'Requisitos funcionais')}{list(reqs, '#4F46E5')}</section>}
+      {acc.length > 0 && <section>{sec(<CheckCircle2 className="w-4 h-4" />, type === 'bug' ? 'Comportamento esperado' : 'Critérios de aceite')}{list(acc, '#15803D')}</section>}
+      <section>
+        {sec(<CheckSquare className="w-4 h-4" />, 'Subtarefas', acts.length ? <span className="text-[11px] font-black text-slate-400">{done}/{acts.length}</span> : null)}
+        {acts.length > 0 && <div className="h-1.5 rounded-full bg-slate-100 mb-3"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${(done / acts.length) * 100}%` }} /></div>}
+        <ul className="space-y-1">
+          {acts.map(a => (
+            <li key={a.id}><button type="button" onClick={() => toggle(a.id)} className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 text-left">
+              {a.done ? <CheckSquare className="w-4 h-4 text-emerald-500 flex-shrink-0" /> : <Square className="w-4 h-4 text-slate-300 flex-shrink-0" />}
+              <span className={cn('text-sm break-words min-w-0', a.done ? 'line-through text-slate-400' : 'text-slate-700')}>{a.text}</span>
+            </button></li>
+          ))}
+        </ul>
+        <div className="flex gap-2 mt-2">
+          <input value={newAct} onChange={e => setNewAct(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAct(); } }} placeholder="Nova subtarefa… (Enter para adicionar)"
+            className="flex-1 h-10 px-3 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0D1F4E]" />
+          <Button type="button" variant="outline" size="sm" onClick={addAct}><Plus className="w-4 h-4" /></Button>
+        </div>
+      </section>
+    </div>
+  );
+
+  const right = (
+    <section className="min-w-0">
+      {sec(<MessageSquare className="w-4 h-4" />, 'Relatos e histórico')}
+      <p className="text-[11px] text-slate-400 -mt-1 mb-2">Quem moveu o ticket, quem mudou o quê e os comentários da equipe.</p>
+      <CommentsPanel projectId={feature.projectId} featureId={feature.id} />
+    </section>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight break-words">{feature.title}</h2>
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <select value={feature.status} onChange={e => onPatch({ status: e.target.value })} title="Mudar o status"
+            className="text-xs font-black rounded-full px-3 py-1.5 border-0 text-white cursor-pointer focus:outline-none" style={{ background: STATUS_COLOR[feature.status] ?? '#64748B' }}>
+            {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v} style={{ color: '#0f172a' }}>{l}</option>)}
+          </select>
+          <Badge color={PRIORITY_COLORS[feature.priority || 'medium']} size="sm" pill>{PRIORITY_LABELS[feature.priority || 'medium']}</Badge>
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{sprintName ? `Sprint: ${sprintName}` : 'Backlog (sem sprint)'}</span>
+          {type !== 'epic' && <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{feature.points || 0} pts</span>}
+          {feature.deadline && <span className="text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1" style={{ background: dl !== null && dl < 0 && feature.status !== 'done' ? '#FEE2E2' : '#F1F5F9', color: dl !== null && dl < 0 && feature.status !== 'done' ? '#DC2626' : '#475569' }}><Calendar className="w-3 h-3" />{format(new Date(feature.deadline), 'dd/MM/yyyy')}{dl !== null && feature.status !== 'done' ? (dl < 0 ? ` · ${-dl}d atrasado` : dl === 0 ? ' · hoje' : ` · ${dl}d`) : ''}</span>}
+          {feature.linkedDemandTitle && <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 flex items-center gap-1 max-w-full truncate"><Link2 className="w-3 h-3 flex-shrink-0" /><span className="truncate">{feature.linkedDemandTitle}</span></span>}
+        </div>
+      </div>
+
+      {/* Quem faz e quem pediu */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="rounded-xl border border-slate-200 p-3 flex items-center gap-3">
+          <Assignee name={feature.assignedTo} size={36} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Responsável</p>
+            <select value={feature.assignedTo || ''} onChange={e => onPatch({ assignedTo: e.target.value || null })} className="w-full text-sm font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer -ml-0.5">
+              <option value="">Ninguém ainda</option>
+              {[...new Set([...team, ...(feature.assignedTo ? [feature.assignedTo] : [])])].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            {me && feature.assignedTo !== me && <button type="button" onClick={() => onPatch({ assignedTo: me })} className="text-[11px] font-black text-indigo-600 hover:underline">Assumir para mim</button>}
+          </div>
+        </div>
+        <div className="rounded-xl border border-slate-200 p-3 flex items-center gap-3">
+          <Assignee name={feature.reporter} size={36} />
+          <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Relator (quem solicitou)</p><p className="text-sm font-bold text-slate-800 truncate">{feature.reporter || 'Não informado'}</p></div>
+        </div>
+      </div>
+
+      <div className={cn('grid gap-8 items-start', full ? 'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : 'grid-cols-1')}>
+        {left}
+        {right}
+      </div>
+    </div>
   );
 }
 
