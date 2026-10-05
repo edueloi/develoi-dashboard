@@ -7,7 +7,7 @@ import {
   Archive, X, Kanban, GripVertical, ArrowRight, CheckSquare,
   Square, ListTodo, Pencil, Link2, Search, FileText, ClipboardList,
   Target, User, Tag, Layers, Upload, Sparkles, Copy, Check as CheckIcon,
-  Bot, MessageSquare, Send, Activity, Lock, Users as UsersIcon,
+  Bot, MessageSquare, Send, Activity, Lock, Users as UsersIcon, RotateCcw, Pause, CalendarRange,
 } from 'lucide-react';
 import { format, addDays, isBefore, isSameDay, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -224,130 +224,208 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
 
 // ─── BacklogView ──────────────────────────────────────────────────────────────
 
+const TAB_KEY = 'develoi:backlog:aba';
+const sprintYear = (sp: Sprint) => new Date(sp.endDate ?? sp.startDate ?? sp.createdAt).getFullYear();
+
 function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreateSprint, onCreateTicket, onImport }: {
   projectId: string; features: Feature[]; sprints: Sprint[]; isAdmin: boolean;
   onRefresh: () => void; onCreateSprint: () => void; onCreateTicket: (sprintId?: string) => void;
   onImport: () => void;
 }) {
-  const backlogFeatures = features.filter(f => !f.sprintId);
-  const sprintGroups = sprints
-    .map(s => ({ sprint: s, features: features.filter(f => f.sprintId === s.id) }))
-    .sort((a, b) => ({ active: 0, planned: 1, completed: 2 }[a.sprint.status] - { active: 0, planned: 1, completed: 2 }[b.sprint.status]));
+  const [tab, setTabState] = useState<'plan' | 'done'>(() => { try { return localStorage.getItem(TAB_KEY) === 'done' ? 'done' : 'plan'; } catch { return 'plan'; } });
+  const setTab = (t: 'plan' | 'done') => { setTabState(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* sem storage */ } };
+  const [q, setQ] = useState('');
+  const [typeF, setTypeF] = useState('all');
+  const [year, setYear] = useState<'all' | number>('all');
 
-  const handleStart  = async (id: string) => {
-    await fetch(`/api/projects/${projectId}/sprints/${id}/start`, { method: 'POST' });
-    onRefresh();
-  };
-  const handleFinish = async (id: string) => {
-    if (!confirm('Concluir sprint? Tarefas não finalizadas voltam ao backlog.')) return;
-    await fetch(`/api/projects/${projectId}/sprints/${id}/finish`, { method: 'POST' });
-    onRefresh();
-  };
+  const backlogAll = features.filter(f => !f.sprintId);
+  const backlogFeatures = backlogAll.filter(f => (typeF === 'all' || (f.type || 'task') === typeF) && (!q.trim() || `${f.key ?? ''} ${f.title}`.toLowerCase().includes(q.trim().toLowerCase())));
+  const running = sprints.filter(s => s.status === 'active');
+  const planned = sprints.filter(s => s.status === 'planned');
+  const completed = sprints.filter(s => s.status === 'completed').sort((a, b) => new Date(b.endDate ?? b.startDate ?? b.createdAt).getTime() - new Date(a.endDate ?? a.startDate ?? a.createdAt).getTime());
+  const featsOf = (id: string) => features.filter(f => f.sprintId === id);
+  const pts = (list: Feature[]) => list.reduce((a, f) => a + (f.points || 0), 0);
+
+  const post = async (url: string) => { await fetch(url, { method: 'POST' }); onRefresh(); };
+  const handleStart  = (id: string) => post(`/api/projects/${projectId}/sprints/${id}/start`);
+  const handlePause  = (id: string) => post(`/api/projects/${projectId}/sprints/${id}/pause`);
+  const handleResume = async (id: string) => { await post(`/api/projects/${projectId}/sprints/${id}/reopen`); setTab('plan'); };
+  const handleFinish = async (id: string) => post(`/api/projects/${projectId}/sprints/${id}/finish`);
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir esta sprint? Os tickets voltam ao backlog.')) return;
-    // Move tickets back first
     const sprintFeats = features.filter(f => f.sprintId === id);
-    await Promise.all(sprintFeats.map(f =>
-      fetch(`/api/projects/${projectId}/features/${f.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sprintId: null }),
-      })
-    ));
+    await Promise.all(sprintFeats.map(f => fetch(`/api/projects/${projectId}/features/${f.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sprintId: null }) })));
     await fetch(`/api/projects/${projectId}/sprints/${id}`, { method: 'DELETE' });
     onRefresh();
   };
 
+  const years = [...new Set(completed.map(sprintYear))].sort((a, b) => b - a);
+  const doneList = completed.filter(sp => (year === 'all' || sprintYear(sp) === year) && (!q.trim() || sp.name.toLowerCase().includes(q.trim().toLowerCase()) || featsOf(sp.id).some(f => f.title.toLowerCase().includes(q.trim().toLowerCase()))));
+  const doneByYear = years.filter(y => year === 'all' || y === year).map(y => ({ y, list: doneList.filter(sp => sprintYear(sp) === y) })).filter(g => g.list.length);
+
+  const sprintCard = (sprint: Sprint, extra?: Partial<React.ComponentProps<typeof SprintSection>>) => (
+    <SprintSection key={sprint.id} sprint={sprint} features={featsOf(sprint.id)} isAdmin={isAdmin} onRefresh={onRefresh}
+      onStart={() => handleStart(sprint.id)} onFinish={() => handleFinish(sprint.id)} onDelete={() => handleDelete(sprint.id)}
+      onAddTicket={() => onCreateTicket(sprint.id)} onPause={() => handlePause(sprint.id)} onResume={() => handleResume(sprint.id)} {...extra} />
+  );
+
+  const tabBtn = (id: 'plan' | 'done', label: string, n: number, Icon: any) => (
+    <button key={id} onClick={() => setTab(id)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border transition-all whitespace-nowrap"
+      style={tab === id ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.25)' } : { background: '#fff', color: '#64748B', borderColor: 'rgba(148,163,184,0.35)' }}>
+      <Icon className="w-3.5 h-3.5" />{label}<span className="text-[10px] px-1.5 py-0.5 rounded-full" style={tab === id ? { background: 'rgba(255,255,255,0.2)' } : { background: 'rgba(100,116,139,0.12)' }}>{n}</span>
+    </button>
+  );
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#0D1F4E] rounded-lg flex items-center justify-center text-white shadow-sm">
-            <History className="w-4 h-4" />
-          </div>
-          <div>
+    <div className="space-y-4 w-full min-w-0">
+      {/* Cabeçalho */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 bg-[#0D1F4E] rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0"><History className="w-5 h-5" /></div>
+          <div className="min-w-0">
             <h2 className="text-lg font-black text-slate-900 tracking-tight">Planejamento Ágil</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sprints e Backlog</p>
+            <p className="text-[11px] font-semibold text-slate-400">
+              {backlogAll.length} no backlog · {running.length} {running.length === 1 ? 'sprint ativa' : 'sprints ativas'} · {planned.length} {planned.length === 1 ? 'planejada' : 'planejadas'} · {completed.length} {completed.length === 1 ? 'concluída' : 'concluídas'}
+            </p>
           </div>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button size="sm" variant="outline" iconLeft={<Plus className="w-3.5 h-3.5" />} onClick={onCreateSprint}>SPRINT</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" iconLeft={<Plus className="w-3.5 h-3.5" />} onClick={onCreateSprint}>NOVA SPRINT</Button>
           <Button size="sm" variant="outline" iconLeft={<Upload className="w-3.5 h-3.5" />} onClick={onImport}>IMPORTAR</Button>
           <Button size="sm" iconLeft={<Rocket className="w-3.5 h-3.5" />} onClick={() => onCreateTicket(undefined)}>NOVO TICKET</Button>
         </div>
       </div>
 
-      {/* Sprint sections */}
-      <div className="space-y-4">
-        {sprintGroups.map(({ sprint, features: sf }) => (
-          <SprintSection
-            key={sprint.id}
-            sprint={sprint}
-            features={sf}
-            isAdmin={isAdmin}
-            onRefresh={onRefresh}
-            onStart={() => handleStart(sprint.id)}
-            onFinish={() => handleFinish(sprint.id)}
-            onDelete={() => handleDelete(sprint.id)}
-            onAddTicket={() => onCreateTicket(sprint.id)}
-          />
-        ))}
-
-        {/* Backlog droppable */}
-        <DroppableComponent droppableId="backlog">
-          {(provided: any, snapshot: any) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className={cn(
-                'rounded-xl border border-dashed overflow-hidden transition-colors',
-                snapshot.isDraggingOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-300 bg-slate-50/50'
-              )}
-            >
-              <div className="p-3 border-b border-slate-200 bg-white/50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 bg-slate-200 rounded-lg flex items-center justify-center">
-                    <Briefcase className="w-4 h-4 text-slate-500" />
-                  </div>
-                  <h3 className="font-black text-slate-600 uppercase tracking-widest text-xs">Backlog do Produto</h3>
-                  <Badge color="default" size="sm">{backlogFeatures.length} {backlogFeatures.length === 1 ? 'ticket' : 'tickets'}</Badge>
-                </div>
-                <button
-                  onClick={() => onCreateTicket('')}
-                  className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-700 transition-colors px-3 py-1.5 rounded-xl hover:bg-indigo-50"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Adicionar
-                </button>
-              </div>
-              <div className="p-2 space-y-2 min-h-[72px]">
-                {backlogFeatures.length === 0 ? (
-                  <div className="py-6 text-center">
-                    <p className="text-sm font-bold text-slate-400">Backlog vazio — arraste tickets das sprints ou adicione novos.</p>
-                  </div>
-                ) : (
-                  backlogFeatures.map((f, i) => (
-                    <DraggableComponent key={f.id} draggableId={f.id} index={i}>
-                      {(prov: any, snap: any) => (
-                        <FeatureRow feature={f} provided={prov} isDragging={snap.isDragging} onRefresh={onRefresh} />
-                      )}
-                    </DraggableComponent>
-                  ))
-                )}
-                {provided.placeholder}
-              </div>
-            </div>
-          )}
-        </DroppableComponent>
+      {/* Abas */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex gap-2 overflow-x-auto">{tabBtn('plan', 'Planejamento', backlogAll.length + running.length + planned.length, ListTodo)}{tabBtn('done', 'Concluídas', completed.length, Archive)}</div>
+        <div className="relative sm:ml-auto sm:w-72">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder={tab === 'plan' ? 'Buscar ticket no backlog…' : 'Buscar sprint ou ticket…'}
+            className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0D1F4E]" />
+        </div>
       </div>
+
+      {/* ═══ PLANEJAMENTO: backlog de um lado, sprints do outro (dá para arrastar entre eles) ═══ */}
+      {tab === 'plan' && (
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-4 items-start">
+          {/* Sprints primeiro no celular */}
+          <div className="space-y-4 order-1 xl:order-2 min-w-0">
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><Play className="w-3.5 h-3.5" />Sprints em andamento e planejadas</h3>
+            {running.length + planned.length === 0 ? (
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
+                <Rocket className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-bold text-slate-500">Nenhuma sprint ativa ou planejada</p>
+                <p className="text-xs text-slate-400 mt-1">Crie uma sprint ou retome uma concluída na aba "Concluídas".</p>
+                <div className="flex justify-center gap-2 mt-3"><Button size="sm" onClick={onCreateSprint}>NOVA SPRINT</Button>{completed.length > 0 && <Button size="sm" variant="outline" onClick={() => setTab('done')}>VER CONCLUÍDAS</Button>}</div>
+              </div>
+            ) : (
+              <>
+                {running.map(sp => sprintCard(sp))}
+                {planned.map(sp => sprintCard(sp))}
+              </>
+            )}
+          </div>
+
+          {/* Backlog do produto */}
+          <div className="order-2 xl:order-1 min-w-0 xl:sticky xl:top-2">
+            <DroppableComponent droppableId="backlog">
+              {(provided: any, snapshot: any) => (
+                <div ref={provided.innerRef} {...provided.droppableProps}
+                  className={cn('rounded-2xl border overflow-hidden transition-colors bg-white shadow-sm', snapshot.isDraggingOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200')}>
+                  <div className="p-3 sm:p-4 border-b border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0"><Briefcase className="w-4 h-4 text-slate-500" /></div>
+                        <div className="min-w-0">
+                          <h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">Backlog do produto</h3>
+                          <p className="text-[10px] font-semibold text-slate-400">{backlogAll.length} {backlogAll.length === 1 ? 'ticket' : 'tickets'} · {pts(backlogAll)} pts · ainda sem sprint</p>
+                        </div>
+                      </div>
+                      <button onClick={() => onCreateTicket('')} className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-xl flex-shrink-0"><Plus className="w-3.5 h-3.5" />Ticket</button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {([['all', 'Todos'], ['story', 'Histórias'], ['task', 'Tarefas'], ['bug', 'Bugs'], ['epic', 'Épicos']] as const).map(([v, l]) => (
+                        <button key={v} onClick={() => setTypeF(v)} className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
+                          style={typeF === v ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)' }}>{l}</button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-400">Arraste um ticket para uma sprint ao lado para planejar.</p>
+                  </div>
+                  <div className="p-2 space-y-2 min-h-[96px] xl:max-h-[calc(100vh-18rem)] xl:overflow-y-auto">
+                    {backlogFeatures.length === 0 ? (
+                      <div className="py-8 text-center"><p className="text-sm font-bold text-slate-400">{backlogAll.length ? 'Nenhum ticket com esses filtros.' : 'Backlog vazio. Adicione tickets ou tire de uma sprint.'}</p></div>
+                    ) : backlogFeatures.map((f, i) => (
+                      <DraggableComponent key={f.id} draggableId={f.id} index={i}>
+                        {(prov: any, snap: any) => <FeatureRow feature={f} provided={prov} isDragging={snap.isDragging} onRefresh={onRefresh} />}
+                      </DraggableComponent>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                </div>
+              )}
+            </DroppableComponent>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ CONCLUÍDAS: por ano, para retomar ou consultar ═══ */}
+      {tab === 'done' && (
+        <div className="space-y-5">
+          {completed.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-10 text-center">
+              <Archive className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-500">Nenhuma sprint concluída ainda</p>
+              <p className="text-xs text-slate-400 mt-1">Quando você concluir uma sprint, ela fica guardada aqui, organizada por ano.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1"><CalendarRange className="w-3.5 h-3.5" />Ano</span>
+                {(['all', ...years] as ('all' | number)[]).map(y => (
+                  <button key={String(y)} onClick={() => setYear(y)} className="px-3 py-1.5 rounded-full text-xs font-black border"
+                    style={year === y ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)', background: '#fff' }}>
+                    {y === 'all' ? 'Todos' : y} <span className="opacity-60">· {y === 'all' ? completed.length : completed.filter(sp => sprintYear(sp) === y).length}</span>
+                  </button>
+                ))}
+              </div>
+
+              {doneByYear.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Nada encontrado com essa busca.</p>}
+              {doneByYear.map(({ y, list }) => {
+                const allF = list.flatMap(sp => featsOf(sp.id));
+                return (
+                  <div key={y} className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-lg font-black text-slate-900">{y}</h3>
+                      <span className="text-xs font-bold text-slate-400">{list.length} {list.length === 1 ? 'sprint' : 'sprints'} · {allF.length} tickets · {pts(allF)} pts entregues</span>
+                      <div className="h-px bg-slate-200 flex-1" />
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {list.map(sp => {
+                        const sf = featsOf(sp.id), done = sf.filter(f => f.status === 'done').length;
+                        return (
+                          <div key={sp.id} className="min-w-0">
+                            {sprintCard(sp)}
+                            <p className="text-[10px] text-slate-400 px-2 mt-1">{done} de {sf.length} tickets concluídos</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── SprintSection ────────────────────────────────────────────────────────────
 
-function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish, onDelete, onAddTicket }: {
+function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish, onDelete, onAddTicket, onPause, onResume }: {
   sprint: Sprint; features: Feature[]; isAdmin: boolean; onRefresh: () => void;
-  onStart: () => void; onFinish: () => void; onDelete: () => void; onAddTicket: () => void;
+  onStart: () => void; onFinish: () => void; onDelete: () => void; onAddTicket: () => void; onPause?: () => void; onResume?: () => void;
 }) {
   const [expanded, setExpanded]         = useState(sprint.status !== 'completed');
   const [menuOpen, setMenuOpen]         = useState(false);
@@ -409,12 +487,15 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
                   </div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                     {features.length} {features.length === 1 ? 'ticket' : 'tickets'} · {features.reduce((a, f) => a + (f.points || 0), 0)} pts
-                    {sprint.startDate && sprint.endDate && ` · ${format(new Date(sprint.startDate), 'dd/MM')} – ${format(new Date(sprint.endDate), 'dd/MM')}`}
+                    {sprint.startDate && sprint.endDate && ` · ${format(new Date(sprint.startDate), 'dd/MM')} – ${format(new Date(sprint.endDate), sprint.status === 'completed' ? 'dd/MM/yyyy' : 'dd/MM')}`}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
+                {sprint.status === 'planned' && <Button size="xs" variant="outline" iconLeft={<Play className="w-3 h-3" />} onClick={onStart}>INICIAR</Button>}
+                {sprint.status === 'completed' && onResume && <Button size="xs" variant="outline" iconLeft={<RotateCcw className="w-3 h-3" />} onClick={onResume}>RETOMAR</Button>}
+                {sprint.status === 'active' && <Button size="xs" variant="outline" iconLeft={<CheckCircle2 className="w-3 h-3" />} onClick={() => setConfirmFinish(true)}>CONCLUIR</Button>}
                 {/* 3-dot menu — todas as ações ficam aqui */}
                 <div className="relative" ref={menuRef}>
                   <button
@@ -434,12 +515,12 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
                       </button>
 
                       {/* Adicionar ticket */}
-                      <button
+                      {sprint.status !== 'completed' && <button
                         onClick={() => { onAddTicket(); setMenuOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                       >
                         <Plus className="w-4 h-4 text-slate-400" /> Adicionar Ticket
-                      </button>
+                      </button>}
 
                       {/* Quem pode ver — só quem é administrador pode mexer nisso */}
                       {isAdmin && (
@@ -460,6 +541,22 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
                         >
                           <Play className="w-4 h-4" /> Iniciar Sprint
+                        </button>
+                      )}
+                      {sprint.status === 'completed' && onResume && (
+                        <button
+                          onClick={() => { onResume(); setMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        >
+                          <RotateCcw className="w-4 h-4" /> Retomar Sprint
+                        </button>
+                      )}
+                      {sprint.status === 'active' && onPause && (
+                        <button
+                          onClick={() => { onPause(); setMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                        >
+                          <Pause className="w-4 h-4" /> Pausar (voltar a planejada)
                         </button>
                       )}
                       {sprint.status === 'active' && (
@@ -579,7 +676,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
         </div>
 
         <div className="shrink-0">{TYPE_ICONS[feature.type || 'task']}</div>
-        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0 w-20 truncate">{feature.key || '—'}</span>
+        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0 w-16 sm:w-20 truncate">{feature.key || '—'}</span>
 
         <div className="flex-1 min-w-0">
           <span className="text-sm font-bold text-slate-700 truncate block group-hover:text-indigo-900">{feature.title}</span>

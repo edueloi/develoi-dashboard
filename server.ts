@@ -545,6 +545,18 @@ async function startServer() {
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // volta uma sprint ativa para "planejada" (pausa), mantendo os tickets
+    app.post("/api/projects/:projectId/sprints/:id/pause", async (req, res) => {
+      try { res.json(await prisma.sprint.update({ where: { id: req.params.id }, data: { status: 'planned' } })); }
+      catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // retoma uma sprint concluída: volta a ficar ativa, sem perder a data de início
+    app.post("/api/projects/:projectId/sprints/:id/reopen", async (req, res) => {
+      try { res.json(await prisma.sprint.update({ where: { id: req.params.id }, data: { status: 'active', endDate: null } })); }
+      catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
     app.post("/api/projects/:projectId/sprints/:id/finish", async (req, res) => {
       const sprint = await prisma.sprint.update({
         where: { id: req.params.id },
