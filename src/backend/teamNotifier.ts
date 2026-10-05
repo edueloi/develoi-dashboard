@@ -213,7 +213,7 @@ const lastByIp = new Map<string, number>();
 
 async function notifyContactTeam(m: { id: string; name: string; email: string | null; phone: string | null; service: string | null; message: string }) {
   const targets = await prisma.teamRecipient.findMany({ where: { active: true, notifyContact: true } });
-  if (!targets.length || getSessionInfo().status !== "connected") return false;
+  if (!targets.length) { console.log("[contato] ninguém com 'Contato do site' ligado nos avisos"); return false; }
   const text = [
     `📩 *Nova mensagem pelo site*`,
     `👤 ${m.name}`,
