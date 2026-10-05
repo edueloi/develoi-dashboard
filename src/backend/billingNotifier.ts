@@ -1,6 +1,7 @@
 // Avisos automáticos de cobrança por WhatsApp (vencimento, atraso e bloqueio de assinatura)
 import { prisma } from "./db.js";
-import { format } from "date-fns";
+// vencimentos ficam gravados como meia-noite UTC; formatar no fuso local (Brasília) mostrava o dia anterior
+const format = (d: Date, _pattern: string) => d.toLocaleDateString("pt-BR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" });
 import { brtParts, daysFromToday } from "./time.js";
 import { syncBoxsysAccess } from "./boxsys.js";
 import { publicInvoiceUrl } from "./asaas.js";
