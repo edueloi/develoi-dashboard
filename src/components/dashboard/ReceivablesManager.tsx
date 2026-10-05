@@ -162,11 +162,11 @@ export function ReceivablesManager() {
   // recebidos no mês navegado: pagamentos de assinatura + contas avulsas recebidas
   const receivedRows = useMemo(() => {
     if (view !== 'month') return [];
-    type R = { id: string; name: string; amount: number; at: string; method?: string | null; ref?: string | null; undo: () => void; receiptBase: string };
+    type R = { id: string; name: string; amount: number; fee: number; at: string; method?: string | null; ref?: string | null; undo: () => void; receiptBase: string };
     const rows: R[] = [];
-    if (source !== 'manual') received.forEach(p => rows.push({ id: `p-${p.id}`, name: p.client?.name ?? 'Cliente', amount: p.amount, at: p.paidAt, method: p.method, ref: p.dueDate, undo: () => undoSub(p.id), receiptBase: `/api/client-payments/${p.id}` }));
+    if (source !== 'manual') received.forEach(p => rows.push({ id: `p-${p.id}`, name: p.client?.name ?? 'Cliente', amount: p.amount, fee: p.feeAmount ?? 0, at: p.paidAt, method: p.method, ref: p.dueDate, undo: () => undoSub(p.id), receiptBase: `/api/client-payments/${p.id}` }));
     if (source !== 'subscription') manual.filter(r => r.status === 'received' && r.receivedAt && isSameMonth(parseDay(r.receivedAt)!, kpiMonth))
-      .forEach(r => rows.push({ id: `m-${r.id}`, name: r.description, amount: r.receivedAmount ?? r.amount, at: r.receivedAt!, method: r.method, ref: r.dueDate, undo: () => undoManual(r.id), receiptBase: `/api/receivables/${r.id}` }));
+      .forEach(r => rows.push({ id: `m-${r.id}`, name: r.description, amount: r.receivedAmount ?? r.amount, fee: r.feeAmount ?? 0, at: r.receivedAt!, method: r.method, ref: r.dueDate, undo: () => undoManual(r.id), receiptBase: `/api/receivables/${r.id}` }));
     return rows.filter(r => !q || r.name.toLowerCase().includes(q)).sort((a, b) => b.at.localeCompare(a.at));
   }, [view, source, received, manual, kpiMonth, q]); // eslint-disable-line
 
@@ -175,6 +175,7 @@ export function ReceivablesManager() {
   const toReceive = monthEntries.reduce((a, e) => a + e.amount, 0);
   const receivedTotal = (source === 'manual' ? 0 : received.reduce((a, p) => a + p.amount, 0))
     + (source === 'subscription' ? 0 : manual.filter(r => r.status === 'received' && r.receivedAt && isSameMonth(parseDay(r.receivedAt)!, kpiMonth)).reduce((a, r) => a + (r.receivedAmount ?? r.amount), 0));
+  const feesTotal = receivedRows.reduce((a, r) => a + r.fee, 0); // taxas descontadas (Asaas) nos recebimentos do mês
   const overdueEntries = entries.filter(isLate);
   const overdueTotal = overdueEntries.reduce((a, e) => a + e.amount, 0);
   const mrr = clients.filter(c => c.status === 'active').reduce((a, c) => a + monthlyValue(c), 0);
@@ -316,9 +317,12 @@ export function ReceivablesManager() {
         <Stat label="A receber" value={money(toReceive)} color="#C49A2A" icon={Clock} text={text} />
         <Stat label="Recebido" value={money(receivedTotal)} color="#15803D" icon={CheckCircle2} text={text}
           footer={(receivedTotal + toReceive) > 0 ? (
+            <>
+            {feesTotal > 0 && <p className="mt-1 text-[11px] font-bold text-slate-400">Líquido {money(receivedTotal - feesTotal)} · taxas {money(feesTotal)}</p>}
             <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
               <div className="h-full rounded-full" style={{ width: `${progress}%`, background: '#15803D' }} />
             </div>
+            </>
           ) : undefined} />
         <Stat label="Atrasado" value={money(overdueTotal)} color="#DC2626" icon={AlertCircle} text={text} />
         <Stat label="Receita mensal (assinaturas)" value={money(mrr)} color="#2563EB" icon={RefreshCw} text={text} />
@@ -380,8 +384,8 @@ export function ReceivablesManager() {
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-black" style={{ color: '#15803D' }}>{money(p.amount)}</p>
-                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#15803D' }}>Recebido</span>
+                        <p className="text-sm font-black" style={{ color: '#15803D' }}>{money(p.amount - p.fee)}</p>
+                        <span className="text-[10px] font-bold" style={{ color: p.fee > 0 ? '#64748b' : '#15803D' }}>{p.fee > 0 ? `cobrado ${money(p.amount)} · taxa ${money(p.fee)}` : 'RECEBIDO'}</span>
                       </div>
                       <RowMenu items={[
                         { label: 'Baixar recibo (PDF)', icon: FileText, onClick: () => window.open(`${p.receiptBase}/receipt.pdf`, '_blank') },
@@ -586,6 +590,7 @@ function ReceiveManualModal({ rec, onClose, onDone }: { rec: Receivable; onClose
   const [amount, setAmount] = useState(String(rec.amount));
   const [date, setDate] = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
   const [method, setMethod] = useState('');
+  const [fee, setFee] = useState('');
   const [saving, setSaving] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -594,7 +599,7 @@ function ReceiveManualModal({ rec, onClose, onDone }: { rec: Receivable; onClose
     try {
       const res = await fetch(`/api/receivables/${rec.id}/receive`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Number(amount) || 0, receivedAt: date, method }),
+        body: JSON.stringify({ amount: Number(amount) || 0, receivedAt: date, method, fee: Number(fee) || 0 }),
       });
       if (!res.ok) throw new Error();
       toast('Recebimento registrado', 'success');
@@ -629,6 +634,7 @@ function ReceiveManualModal({ rec, onClose, onDone }: { rec: Receivable; onClose
             <DatePicker value={date} onChange={setDate} />
           </div>
         </div>
+        <Input label="Taxa descontada (opcional)" addonLeft="R$" type="number" step="0.01" min="0" value={fee} onChange={e => setFee(e.target.value)} hint={fee && Number(fee) > 0 ? `Cai na conta: ${money((Number(amount) || 0) - Number(fee))}` : 'Pix, boleto ou cartão: informe se algum valor foi descontado'} />
         <div className="flex flex-wrap gap-1.5">
           {PAY_METHODS.map(m => (
             <button type="button" key={m} onClick={() => setMethod(method === m ? '' : m)}
@@ -740,7 +746,7 @@ export function ReceiveModal({ client, today, onClose, onChanged, onUndo }: {
             <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Últimos recebimentos</p>
             {payments.map(p => (
               <div key={p.id} className="flex items-center justify-between rounded-lg border border-slate-100 dark:border-white/10 px-3 py-2 text-sm">
-                <span><b>{money(p.amount)}</b> <span className="text-slate-400">· {fmtDate(p.paidAt)}{p.method ? ` · ${p.method}` : ''}</span></span>
+                <span><b>{money(p.amount - (p.feeAmount ?? 0))}</b> <span className="text-slate-400">· {fmtDate(p.paidAt)}{p.method ? ` · ${p.method}` : ''}{p.feeAmount ? ` · cobrado ${money(p.amount)}, taxa ${money(p.feeAmount)}` : ''}</span></span>
                 <button onClick={async () => { await onUndo(p.id); }} className="p-1.5 rounded text-slate-400 hover:text-rose-600" aria-label="Desfazer recebimento" title="Desfazer">
                   <Undo2 className="w-3.5 h-3.5" />
                 </button>

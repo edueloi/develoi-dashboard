@@ -396,6 +396,7 @@ model ClientPayment {
   paidAt    DateTime
   method    String?   @db.VarChar(40) // Pix, Boleto, Cartão, Asaas…
   asaasPaymentId String? @unique @db.VarChar(40) // evita registrar o mesmo pagamento do Asaas duas vezes
+  feeAmount Float?    // taxa cobrada pelo Asaas (Pix, boleto, cartão): o líquido é amount - feeAmount
   notes     String?   @db.Text
   createdAt DateTime  @default(now())
 
@@ -654,6 +655,7 @@ model Receivable {
   status            String    @default("pending") // pending | received
   receivedAt        DateTime?
   receivedAmount    Float?
+  feeAmount         Float?    // taxa descontada no recebimento; o líquido é receivedAmount - feeAmount
   method            String?   @db.VarChar(40)
   notes             String?   @db.Text
   clientId          String?   @db.VarChar(36) // vínculo opcional com um cliente

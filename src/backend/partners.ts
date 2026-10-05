@@ -7,7 +7,7 @@ import { prisma } from "./db.js";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
-const TYPE_LABEL: Record<string, string> = { fixed: "Custos fixos", variable: "Custos variáveis", normal: "Gastos avulsos", product: "Sistemas e produtos", reimbursement: "Reembolsos" };
+const TYPE_LABEL: Record<string, string> = { fee: "Taxas de recebimento (Asaas)", fixed: "Custos fixos", variable: "Custos variáveis", normal: "Gastos avulsos", product: "Sistemas e produtos", reimbursement: "Reembolsos" };
 
 // Datas "só dia" ficam à meia-noite UTC; recebimentos do Asaas são horários reais (vira o mês à meia-noite de Brasília)
 const dayStart = (m: string) => { const [y, mo] = m.split("-").map(Number); return new Date(Date.UTC(y, mo - 1, 1, 0, 0)); };
@@ -105,6 +105,8 @@ async function plannedDetail(month: string, cfg: Cfg): Promise<Detail> {
     const t = byType.get(p.type) ?? { total: 0, done: 0 }; t.total += total; t.done += done; byType.set(p.type, t);
     byPayable.set(p.description, (byPayable.get(p.description) ?? 0) + total);
   }
+  const fees = pays.reduce((a, p) => a + (p.feeAmount ?? 0), 0) + recs.filter(r => r.status === "received").reduce((a, r) => a + (r.feeAmount ?? 0), 0);
+  if (fees > 0) { byType.set("fee", { total: fees, done: fees }); expDone += fees; }
   return {
     revenueDone: subsDone + avDone, revenuePending: subsPending + avPending, expensesDone: expDone, expensesPending: expPending,
     revenueBy: [{ label: "Assinaturas de clientes", amount: round2(subsDone + subsPending), done: round2(subsDone) }, { label: "Contas avulsas a receber", amount: round2(avDone + avPending), done: round2(avDone) }].filter(x => x.amount > 0),
@@ -123,9 +125,11 @@ async function cashDetail(month: string, cfg: Cfg): Promise<Detail> {
   const subs = pays.reduce((s, p) => s + p.amount, 0);
   const avulsas = recs.reduce((s, r) => s + (r.receivedAmount ?? r.amount), 0);
   const counted = outs.filter(o => cfg.reimbursementsAsExpense || o.payable?.type !== "reimbursement");
-  const expenses = counted.reduce((s, o) => s + o.amount, 0);
+  const fees = pays.reduce((a, p) => a + (p.feeAmount ?? 0), 0) + recs.reduce((a, r) => a + (r.feeAmount ?? 0), 0);
+  const expenses = counted.reduce((s, o) => s + o.amount, 0) + fees;
   const byType = new Map<string, number>(), byClient = new Map<string, number>(), byPayable = new Map<string, number>();
   for (const o of counted) { const k = o.payable?.type ?? "normal"; byType.set(k, (byType.get(k) ?? 0) + o.amount); const n = o.payable?.description ?? "Despesa"; byPayable.set(n, (byPayable.get(n) ?? 0) + o.amount); }
+  if (fees > 0) byType.set("fee", fees);
   for (const p of pays) { const n = p.client?.businessName || p.client?.name || "Cliente"; byClient.set(n, (byClient.get(n) ?? 0) + p.amount); }
   return {
     revenueDone: subs + avulsas, revenuePending: 0, expensesDone: expenses, expensesPending: 0,

@@ -234,6 +234,7 @@ export interface Receivable {
   status: 'pending' | 'received';
   receivedAt?: string | null;
   receivedAmount?: number | null;
+  feeAmount?: number | null;
   method?: string | null;
   notes?: string | null;
   clientId?: string | null;
@@ -266,6 +267,7 @@ export interface ClientPayment {
   dueDate?: string | null;
   paidAt: string;
   method?: string | null;
+  feeAmount?: number | null;
   notes?: string | null;
   client?: { id: string; name: string; phone?: string | null };
 }

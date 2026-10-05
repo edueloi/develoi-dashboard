@@ -32,6 +32,7 @@ export interface PaymentInput {
   notes?: string;
   asaasPaymentId?: string;
   dueDate?: Date | null;     // vencimento a que o pagamento se refere (Asaas informa)
+  fee?: number | null;       // taxa descontada pelo Asaas
   advance?: boolean;         // false = só registra, sem avançar o vencimento do cliente
 }
 
@@ -72,6 +73,7 @@ export async function registerClientPayment(clientId: string, input: PaymentInpu
       method: input.method || null,
       notes: input.notes || null,
       asaasPaymentId: input.asaasPaymentId || null,
+      feeAmount: input.fee != null && Number(input.fee) > 0 ? Math.round(Number(input.fee) * 100) / 100 : null,
     },
   });
   const client = await prisma.client.update({

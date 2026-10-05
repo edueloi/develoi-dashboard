@@ -409,6 +409,12 @@ const cycleOf = (ref: unknown) => /\|ciclo:(\d{4}-\d{2}-\d{2})$/.exec(String(ref
 const PAID_EVENTS = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
 const PAID_STATUSES = new Set(["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"]);
 
+// taxa do Asaas = valor cobrado - valor líquido que cai na conta
+const feeOf = (p: any): number | null => {
+  const v = Number(p?.value), n = Number(p?.netValue);
+  return Number.isFinite(v) && Number.isFinite(n) && p?.netValue != null && v > n ? Math.round((v - n) * 100) / 100 : null;
+};
+
 export interface PaymentOutcome { outcome: string; clientName?: string }
 
 // Trata uma cobrança do Asaas (vinda do webhook ou da sincronização). Idempotente.
@@ -445,6 +451,7 @@ export async function handlePayment(event: string, payload: any): Promise<Paymen
     method: label,
     notes: "Recebido via Asaas",
     asaasPaymentId: p.id,
+    fee: feeOf(p),
     dueDate: charge.dueDate,
     advance: sameDay(charge.dueDate, client.nextDueDate) || cycleOf(p.externalReference) === client.nextDueDate?.toISOString().slice(0, 10), // só avança se for a fatura do ciclo atual
   });
@@ -612,6 +619,23 @@ export function registerAsaasRoutes(app: Express) {
       const charges = await prisma.asaasCharge.deleteMany({});
       const logs = await prisma.asaasWebhookLog.deleteMany({});
       res.json({ clientes: clients.count, cobrancas: charges.count, eventos: logs.count });
+    } catch (e) { fail(res, e); }
+  });
+
+  // preenche a taxa dos recebimentos antigos consultando o líquido de cada cobrança no Asaas
+  app.post("/api/asaas/backfill-fees", async (_req, res) => {
+    try {
+      const rows = await prisma.clientPayment.findMany({ where: { asaasPaymentId: { not: null }, feeAmount: null } });
+      let updated = 0, failed = 0;
+      for (const r of rows) {
+        try {
+          const p = await asaas<any>(`/payments/${encodeURIComponent(r.asaasPaymentId as string)}`);
+          const fee = feeOf(p);
+          await prisma.clientPayment.update({ where: { id: r.id }, data: { feeAmount: fee ?? 0 } });
+          if (fee) updated++;
+        } catch { failed++; }
+      }
+      res.json({ checked: rows.length, updated, failed });
     } catch (e) { fail(res, e); }
   });
 

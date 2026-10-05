@@ -108,6 +108,7 @@ export function registerReceivableRoutes(app: Express) {
           receivedAt: req.body.receivedAt ? new Date(req.body.receivedAt) : brtTodayUtc(),
           receivedAmount: req.body.amount !== undefined ? Number(req.body.amount) || 0 : cur.amount,
           method: req.body.method || null,
+          feeAmount: Number(req.body.fee) > 0 ? Math.round(Number(req.body.fee) * 100) / 100 : null,
           notes: req.body.notes ? req.body.notes : cur.notes,
         },
         include,
@@ -119,7 +120,7 @@ export function registerReceivableRoutes(app: Express) {
     try {
       res.json(await prisma.receivable.update({
         where: { id: req.params.id },
-        data: { status: "pending", receivedAt: null, receivedAmount: null, method: null },
+        data: { status: "pending", receivedAt: null, receivedAmount: null, feeAmount: null, method: null },
         include,
       }));
     } catch (e) { fail(res, e); }
