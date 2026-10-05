@@ -816,6 +816,7 @@ model Lead {
   notes         String?   @db.Text
   lostReason    String?   @db.VarChar(200)
   clientId      String?   // cliente criado a partir deste lead
+  placeId       String?   @db.VarChar(80) // empresa encontrada no Google Maps (evita cadastrar duas vezes)
   saleId        String?   // venda acompanhada em Vendas (nasce na reunião/proposta)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -823,6 +824,7 @@ model Lead {
 
   @@index([status])
   @@index([nextFollowUp])
+  @@index([placeId])
 }
 
 model LeadActivity {
@@ -955,4 +957,10 @@ model PartnerEvaluation {
   goalsNextPeriod String?  @db.Text
   evaluatedByName String?  @db.VarChar(100)
   createdAt       DateTime @default(now())
+}
+
+// Consultas feitas ao Google Places por mês (trava de segurança para não passar da cota gratuita)
+model PlacesUsage {
+  month    String @id @db.VarChar(7) // AAAA-MM
+  requests Int    @default(0)
 }

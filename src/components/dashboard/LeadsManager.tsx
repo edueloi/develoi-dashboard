@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Pencil, Trash2, Eye, XCircle, RotateCcw, UserPlus, Plus, Search, MessageCircle, ChevronRight, Upload, Target, CalendarClock, TrendingUp, Trophy,
-  Hand, Phone, Mail, Video, StickyNote, ArrowRightLeft, LayoutGrid, List, Flame, Percent, Hourglass,
+  MapPin, Hand, Phone, Mail, Video, StickyNote, ArrowRightLeft, LayoutGrid, List, Flame, Percent, Hourglass,
 } from 'lucide-react';
 import { Button, Modal, Input, Select, Textarea, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useLiveEvents } from '../../lib/liveEvents';
 import { RowMenu } from './financeShared';
 import { SendMessageModal, fillPlaceholders, type MessageTemplate } from './SendMessageModal';
+import { PlacesSearchModal } from './PlacesSearchModal';
 import { useAuth } from '../../contexts/AuthContext';
 
 type Status = 'new' | 'contacted' | 'meeting' | 'proposal' | 'won' | 'lost';
@@ -41,7 +42,7 @@ const prioOf = (p: Priority) => PRIORITIES.find(x => x.id === p) ?? PRIORITIES[1
 const SOURCES = [
   { value: 'manual', label: 'Cadastro manual' }, { value: 'indicacao', label: 'Indicação' }, { value: 'instagram', label: 'Instagram' },
   { value: 'whatsapp', label: 'WhatsApp' }, { value: 'site', label: 'Site' }, { value: 'bia', label: 'BiIA' },
-  { value: 'planilha', label: 'Lista / planilha' }, { value: 'outro', label: 'Outro' },
+  { value: 'planilha', label: 'Lista / planilha' }, { value: 'google', label: 'Google Maps' }, { value: 'outro', label: 'Outro' },
 ];
 const ACT_TYPES = [
   { value: 'whatsapp', label: 'WhatsApp', icon: MessageCircle }, { value: 'call', label: 'Ligação', icon: Phone },
@@ -110,6 +111,7 @@ export const LeadsManager: React.FC = () => {
   const [editing, setEditing] = useState<Lead | 'new' | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [losing, setLosing] = useState<Lead | null>(null);
   const [sending, setSending] = useState<Lead | null>(null);
   const [ready, setReady] = useState<{ id: string; title: string; body: string; productName?: string | null }[]>([]);
@@ -326,6 +328,7 @@ export const LeadsManager: React.FC = () => {
                 <button key={id} onClick={() => changeView(id)} title={t} className="px-3 py-2" style={view === id ? { background: '#0D1F4E', color: '#fff' } : { color: '#64748B' }}><I className="w-4 h-4" /></button>
               ))}
             </div>
+            <Button variant="outline" onClick={() => setSearching(true)} title="Buscar empresas no Google Maps"><MapPin className="w-4 h-4 sm:mr-1.5" /><span className="hidden sm:inline">BUSCAR EMPRESAS</span></Button>
             <Button variant="outline" onClick={() => setImporting(true)} title="Importar lista"><Upload className="w-4 h-4 sm:mr-1.5" /><span className="hidden sm:inline">IMPORTAR</span></Button>
             <Button className="flex-1 sm:flex-none" onClick={() => setEditing('new')}><Plus className="w-4 h-4 mr-1.5" />NOVO LEAD</Button>
           </div>
@@ -414,6 +417,8 @@ export const LeadsManager: React.FC = () => {
       {current && <LeadDetail lead={current} onSend={() => { setSending(current); setDetail(null); }} onClose={() => setDetail(null)} onEdit={() => { setEditing(current); setDetail(null); }}
         onActivity={async b => { if (await call(`/api/leads/${current.id}/activity`, 'POST', b)) { toast('Contato registrado', 'success'); load(); } }}
         onMove={s => (s === 'lost' ? setLosing(current) : move(current, s))} />}
+
+      {searching && <PlacesSearchModal products={productOptions} onClose={() => setSearching(false)} onImported={load} />}
 
       {importing && <ImportModal products={productOptions} onClose={() => setImporting(false)}
         onImport={async (rows, source, product) => {
