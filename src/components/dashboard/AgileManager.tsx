@@ -20,9 +20,58 @@ import {
 import type { Feature, Sprint, FeatureComment } from './types';
 import { useAuth } from '../../contexts/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { RowMenu } from './financeShared';
 
 const DraggableComponent = Draggable as any;
 const DroppableComponent = Droppable as any;
+
+// ─── Responsável pelo ticket (quem vai assumir) ─────────────────────────────────
+
+let teamCache: string[] | null = null;
+function useTeam(): string[] {
+  const [names, setNames] = useState<string[]>(teamCache ?? []);
+  useEffect(() => {
+    if (teamCache) return;
+    fetch('/api/users').then(r => r.json()).then(d => {
+      const list = (Array.isArray(d) ? d : []).filter((u: any) => u?.displayName && u.active !== false).map((u: any) => String(u.displayName));
+      teamCache = [...new Set(list)] as string[];
+      setNames(teamCache);
+    }).catch(() => {});
+  }, []);
+  return names;
+}
+const AVATAR_COLORS = ['#4F46E5', '#0D9488', '#C49A2A', '#DB2777', '#7C3AED', '#EA580C', '#0891B2', '#15803D'];
+const colorOfName = (n: string) => AVATAR_COLORS[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
+
+function Assignee({ name, size = 24 }: { name?: string | null; size?: number }) {
+  if (!name) {
+    return <span title="Sem responsável" className="rounded-lg border border-dashed border-slate-300 text-slate-300 flex items-center justify-center flex-shrink-0 text-[10px] font-black" style={{ width: size, height: size }}>+</span>;
+  }
+  return (
+    <span title={`Responsável: ${name}`} className="rounded-lg text-white flex items-center justify-center flex-shrink-0 font-black" style={{ width: size, height: size, background: colorOfName(name), fontSize: size * 0.4 }}>
+      {name.trim()[0]?.toUpperCase()}
+    </span>
+  );
+}
+
+// itens do menu "quem assume": eu, cada pessoa da equipe e remover
+function useAssignItems(feature: Feature, onRefresh: () => void) {
+  const { profile } = useAuth();
+  const team = useTeam();
+  const me = profile?.displayName || '';
+  const assign = async (name: string | null) => {
+    await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assignedTo: name, actorId: profile?.uid, actorName: me }),
+    });
+    onRefresh();
+  };
+  const items: { label: string; icon: any; onClick: () => void; danger?: boolean }[] = [];
+  if (me && feature.assignedTo !== me) items.push({ label: 'Assumir (eu)', icon: UsersIcon, onClick: () => assign(me) });
+  team.filter(n => n !== me && n !== feature.assignedTo).forEach(n => items.push({ label: `Atribuir a ${n}`, icon: User, onClick: () => assign(n) }));
+  if (feature.assignedTo) items.push({ label: 'Remover responsável', icon: X, onClick: () => assign(null), danger: true });
+  return items;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -236,10 +285,12 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
   const setTab = (t: 'plan' | 'done') => { setTabState(t); try { localStorage.setItem(TAB_KEY, t); } catch { /* sem storage */ } };
   const [q, setQ] = useState('');
   const [typeF, setTypeF] = useState('all');
+  const [whoF, setWhoF] = useState<'all' | 'me' | 'none'>('all');
+  const { profile: me } = useAuth();
   const [year, setYear] = useState<'all' | number>('all');
 
   const backlogAll = features.filter(f => !f.sprintId);
-  const backlogFeatures = backlogAll.filter(f => (typeF === 'all' || (f.type || 'task') === typeF) && (!q.trim() || `${f.key ?? ''} ${f.title}`.toLowerCase().includes(q.trim().toLowerCase())));
+  const backlogFeatures = backlogAll.filter(f => (typeF === 'all' || (f.type || 'task') === typeF) && (whoF === 'all' || (whoF === 'me' ? f.assignedTo === me?.displayName : !f.assignedTo)) && (!q.trim() || `${f.key ?? ''} ${f.title}`.toLowerCase().includes(q.trim().toLowerCase())));
   const running = sprints.filter(s => s.status === 'active');
   const planned = sprints.filter(s => s.status === 'planned');
   const completed = sprints.filter(s => s.status === 'completed').sort((a, b) => new Date(b.endDate ?? b.startDate ?? b.createdAt).getTime() - new Date(a.endDate ?? a.startDate ?? a.createdAt).getTime());
@@ -349,7 +400,13 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
                           style={typeF === v ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)' }}>{l}</button>
                       ))}
                     </div>
-                    <p className="text-[11px] text-slate-400">Arraste um ticket para uma sprint ao lado para planejar.</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {([['all', 'Qualquer responsável'], ['me', 'Meus tickets'], ['none', 'Sem responsável']] as const).map(([v, l]) => (
+                        <button key={v} onClick={() => setWhoF(v)} className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
+                          style={whoF === v ? { background: '#4F46E5', color: '#fff', borderColor: '#4F46E5' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)' }}>{l}</button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-slate-400">Arraste um ticket para uma sprint ao lado para planejar. No menu ⋮ do ticket você define quem assume.</p>
                   </div>
                   <div className="p-2 space-y-2 min-h-[96px] xl:max-h-[calc(100vh-18rem)] xl:overflow-y-auto">
                     {backlogFeatures.length === 0 ? (
@@ -652,6 +709,7 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
 function FeatureRow({ feature, provided, isDragging, onRefresh }: {
   feature: Feature; provided: any; isDragging: boolean; onRefresh: () => void;
 }) {
+  const assignItems = useAssignItems(feature, onRefresh);
   const [editing, setEditing]           = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -684,6 +742,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
             {feature.functionalArea && (
               <span className="text-[10px] text-slate-400 truncate max-w-[160px]">{feature.functionalArea}</span>
             )}
+            {feature.reporter && <span className="text-[10px] text-slate-400 truncate max-w-[140px]" title="Quem solicitou">Relator: {feature.reporter}</span>}
             {feature.linkedDemandId && (
               <span className="inline-flex items-center gap-0.5 text-[10px] text-indigo-400 font-bold">
                 <Link2 className="w-2.5 h-2.5" /> Vinculado
@@ -699,9 +758,8 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500">
             {feature.points || 0}
           </div>
-          <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black" title={feature.reporter || feature.assignedTo || 'U'}>
-            {(feature.reporter || feature.assignedTo || 'U')[0].toUpperCase()}
-          </div>
+          <Assignee name={feature.assignedTo} />
+          {assignItems.length > 0 && <RowMenu items={assignItems} />}
           {/* Edit */}
           <button
             onClick={() => setEditing(true)}
@@ -748,6 +806,8 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
   projectId: string; features: Feature[]; activeSprint?: Sprint; onRefresh: () => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
+  const [whoF, setWhoF] = useState<'all' | 'me' | 'none'>('all');
+  const { profile: me } = useAuth();
 
   if (!activeSprint) {
     return (
@@ -760,7 +820,8 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
     );
   }
 
-  const sprintFeatures = features.filter(f => f.sprintId === activeSprint.id);
+  const sprintAll = features.filter(f => f.sprintId === activeSprint.id);
+  const sprintFeatures = sprintAll.filter(f => whoF === 'all' || (whoF === 'me' ? f.assignedTo === me?.displayName : !f.assignedTo));
   const columns = [
     { id: 'todo',        label: 'A Fazer',          color: 'default'  },
     { id: 'in-progress', label: 'Em Desenvolvimento', color: 'info'   },
@@ -800,6 +861,14 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-1.5 items-center">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-1">Mostrar</span>
+        {([['all', `Todos (${sprintAll.length})`], ['me', `Meus (${sprintAll.filter(f => f.assignedTo === me?.displayName).length})`], ['none', `Sem responsável (${sprintAll.filter(f => !f.assignedTo).length})`]] as const).map(([v, l]) => (
+          <button key={v} onClick={() => setWhoF(v)} className="px-3 py-1.5 rounded-full text-xs font-bold border"
+            style={whoF === v ? { background: '#4F46E5', color: '#fff', borderColor: '#4F46E5' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)', background: '#fff' }}>{l}</button>
+        ))}
+      </div>
+
       <div className="flex gap-3 overflow-x-auto pb-3 custom-scrollbar">
         {columns.map(col => (
           <DroppableComponent key={col.id} droppableId={col.id}>
@@ -835,6 +904,7 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
 // ─── BoardCard ────────────────────────────────────────────────────────────────
 
 function BoardCard({ provided, feature, onRefresh }: { provided: any; feature: Feature; onRefresh: () => void }) {
+  const assignItems = useAssignItems(feature, onRefresh);
   const [editing, setEditing] = useState(false);
   const activities = parseActivities(feature.activities);
   const done = activities.filter(a => a.done).length;
@@ -860,6 +930,7 @@ function BoardCard({ provided, feature, onRefresh }: { provided: any; feature: F
             </div>
           </div>
           <h4 className="text-sm font-black text-slate-900 leading-tight group-hover:text-indigo-700 transition-colors">{feature.title}</h4>
+          {feature.reporter && <p className="text-[10px] text-slate-400 -mt-1.5">Relator: {feature.reporter}</p>}
           {activities.length > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -869,15 +940,19 @@ function BoardCard({ provided, feature, onRefresh }: { provided: any; feature: F
             </div>
           )}
           <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-            <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center text-[9px] font-black text-white">
-              {feature.assignedTo ? feature.assignedTo[0].toUpperCase() : 'U'}
+            <div className="flex items-center gap-2 min-w-0">
+              <Assignee name={feature.assignedTo} size={26} />
+              <span className="text-[10px] font-bold text-slate-400 truncate">{feature.assignedTo ? feature.assignedTo.split(' ')[0] : 'Sem responsável'}</span>
             </div>
-            <button
-              onClick={() => setEditing(true)}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+              {assignItems.length > 0 && <RowMenu items={assignItems} />}
+              <button
+                onClick={() => setEditing(true)}
+                className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-slate-400 hover:text-indigo-600 transition-all"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1208,6 +1283,8 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
   const [points,      setPoints]      = useState(feature.points || 0);
   const [status,      setStatus]      = useState(feature.status || 'todo');
   const [reporter,    setReporter]    = useState(feature.reporter || '');
+  const [assignee,    setAssignee]    = useState(feature.assignedTo || '');
+  const team = useTeam();
   const [area,        setArea]        = useState(feature.functionalArea || '');
   const [funcReqs,    setFuncReqs]    = useState(feature.functionalRequirements || '');
   const [acceptance,  setAcceptance]  = useState(feature.acceptanceCriteria || '');
@@ -1228,7 +1305,7 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title, description: desc, type, priority, points: type === 'epic' ? 0 : points, status,
-          reporter, functionalArea: area,
+          reporter, assignedTo: assignee || null, functionalArea: area,
           functionalRequirements: funcReqs,
           acceptanceCriteria: acceptance,
           businessRules: objective,
@@ -1291,6 +1368,8 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
+          <Select label="Responsável (quem vai assumir)" value={assignee} onChange={e => setAssignee(e.target.value)}
+            options={[{ value: '', label: 'Ninguém ainda' }, ...[...new Set([...team, ...(assignee ? [assignee] : [])])].map(n => ({ value: n, label: n }))]} />
           {(type === 'story' || type === 'task' || type === 'bug') && (
             <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
           )}
@@ -2573,6 +2652,8 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   const [points,     setPoints]     = useState(1);
   const [sprintId,   setSprintId]   = useState(defaultSprintId);
   const [reporter,   setReporter]   = useState('');
+  const [assignee,   setAssignee]   = useState('');
+  const team = useTeam();
   const [area,       setArea]       = useState('');
   const [funcReqs,   setFuncReqs]   = useState('');
   const [acceptance, setAcceptance] = useState('');
@@ -2602,6 +2683,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
           title, description: desc, type, priority, points: type === 'epic' ? 0 : points,
           status: 'todo',
           reporter,
+          assignedTo: assignee || null,
           functionalArea: area,
           functionalRequirements: funcReqs,
           acceptanceCriteria: acceptance,
@@ -2669,6 +2751,8 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
+          <Select label="Responsável (quem vai assumir)" value={assignee} onChange={e => setAssignee(e.target.value)}
+            options={[{ value: '', label: 'Ninguém ainda' }, ...[...new Set([...team, ...(assignee ? [assignee] : [])])].map(n => ({ value: n, label: n }))]} />
           {(type === 'story' || type === 'task' || type === 'bug') && (
             <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
           )}
