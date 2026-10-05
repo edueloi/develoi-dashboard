@@ -15,6 +15,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLiveEvents } from '../../lib/liveEvents';
 import { RowMenu } from './financeShared';
+import { SidePanel } from '../ui/SidePanel';
 import { format } from 'date-fns';
 
 // ─── Tipos locais (espelham o Prisma) ─────────────────────────────────────────
@@ -1036,7 +1037,7 @@ function GoalDetailModal({ goal, partners, onClose, onChanged, onEdit }: { goal:
   const updates = [...(goal.updates ?? [])].reverse();
 
   return (
-    <Modal isOpen onClose={onClose} size="full" title={<span className="flex items-center gap-2 min-w-0"><Target className="w-4 h-4 flex-shrink-0" style={{ color }} /><span className="truncate">{goal.title}</span></span> as any}
+    <SidePanel isOpen onClose={onClose} title={<span className="flex items-center gap-2 min-w-0"><Target className="w-4 h-4 flex-shrink-0" style={{ color }} /><span className="truncate">{goal.title}</span></span> as any}
       footer={
         <div className="flex flex-col-reverse sm:flex-row gap-2 sm:items-center">
           <Button variant="outline" onClick={onEdit} iconLeft={<Edit2 className="w-4 h-4" />}>EDITAR META</Button>
@@ -1047,7 +1048,8 @@ function GoalDetailModal({ goal, partners, onClose, onChanged, onEdit }: { goal:
           </div>
         </div>
       }>
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 lg:gap-8 items-start">
+      {(full: boolean) => (
+      <div className={`grid items-start ${full ? 'grid-cols-[minmax(0,1fr)_320px] gap-8' : 'grid-cols-1 gap-5'}`}>
         <div className="space-y-6 min-w-0">
           {goal.description && <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">{goal.description}</p>}
 
@@ -1124,13 +1126,13 @@ function GoalDetailModal({ goal, partners, onClose, onChanged, onEdit }: { goal:
           </div>
         </div>
 
-        <aside className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.03] p-4 space-y-3.5 lg:sticky lg:top-0">
-          <h3 className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Detalhes</h3>
+        <aside className={`rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.03] p-4 ${full ? 'space-y-3.5 sticky top-0' : 'grid grid-cols-2 gap-3.5 order-first'}`}>
+          <h3 className="text-sm font-black col-span-2" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Detalhes</h3>
           <div><label className={lbl}>Situação</label>
             <Select value={goal.status} onChange={e => call('', 'PATCH', { status: e.target.value }, 'Situação atualizada')} options={Object.entries(GOAL_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} /></div>
           <div><label className={lbl}>Prioridade</label>
             <Select value={goal.priority ?? 'medium'} onChange={e => call('', 'PATCH', { priority: e.target.value }, 'Prioridade atualizada')} options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }]} /></div>
-          <dl className="space-y-2 text-xs">
+          <dl className="space-y-2 text-xs col-span-2">
             {[
               ['Responsável', owner], ['Categoria', goal.category || '—'],
               ['Início', goal.startDate ? format(new Date(goal.startDate), 'dd/MM/yyyy') : 'Ainda não iniciada'],
@@ -1141,7 +1143,8 @@ function GoalDetailModal({ goal, partners, onClose, onChanged, onEdit }: { goal:
           </dl>
         </aside>
       </div>
-    </Modal>
+      )}
+    </SidePanel>
   );
 }
 

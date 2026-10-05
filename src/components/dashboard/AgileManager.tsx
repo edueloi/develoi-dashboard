@@ -21,6 +21,7 @@ import type { Feature, Sprint, FeatureComment } from './types';
 import { useAuth } from '../../contexts/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { RowMenu } from './financeShared';
+import { SidePanel } from '../ui/SidePanel';
 import { useNavigate } from 'react-router-dom';
 
 const DraggableComponent = Draggable as any;
@@ -745,7 +746,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
         <div className="shrink-0">{TYPE_ICONS[feature.type || 'task']}</div>
         <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest shrink-0 w-16 sm:w-20 truncate">{feature.key || '—'}</span>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setEditing(true)}>
           <span className="text-sm font-bold text-slate-700 truncate block group-hover:text-indigo-900">{feature.title}</span>
           <div className="flex items-center gap-2 mt-0.5">
             {feature.functionalArea && (
@@ -1419,7 +1420,7 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
   );
 
   return (
-    <Modal isOpen onClose={onClose} size="full"
+    <SidePanel isOpen onClose={onClose}
       title={<span className="flex items-center gap-2 min-w-0"><span className="flex-shrink-0">{TYPE_ICONS[type]}</span><span className="text-[11px] font-black text-indigo-600 tracking-widest flex-shrink-0">{feature.key || '—'}</span><span className="text-xs font-bold text-slate-400 flex-shrink-0">{typeLabel}</span></span> as any}
       footer={
         <div className="flex gap-2 sm:justify-between items-center">
@@ -1430,7 +1431,8 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           </div>
         </div>
       }>
-      <form id="ticket-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 lg:gap-8 items-start">
+      {(full: boolean) => (<>
+      <form id="ticket-form" onSubmit={handleSubmit} className={cn('grid items-start', full ? 'grid-cols-[minmax(0,1fr)_320px] gap-8' : 'grid-cols-1 gap-5')}>
         {/* ── conteúdo ── */}
         <div className="space-y-5 min-w-0">
           <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Título do ticket"
@@ -1467,19 +1469,19 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
         </div>
 
         {/* ── detalhes (barra lateral) ── */}
-        <aside className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3.5 lg:sticky lg:top-0">
-          <h3 className="text-sm font-black text-slate-900">Detalhes</h3>
+        <aside className={cn('rounded-2xl border border-slate-200 bg-slate-50/60 p-4', full ? 'space-y-3.5 sticky top-0' : 'grid grid-cols-2 gap-3.5 order-first')}>
+          <h3 className="text-sm font-black text-slate-900 col-span-2">Detalhes</h3>
           <div><label className={lbl}>Status</label>
             <Select value={status} onChange={e => setStatus(e.target.value as any)} options={[{ value: 'todo', label: 'A Fazer' }, { value: 'in-progress', label: 'Em Desenvolvimento' }, { value: 'review', label: 'Em Revisão' }, { value: 'testing', label: 'Em Teste' }, { value: 'done', label: 'Concluído' }]} /></div>
           <div><label className={lbl}>Sprint (jogar para uma sprint)</label>
             <Select value={sprintId} onChange={e => setSprintId(e.target.value)} options={sprintOptions} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 col-span-2">
             <div><label className={lbl}>Tipo</label>
               <Select value={type} onChange={e => setType(e.target.value as any)} options={[{ value: 'story', label: 'História' }, { value: 'task', label: 'Tarefa' }, { value: 'bug', label: 'Bug' }, { value: 'epic', label: 'Demanda' }]} /></div>
             <div><label className={lbl}>Prioridade</label>
               <Select value={priority} onChange={e => setPriority(e.target.value as any)} options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }, { value: 'critical', label: 'Crítica' }]} /></div>
           </div>
-          <div><label className={lbl}>Responsável (quem assume)</label>
+          <div className="col-span-2"><label className={lbl}>Responsável (quem assume)</label>
             <div className="flex items-center gap-2">
               <Assignee name={assignee} size={32} />
               <div className="flex-1 min-w-0"><Select value={assignee} onChange={e => setAssignee(e.target.value)}
@@ -1487,15 +1489,15 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
             </div>
             {profile?.displayName && assignee !== profile.displayName && <button type="button" onClick={() => setAssignee(profile.displayName as string)} className="text-[11px] font-black text-indigo-600 mt-1.5 hover:underline">Assumir para mim</button>}
           </div>
-          <div><label className={lbl}>Relator (quem solicitou)</label>
+          <div className="col-span-2"><label className={lbl}>Relator (quem solicitou)</label>
             <Select value={reporter} onChange={e => setReporter(e.target.value)}
               options={[{ value: '', label: 'Não informado' }, ...[...new Set([...team, ...(reporter ? [reporter] : [])])].map(n => ({ value: n, label: n }))]} /></div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 col-span-2">
             {type !== 'epic' && <div><label className={lbl}>Story points</label><Input type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} /></div>}
             <div><label className={lbl}>Prazo</label><Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} /></div>
           </div>
           {(type === 'story' || type === 'task' || type === 'bug') && (
-            <div><label className={lbl}>Tela / funcionalidade</label><Input placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} /></div>
+            <div className="col-span-2"><label className={lbl}>Tela / funcionalidade</label><Input placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} /></div>
           )}
         </aside>
       </form>
@@ -1505,7 +1507,8 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
           title="Excluir Ticket" message={`Excluir "${feature.title}"? Esta ação não pode ser desfeita.`}
           confirmLabel="EXCLUIR" variant="danger" />
       )}
-    </Modal>
+      </>)}
+    </SidePanel>
   );
 }
 
