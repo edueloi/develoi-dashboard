@@ -30,25 +30,39 @@ const DroppableComponent = Droppable as any;
 // ─── Responsável pelo ticket (quem vai assumir) ─────────────────────────────────
 
 let teamCache: string[] | null = null;
+let photoCache: Record<string, string> = {};
+let teamLoad: Promise<void> | null = null;
+function loadTeam(): Promise<void> {
+  if (!teamLoad) {
+    teamLoad = fetch('/api/users').then(r => r.json()).then(d => {
+      const users = (Array.isArray(d) ? d : []).filter((u: any) => u?.displayName && u.active !== false);
+      teamCache = [...new Set(users.map((u: any) => String(u.displayName)))] as string[];
+      photoCache = Object.fromEntries(users.filter((u: any) => u.photoURL).map((u: any) => [String(u.displayName), String(u.photoURL)]));
+    }).catch(() => { teamLoad = null; });
+  }
+  return teamLoad as Promise<void>;
+}
 function useTeam(): string[] {
   const [names, setNames] = useState<string[]>(teamCache ?? []);
-  useEffect(() => {
-    if (teamCache) return;
-    fetch('/api/users').then(r => r.json()).then(d => {
-      const list = (Array.isArray(d) ? d : []).filter((u: any) => u?.displayName && u.active !== false).map((u: any) => String(u.displayName));
-      teamCache = [...new Set(list)] as string[];
-      setNames(teamCache);
-    }).catch(() => {});
-  }, []);
+  useEffect(() => { let on = true; loadTeam().then(() => { if (on) setNames(teamCache ?? []); }); return () => { on = false; }; }, []);
   return names;
+}
+// atualiza o componente quando as fotos da equipe terminam de carregar
+function usePhotos() {
+  const [, force] = useState(0);
+  useEffect(() => { let on = true; loadTeam().then(() => { if (on) force(x => x + 1); }); return () => { on = false; }; }, []);
+  return photoCache;
 }
 const AVATAR_COLORS = ['#4F46E5', '#0D9488', '#C49A2A', '#DB2777', '#7C3AED', '#EA580C', '#0891B2', '#15803D'];
 const colorOfName = (n: string) => AVATAR_COLORS[[...n].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_COLORS.length];
 
 function Assignee({ name, size = 24 }: { name?: string | null; size?: number }) {
+  const photos = usePhotos();
   if (!name) {
     return <span title="Sem responsável" className="rounded-lg border border-dashed border-slate-300 text-slate-300 flex items-center justify-center flex-shrink-0 text-[10px] font-black" style={{ width: size, height: size }}>+</span>;
   }
+  const photo = photos[name];
+  if (photo) return <img src={photo} alt={name} title={`Responsável: ${name}`} className="rounded-lg object-cover flex-shrink-0" style={{ width: size, height: size }} />;
   return (
     <span title={`Responsável: ${name}`} className="rounded-lg text-white flex items-center justify-center flex-shrink-0 font-black" style={{ width: size, height: size, background: colorOfName(name), fontSize: size * 0.4 }}>
       {name.trim()[0]?.toUpperCase()}

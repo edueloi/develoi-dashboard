@@ -14,6 +14,7 @@ model User {
   passwordHash String
   photoURL     String?   @db.Text
   bio          String?   @db.Text
+  teamMemberId String?   @db.VarChar(36) // ligação com a página pública "Nossa Equipe" (foto e descrição vêm de lá)
   role         String    @default("viewer")
   active       Boolean   @default(true)
   createdAt    DateTime  @default(now())

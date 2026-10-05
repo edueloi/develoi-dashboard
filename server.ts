@@ -222,9 +222,26 @@ async function startServer() {
     // ─── Users Management ───────────────────────────────────────────────────────
     app.get("/api/users", async (req, res) => {
       const users = await prisma.user.findMany({
-        select: { uid: true, displayName: true, email: true, role: true, photoURL: true, active: true, createdAt: true }
+        select: { uid: true, displayName: true, email: true, role: true, photoURL: true, bio: true, teamMemberId: true, active: true, createdAt: true }
       });
-      res.json(users);
+      // quem está ligado à "Nossa Equipe" herda foto, descrição e cargo de lá (o que o próprio usuário preencheu tem prioridade)
+      const ids = users.map(u => u.teamMemberId).filter(Boolean) as string[];
+      const team = ids.length ? await prisma.teamMember.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, role: true, photoURL: true, bio: true, specialty: true, location: true, yearsExp: true } }) : [];
+      const byId = new Map(team.map(t => [t.id, t]));
+      res.json(users.map(u => {
+        const t = u.teamMemberId ? byId.get(u.teamMemberId) : undefined;
+        return { ...u, photoURL: u.photoURL || t?.photoURL || null, bio: u.bio || t?.bio || t?.specialty || null, team: t ? { id: t.id, name: t.name, role: t.role, location: t.location, specialty: t.specialty, yearsExp: t.yearsExp } : null };
+      }));
+    });
+
+    // liga (ou desliga, com teamMemberId nulo) o usuário a um perfil da equipe
+    app.post("/api/users/:uid/link-team", async (req, res) => {
+      try {
+        const id = req.body?.teamMemberId ? String(req.body.teamMemberId) : null;
+        if (id && !(await prisma.teamMember.findUnique({ where: { id }, select: { id: true } }))) return res.status(404).json({ error: "Perfil da equipe não encontrado." });
+        const user = await prisma.user.update({ where: { uid: req.params.uid }, data: { teamMemberId: id }, select: { uid: true, teamMemberId: true } });
+        res.json(user);
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
     app.post("/api/users", async (req, res) => {
