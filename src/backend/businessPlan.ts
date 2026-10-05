@@ -92,36 +92,109 @@ export function registerBusinessPlanRoutes(app: Express) {
     } catch (e) { fail(res, e); }
   });
 
+  const goalInclude = { partner: { select: { id: true, name: true, color: true } } };
+  const toDate = (v: any) => (v ? new Date(v) : null);
+  const num = (v: any) => (v === "" || v === null || v === undefined || Number.isNaN(Number(v)) ? null : Number(v));
+  const jsonList = (v: any) => (Array.isArray(v) ? v : []);
+  const uid = () => Math.random().toString(36).slice(2, 10);
+
+  // progresso calculado: pelo indicador (valor atual entre o de partida e a meta) ou pelos passos concluídos
+  const autoProgress = (g: { startValue?: number | null; currentValue?: number | null; targetValue?: number | null; steps?: any }, fallback: number) => {
+    if (g.targetValue != null && g.currentValue != null) {
+      const from = g.startValue ?? 0, span = g.targetValue - from;
+      if (span !== 0) return Math.max(0, Math.min(100, Math.round(((g.currentValue - from) / span) * 100)));
+    }
+    const steps = jsonList(g.steps);
+    if (steps.length) return Math.round((steps.filter((x: any) => x.done).length / steps.length) * 100);
+    return fallback;
+  };
+  const logEntry = (by: string | null | undefined, text: string, extra: Record<string, any> = {}) => ({ id: uid(), at: new Date().toISOString(), by: by || null, text, ...extra });
+
   app.post("/api/business-goals", async (req, res) => {
     try {
-      const title = String(req.body?.title ?? "").trim();
+      const b = req.body ?? {};
+      const title = String(b.title ?? "").trim();
       if (!title) return fail(res, new Error("Informe o título da meta."), 400);
-      const scope = req.body?.scope === "partner" ? "partner" : "company";
+      const scope = b.scope === "partner" ? "partner" : "company";
+      const base = { startValue: num(b.startValue), currentValue: num(b.currentValue), targetValue: num(b.targetValue), steps: jsonList(b.steps) };
+      const status = ["not_started", "in_progress", "done", "at_risk"].includes(b.status) ? b.status : "not_started";
+      const progress = status === "done" ? 100 : autoProgress(base, Number(b.progress) || 0);
       res.json(await prisma.businessGoal.create({
         data: {
-          title,
-          description: req.body?.description || null,
-          scope,
-          partnerId: scope === "partner" ? (req.body?.partnerId || null) : null,
-          targetDate: req.body?.targetDate ? new Date(req.body.targetDate) : null,
-          status: req.body?.status || "in_progress",
-          progress: Number(req.body?.progress) || 0,
+          title, description: b.description || null, scope, partnerId: scope === "partner" ? (b.partnerId || null) : null,
+          targetDate: toDate(b.targetDate), startDate: toDate(b.startDate) ?? (status === "in_progress" ? new Date() : null),
+          status, progress, priority: ["low", "medium", "high"].includes(b.priority) ? b.priority : "medium",
+          category: b.category || null, metricLabel: b.metricLabel || null, metricUnit: b.metricUnit || null, ...base,
+          updates: [logEntry(b.byName, "Meta criada", { progress })],
+          completedAt: status === "done" ? new Date() : null,
         },
-        include: { partner: { select: { id: true, name: true, color: true } } },
+        include: goalInclude,
       }));
     } catch (e) { fail(res, e); }
   });
 
   app.patch("/api/business-goals/:id", async (req, res) => {
     try {
-      const { targetDate, ...rest } = req.body ?? {};
+      const { targetDate, startDate, byName, ...rest } = req.body ?? {};
       const data: any = { ...rest };
-      if (targetDate !== undefined) data.targetDate = targetDate ? new Date(targetDate) : null;
-      if (data.progress !== undefined) data.progress = Number(data.progress) || 0;
+      delete data.id; delete data.partner; delete data.updates; delete data.createdAt; delete data.updatedAt; delete data.completedAt;
+      if (targetDate !== undefined) data.targetDate = toDate(targetDate);
+      if (startDate !== undefined) data.startDate = toDate(startDate);
+      for (const k of ["startValue", "currentValue", "targetValue"]) if (k in data) data[k] = num(data[k]);
+      if ("steps" in data) data.steps = jsonList(data.steps);
+      if (data.progress !== undefined) data.progress = Math.max(0, Math.min(100, Number(data.progress) || 0));
+      const before = await prisma.businessGoal.findUnique({ where: { id: req.params.id } });
+      if (!before) return fail(res, new Error("Meta não encontrada."), 404);
+      // se mexeu em indicador ou passos e não mandou o progresso, recalcula
+      if (data.progress === undefined && ("currentValue" in data || "targetValue" in data || "startValue" in data || "steps" in data)) {
+        data.progress = autoProgress({ ...before, ...data }, before.progress);
+      }
+      if (data.status && data.status !== before.status) {
+        if (data.status === "done") { data.progress = 100; data.completedAt = new Date(); }
+        else if (before.status === "done") data.completedAt = null;
+        if (data.status === "in_progress" && !before.startDate && !data.startDate) data.startDate = new Date();
+        const labels: any = { not_started: "Não começou", in_progress: "Em andamento", done: "Concluída", at_risk: "Em risco" };
+        data.updates = [...jsonList(before.updates), logEntry(byName, `Situação: ${labels[before.status] ?? before.status} para ${labels[data.status]}`, { progress: data.progress ?? before.progress, status: data.status })];
+      }
+      res.json(await prisma.businessGoal.update({ where: { id: req.params.id }, data, include: goalInclude }));
+    } catch (e) { fail(res, e); }
+  });
+
+  // iniciar: a meta passa a "em andamento" e registra a data de início
+  app.post("/api/business-goals/:id/start", async (req, res) => {
+    try {
+      const g = await prisma.businessGoal.findUnique({ where: { id: req.params.id } });
+      if (!g) return fail(res, new Error("Meta não encontrada."), 404);
       res.json(await prisma.businessGoal.update({
-        where: { id: req.params.id }, data,
-        include: { partner: { select: { id: true, name: true, color: true } } },
+        where: { id: g.id }, include: goalInclude,
+        data: { status: "in_progress", startDate: g.startDate ?? new Date(), updates: [...jsonList(g.updates), logEntry(req.body?.byName, "Meta iniciada", { progress: g.progress, status: "in_progress" })] },
       }));
+    } catch (e) { fail(res, e); }
+  });
+
+  // registrar uma atualização: texto, novo valor do indicador e/ou novo progresso, e (opcional) nova situação
+  app.post("/api/business-goals/:id/update", async (req, res) => {
+    try {
+      const g = await prisma.businessGoal.findUnique({ where: { id: req.params.id } });
+      if (!g) return fail(res, new Error("Meta não encontrada."), 404);
+      const b = req.body ?? {};
+      const data: any = {};
+      const value = num(b.currentValue);
+      if (value !== null) data.currentValue = value;
+      let progress = b.progress !== undefined && b.progress !== "" ? Math.max(0, Math.min(100, Number(b.progress) || 0)) : null;
+      if (progress === null && value !== null) progress = autoProgress({ ...g, currentValue: value }, g.progress);
+      if (progress !== null) data.progress = progress;
+      let status = ["not_started", "in_progress", "done", "at_risk"].includes(b.status) ? b.status : g.status;
+      if (status === "not_started" && (progress ?? g.progress) > 0) status = "in_progress";
+      if (status !== g.status) {
+        if (status === "done") { data.progress = 100; data.completedAt = new Date(); }
+        if (status === "in_progress" && !g.startDate) data.startDate = new Date();
+        data.status = status;
+      }
+      if (!g.startDate && status !== "not_started") data.startDate = new Date();
+      const text = String(b.text ?? "").trim() || (value !== null ? `Indicador atualizado para ${value}` : "Atualização");
+      data.updates = [...jsonList(g.updates), logEntry(b.byName, text, { progress: data.progress ?? g.progress, value, status })];
+      res.json(await prisma.businessGoal.update({ where: { id: g.id }, data, include: goalInclude }));
     } catch (e) { fail(res, e); }
   });
 

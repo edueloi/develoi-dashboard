@@ -941,6 +941,17 @@ model BusinessGoal {
   targetDate  DateTime?
   status      String    @default("in_progress") @db.VarChar(15) // not_started | in_progress | done | at_risk
   progress    Int       @default(0) // 0 a 100
+  priority     String    @default("medium") @db.VarChar(10) // low | medium | high
+  category     String?   @db.VarChar(40)  // Financeiro, Comercial, Produto, Operação, Pessoas...
+  startDate    DateTime? // quando a meta foi iniciada
+  completedAt  DateTime? // quando foi concluída
+  metricLabel  String?   @db.VarChar(80)  // o que se mede (ex.: clientes ativos, MRR)
+  metricUnit   String?   @db.VarChar(12)  // R$, %, clientes, un
+  startValue   Float?    // valor de partida
+  currentValue Float?    // valor atual
+  targetValue  Float?    // valor que se quer atingir
+  steps        Json?     // passos: [{ id, text, done }]
+  updates      Json?     // histórico de atualizações: [{ id, at, by, text, progress, value, status }]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }

@@ -4,7 +4,7 @@ import {
   Compass, Target, Trophy, Users, ShieldCheck, Plus, Trash2, Edit2,
   CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight, Camera, X, Loader2,
   LayoutDashboard, Gem, Swords, Flag, CalendarClock, TrendingUp, Scale, Flame,
-  Lightbulb, Quote, Repeat, Code2, ThumbsUp, ThumbsDown, ShieldAlert, Sparkles, Layers,
+  Lightbulb, Quote, Repeat, Code2, ThumbsUp, ThumbsDown, ShieldAlert, Sparkles, Layers, Play, RotateCcw, ListChecks, MessageSquarePlus,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
@@ -38,6 +38,10 @@ interface BusinessGoal {
   id: string; title: string; description?: string | null; scope: GoalScope;
   partnerId?: string | null; partner?: { id: string; name: string; color?: string | null } | null;
   targetDate?: string | null; status: GoalStatus; progress: number; createdAt: string;
+  priority?: 'low' | 'medium' | 'high'; category?: string | null; startDate?: string | null; completedAt?: string | null;
+  metricLabel?: string | null; metricUnit?: string | null; startValue?: number | null; currentValue?: number | null; targetValue?: number | null;
+  steps?: { id: string; text: string; done: boolean }[] | null;
+  updates?: { id: string; at: string; by?: string | null; text: string; progress?: number | null; value?: number | null; status?: string | null }[] | null;
 }
 interface Achievement { id: string; title: string; description?: string | null; photoUrl?: string | null; achievedAt: string }
 interface MonthlyStat { month: string; newClients: number; contacts: number }
@@ -850,13 +854,23 @@ function OverviewEditModal({ plan, initialTab = 'identity', onClose, onSuccess }
 
 // ─── Metas ─────────────────────────────────────────────────────────────────────
 
+const PRIORITY_CFG = { low: { label: 'Baixa', color: '#64748B' }, medium: { label: 'Média', color: '#2563EB' }, high: { label: 'Alta', color: '#DC2626' } } as const;
+const GOAL_CATEGORIES = ['Financeiro', 'Comercial', 'Produto', 'Operação', 'Atendimento', 'Pessoas', 'Jurídico', 'Marketing', 'Tecnologia'];
+const fmtVal = (v?: number | null, unit?: string | null) => {
+  if (v === null || v === undefined) return '—';
+  const n = v.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  return unit === 'R$' ? `R$ ${n}` : unit === '%' ? `${n}%` : `${n}${unit ? ` ${unit}` : ''}`;
+};
+
 function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; partners: Partner[]; onRefresh: () => void }) {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
+  const { profile } = useAuth();
   const [filterScope, setFilterScope] = useState<'all' | GoalScope>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | GoalStatus>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<BusinessGoal | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const filtered = goals
@@ -864,6 +878,15 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
     .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || (a.targetDate ? new Date(a.targetDate).getTime() : Infinity) - (b.targetDate ? new Date(b.targetDate).getTime() : Infinity));
   const statusCount = (k: GoalStatus) => goals.filter(g => g.status === k).length;
   const avg = goals.length ? Math.round(goals.reduce((a, g) => a + (g.progress || 0), 0) / goals.length) : 0;
+  const detail = goals.find(g => g.id === detailId) ?? null;
+
+  const act = async (g: BusinessGoal, path: string, body: Record<string, unknown> = {}, ok = 'Meta atualizada') => {
+    try {
+      const res = await fetch(`/api/business-goals/${g.id}${path}`, { method: path ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, byName: profile?.displayName }) });
+      if (!res.ok) throw new Error();
+      toast(ok, 'success'); onRefresh();
+    } catch { toast('Não deu para atualizar agora. Tente de novo.', 'error'); }
+  };
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -886,13 +909,14 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
           <div>
             <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Metas</h3>
             <p className="text-xs text-slate-400">{goals.length} no total · {statusCount('done')} concluídas · progresso médio de {avg}%</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Clique em uma meta para iniciar, atualizar o andamento e registrar o que aconteceu.</p>
           </div>
         </div>
         <Button size="sm" className="self-start lg:self-auto" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA META</Button>
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-        {([['all', 'Todas', goals.length, '#0D1F4E'], ...(['in_progress', 'at_risk', 'not_started', 'done'] as GoalStatus[]).map(k => [k, GOAL_STATUS_CONFIG[k].label, statusCount(k), GOAL_COLORS[k]])] as [string, string, number, string][]).map(([v, l, n, c]) => (
+        {([['all', 'Todas', goals.length, '#0D1F4E'], ...(['not_started', 'in_progress', 'at_risk', 'done'] as GoalStatus[]).map(k => [k, GOAL_STATUS_CONFIG[k].label, statusCount(k), GOAL_COLORS[k]])] as [string, string, number, string][]).map(([v, l, n, c]) => (
           <button key={v} onClick={() => setFilterStatus(v as any)} className="px-3 py-1.5 rounded-full text-xs font-black border whitespace-nowrap"
             style={filterStatus === v ? { background: c, color: '#fff', borderColor: c } : { color: c, borderColor: `${c}55`, background: `${c}10` }}>{l} · {n}</button>
         ))}
@@ -914,24 +938,46 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
               const statusCfg = GOAL_STATUS_CONFIG[g.status], color = GOAL_COLORS[g.status];
               const n = daysTo(g.targetDate);
               const late = g.status !== 'done' && n !== null && n < 0;
+              const steps = g.steps ?? [], stepsDone = steps.filter(x => x.done).length;
+              const pr = PRIORITY_CFG[g.priority ?? 'medium'];
               return (
-                <motion.div key={g.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/70 dark:border-white/10 shadow-sm p-4 flex flex-col gap-3 min-w-0" style={{ borderTop: `3px solid ${color}` }}>
+                <motion.div key={g.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailId(g.id)}
+                  className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/70 dark:border-white/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex flex-col gap-3 min-w-0" style={{ borderTop: `3px solid ${color}` }}>
                   <div className="flex items-start gap-3">
                     <RingChart value={g.progress} size={56} stroke={7} color={color} />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-black leading-snug break-words" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{g.title}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{g.scope === 'partner' && g.partner ? `Sócio: ${g.partner.name}` : 'Meta da empresa'}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{g.scope === 'partner' && g.partner ? `Sócio: ${g.partner.name}` : 'Meta da empresa'}{g.category ? ` · ${g.category}` : ''}</p>
                     </div>
-                    <RowMenu items={[
-                      { label: 'Editar', icon: Edit2, onClick: () => { setEditing(g); setIsFormOpen(true); } },
-                      { label: 'Remover', icon: Trash2, onClick: () => setDeletingId(g.id), danger: true },
-                    ]} />
+                    <div onClick={e => e.stopPropagation()}>
+                      <RowMenu items={[
+                        { label: 'Abrir', icon: ArrowRight, onClick: () => setDetailId(g.id) },
+                        { label: 'Editar', icon: Edit2, onClick: () => { setEditing(g); setIsFormOpen(true); } },
+                        { label: 'Remover', icon: Trash2, onClick: () => setDeletingId(g.id), danger: true },
+                      ]} />
+                    </div>
                   </div>
-                  {g.description && <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-3">{g.description}</p>}
-                  <div className="flex items-center justify-between gap-2 mt-auto pt-1">
-                    <Badge color={statusCfg.color} size="sm" pill>{statusCfg.label}</Badge>
+                  {g.description && <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2">{g.description}</p>}
+                  {(g.targetValue != null || steps.length > 0) && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500">
+                      {g.targetValue != null && <span className="flex items-center gap-1"><TrendingUp className="w-3 h-3" />{g.metricLabel ? `${g.metricLabel}: ` : ''}{fmtVal(g.currentValue ?? g.startValue ?? 0, g.metricUnit)} / {fmtVal(g.targetValue, g.metricUnit)}</span>}
+                      {steps.length > 0 && <span className="flex items-center gap-1"><ListChecks className="w-3 h-3" />{stepsDone}/{steps.length} passos</span>}
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <Badge color={statusCfg.color} size="sm" pill>{statusCfg.label}</Badge>
+                      <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full" style={{ background: `${pr.color}15`, color: pr.color }}>{pr.label}</span>
+                    </div>
                     <span className="text-[11px] font-bold flex items-center gap-1" style={{ color: late ? '#DC2626' : '#94A3B8' }}><CalendarClock className="w-3 h-3" />{deadlineText(g.targetDate, g.status === 'done')}</span>
+                  </div>
+                  <div className="flex gap-2 pt-1 border-t border-slate-100 dark:border-white/10" onClick={e => e.stopPropagation()}>
+                    {g.status === 'not_started' && <Button size="xs" iconLeft={<Play className="w-3 h-3" />} onClick={() => act(g, '/start', {}, 'Meta iniciada')}>INICIAR</Button>}
+                    {(g.status === 'in_progress' || g.status === 'at_risk') && <>
+                      <Button size="xs" variant="outline" iconLeft={<MessageSquarePlus className="w-3 h-3" />} onClick={() => setDetailId(g.id)}>ATUALIZAR</Button>
+                      <Button size="xs" iconLeft={<CheckCircle2 className="w-3 h-3" />} onClick={() => act(g, '', { status: 'done' }, 'Meta concluída!')}>CONCLUIR</Button>
+                    </>}
+                    {g.status === 'done' && <Button size="xs" variant="outline" iconLeft={<RotateCcw className="w-3 h-3" />} onClick={() => act(g, '', { status: 'in_progress' }, 'Meta reaberta')}>REABRIR</Button>}
                   </div>
                 </motion.div>
               );
@@ -940,6 +986,7 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
         </div>
       )}
 
+      {detail && <GoalDetailModal goal={detail} partners={partners} onClose={() => setDetailId(null)} onChanged={onRefresh} onEdit={() => { setEditing(detail); setDetailId(null); setIsFormOpen(true); }} />}
       {isFormOpen && (
         <GoalFormModal goal={editing} partners={partners} onClose={() => setIsFormOpen(false)} onSuccess={() => { setIsFormOpen(false); onRefresh(); }} />
       )}
@@ -949,22 +996,195 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
   );
 }
 
+// ─── Detalhe da meta: andamento, passos, atualizações e histórico ──────────────────
+
+function GoalDetailModal({ goal, partners, onClose, onChanged, onEdit }: { goal: BusinessGoal; partners: Partner[]; onClose: () => void; onChanged: () => void; onEdit: () => void }) {
+  const { isDark } = useTheme();
+  const { show: toast } = useToast();
+  const { profile } = useAuth();
+  const [text, setText] = useState('');
+  const [progress, setProgress] = useState(goal.progress);
+  const [value, setValue] = useState(goal.currentValue != null ? String(goal.currentValue) : '');
+  const [newStatus, setNewStatus] = useState<GoalStatus>(goal.status === 'not_started' ? 'in_progress' : goal.status);
+  const [newStep, setNewStep] = useState('');
+  const [busy, setBusy] = useState(false);
+  const color = GOAL_COLORS[goal.status];
+  const steps = goal.steps ?? [];
+  const hasMetric = goal.targetValue != null;
+  const owner = goal.scope === 'partner' && goal.partner ? goal.partner.name : 'Empresa';
+  const n = daysTo(goal.targetDate);
+
+  useEffect(() => { setProgress(goal.progress); setValue(goal.currentValue != null ? String(goal.currentValue) : ''); setNewStatus(goal.status === 'not_started' ? 'in_progress' : goal.status); }, [goal.id, goal.progress, goal.currentValue, goal.status]);
+
+  const call = async (path: string, method: 'POST' | 'PATCH', body: Record<string, unknown>, ok: string) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/business-goals/${goal.id}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, byName: profile?.displayName }) });
+      if (!res.ok) throw new Error();
+      toast(ok, 'success'); onChanged();
+    } catch { toast('Não deu para salvar agora. Tente de novo.', 'error'); }
+    setBusy(false);
+  };
+  const toggleStep = (id: string) => call('', 'PATCH', { steps: steps.map(x => (x.id === id ? { ...x, done: !x.done } : x)) }, 'Passo atualizado');
+  const addStep = async () => { const t = newStep.trim(); if (!t) return; setNewStep(''); await call('', 'PATCH', { steps: [...steps, { id: Math.random().toString(36).slice(2, 9), text: t, done: false }] }, 'Passo adicionado'); };
+  const removeStep = (id: string) => call('', 'PATCH', { steps: steps.filter(x => x.id !== id) }, 'Passo removido');
+  const register = async () => {
+    await call('/update', 'POST', { text, progress: hasMetric ? undefined : progress, currentValue: hasMetric ? value : undefined, status: newStatus }, 'Atualização registrada');
+    setText('');
+  };
+  const lbl = 'text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block';
+  const updates = [...(goal.updates ?? [])].reverse();
+
+  return (
+    <Modal isOpen onClose={onClose} size="full" title={<span className="flex items-center gap-2 min-w-0"><Target className="w-4 h-4 flex-shrink-0" style={{ color }} /><span className="truncate">{goal.title}</span></span> as any}
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row gap-2 sm:items-center">
+          <Button variant="outline" onClick={onEdit} iconLeft={<Edit2 className="w-4 h-4" />}>EDITAR META</Button>
+          <div className="flex gap-2 sm:ml-auto">
+            {goal.status === 'not_started' && <Button loading={busy} iconLeft={<Play className="w-4 h-4" />} onClick={() => call('/start', 'POST', {}, 'Meta iniciada')}>INICIAR META</Button>}
+            {(goal.status === 'in_progress' || goal.status === 'at_risk') && <Button loading={busy} iconLeft={<CheckCircle2 className="w-4 h-4" />} onClick={() => call('', 'PATCH', { status: 'done' }, 'Meta concluída!')}>CONCLUIR META</Button>}
+            {goal.status === 'done' && <Button variant="outline" loading={busy} iconLeft={<RotateCcw className="w-4 h-4" />} onClick={() => call('', 'PATCH', { status: 'in_progress' }, 'Meta reaberta')}>REABRIR</Button>}
+          </div>
+        </div>
+      }>
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 lg:gap-8 items-start">
+        <div className="space-y-6 min-w-0">
+          {goal.description && <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">{goal.description}</p>}
+
+          {/* Andamento */}
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-4 sm:p-5 flex flex-col sm:flex-row gap-5 items-center">
+            <RingChart value={goal.progress} size={104} stroke={11} color={color} />
+            <div className="flex-1 min-w-0 w-full space-y-2">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Andamento</p>
+              {hasMetric ? (
+                <>
+                  <p className="text-2xl font-black" style={{ color }}>{fmtVal(goal.currentValue ?? goal.startValue ?? 0, goal.metricUnit)} <span className="text-sm font-bold text-slate-400">de {fmtVal(goal.targetValue, goal.metricUnit)}</span></p>
+                  <p className="text-xs text-slate-500">{goal.metricLabel || 'Indicador'}{goal.startValue != null ? ` · partiu de ${fmtVal(goal.startValue, goal.metricUnit)}` : ''}</p>
+                </>
+              ) : <p className="text-2xl font-black" style={{ color }}>{goal.progress}% <span className="text-sm font-bold text-slate-400">concluído</span></p>}
+              <div className="h-2.5 rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full transition-all" style={{ width: `${goal.progress}%`, background: color }} /></div>
+            </div>
+          </div>
+
+          {/* Passos */}
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2 mb-3"><ListChecks className="w-4 h-4" />Passos {steps.length > 0 && <span className="text-slate-400">({steps.filter(x => x.done).length}/{steps.length})</span>}</h4>
+            {steps.length === 0 && <p className="text-xs text-slate-400 mb-2">Quebre a meta em passos menores. O progresso é calculado por eles quando não há indicador.</p>}
+            <ul className="space-y-1">
+              {steps.map(st => (
+                <li key={st.id} className="group flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5">
+                  <button type="button" onClick={() => toggleStep(st.id)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+                    {st.done ? <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-4.5 h-4.5 text-slate-300 flex-shrink-0" />}
+                    <span className={`text-sm ${st.done ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>{st.text}</span>
+                  </button>
+                  <button type="button" onClick={() => removeStep(st.id)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-rose-500"><X className="w-3.5 h-3.5" /></button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2 mt-2">
+              <input value={newStep} onChange={e => setNewStep(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }} placeholder="Novo passo… (Enter para adicionar)"
+                className="flex-1 h-10 px-3 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 focus:outline-none focus:border-[#0D1F4E]" />
+              <Button type="button" variant="outline" size="sm" onClick={addStep}><Plus className="w-4 h-4" /></Button>
+            </div>
+          </div>
+
+          {/* Registrar atualização */}
+          <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-4 sm:p-5 space-y-3 bg-slate-50/50 dark:bg-white/[0.03]">
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><MessageSquarePlus className="w-4 h-4" />Registrar atualização</h4>
+            <Textarea value={text} onChange={e => setText(e.target.value)} rows={3} placeholder="O que avançou? O que travou? Qual o próximo passo?" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+              {hasMetric ? (
+                <Input label={`Valor atual${goal.metricUnit ? ` (${goal.metricUnit})` : ''}`} type="number" step="any" value={value} onChange={e => setValue(e.target.value)} />
+              ) : (
+                <div>
+                  <label className={lbl}>Progresso: {progress}%</label>
+                  <input type="range" min={0} max={100} step={5} value={progress} onChange={e => setProgress(Number(e.target.value))} className="w-full accent-indigo-600" />
+                  <div className="flex gap-1.5 mt-1">{[0, 25, 50, 75, 100].map(v => <button key={v} type="button" onClick={() => setProgress(v)} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-white/10 text-slate-500">{v}%</button>)}</div>
+                </div>
+              )}
+              <Select label="Situação" value={newStatus} onChange={e => setNewStatus(e.target.value as GoalStatus)} options={Object.entries(GOAL_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} />
+            </div>
+            <Button loading={busy} onClick={register} iconLeft={<Save className="w-4 h-4" />}>REGISTRAR</Button>
+          </div>
+
+          {/* Histórico */}
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2 mb-3"><History className="w-4 h-4" />Histórico</h4>
+            {updates.length === 0 ? <p className="text-sm text-slate-400">Sem registros ainda.</p> : (
+              <ol className="relative border-l-2 border-slate-200 dark:border-white/10 ml-2 space-y-4">
+                {updates.map(u => (
+                  <li key={u.id} className="ml-5 relative">
+                    <span className="absolute -left-[27px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900" style={{ background: u.status ? GOAL_COLORS[u.status as GoalStatus] ?? '#94A3B8' : '#94A3B8' }} />
+                    <p className="text-[11px] text-slate-400">{format(new Date(u.at), 'dd/MM/yyyy HH:mm')}{u.by ? ` · ${u.by}` : ''}{u.progress != null ? ` · ${u.progress}%` : ''}</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-200 whitespace-pre-line break-words">{u.text}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        <aside className="rounded-2xl border border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.03] p-4 space-y-3.5 lg:sticky lg:top-0">
+          <h3 className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Detalhes</h3>
+          <div><label className={lbl}>Situação</label>
+            <Select value={goal.status} onChange={e => call('', 'PATCH', { status: e.target.value }, 'Situação atualizada')} options={Object.entries(GOAL_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} /></div>
+          <div><label className={lbl}>Prioridade</label>
+            <Select value={goal.priority ?? 'medium'} onChange={e => call('', 'PATCH', { priority: e.target.value }, 'Prioridade atualizada')} options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }]} /></div>
+          <dl className="space-y-2 text-xs">
+            {[
+              ['Responsável', owner], ['Categoria', goal.category || '—'],
+              ['Início', goal.startDate ? format(new Date(goal.startDate), 'dd/MM/yyyy') : 'Ainda não iniciada'],
+              ['Prazo', goal.targetDate ? `${format(new Date(goal.targetDate), 'dd/MM/yyyy')}${n !== null && goal.status !== 'done' ? ` (${n < 0 ? `${-n}d atrasada` : n === 0 ? 'hoje' : `faltam ${n}d`})` : ''}` : 'Sem prazo'],
+              ['Concluída em', goal.completedAt ? format(new Date(goal.completedAt), 'dd/MM/yyyy') : '—'],
+              ['Criada em', format(new Date(goal.createdAt), 'dd/MM/yyyy')],
+            ].map(([k, v]) => <div key={k} className="flex justify-between gap-3"><dt className="text-slate-400">{k}</dt><dd className="font-bold text-slate-700 dark:text-slate-200 text-right">{v}</dd></div>)}
+          </dl>
+        </aside>
+      </div>
+    </Modal>
+  );
+}
+
 function GoalFormModal({ goal, partners, onClose, onSuccess }: { goal: BusinessGoal | null; partners: Partner[]; onClose: () => void; onSuccess: () => void }) {
   const { show: toast } = useToast();
+  const { profile } = useAuth();
+  const [tab, setTab] = useState<'basic' | 'metric' | 'steps'>('basic');
   const [title, setTitle] = useState(goal?.title || '');
   const [description, setDescription] = useState(goal?.description || '');
   const [scope, setScope] = useState<GoalScope>(goal?.scope || 'company');
   const [partnerId, setPartnerId] = useState(goal?.partnerId || '');
+  const [category, setCategory] = useState(goal?.category || '');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>(goal?.priority || 'medium');
+  const [startDate, setStartDate] = useState(goal?.startDate ? goal.startDate.slice(0, 10) : '');
   const [targetDate, setTargetDate] = useState(goal?.targetDate ? goal.targetDate.slice(0, 10) : '');
-  const [status, setStatus] = useState<GoalStatus>(goal?.status || 'in_progress');
+  const [status, setStatus] = useState<GoalStatus>(goal?.status || 'not_started');
   const [progress, setProgress] = useState(String(goal?.progress ?? 0));
+  const [metricLabel, setMetricLabel] = useState(goal?.metricLabel || '');
+  const [metricUnit, setMetricUnit] = useState(goal?.metricUnit || '');
+  const [startValue, setStartValue] = useState(goal?.startValue != null ? String(goal.startValue) : '');
+  const [currentValue, setCurrentValue] = useState(goal?.currentValue != null ? String(goal.currentValue) : '');
+  const [targetValue, setTargetValue] = useState(goal?.targetValue != null ? String(goal.targetValue) : '');
+  const [steps, setSteps] = useState<{ id: string; text: string; done: boolean }[]>(goal?.steps ?? []);
+  const [newStep, setNewStep] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const hasMetric = targetValue !== '';
+  const addStep = () => { const t = newStep.trim(); if (!t) return; setSteps(x => [...x, { id: Math.random().toString(36).slice(2, 9), text: t, done: false }]); setNewStep(''); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!title.trim()) { setTab('basic'); return toast('Dê um título para a meta', 'error'); }
+    if (scope === 'partner' && !partnerId) { setTab('basic'); return toast('Escolha o sócio responsável', 'error'); }
     setSaving(true);
     try {
-      const payload = { title, description, scope, partnerId: scope === 'partner' ? partnerId : null, targetDate: targetDate || null, status, progress: Number(progress) || 0 };
+      const payload: Record<string, unknown> = {
+        title, description, scope, partnerId: scope === 'partner' ? partnerId : null, category: category || null, priority,
+        startDate: startDate || null, targetDate: targetDate || null, status,
+        metricLabel: metricLabel || null, metricUnit: metricUnit || null,
+        startValue: startValue === '' ? null : Number(startValue), currentValue: currentValue === '' ? null : Number(currentValue), targetValue: targetValue === '' ? null : Number(targetValue),
+        steps, byName: profile?.displayName,
+      };
+      if (!hasMetric && steps.length === 0) payload.progress = Number(progress) || 0; // sem indicador nem passos: progresso manual
       const res = await fetch(goal ? `/api/business-goals/${goal.id}` : '/api/business-goals', {
         method: goal ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
@@ -978,26 +1198,69 @@ function GoalFormModal({ goal, partners, onClose, onSuccess }: { goal: BusinessG
     }
   };
 
+  const tabBtn = (id: typeof tab, label: string, badge?: string) => (
+    <button key={id} type="button" onClick={() => setTab(id)} className="px-3.5 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-colors"
+      style={tab === id ? { background: '#fff', color: '#0D1F4E', boxShadow: '0 1px 3px rgba(0,0,0,.12)' } : { color: '#64748B' }}>{label}{badge ? <span className="ml-1.5 opacity-60">{badge}</span> : null}</button>
+  );
+
   return (
-    <Modal isOpen={true} onClose={onClose} title={goal ? 'Editar Meta' : 'Nova Meta'} size="md">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Chegar a 100 clientes ativos" />
-        <Textarea label="Descrição" value={description} onChange={e => setDescription(e.target.value)} rows={3} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Select label="De quem é a meta?" value={scope} onChange={e => setScope(e.target.value as GoalScope)}
-            options={[{ value: 'company', label: 'Da Empresa' }, { value: 'partner', label: 'De um Sócio' }]} />
-          {scope === 'partner' && (
-            <Select label="Sócio" value={partnerId} onChange={e => setPartnerId(e.target.value)}
-              options={[{ value: '', label: 'Selecione...' }, ...partners.map(p => ({ value: p.id, label: p.name }))]} />
-          )}
+    <Modal isOpen={true} onClose={onClose} title={goal ? 'Editar meta' : 'Nova meta'} size="xl"
+      footer={<Button type="submit" form="goal-form" loading={saving} fullWidth size="lg">{goal ? 'SALVAR ALTERAÇÕES' : 'CRIAR META'}</Button>}>
+      <form id="goal-form" onSubmit={handleSubmit} className="space-y-5">
+        <div className="inline-flex p-1 rounded-xl bg-slate-100 max-w-full overflow-x-auto">
+          {tabBtn('basic', 'Básico')}{tabBtn('metric', 'Indicador', hasMetric ? '●' : undefined)}{tabBtn('steps', 'Passos', steps.length ? String(steps.length) : undefined)}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Input label="Prazo" type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
-          <Select label="Situação" value={status} onChange={e => setStatus(e.target.value as GoalStatus)}
-            options={Object.entries(GOAL_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} />
-          <Input label="Progresso (%)" type="number" min={0} max={100} value={progress} onChange={e => setProgress(e.target.value)} />
-        </div>
-        <Button type="submit" loading={saving} fullWidth size="lg">SALVAR</Button>
+
+        {tab === 'basic' && (
+          <div className="space-y-4">
+            <Input label="Título da meta *" value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Chegar a 100 clientes ativos até dezembro" />
+            <Textarea label="Descrição: por que essa meta importa e como será feita" value={description} onChange={e => setDescription(e.target.value)} rows={4} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Select label="De quem é a meta?" value={scope} onChange={e => setScope(e.target.value as GoalScope)} options={[{ value: 'company', label: 'Da empresa' }, { value: 'partner', label: 'De um sócio' }]} />
+              {scope === 'partner' ? (
+                <Select label="Sócio responsável" value={partnerId} onChange={e => setPartnerId(e.target.value)} options={[{ value: '', label: 'Selecione...' }, ...partners.filter(p => p.active).map(p => ({ value: p.id, label: p.name }))]} />
+              ) : <div />}
+              <Select label="Categoria" value={category} onChange={e => setCategory(e.target.value)} options={[{ value: '', label: 'Sem categoria' }, ...GOAL_CATEGORIES.map(c => ({ value: c, label: c }))]} />
+              <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)} options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }]} />
+              <Input label="Início" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <Input label="Prazo" type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
+              <Select label="Situação" value={status} onChange={e => setStatus(e.target.value as GoalStatus)} options={Object.entries(GOAL_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} />
+              {!hasMetric && steps.length === 0 && <Input label="Progresso (%)" type="number" min={0} max={100} value={progress} onChange={e => setProgress(e.target.value)} />}
+            </div>
+          </div>
+        )}
+
+        {tab === 'metric' && (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">Use quando a meta tem um número para atingir (clientes, receita, % de retenção). O progresso passa a ser calculado sozinho conforme o valor atual.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="O que será medido" value={metricLabel} onChange={e => setMetricLabel(e.target.value)} placeholder="Ex: clientes ativos, MRR, retenção" />
+              <Select label="Unidade" value={metricUnit} onChange={e => setMetricUnit(e.target.value)} options={[{ value: '', label: 'Número' }, { value: 'R$', label: 'R$ (dinheiro)' }, { value: '%', label: '% (porcentagem)' }, { value: 'clientes', label: 'clientes' }, { value: 'un', label: 'unidades' }]} />
+              <Input label="Valor de partida" type="number" step="any" value={startValue} onChange={e => setStartValue(e.target.value)} />
+              <Input label="Valor atual" type="number" step="any" value={currentValue} onChange={e => setCurrentValue(e.target.value)} />
+              <Input label="Valor a atingir (meta)" type="number" step="any" value={targetValue} onChange={e => setTargetValue(e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {tab === 'steps' && (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500">Quebre a meta em passos. Sem indicador, o progresso é calculado pelos passos concluídos.</p>
+            <ul className="space-y-1.5">
+              {steps.map(st => (
+                <li key={st.id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2">
+                  <span className="text-sm flex-1 min-w-0 break-words">{st.text}</span>
+                  <button type="button" onClick={() => setSteps(x => x.filter(y => y.id !== st.id))} className="text-slate-300 hover:text-rose-500"><X className="w-4 h-4" /></button>
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2">
+              <input value={newStep} onChange={e => setNewStep(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addStep(); } }} placeholder="Novo passo… (Enter para adicionar)"
+                className="flex-1 h-10 px-3 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0D1F4E]" />
+              <Button type="button" variant="outline" onClick={addStep}><Plus className="w-4 h-4" /></Button>
+            </div>
+          </div>
+        )}
       </form>
     </Modal>
   );
