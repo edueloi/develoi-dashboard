@@ -38,11 +38,6 @@ interface BusinessGoal {
   targetDate?: string | null; status: GoalStatus; progress: number; createdAt: string;
 }
 interface Achievement { id: string; title: string; description?: string | null; achievedAt: string }
-interface SwotActionPlan {
-  id: string; title: string; description?: string | null;
-  responsible?: string | null; dueDate?: string | null; result?: string | null; notes?: string | null;
-  status: GoalStatus; createdByName?: string | null; createdAt: string;
-}
 interface PartnerEvaluation {
   id: string; partnerId: string; partner?: { id: string; name: string; color?: string | null; role?: string | null };
   period: string; score?: number | null; strengths?: string | null; improvements?: string | null; goalsNextPeriod?: string | null;
@@ -72,28 +67,25 @@ export function BusinessPlanManager() {
   const [plan, setPlan] = useState<BusinessPlan | null>(null);
   const [goals, setGoals] = useState<BusinessGoal[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [actionPlans, setActionPlans] = useState<SwotActionPlan[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [evaluations, setEvaluations] = useState<PartnerEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [planRes, goalsRes, achRes, actionRes, partnersRes, evalRes] = await Promise.all([
+      const [planRes, goalsRes, achRes, partnersRes, evalRes] = await Promise.all([
         fetch('/api/business-plan'),
         fetch('/api/business-goals'),
         fetch('/api/achievements'),
-        fetch('/api/swot-action-plans'),
         fetch('/api/partners'),
         fetch('/api/partner-evaluations'),
       ]);
-      const [planData, goalsData, achData, actionData, partnersData, evalData] = await Promise.all([
-        planRes.json(), goalsRes.json(), achRes.json(), actionRes.json(), partnersRes.json(), evalRes.json(),
+      const [planData, goalsData, achData, partnersData, evalData] = await Promise.all([
+        planRes.json(), goalsRes.json(), achRes.json(), partnersRes.json(), evalRes.json(),
       ]);
       setPlan(planData);
       setGoals(Array.isArray(goalsData) ? goalsData : []);
       setAchievements(Array.isArray(achData) ? achData : []);
-      setActionPlans(Array.isArray(actionData) ? actionData : []);
       setPartners(Array.isArray(partnersData?.partners) ? partnersData.partners : []);
       setEvaluations(Array.isArray(evalData) ? evalData : []);
     } catch {
@@ -104,7 +96,7 @@ export function BusinessPlanManager() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
-  useLiveEvents(['BusinessPlan', 'BusinessGoal', 'Achievement', 'SwotActionPlan', 'Partner', 'PartnerEvaluation'], () => fetchAll());
+  useLiveEvents(['BusinessPlan', 'BusinessGoal', 'Achievement', 'Partner', 'PartnerEvaluation'], () => fetchAll());
 
   return (
     <div className="space-y-4 sm:space-y-5 dashboard-density">
@@ -132,7 +124,7 @@ export function BusinessPlanManager() {
         <div className="text-center py-12 text-slate-400">Carregando...</div>
       ) : (
         <>
-          {section === 'overview' && plan && <OverviewSection plan={plan} actionPlans={actionPlans} onSaved={fetchAll} />}
+          {section === 'overview' && plan && <OverviewSection plan={plan} onSaved={fetchAll} />}
           {section === 'goals' && <GoalsSection goals={goals} partners={partners} onRefresh={fetchAll} />}
           {section === 'achievements' && <AchievementsSection achievements={achievements} onRefresh={fetchAll} />}
           {section === 'partners' && <PartnersSection partners={partners} goals={goals} evaluations={evaluations} onRefresh={fetchAll} />}
@@ -226,7 +218,7 @@ function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_CONFIG
   );
 }
 
-function OverviewSection({ plan, actionPlans, onSaved }: { plan: BusinessPlan; actionPlans: SwotActionPlan[]; onSaved: () => void }) {
+function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
   const { isDark } = useTheme();
   const [editing, setEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -278,8 +270,6 @@ function OverviewSection({ plan, actionPlans, onSaved }: { plan: BusinessPlan; a
           <Button size="sm" variant="outline" iconLeft={<History className="w-3.5 h-3.5" />} onClick={() => setShowHistory(true)}>VER HISTÓRICO</Button>
         </div>
       </div>
-
-      <ActionPlansBlock actionPlans={actionPlans} onRefresh={onSaved} />
 
       {editing && <OverviewEditModal plan={plan} onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
@@ -442,271 +432,6 @@ function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; o
             {field('swotConclusion', 'Conclusão da Análise SWOT', 'O que esses pontos significam na prática? O que a empresa deve priorizar a partir disso?', 5)}
           </div>
         )}
-      </form>
-    </Modal>
-  );
-}
-
-// ─── Planos de Ação (um a cada atualização da Análise SWOT) ────────────────────
-
-type ActionStatus = GoalStatus;
-const ACTION_VIEWS = [
-  { id: 'lista', label: 'Lista' },
-  { id: 'quadro', label: 'Quadro' },
-  { id: 'cronograma', label: 'Cronograma' },
-] as const;
-
-function ActionPlanMeta({ p }: { p: SwotActionPlan }) {
-  return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
-      <span><b className="font-black">Quem fará:</b> {p.responsible || '—'}</span>
-      <span><b className="font-black">Prazo:</b> {p.dueDate ? format(new Date(p.dueDate), 'dd/MM/yyyy') : '—'}</span>
-    </div>
-  );
-}
-
-function ActionPlanCard({ p, onEdit, onDelete, onStatusChange }: {
-  p: SwotActionPlan; onEdit: () => void; onDelete: () => void; onStatusChange: (s: ActionStatus) => void;
-}) {
-  const { isDark } = useTheme();
-  const statusCfg = GOAL_STATUS_CONFIG[(p.status as ActionStatus) || 'not_started'];
-  return (
-    <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 flex items-start justify-between gap-3">
-      <div className="min-w-0 flex-1 space-y-2">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.title}</p>
-            <Badge color={statusCfg.color} size="sm" pill>{statusCfg.label}</Badge>
-          </div>
-          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-            Registrado em {format(new Date(p.createdAt), 'dd/MM/yyyy')}{p.createdByName ? ` · ${p.createdByName}` : ''}
-          </p>
-          {p.description && <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 whitespace-pre-line">{p.description}</p>}
-        </div>
-
-        <ActionPlanMeta p={p} />
-
-        {p.result && (
-          <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-xs text-slate-600 dark:text-slate-300">
-            <b className="font-black text-emerald-700 dark:text-emerald-400">Resultado: </b>{p.result}
-          </div>
-        )}
-        {p.notes && (
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 text-xs text-slate-600 dark:text-slate-300">
-            <b className="font-black text-slate-500 dark:text-slate-300">Observação: </b>{p.notes}
-          </div>
-        )}
-      </div>
-      <RowMenu items={[
-        { label: 'Editar', icon: Edit2, onClick: onEdit },
-        ...Object.entries(GOAL_STATUS_CONFIG)
-          .filter(([v]) => v !== p.status)
-          .map(([v, c]) => ({ label: `Mover para: ${c.label}`, icon: ArrowRight, onClick: () => onStatusChange(v as ActionStatus) })),
-        { label: 'Remover', icon: Trash2, onClick: onDelete, danger: true },
-      ]} />
-    </div>
-  );
-}
-
-function ActionPlansBlock({ actionPlans, onRefresh }: { actionPlans: SwotActionPlan[]; onRefresh: () => void }) {
-  const { isDark } = useTheme();
-  const { show: toast } = useToast();
-  const [view, setView] = useState<typeof ACTION_VIEWS[number]['id']>('lista');
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editing, setEditing] = useState<SwotActionPlan | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const handleDelete = async () => {
-    if (!deletingId) return;
-    try {
-      await fetch(`/api/swot-action-plans/${deletingId}`, { method: 'DELETE' });
-      toast('Plano de ação removido', 'success');
-      onRefresh();
-    } catch {
-      toast('Não deu para remover agora. Tente de novo.', 'error');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const changeStatus = async (p: SwotActionPlan, status: ActionStatus) => {
-    try {
-      const res = await fetch(`/api/swot-action-plans/${p.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error();
-      onRefresh();
-    } catch {
-      toast('Não deu para mover agora. Tente de novo.', 'error');
-    }
-  };
-
-  const cardProps = (p: SwotActionPlan) => ({
-    p,
-    onEdit: () => { setEditing(p); setIsFormOpen(true); },
-    onDelete: () => setDeletingId(p.id),
-    onStatusChange: (s: ActionStatus) => changeStatus(p, s),
-  });
-
-  return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 sm:mb-4">
-        <div>
-          <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Plano de Ação</h3>
-          <p className="text-[11px] text-slate-400 mt-0.5">O que vamos fazer a partir da Análise SWOT. Registre um novo a cada revisão.</p>
-        </div>
-        <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVO PLANO DE AÇÃO</Button>
-      </div>
-
-      {actionPlans.length === 0 ? (
-        <EmptyState icon={ArrowRight} title="Nenhum plano de ação registrado" description="Depois de atualizar a Análise SWOT, registre aqui o que a empresa vai fazer a respeito." action={<Button onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVO PLANO DE AÇÃO</Button>} />
-      ) : (
-        <>
-          <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 mb-3">
-            {ACTION_VIEWS.map(v => (
-              <button key={v.id} onClick={() => setView(v.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${view === v.id ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500'}`}
-                style={view === v.id ? { color: isDark ? '#fff' : '#0D1F4E' } : undefined}>
-                {v.label}
-              </button>
-            ))}
-          </div>
-
-          {view === 'lista' && (
-            <div className="space-y-2.5">
-              {actionPlans.map(p => <ActionPlanCard key={p.id} {...cardProps(p)} />)}
-            </div>
-          )}
-
-          {view === 'quadro' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-              {(Object.entries(GOAL_STATUS_CONFIG) as [ActionStatus, typeof GOAL_STATUS_CONFIG[ActionStatus]][]).map(([statusKey, cfg]) => {
-                const items = actionPlans.filter(p => (p.status || 'not_started') === statusKey);
-                return (
-                  <div key={statusKey} className="min-w-0">
-                    <div className="flex items-center justify-between mb-2 px-1">
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{cfg.label}</p>
-                      <span className="text-[10px] font-bold text-slate-400">{items.length}</span>
-                    </div>
-                    <div className="space-y-2 min-h-[40px]">
-                      {items.map(p => (
-                        <div key={p.id} className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs font-black min-w-0" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.title}</p>
-                            <RowMenu items={[
-                              { label: 'Editar', icon: Edit2, onClick: () => { setEditing(p); setIsFormOpen(true); } },
-                              ...Object.entries(GOAL_STATUS_CONFIG).filter(([v]) => v !== statusKey).map(([v, c]) => ({ label: `Mover para: ${c.label}`, icon: ArrowRight, onClick: () => changeStatus(p, v as ActionStatus) })),
-                              { label: 'Remover', icon: Trash2, onClick: () => setDeletingId(p.id), danger: true },
-                            ]} />
-                          </div>
-                          <p className="text-[11px] text-slate-400 mt-1">
-                            {p.responsible || 'Sem responsável'}{p.dueDate ? ` · ${format(new Date(p.dueDate), 'dd/MM/yyyy')}` : ''}
-                          </p>
-                        </div>
-                      ))}
-                      {items.length === 0 && <p className="text-[11px] text-slate-300 italic px-1">Nada aqui.</p>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {view === 'cronograma' && (
-            <div className="relative pl-6 space-y-5">
-              <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-slate-200 dark:bg-white/10" />
-              {[...actionPlans]
-                .sort((a, b) => {
-                  if (!a.dueDate && !b.dueDate) return 0;
-                  if (!a.dueDate) return 1;
-                  if (!b.dueDate) return -1;
-                  return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-                })
-                .map(p => {
-                  const statusCfg = GOAL_STATUS_CONFIG[(p.status as ActionStatus) || 'not_started'];
-                  return (
-                    <div key={p.id} className="relative">
-                      <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900" style={{ background: '#C49A2A' }} />
-                      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                              {p.dueDate ? `Prazo: ${format(new Date(p.dueDate), 'dd/MM/yyyy')}` : 'Sem prazo definido'}
-                            </p>
-                            <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                              <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.title}</p>
-                              <Badge color={statusCfg.color} size="sm" pill>{statusCfg.label}</Badge>
-                            </div>
-                            <p className="text-[11px] text-slate-400 mt-0.5">{p.responsible || 'Sem responsável definido'}</p>
-                          </div>
-                          <RowMenu items={[
-                            { label: 'Editar', icon: Edit2, onClick: () => { setEditing(p); setIsFormOpen(true); } },
-                            { label: 'Remover', icon: Trash2, onClick: () => setDeletingId(p.id), danger: true },
-                          ]} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </>
-      )}
-
-      {isFormOpen && <ActionPlanFormModal actionPlan={editing} onClose={() => setIsFormOpen(false)} onSuccess={() => { setIsFormOpen(false); onRefresh(); }} />}
-      <ConfirmModal isOpen={!!deletingId} onClose={() => setDeletingId(null)} onConfirm={handleDelete}
-        title="Remover Plano de Ação" message="Tem certeza que quer remover este plano de ação?" confirmLabel="REMOVER" variant="danger" />
-    </div>
-  );
-}
-
-function ActionPlanFormModal({ actionPlan, onClose, onSuccess }: { actionPlan: SwotActionPlan | null; onClose: () => void; onSuccess: () => void }) {
-  const { profile } = useAuth();
-  const { show: toast } = useToast();
-  const [title, setTitle] = useState(actionPlan?.title || '');
-  const [description, setDescription] = useState(actionPlan?.description || '');
-  const [responsible, setResponsible] = useState(actionPlan?.responsible || '');
-  const [dueDate, setDueDate] = useState<string | null>(actionPlan?.dueDate ? actionPlan.dueDate.slice(0, 10) : null);
-  const [result, setResult] = useState(actionPlan?.result || '');
-  const [notes, setNotes] = useState(actionPlan?.notes || '');
-  const [status, setStatus] = useState<ActionStatus>(actionPlan?.status || 'not_started');
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch(actionPlan ? `/api/swot-action-plans/${actionPlan.id}` : '/api/swot-action-plans', {
-        method: actionPlan ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, responsible, dueDate, result, notes, status, createdByName: profile?.displayName }),
-      });
-      if (!res.ok) throw new Error();
-      toast(actionPlan ? 'Plano de ação atualizado' : 'Plano de ação registrado', 'success');
-      onSuccess();
-    } catch {
-      toast('Não deu para salvar agora. Confira os dados e tente de novo.', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={true} onClose={onClose} title={actionPlan ? 'Editar Plano de Ação' : 'Novo Plano de Ação'} size="md">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Input label="O que será feito" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Montar time comercial dedicado" />
-        <Textarea label="Detalhes" value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder="Ações concretas com base na conclusão da análise SWOT." />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input label="Quem fará" value={responsible} onChange={e => setResponsible(e.target.value)} placeholder="Ex: Elcio (CEO)" />
-          <div className="flex flex-col gap-1.5">
-            <label className="ds-label">Prazo</label>
-            <DatePicker value={dueDate} onChange={setDueDate} />
-          </div>
-        </div>
-        <Select label="Situação" value={status} onChange={e => setStatus(e.target.value as ActionStatus)}
-          options={Object.entries(GOAL_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))} />
-        <Textarea label="Resultado" value={result} onChange={e => setResult(e.target.value)} rows={3} placeholder="Preencha depois, quando a ação for concluída: o que foi alcançado." />
-        <Textarea label="Observação" value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Qualquer detalhe adicional (opcional)." />
-        <Button type="submit" loading={saving} fullWidth size="lg">SALVAR</Button>
       </form>
     </Modal>
   );

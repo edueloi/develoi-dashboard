@@ -157,44 +157,6 @@ export function registerBusinessPlanRoutes(app: Express) {
     try { await prisma.achievement.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
   });
 
-  // ── Planos de ação (um a cada atualização da Análise SWOT) ──────────────────
-  app.get("/api/swot-action-plans", async (_req, res) => {
-    try { res.json(await prisma.swotActionPlan.findMany({ orderBy: { createdAt: "desc" } })); } catch (e) { fail(res, e); }
-  });
-
-  app.post("/api/swot-action-plans", async (req, res) => {
-    try {
-      const title = String(req.body?.title ?? "").trim();
-      if (!title) return fail(res, new Error("Informe o que será feito."), 400);
-      res.json(await prisma.swotActionPlan.create({
-        data: {
-          title,
-          description: req.body?.description || null,
-          responsible: req.body?.responsible || null,
-          dueDate: req.body?.dueDate ? new Date(req.body.dueDate) : null,
-          result: req.body?.result || null,
-          notes: req.body?.notes || null,
-          status: req.body?.status || "not_started",
-          createdByName: req.body?.createdByName || null,
-        },
-      }));
-    } catch (e) { fail(res, e); }
-  });
-
-  app.patch("/api/swot-action-plans/:id", async (req, res) => {
-    try {
-      const allowed = ["title", "description", "responsible", "result", "notes", "status"];
-      const data: any = {};
-      for (const k of allowed) if (k in (req.body ?? {})) data[k] = req.body[k];
-      if ("dueDate" in (req.body ?? {})) data.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
-      res.json(await prisma.swotActionPlan.update({ where: { id: req.params.id }, data }));
-    } catch (e) { fail(res, e); }
-  });
-
-  app.delete("/api/swot-action-plans/:id", async (req, res) => {
-    try { await prisma.swotActionPlan.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
-  });
-
   // ── Avaliação dos sócios ─────────────────────────────────────────────────────
   app.get("/api/partner-evaluations", async (req, res) => {
     try {

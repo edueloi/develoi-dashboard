@@ -955,20 +955,6 @@ model Achievement {
 }
 
 // Plano de ação: o que vamos fazer a partir de cada atualização da Análise SWOT
-model SwotActionPlan {
-  id            String    @id @default(uuid())
-  title         String // o que será feito
-  description   String?   @db.Text // detalhes do que será feito
-  responsible   String?   @db.VarChar(150) // quem fará
-  dueDate       DateTime? // prazo
-  result        String?   @db.Text // resultado alcançado
-  notes         String?   @db.Text // observação
-  status        String    @default("not_started") @db.VarChar(15) // not_started | in_progress | done | at_risk
-  createdByName String?   @db.VarChar(100)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
 // Avaliação periódica de um sócio: pontos fortes, pontos a melhorar e metas para o próximo período
 model PartnerEvaluation {
   id              String   @id @default(uuid())
