@@ -198,6 +198,69 @@ export function registerBusinessPlanRoutes(app: Express) {
     } catch (e) { fail(res, e); }
   });
 
+  // ─── SWOT estruturada (fatores com impacto, urgência e controle) ─────────────────────
+  const SWOT_TYPES = ["strength", "weakness", "opportunity", "threat"];
+  const score = (v: any) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null; }; // nota 1 a 5 ou vazio: nunca é preenchida pelo sistema
+  const swotInclude = { ratings: { orderBy: { ratedAt: "desc" as const }, take: 30 } };
+
+  // na primeira vez, aproveita as listas de texto da SWOT antiga (um fator por linha), sem notas
+  async function importLegacySwot() {
+    if (await prisma.swotItem.count()) return;
+    const plan = await prisma.businessPlan.findUnique({ where: { id: "main" } });
+    if (!plan) return;
+    const map: [string, string | null][] = [["strength", plan.swotStrengths], ["weakness", plan.swotWeaknesses], ["opportunity", plan.swotOpportunities], ["threat", plan.swotThreats]];
+    for (const [type, text] of map) {
+      const lines = (text || "").split("\n").map(x => x.replace(/^[-•*]\s*/, "").trim()).filter(Boolean);
+      for (const [i, title] of lines.entries()) await prisma.swotItem.create({ data: { type, title: title.slice(0, 300), sortOrder: i } });
+    }
+  }
+
+  app.get("/api/swot-items", async (_req, res) => {
+    try {
+      await importLegacySwot();
+      res.json(await prisma.swotItem.findMany({ orderBy: [{ type: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }], include: swotInclude }));
+    } catch (e) { fail(res, e); }
+  });
+
+  app.post("/api/swot-items", async (req, res) => {
+    try {
+      const b = req.body ?? {};
+      const title = String(b.title ?? "").trim();
+      if (!title) return fail(res, new Error("Descreva o fator."), 400);
+      if (!SWOT_TYPES.includes(b.type)) return fail(res, new Error("Escolha a categoria."), 400);
+      const last = await prisma.swotItem.findFirst({ where: { type: b.type }, orderBy: { sortOrder: "desc" } });
+      const item = await prisma.swotItem.create({
+        data: { type: b.type, title: title.slice(0, 300), note: b.note || null, impact: score(b.impact), urgency: score(b.urgency), control: score(b.control), sortOrder: (last?.sortOrder ?? -1) + 1, updatedByName: b.byName || null },
+      });
+      if (item.impact || item.urgency || item.control) await prisma.swotRating.create({ data: { itemId: item.id, impact: item.impact, urgency: item.urgency, control: item.control, note: item.note, ratedByName: b.byName || null } });
+      res.json(await prisma.swotItem.findUnique({ where: { id: item.id }, include: swotInclude }));
+    } catch (e) { fail(res, e); }
+  });
+
+  // editar: se as notas ou a observação mudaram, guarda uma nova linha no histórico de avaliações
+  app.patch("/api/swot-items/:id", async (req, res) => {
+    try {
+      const b = req.body ?? {};
+      const before = await prisma.swotItem.findUnique({ where: { id: req.params.id } });
+      if (!before) return fail(res, new Error("Fator não encontrado."), 404);
+      const data: any = { updatedByName: b.byName || null };
+      if (b.title !== undefined) { const t = String(b.title).trim(); if (!t) return fail(res, new Error("Descreva o fator."), 400); data.title = t.slice(0, 300); }
+      if (b.type !== undefined) { if (!SWOT_TYPES.includes(b.type)) return fail(res, new Error("Categoria inválida."), 400); data.type = b.type; }
+      if (b.note !== undefined) data.note = b.note || null;
+      for (const k of ["impact", "urgency", "control"] as const) if (b[k] !== undefined) data[k] = score(b[k]);
+      const item = await prisma.swotItem.update({ where: { id: before.id }, data });
+      const changed = item.impact !== before.impact || item.urgency !== before.urgency || item.control !== before.control || (item.note ?? null) !== (before.note ?? null);
+      if (changed && (item.impact || item.urgency || item.control || item.note)) {
+        await prisma.swotRating.create({ data: { itemId: item.id, impact: item.impact, urgency: item.urgency, control: item.control, note: item.note, ratedByName: b.byName || null } });
+      }
+      res.json(await prisma.swotItem.findUnique({ where: { id: item.id }, include: swotInclude }));
+    } catch (e) { fail(res, e); }
+  });
+
+  app.delete("/api/swot-items/:id", async (req, res) => {
+    try { await prisma.swotItem.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
+  });
+
   app.delete("/api/business-goals/:id", async (req, res) => {
     try { await prisma.businessGoal.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
   });

@@ -29,6 +29,9 @@ interface BusinessPlan {
   legalChecklist?: { id: string; label: string; done: boolean }[] | null; legalNotes?: string | null;
   updatedByName?: string | null; updatedAt?: string;
 }
+type SwotType = 'strength' | 'weakness' | 'opportunity' | 'threat';
+interface SwotRatingRow { id: string; impact?: number | null; urgency?: number | null; control?: number | null; note?: string | null; ratedByName?: string | null; ratedAt: string }
+interface SwotItem { id: string; type: SwotType; title: string; note?: string | null; impact?: number | null; urgency?: number | null; control?: number | null; sortOrder: number; updatedByName?: string | null; updatedAt: string; ratings?: SwotRatingRow[] }
 interface BusinessPlanHistoryEntry {
   id: string; changedByName?: string | null; changedAt: string;
   changes: { field: string; label: string; before: string | null; after: string | null }[];
@@ -85,21 +88,24 @@ export function BusinessPlanManager() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [evaluations, setEvaluations] = useState<PartnerEvaluation[]>([]);
+  const [swotItems, setSwotItems] = useState<SwotItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [planRes, goalsRes, achRes, partnersRes, evalRes] = await Promise.all([
+      const [planRes, goalsRes, achRes, partnersRes, evalRes, swotRes] = await Promise.all([
         fetch('/api/business-plan'),
         fetch('/api/business-goals'),
         fetch('/api/achievements'),
         fetch('/api/partners'),
         fetch('/api/partner-evaluations'),
+        fetch('/api/swot-items'),
       ]);
-      const [planData, goalsData, achData, partnersData, evalData] = await Promise.all([
-        planRes.json(), goalsRes.json(), achRes.json(), partnersRes.json(), evalRes.json(),
+      const [planData, goalsData, achData, partnersData, evalData, swotData] = await Promise.all([
+        planRes.json(), goalsRes.json(), achRes.json(), partnersRes.json(), evalRes.json(), swotRes.json(),
       ]);
+      setSwotItems(Array.isArray(swotData) ? swotData : []);
       setPlan(planData);
       setGoals(Array.isArray(goalsData) ? goalsData : []);
       setAchievements(Array.isArray(achData) ? achData : []);
@@ -113,11 +119,11 @@ export function BusinessPlanManager() {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
-  useLiveEvents(['BusinessPlan', 'BusinessGoal', 'Achievement', 'Partner', 'PartnerEvaluation'], () => fetchAll());
+  useLiveEvents(['BusinessPlan', 'BusinessGoal', 'Achievement', 'Partner', 'PartnerEvaluation', 'SwotItem'], () => fetchAll());
 
   const activePartners = partners.filter(p => p.active);
   const counts: Partial<Record<SectionKey, number>> = {
-    goals: goals.filter(g => g.status !== 'done').length, achievements: achievements.length, partners: activePartners.length,
+    swot: swotItems.length, goals: goals.filter(g => g.status !== 'done').length, achievements: achievements.length, partners: activePartners.length,
     legal: (plan?.legalChecklist ?? []).filter(i => !i.done).length,
   };
 
@@ -155,9 +161,9 @@ export function BusinessPlanManager() {
         <div className="text-center py-12 text-slate-400">Carregando...</div>
       ) : (
         <>
-          {section === 'dashboard' && plan && <DashboardSection plan={plan} goals={goals} achievements={achievements} partners={activePartners} evaluations={evaluations} go={setSection} />}
+          {section === 'dashboard' && plan && <DashboardSection plan={plan} swotItems={swotItems} goals={goals} achievements={achievements} partners={activePartners} evaluations={evaluations} go={setSection} />}
           {section === 'identity' && plan && <IdentitySection plan={plan} onSaved={fetchAll} />}
-          {section === 'swot' && plan && <SwotSection plan={plan} onSaved={fetchAll} />}
+          {section === 'swot' && plan && <SwotSection plan={plan} items={swotItems} onSaved={fetchAll} />}
           {section === 'goals' && <GoalsSection goals={goals} partners={partners} onRefresh={fetchAll} />}
           {section === 'achievements' && <AchievementsSection achievements={achievements} onRefresh={fetchAll} />}
           {section === 'partners' && <PartnersSection partners={partners} goals={goals} evaluations={evaluations} onRefresh={fetchAll} />}
@@ -246,8 +252,8 @@ const deadlineText = (iso?: string | null, done?: boolean) => {
 
 // ─── Painel: a estratégia em números ──────────────────────────────────────────────
 
-function DashboardSection({ plan, goals, achievements, partners, evaluations, go }: {
-  plan: BusinessPlan; goals: BusinessGoal[]; achievements: Achievement[]; partners: Partner[]; evaluations: PartnerEvaluation[]; go: (k: SectionKey) => void;
+function DashboardSection({ plan, swotItems, goals, achievements, partners, evaluations, go }: {
+  plan: BusinessPlan; swotItems: SwotItem[]; goals: BusinessGoal[]; achievements: Achievement[]; partners: Partner[]; evaluations: PartnerEvaluation[]; go: (k: SectionKey) => void;
 }) {
   const { isDark } = useTheme();
   const [monthly, setMonthly] = useState<MonthlyStat[] | null>(null);
@@ -268,11 +274,12 @@ function DashboardSection({ plan, goals, achievements, partners, evaluations, go
   const upcoming = goals.filter(g => g.status !== 'done' && g.targetDate).sort((a, b) => new Date(a.targetDate as string).getTime() - new Date(b.targetDate as string).getTime()).slice(0, 5);
   const topGoals = [...goals].filter(g => g.status !== 'done').sort((a, b) => (b.status === 'at_risk' ? 1 : 0) - (a.status === 'at_risk' ? 1 : 0) || b.progress - a.progress).slice(0, 6);
   const latest = [...achievements].sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime()).slice(0, 4);
+  const swotN = (t: SwotType) => swotItems.filter(i => i.type === t).length;
   const swot = [
-    { label: 'Forças', n: lines(plan.swotStrengths).length, color: '#15803D' },
-    { label: 'Oportunidades', n: lines(plan.swotOpportunities).length, color: '#2563EB' },
-    { label: 'Fraquezas', n: lines(plan.swotWeaknesses).length, color: '#C49A2A' },
-    { label: 'Ameaças', n: lines(plan.swotThreats).length, color: '#DC2626' },
+    { label: 'Forças', n: swotN('strength'), color: '#15803D' },
+    { label: 'Oportunidades', n: swotN('opportunity'), color: '#2563EB' },
+    { label: 'Fraquezas', n: swotN('weakness'), color: '#C49A2A' },
+    { label: 'Ameaças', n: swotN('threat'), color: '#DC2626' },
   ];
   const swotMax = Math.max(1, ...swot.map(x => x.n));
   const partnerGoal = (id: string) => { const g = goals.filter(x => x.scope === 'partner' && x.partnerId === id); return g.length ? Math.round(g.reduce((a, x) => a + x.progress, 0) / g.length) : null; };
@@ -640,56 +647,335 @@ function IdentitySection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
   );
 }
 
-function SwotSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
+// ─── SWOT estruturada: impacto, urgência e controle avaliados à mão (1 a 5) ──────────────
+
+const SW: Record<SwotType, { label: string; plural: string; letter: string; color: string; soft: string; border: string; icon: any; internal: boolean; hint: string }> = {
+  strength:    { label: 'Força',        plural: 'Forças',        letter: 'S', color: '#15803D', soft: 'rgba(21,128,61,0.08)',  border: 'rgba(21,128,61,0.28)',  icon: ThumbsUp,    internal: true,  hint: 'O que temos de bom por dentro' },
+  weakness:    { label: 'Fraqueza',     plural: 'Fraquezas',     letter: 'W', color: '#B45309', soft: 'rgba(217,119,6,0.09)',  border: 'rgba(217,119,6,0.32)',  icon: ThumbsDown,  internal: true,  hint: 'O que precisamos melhorar por dentro' },
+  opportunity: { label: 'Oportunidade', plural: 'Oportunidades', letter: 'O', color: '#2563EB', soft: 'rgba(37,99,235,0.08)',  border: 'rgba(37,99,235,0.28)',  icon: Lightbulb,   internal: false, hint: 'O que o mercado oferece a nosso favor' },
+  threat:      { label: 'Ameaça',       plural: 'Ameaças',       letter: 'T', color: '#DC2626', soft: 'rgba(220,38,38,0.07)',  border: 'rgba(220,38,38,0.28)',  icon: ShieldAlert, internal: false, hint: 'O que vem de fora e pode atrapalhar' },
+};
+const SWOT_ORDER: SwotType[] = ['strength', 'weakness', 'opportunity', 'threat'];
+const SCALE = {
+  impact:  { label: 'Impacto',  question: 'O quanto esse fator pode influenciar os resultados da empresa?', legend: ['Muito baixo', 'Baixo', 'Moderado', 'Alto', 'Muito alto'], color: '#7C3AED' },
+  urgency: { label: 'Urgência', question: 'O quanto ele exige atenção ou ação no curto prazo?', legend: ['Pode aguardar', 'Baixa prioridade', 'Atenção necessária', 'Prioritário', 'Ação imediata'], color: '#DC2626' },
+  control: { label: 'Controle', question: 'O quanto a empresa consegue agir diretamente sobre ele?', legend: ['Quase nenhum controle', 'Baixo controle', 'Controle parcial', 'Alto controle', 'Controle direto'], color: '#0891B2' },
+} as const;
+type ScaleKey = keyof typeof SCALE;
+
+const priorityOf = (i: { impact?: number | null; urgency?: number | null }) => (i.impact && i.urgency ? i.impact * i.urgency : null);
+const levelOf = (p: number | null) => (p === null ? { label: 'Sem avaliação', color: '#94A3B8' } : p >= 20 ? { label: 'Crítica', color: '#DC2626' } : p >= 12 ? { label: 'Alta', color: '#D97706' } : p >= 6 ? { label: 'Média', color: '#2563EB' } : { label: 'Baixa', color: '#64748B' });
+
+function Dots({ value, color }: { value?: number | null; color: string }) {
+  return <span className="inline-flex gap-0.5" aria-label={value ? `${value} de 5` : 'sem nota'}>{[1, 2, 3, 4, 5].map(n => <i key={n} className="w-1.5 h-3 rounded-sm" style={{ background: value && n <= value ? color : 'rgba(148,163,184,0.3)' }} />)}</span>;
+}
+
+function SwotItemCard({ item, rank, onOpen, isDark }: { item: SwotItem; rank?: number; onOpen: () => void; isDark: boolean }) {
+  const cfg = SW[item.type], pr = priorityOf(item), lv = levelOf(pr);
+  return (
+    <button type="button" onClick={onOpen} className="w-full text-left rounded-xl border p-3.5 transition-shadow hover:shadow-md min-w-0 flex flex-col gap-2.5"
+      style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', borderColor: cfg.border, borderLeft: `4px solid ${cfg.color}` }}>
+      <div className="flex items-start gap-2.5">
+        {rank !== undefined && <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0 text-white" style={{ background: lv.color }}>{rank}</span>}
+        <p className="text-sm font-bold leading-snug break-words min-w-0 flex-1" style={{ color: isDark ? '#fff' : '#1E293B' }}>{item.title}</p>
+        <span className="text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: `${lv.color}18`, color: lv.color }}>{pr !== null ? `${pr} · ${lv.label}` : lv.label}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-bold text-slate-500">
+        {(Object.keys(SCALE) as ScaleKey[]).map(k => (
+          <span key={k} className="flex items-center gap-1.5">{SCALE[k].label.slice(0, 3)}<Dots value={item[k]} color={SCALE[k].color} />{item[k] ? <b style={{ color: SCALE[k].color }}>{item[k]}</b> : <span className="text-slate-300">–</span>}</span>
+        ))}
+        {rank === undefined ? null : <span className="ml-auto text-[10px] font-black uppercase tracking-wider" style={{ color: cfg.color }}>{cfg.label}</span>}
+      </div>
+      {item.note && <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-2">{item.note}</p>}
+    </button>
+  );
+}
+
+function SwotSection({ plan, items, onSaved }: { plan: BusinessPlan; items: SwotItem[]; onSaved: () => void }) {
   const { isDark } = useTheme();
+  const [view, setView] = useState<'matrix' | 'rank'>(() => { try { return localStorage.getItem('develoi:swot:view') === 'rank' ? 'rank' : 'matrix'; } catch { return 'matrix'; } });
+  const setViewSaved = (v: 'matrix' | 'rank') => { setView(v); try { localStorage.setItem('develoi:swot:view', v); } catch { /* sem storage */ } };
+  const [sort, setSort] = useState<'priority' | 'impact' | 'urgency' | 'control' | 'manual'>('priority');
+  const [filter, setFilter] = useState<'all' | SwotType>('all');
+  const [open, setOpen] = useState<SwotItem | 'new' | null>(null);
+  const [newType, setNewType] = useState<SwotType>('strength');
   const [editing, setEditing] = useState(false);
-  const n = { s: lines(plan.swotStrengths).length, w: lines(plan.swotWeaknesses).length, o: lines(plan.swotOpportunities).length, t: lines(plan.swotThreats).length };
-  const good = n.s + n.o, bad = n.w + n.t, total = Math.max(1, good + bad);
+  const [legend, setLegend] = useState(false);
+
+  const sorted = (list: SwotItem[]) => [...list].sort((a, b) => {
+    if (sort === 'manual') return a.sortOrder - b.sortOrder;
+    const key = (i: SwotItem) => (sort === 'priority' ? priorityOf(i) : i[sort]) ?? -1;
+    return key(b) - key(a) || (b.control ?? 0) - (a.control ?? 0) || a.title.localeCompare(b.title);
+  });
+  const by = (t: SwotType) => sorted(items.filter(i => i.type === t));
+  const good = items.filter(i => SW[i.type].letter === 'S' || SW[i.type].letter === 'O').length, bad = items.length - good;
+  const unrated = items.filter(i => !i.impact || !i.urgency).length;
+  const ranked = sorted(items.filter(i => filter === 'all' || i.type === filter));
+  const candidates = items.filter(i => (priorityOf(i) ?? 0) >= 15 && (i.control ?? 0) >= 3).sort((a, b) => (priorityOf(b) ?? 0) - (priorityOf(a) ?? 0)).slice(0, 4);
+  const grid = (imp: number, urg: number) => items.filter(i => i.impact === imp && i.urgency === urg);
+  const add = (t: SwotType) => { setNewType(t); setOpen('new'); };
+
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
-      <SectionHeader title="Análise SWOT" subtitle="Um retrato honesto de onde estamos: o que é nosso (dentro) e o que vem do mercado (fora)" onEdit={() => setEditing(true)} editLabel="EDITAR SWOT" />
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Análise SWOT</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Cada fator recebe uma nota de impacto, urgência e controle (1 a 5), feita por vocês. O sistema só calcula a prioridade.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" iconLeft={<Edit2 className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>CONCLUSÃO</Button>
+          <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} onClick={() => add('strength')}>NOVO FATOR</Button>
+        </div>
+      </div>
 
-      {/* Balanço: pontos a favor x pontos de atenção */}
-      <div className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3 text-xs font-black mb-2">
-          <span className="text-emerald-700 flex items-center gap-1.5"><ThumbsUp className="w-4 h-4" />{good} pontos a favor <span className="text-slate-400 font-semibold">(forças + oportunidades)</span></span>
-          <span className="text-rose-600 flex items-center gap-1.5 text-right"><span className="text-slate-400 font-semibold hidden sm:inline">(fraquezas + ameaças)</span> {bad} pontos de atenção<ShieldAlert className="w-4 h-4" /></span>
+      {/* Resumo */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {SWOT_ORDER.map(t => (
+          <div key={t} className="rounded-2xl border p-3.5 flex items-center gap-3 min-w-0" style={{ borderColor: SW[t].border, background: isDark ? 'rgba(255,255,255,0.04)' : SW[t].soft }}>
+            <span className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black text-white flex-shrink-0" style={{ background: SW[t].color }}>{SW[t].letter}</span>
+            <div className="min-w-0"><p className="text-xl font-black leading-none" style={{ color: SW[t].color }}>{items.filter(i => i.type === t).length}</p><p className="text-[11px] font-bold text-slate-500 truncate">{SW[t].plural}</p></div>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 p-4">
+        <div className="flex items-center justify-between gap-3 text-xs font-black mb-2 flex-wrap">
+          <span className="text-emerald-700 flex items-center gap-1.5"><ThumbsUp className="w-4 h-4" />{good} a favor</span>
+          {unrated > 0 && <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">{unrated} sem avaliação completa</span>}
+          <span className="text-rose-600 flex items-center gap-1.5">{bad} de atenção<ShieldAlert className="w-4 h-4" /></span>
         </div>
         <div className="flex h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-white/10">
-          <div style={{ width: `${(good / total) * 100}%`, background: 'linear-gradient(90deg,#15803D,#2563EB)' }} />
-          <div style={{ width: `${(bad / total) * 100}%`, background: 'linear-gradient(90deg,#D97706,#DC2626)' }} />
+          <div style={{ width: `${items.length ? (good / items.length) * 100 : 0}%`, background: 'linear-gradient(90deg,#15803D,#2563EB)' }} />
+          <div style={{ width: `${items.length ? (bad / items.length) * 100 : 0}%`, background: 'linear-gradient(90deg,#D97706,#DC2626)' }} />
         </div>
       </div>
 
-      {/* Matriz 2x2 com os eixos nomeados */}
-      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-3 md:gap-y-4">
-        <div className="hidden md:block" />
-        <p className="hidden md:flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-emerald-700"><ThumbsUp className="w-3.5 h-3.5" />Ajuda a Develoi</p>
-        <p className="hidden md:flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-rose-600"><ShieldAlert className="w-3.5 h-3.5" />Atrapalha a Develoi</p>
-
-        <p className="hidden md:flex items-center justify-center text-[11px] font-black uppercase tracking-widest text-slate-400 [writing-mode:vertical-rl] rotate-180">Interno (nós)</p>
-        <SwotQuadrant field="swotStrengths" text={plan.swotStrengths} isDark={isDark} />
-        <SwotQuadrant field="swotWeaknesses" text={plan.swotWeaknesses} isDark={isDark} />
-
-        <p className="hidden md:flex items-center justify-center text-[11px] font-black uppercase tracking-widest text-slate-400 [writing-mode:vertical-rl] rotate-180">Externo (mercado)</p>
-        <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
-        <SwotQuadrant field="swotThreats" text={plan.swotThreats} isDark={isDark} />
+      {/* Como avaliar */}
+      <div className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 overflow-hidden">
+        <button type="button" onClick={() => setLegend(v => !v)} className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left">
+          <span className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><Lightbulb className="w-4 h-4 text-amber-500" />Como avaliar: Impacto × Urgência = Prioridade (Controle é complemento)</span>
+          <ArrowRight className={`w-4 h-4 text-slate-400 transition-transform ${legend ? 'rotate-90' : ''}`} />
+        </button>
+        {legend && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 pb-4 border-t border-slate-100 dark:border-white/5 pt-4">
+            {(Object.keys(SCALE) as ScaleKey[]).map(k => (
+              <div key={k}>
+                <p className="text-sm font-black" style={{ color: SCALE[k].color }}>{SCALE[k].label}</p>
+                <p className="text-[11px] text-slate-500 mb-2">{SCALE[k].question}</p>
+                <ol className="space-y-1">{SCALE[k].legend.map((l, i) => <li key={l} className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300"><b className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] text-white" style={{ background: SCALE[k].color, opacity: 0.45 + i * 0.14 }}>{i + 1}</b>{l}</li>)}</ol>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Leitura estratégica */}
+      {/* Controles */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 self-start">
+          {([['matrix', 'Matriz SWOT'], ['rank', 'Priorização']] as const).map(([v, l]) => (
+            <button key={v} onClick={() => setViewSaved(v)} className={`px-3.5 py-1.5 rounded-lg text-xs font-black transition-colors ${view === v ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500'}`} style={view === v ? { color: isDark ? '#fff' : '#0D1F4E' } : undefined}>{l}</button>
+          ))}
+        </div>
+        <div className="sm:ml-auto sm:w-64"><Select aria-label="Ordenar" value={sort} onChange={e => setSort(e.target.value as any)} options={[{ value: 'priority', label: 'Ordenar: prioridade (impacto × urgência)' }, { value: 'impact', label: 'Ordenar: impacto' }, { value: 'urgency', label: 'Ordenar: urgência' }, { value: 'control', label: 'Ordenar: controle' }, { value: 'manual', label: 'Ordem de cadastro' }]} /></div>
+      </div>
+
+      {candidates.length > 0 && (
+        <div className="rounded-2xl border border-red-200 bg-red-50/60 dark:bg-red-900/10 dark:border-red-500/30 p-4">
+          <p className="text-xs font-black uppercase tracking-widest text-red-700 flex items-center gap-2 mb-2"><Flame className="w-4 h-4" />Candidatos ao plano de ação imediato (prioridade alta e controle da empresa)</p>
+          <div className="flex flex-wrap gap-2">{candidates.map(c => <button key={c.id} onClick={() => setOpen(c)} className="text-xs font-bold px-3 py-1.5 rounded-full bg-white border border-red-200 text-red-700 hover:shadow-sm max-w-full truncate">{c.title}</button>)}</div>
+        </div>
+      )}
+
+      {view === 'matrix' ? (
+        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-3 md:gap-y-4">
+          <div className="hidden md:block" />
+          <p className="hidden md:flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-emerald-700"><ThumbsUp className="w-3.5 h-3.5" />Ajuda a Develoi</p>
+          <p className="hidden md:flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-rose-600"><ShieldAlert className="w-3.5 h-3.5" />Atrapalha a Develoi</p>
+          {([['Interno (nós)', 'strength', 'weakness'], ['Externo (mercado)', 'opportunity', 'threat']] as [string, SwotType, SwotType][]).map(([row, a, b]) => (
+            <React.Fragment key={row}>
+              <p className="hidden md:flex items-center justify-center text-[11px] font-black uppercase tracking-widest text-slate-400 [writing-mode:vertical-rl] rotate-180">{row}</p>
+              {[a, b].map(t => (
+                <div key={t} className="rounded-2xl border overflow-hidden flex flex-col min-w-0" style={{ borderColor: SW[t].border, background: isDark ? 'rgba(255,255,255,0.03)' : '#fff' }}>
+                  <div className="flex items-center gap-3 p-4" style={{ background: SW[t].soft, borderBottom: `1px solid ${SW[t].border}` }}>
+                    <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl font-black text-white flex-shrink-0 shadow-sm" style={{ background: SW[t].color }}>{SW[t].letter}</span>
+                    <div className="min-w-0 flex-1"><h4 className="text-sm font-black uppercase tracking-widest" style={{ color: SW[t].color }}>{SW[t].plural}</h4><p className="text-[11px] text-slate-500 leading-snug">{SW[t].hint}</p></div>
+                    <button type="button" onClick={() => add(t)} title={`Adicionar ${SW[t].label.toLowerCase()}`} className="w-8 h-8 rounded-lg flex items-center justify-center text-white flex-shrink-0" style={{ background: SW[t].color }}><Plus className="w-4 h-4" /></button>
+                  </div>
+                  <div className="p-3 space-y-2.5 flex-1">
+                    {by(t).length === 0 ? <p className="text-sm text-slate-400 italic p-2">Nenhum fator ainda. Clique no + para adicionar.</p> : by(t).map(i => <SwotItemCard key={i.id} item={i} onOpen={() => setOpen(i)} isDark={isDark} />)}
+                  </div>
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
+          <div className="space-y-3 min-w-0">
+            <div className="flex flex-wrap gap-2">
+              {([['all', 'Todos', items.length, '#0D1F4E'], ...SWOT_ORDER.map(t => [t, SW[t].plural, items.filter(i => i.type === t).length, SW[t].color])] as [string, string, number, string][]).map(([v, l, n, c]) => (
+                <button key={v} onClick={() => setFilter(v as any)} className="px-3 py-1.5 rounded-full text-xs font-black border whitespace-nowrap" style={filter === v ? { background: c, color: '#fff', borderColor: c } : { color: c, borderColor: `${c}55`, background: `${c}10` }}>{l} · {n}</button>
+              ))}
+            </div>
+            {ranked.length === 0 ? <EmptyState icon={Swords} title="Nenhum fator" description="Cadastre os fatores da SWOT para priorizar." action={<Button onClick={() => add('strength')}>NOVO FATOR</Button>} /> : (
+              <div className="space-y-2.5">{ranked.map((i, k) => <SwotItemCard key={i.id} item={i} rank={k + 1} onOpen={() => setOpen(i)} isDark={isDark} />)}</div>
+            )}
+          </div>
+          <Panel title="Mapa de prioridade" icon={Target} color="#7C3AED" className="xl:sticky xl:top-16">
+            <p className="text-[11px] text-slate-400 mb-3">Cada quadradinho mostra quantos fatores estão naquele par de notas. Quanto mais para o canto superior direito, mais prioritário.</p>
+            <div className="flex gap-2">
+              <div className="flex flex-col justify-between text-[10px] font-black text-slate-400 py-1 w-8 text-right">{[5, 4, 3, 2, 1].map(u => <span key={u} className="h-9 flex items-center justify-end">{u}</span>)}</div>
+              <div className="flex-1 min-w-0">
+                <div className="grid grid-cols-5 gap-1">
+                  {[5, 4, 3, 2, 1].map(u => [1, 2, 3, 4, 5].map(im => {
+                    const list = grid(im, u), pr = im * u, lv = levelOf(pr);
+                    return <button key={`${im}-${u}`} type="button" disabled={!list.length} onClick={() => list[0] && setOpen(list[0])} title={list.map(x => x.title).join('\n') || `Impacto ${im}, urgência ${u}`}
+                      className="h-9 rounded-md text-xs font-black flex items-center justify-center" style={{ background: list.length ? lv.color : `${lv.color}1A`, color: list.length ? '#fff' : 'transparent' }}>{list.length || '·'}</button>;
+                  }))}
+                </div>
+                <div className="grid grid-cols-5 text-[10px] font-black text-slate-400 text-center mt-1">{[1, 2, 3, 4, 5].map(n => <span key={n}>{n}</span>)}</div>
+                <div className="flex justify-between text-[10px] font-bold text-slate-400 mt-1"><span>← Impacto →</span><span>(eixo vertical: urgência)</span></div>
+              </div>
+            </div>
+          </Panel>
+        </div>
+      )}
+
       <section className="rounded-3xl overflow-hidden text-white relative" style={{ background: 'linear-gradient(135deg,#0D1F4E 0%,#1B3A8A 100%)' }}>
         <div className="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-white/5" />
         <div className="relative p-5 sm:p-7">
           <p className="text-[11px] font-black uppercase tracking-widest text-[#C49A2A] flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" />Leitura estratégica</p>
           <h3 className="text-lg font-black mt-1">O que isso significa na prática</h3>
           <div className="mt-3 max-w-4xl text-sm sm:text-base leading-relaxed text-white/90 space-y-3 break-words">
-            {plan.swotConclusion ? plan.swotConclusion.split(/\n+/).filter(l => l.trim()).map((l, i) => <p key={i}>{l}</p>) : <p className="text-white/60 italic">Ainda não preenchido. Escreva a conclusão em "Editar SWOT".</p>}
+            {plan.swotConclusion ? plan.swotConclusion.split(/\n+/).filter(l => l.trim()).map((l, i) => <p key={i}>{l}</p>) : <p className="text-white/60 italic">Ainda não preenchido. Escreva a conclusão em "Conclusão".</p>}
           </div>
         </div>
       </section>
 
+      {open && <SwotItemPanel item={open === 'new' ? null : open} initialType={newType} onClose={() => setOpen(null)} onChanged={onSaved} />}
       {editing && <OverviewEditModal plan={plan} initialTab="swot" onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
     </div>
+  );
+}
+
+function SwotItemPanel({ item, initialType, onClose, onChanged }: { item: SwotItem | null; initialType: SwotType; onClose: () => void; onChanged: () => void }) {
+  const { show: toast } = useToast();
+  const { profile } = useAuth();
+  const [type, setType] = useState<SwotType>(item?.type ?? initialType);
+  const [title, setTitle] = useState(item?.title ?? '');
+  const [note, setNote] = useState(item?.note ?? '');
+  const [vals, setVals] = useState<Record<ScaleKey, number | null>>({ impact: item?.impact ?? null, urgency: item?.urgency ?? null, control: item?.control ?? null });
+  const [saving, setSaving] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const pr = priorityOf({ impact: vals.impact, urgency: vals.urgency }), lv = levelOf(pr);
+  const cfg = SW[type];
+
+  const save = async () => {
+    if (!title.trim()) return toast('Descreva o fator', 'error');
+    setSaving(true);
+    try {
+      const res = await fetch(item ? `/api/swot-items/${item.id}` : '/api/swot-items', {
+        method: item ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, title, note, ...vals, byName: profile?.displayName }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'erro');
+      toast(item ? 'Fator atualizado' : 'Fator criado', 'success'); onChanged(); onClose();
+    } catch (e: any) { toast(e.message === 'erro' ? 'Não deu para salvar agora.' : e.message, 'error'); }
+    setSaving(false);
+  };
+  const remove = async () => {
+    if (!item) return;
+    await fetch(`/api/swot-items/${item.id}`, { method: 'DELETE' });
+    toast('Fator removido', 'success'); onChanged(); onClose();
+  };
+  const toGoal = async () => {
+    if (!item) return;
+    const res = await fetch('/api/business-goals', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: `${cfg.internal && type === 'weakness' ? 'Corrigir' : 'Tratar'}: ${title}`, description: `Origem: SWOT (${cfg.label}).${note ? `\n${note}` : ''}`, scope: 'company', priority: (pr ?? 0) >= 12 ? 'high' : 'medium', category: 'Estratégia', status: 'not_started', byName: profile?.displayName }),
+    });
+    toast(res.ok ? 'Meta criada na aba Metas' : 'Não deu para criar a meta', res.ok ? 'success' : 'error');
+  };
+
+  const history = [...(item?.ratings ?? [])];
+  const delta = (cur: number | null | undefined, prev: number | null | undefined) => (cur && prev && cur !== prev ? (cur > prev ? `▲${cur - prev}` : `▼${prev - cur}`) : '');
+
+  return (
+    <SidePanel isOpen onClose={onClose}
+      title={<span className="flex items-center gap-2"><span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black text-white" style={{ background: cfg.color }}>{cfg.letter}</span>{item ? 'Avaliar fator' : 'Novo fator'}</span>}
+      footer={
+        <div className="flex gap-2 sm:justify-between items-center">
+          {item ? <button type="button" onClick={() => setConfirmDel(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button> : <span />}
+          <div className="flex gap-2 flex-1 sm:flex-none">
+            {item && <Button variant="outline" onClick={toGoal} className="hidden sm:inline-flex" iconLeft={<Flag className="w-4 h-4" />}>VIRAR META</Button>}
+            <Button loading={saving} fullWidth className="sm:w-52" onClick={save} iconLeft={<Save className="w-4 h-4" />}>SALVAR</Button>
+          </div>
+        </div>
+      }>
+      <div className="space-y-6 max-w-3xl">
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1.5">Categoria</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {SWOT_ORDER.map(t => (
+              <button key={t} type="button" onClick={() => setType(t)} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs font-black transition-all" style={type === t ? { background: SW[t].soft, borderColor: SW[t].color, color: SW[t].color } : { borderColor: 'rgba(148,163,184,0.3)', color: '#64748B' }}>
+                <span className="w-5 h-5 rounded-md text-[11px] flex items-center justify-center text-white" style={{ background: SW[t].color }}>{SW[t].letter}</span>{SW[t].label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <Textarea label="Descrição do fator" value={title} onChange={e => setTitle(e.target.value)} rows={2} placeholder="Ex: Dependência elevada dos sócios" />
+
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">As notas são suas: o sistema não preenche nada sozinho. Revise de tempos em tempos, porque tudo muda conforme a empresa evolui.</p>
+          {(Object.keys(SCALE) as ScaleKey[]).map(k => (
+            <div key={k} className="rounded-2xl border border-slate-200 dark:border-white/10 p-4">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div><p className="text-sm font-black" style={{ color: SCALE[k].color }}>{SCALE[k].label}</p><p className="text-[11px] text-slate-500">{SCALE[k].question}</p></div>
+                {vals[k] && <button type="button" onClick={() => setVals(v => ({ ...v, [k]: null }))} className="text-[11px] font-bold text-slate-400 hover:text-rose-500 flex-shrink-0">Limpar</button>}
+              </div>
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} type="button" onClick={() => setVals(v => ({ ...v, [k]: n }))} className="rounded-xl py-2.5 text-sm font-black border-2 transition-all"
+                    style={vals[k] === n ? { background: SCALE[k].color, borderColor: SCALE[k].color, color: '#fff' } : { borderColor: 'rgba(148,163,184,0.3)', color: '#64748B' }}>{n}</button>
+                ))}
+              </div>
+              <p className="text-xs font-bold mt-2 min-h-[18px]" style={{ color: SCALE[k].color }}>{vals[k] ? `${vals[k]} = ${SCALE[k].legend[(vals[k] as number) - 1]}` : <span className="text-slate-400 font-medium">Ainda sem nota</span>}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-2xl p-4 flex items-center gap-4" style={{ background: `${lv.color}12`, border: `1px solid ${lv.color}40` }}>
+          <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center text-white flex-shrink-0" style={{ background: lv.color }}><span className="text-2xl font-black leading-none">{pr ?? '–'}</span><span className="text-[9px] font-black uppercase">prioridade</span></div>
+          <div className="min-w-0 text-sm">
+            <p className="font-black" style={{ color: lv.color }}>{pr !== null ? `Prioridade ${lv.label.toLowerCase()} (impacto ${vals.impact} × urgência ${vals.urgency})` : 'Dê notas de impacto e urgência para calcular a prioridade'}</p>
+            {pr !== null && vals.control !== null && <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">{vals.control >= 4 ? 'A empresa consegue agir direto: forte candidato ao plano de ação.' : vals.control >= 3 ? 'Controle parcial: dá para agir, mas com apoio ou tempo.' : 'Pouco controle: foque em reduzir o efeito ou se preparar, mais do que em resolver.'}</p>}
+          </div>
+        </div>
+
+        <Textarea label="Observação estratégica (opcional)" value={note} onChange={e => setNote(e.target.value)} rows={4} placeholder="Por que vocês deram essas notas? Alguma percepção dos sócios?" />
+
+        {history.length > 0 && (
+          <div>
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2 mb-3"><History className="w-4 h-4" />Histórico de avaliações</h4>
+            <ol className="relative border-l-2 border-slate-200 dark:border-white/10 ml-2 space-y-4">
+              {history.map((h, i) => {
+                const prev = history[i + 1];
+                return (
+                  <li key={h.id} className="ml-5 relative">
+                    <span className="absolute -left-[27px] top-1 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-500" />
+                    <p className="text-[11px] text-slate-400">{format(new Date(h.ratedAt), 'dd/MM/yyyy HH:mm')}{h.ratedByName ? ` · ${h.ratedByName}` : ''}</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 flex flex-wrap gap-x-4">
+                      {(Object.keys(SCALE) as ScaleKey[]).map(k => <span key={k}>{SCALE[k].label.slice(0, 3)} <b style={{ color: SCALE[k].color }}>{h[k] ?? '–'}</b> <span className="text-[10px] text-slate-400">{delta(h[k], prev?.[k])}</span></span>)}
+                    </p>
+                    {h.note && <p className="text-xs text-slate-500 mt-0.5 whitespace-pre-line">{h.note}</p>}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
+      </div>
+      {confirmDel && <ConfirmModal isOpen onClose={() => setConfirmDel(false)} onConfirm={remove} title="Remover fator" message="Remover este fator e o histórico das avaliações dele?" confirmLabel="REMOVER" variant="danger" />}
+    </SidePanel>
   );
 }
 
@@ -794,7 +1080,7 @@ function OverviewEditModal({ plan, initialTab = 'identity', onClose, onSuccess }
   const TABS: { id: typeof tab; label: string; hint: string; keys: (keyof typeof form)[] }[] = [
     { id: 'identity', label: 'Identidade', hint: 'Missão, visão e valores', keys: ['missionText', 'visionText', 'valuesText'] },
     { id: 'market', label: 'Mercado e modelo', hint: 'Quem atendemos e como ganhamos dinheiro', keys: ['targetMarket', 'businessModel'] },
-    { id: 'swot', label: 'Análise SWOT', hint: 'Forças, fraquezas, oportunidades e ameaças', keys: ['swotStrengths', 'swotWeaknesses', 'swotOpportunities', 'swotThreats', 'swotConclusion'] },
+    { id: 'swot', label: 'Análise SWOT', hint: 'Conclusão geral da análise', keys: ['swotConclusion'] },
   ];
   const idx = TABS.findIndex(t => t.id === tab);
   const filled = (t: typeof TABS[number]) => t.keys.filter(k => form[k].trim()).length;
@@ -839,13 +1125,8 @@ function OverviewEditModal({ plan, initialTab = 'identity', onClose, onSuccess }
         )}
         {tab === 'swot' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {field('swotStrengths', 'Forças', 'O que fazemos bem? (uma por linha)', 9)}
-              {field('swotWeaknesses', 'Fraquezas', 'Onde precisamos melhorar?', 9)}
-              {field('swotOpportunities', 'Oportunidades', 'O que podemos aproveitar no mercado?', 9)}
-              {field('swotThreats', 'Ameaças', 'O que pode atrapalhar o crescimento?', 9)}
-            </div>
-            {field('swotConclusion', 'Conclusão da Análise SWOT', 'O que esses pontos significam na prática? O que a empresa deve priorizar a partir disso?', 5)}
+            <p className="text-xs text-slate-500">Os fatores (forças, fraquezas, oportunidades e ameaças) são cadastrados e avaliados direto na aba SWOT. Aqui você escreve a conclusão geral.</p>
+            {field('swotConclusion', 'Conclusão da Análise SWOT', 'O que esses pontos significam na prática? O que a empresa deve priorizar a partir disso?', 8)}
           </div>
         )}
       </form>

@@ -987,3 +987,36 @@ model PlacesUsage {
   month    String @id @db.VarChar(7) // AAAA-MM
   requests Int    @default(0)
 }
+
+// SWOT estruturada: cada fator tem categoria e uma avaliação manual de impacto, urgência e controle (1 a 5)
+model SwotItem {
+  id            String       @id @default(uuid())
+  type          String       @db.VarChar(15) // strength | weakness | opportunity | threat
+  title         String       @db.VarChar(300)
+  note          String?      @db.Text         // observação estratégica
+  impact        Int?         // 1 a 5, preenchido pelos sócios
+  urgency       Int?         // 1 a 5
+  control       Int?         // 1 a 5
+  sortOrder     Int          @default(0)
+  updatedByName String?      @db.VarChar(100)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  ratings       SwotRating[]
+
+  @@index([type])
+}
+
+// Histórico das avaliações: permite ver como a percepção estratégica mudou
+model SwotRating {
+  id          String   @id @default(uuid())
+  itemId      String
+  item        SwotItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  impact      Int?
+  urgency     Int?
+  control     Int?
+  note        String?  @db.Text
+  ratedByName String?  @db.VarChar(100)
+  ratedAt     DateTime @default(now())
+
+  @@index([itemId])
+}
