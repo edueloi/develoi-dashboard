@@ -950,6 +950,7 @@ model Achievement {
   id          String   @id @default(uuid())
   title       String
   description String?  @db.Text
+  photoUrl    String?  @db.LongText
   achievedAt  DateTime
   createdAt   DateTime @default(now())
 }

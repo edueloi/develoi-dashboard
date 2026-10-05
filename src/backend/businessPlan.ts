@@ -139,7 +139,12 @@ export function registerBusinessPlanRoutes(app: Express) {
       const title = String(req.body?.title ?? "").trim();
       if (!title) return fail(res, new Error("Informe o título da conquista."), 400);
       res.json(await prisma.achievement.create({
-        data: { title, description: req.body?.description || null, achievedAt: req.body?.achievedAt ? new Date(req.body.achievedAt) : new Date() },
+        data: {
+          title,
+          description: req.body?.description || null,
+          photoUrl: req.body?.photoUrl || null,
+          achievedAt: req.body?.achievedAt ? new Date(req.body.achievedAt) : new Date(),
+        },
       }));
     } catch (e) { fail(res, e); }
   });
@@ -155,6 +160,34 @@ export function registerBusinessPlanRoutes(app: Express) {
 
   app.delete("/api/achievements/:id", async (req, res) => {
     try { await prisma.achievement.delete({ where: { id: req.params.id } }); res.json({ ok: true }); } catch (e) { fail(res, e); }
+  });
+
+  // Clientes novos e contatos feitos, mês a mês (últimos 12 meses) — para o gráfico da aba Conquistas
+  app.get("/api/achievements/monthly-stats", async (_req, res) => {
+    try {
+      const [clients, outreach] = await Promise.all([
+        prisma.client.findMany({ select: { createdAt: true } }),
+        prisma.outreachLog.findMany({ select: { createdAt: true } }),
+      ]);
+      const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const now = new Date();
+      const months: string[] = [];
+      for (let i = 11; i >= 0; i--) months.push(monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
+
+      const count = (rows: { createdAt: Date }[]) => {
+        const m: Record<string, number> = {};
+        for (const r of rows) { const k = monthKey(new Date(r.createdAt)); m[k] = (m[k] ?? 0) + 1; }
+        return m;
+      };
+      const clientsByMonth = count(clients);
+      const contactsByMonth = count(outreach);
+
+      res.json(months.map(m => ({
+        month: m,
+        newClients: clientsByMonth[m] ?? 0,
+        contacts: contactsByMonth[m] ?? 0,
+      })));
+    } catch (e) { fail(res, e); }
   });
 
   // ── Avaliação dos sócios ─────────────────────────────────────────────────────

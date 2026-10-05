@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass, Target, Trophy, Users, ShieldCheck, Plus, Trash2, Edit2,
-  CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight,
+  CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight, Camera, X, Loader2,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
@@ -37,7 +37,8 @@ interface BusinessGoal {
   partnerId?: string | null; partner?: { id: string; name: string; color?: string | null } | null;
   targetDate?: string | null; status: GoalStatus; progress: number; createdAt: string;
 }
-interface Achievement { id: string; title: string; description?: string | null; achievedAt: string }
+interface Achievement { id: string; title: string; description?: string | null; photoUrl?: string | null; achievedAt: string }
+interface MonthlyStat { month: string; newClients: number; contacts: number }
 interface PartnerEvaluation {
   id: string; partnerId: string; partner?: { id: string; name: string; color?: string | null; role?: string | null };
   period: string; score?: number | null; strengths?: string | null; improvements?: string | null; goalsNextPeriod?: string | null;
@@ -575,12 +576,60 @@ function GoalFormModal({ goal, partners, onClose, onSuccess }: { goal: BusinessG
 
 // ─── Conquistas ─────────────────────────────────────────────────────────────────
 
+const MONTH_ABBR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const monthLabel = (ym: string) => { const [y, m] = ym.split('-'); return `${MONTH_ABBR[Number(m) - 1]}/${y.slice(2)}`; };
+
+function MonthlyBarChart({ title, color, data, values, isDark }: { title: string; color: string; data: MonthlyStat[]; values: number[]; isDark: boolean }) {
+  const max = Math.max(1, ...values);
+  const W = 600, H = 170, padX = 10, padBottom = 24, padTop = 18;
+  const bw = (W - padX * 2) / data.length;
+  const barW = bw * 0.56;
+  const total = values.reduce((a, b) => a + b, 0);
+
+  return (
+    <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 sm:p-5 min-w-0">
+      <div className="flex items-baseline justify-between mb-3">
+        <p className="text-xs font-black uppercase tracking-widest" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{title}</p>
+        <p className="text-[11px] font-bold text-slate-400">{total} nos últimos 12 meses</p>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
+        {[0.25, 0.5, 0.75, 1].map(f => (
+          <line key={f} x1={padX} x2={W - padX} y1={padTop + (H - padTop - padBottom) * (1 - f)} y2={padTop + (H - padTop - padBottom) * (1 - f)}
+            stroke={isDark ? '#2c2c2a' : '#e1e0d9'} strokeWidth="1" />
+        ))}
+        {data.map((d, i) => {
+          const v = values[i];
+          const x = padX + i * bw;
+          const barH = (v / max) * (H - padTop - padBottom);
+          const y = H - padBottom - barH;
+          return (
+            <g key={d.month}>
+              <rect x={x + (bw - barW) / 2} y={y} width={barW} height={Math.max(barH, v > 0 ? 2 : 0)} rx={4} fill={color}>
+                <title>{monthLabel(d.month)}: {v}</title>
+              </rect>
+              {v > 0 && (
+                <text x={x + bw / 2} y={y - 5} textAnchor="middle" fontSize="9" fontWeight="800" fill={isDark ? '#fff' : '#0D1F4E'}>{v}</text>
+              )}
+              <text x={x + bw / 2} y={H - 8} textAnchor="middle" fontSize="8" fontWeight="700" fill="#94A3B8">{monthLabel(d.month)}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function AchievementsSection({ achievements, onRefresh }: { achievements: Achievement[]; onRefresh: () => void }) {
   const { isDark } = useTheme();
   const { show: toast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<Achievement | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStat[] | null>(null);
+
+  useEffect(() => {
+    fetch('/api/achievements/monthly-stats').then(r => r.json()).then(setMonthlyStats).catch(() => setMonthlyStats([]));
+  }, []);
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -597,6 +646,13 @@ function AchievementsSection({ achievements, onRefresh }: { achievements: Achiev
 
   return (
     <div className="space-y-4">
+      {monthlyStats && monthlyStats.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <MonthlyBarChart title="Clientes novos por mês" color="#2a78d6" data={monthlyStats} values={monthlyStats.map(d => d.newClients)} isDark={isDark} />
+          <MonthlyBarChart title="Contatos feitos por mês" color="#eb6834" data={monthlyStats} values={monthlyStats.map(d => d.contacts)} isDark={isDark} />
+        </div>
+      )}
+
       <div className="flex justify-end">
         <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA CONQUISTA</Button>
       </div>
@@ -610,7 +666,10 @@ function AchievementsSection({ achievements, onRefresh }: { achievements: Achiev
             <div key={a.id} className="relative">
               <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900" style={{ background: '#C49A2A' }} />
               <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                {a.photoUrl && (
+                  <img src={a.photoUrl} alt={a.title} className="w-16 h-16 rounded-lg object-cover border border-slate-200/60 dark:border-white/10 flex-shrink-0" />
+                )}
+                <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{format(new Date(a.achievedAt), 'dd/MM/yyyy')}</p>
                   <p className="text-sm font-black mt-0.5" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{a.title}</p>
                   {a.description && <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">{a.description}</p>}
@@ -633,11 +692,24 @@ function AchievementsSection({ achievements, onRefresh }: { achievements: Achiev
 }
 
 function AchievementFormModal({ achievement, onClose, onSuccess }: { achievement: Achievement | null; onClose: () => void; onSuccess: () => void }) {
+  const { isDark } = useTheme();
   const { show: toast } = useToast();
   const [title, setTitle] = useState(achievement?.title || '');
   const [description, setDescription] = useState(achievement?.description || '');
+  const [photoUrl, setPhotoUrl] = useState(achievement?.photoUrl || '');
   const [achievedAt, setAchievedAt] = useState(achievement?.achievedAt ? achievement.achievedAt.slice(0, 10) : format(new Date(), 'yyyy-MM-dd'));
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = () => { setPhotoUrl(reader.result as string); setUploading(false); };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -645,7 +717,7 @@ function AchievementFormModal({ achievement, onClose, onSuccess }: { achievement
     try {
       const res = await fetch(achievement ? `/api/achievements/${achievement.id}` : '/api/achievements', {
         method: achievement ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, achievedAt }),
+        body: JSON.stringify({ title, description, photoUrl, achievedAt }),
       });
       if (!res.ok) throw new Error();
       toast(achievement ? 'Conquista atualizada' : 'Conquista registrada', 'success');
@@ -660,6 +732,28 @@ function AchievementFormModal({ achievement, onClose, onSuccess }: { achievement
   return (
     <Modal isOpen={true} onClose={onClose} title={achievement ? 'Editar Conquista' : 'Nova Conquista'} size="md">
       <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="flex items-center gap-4">
+          <div className="relative shrink-0">
+            {photoUrl ? (
+              <img src={photoUrl} alt="" className="w-20 h-20 rounded-xl object-cover border-2" style={{ borderColor: '#C49A2A' }} />
+            ) : (
+              <div className="w-20 h-20 rounded-xl flex items-center justify-center" style={{ background: isDark ? 'rgba(255,255,255,0.06)' : '#f1f5f9' }}>
+                <Trophy className="w-7 h-7 text-slate-300" />
+              </div>
+            )}
+            {photoUrl && (
+              <button type="button" onClick={() => setPhotoUrl('')} className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600">
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+          <div className="flex-1">
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            <Button type="button" variant="outline" size="sm" disabled={uploading} iconLeft={uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />} onClick={() => fileRef.current?.click()}>
+              {photoUrl ? 'TROCAR FOTO' : 'ADICIONAR FOTO'}
+            </Button>
+          </div>
+        </div>
         <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Primeiro cliente fechado" />
         <Textarea label="Descrição" value={description} onChange={e => setDescription(e.target.value)} rows={3} />
         <Input label="Data" type="date" required value={achievedAt} onChange={e => setAchievedAt(e.target.value)} />
