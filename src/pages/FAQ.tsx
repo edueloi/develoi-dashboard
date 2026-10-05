@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, HelpCircle, ArrowRight, MessageSquare } from 'lucide-react';
+import { ChevronDown, HelpCircle, ArrowRight, MessageSquare, Search, Layers, Workflow, Wallet, LifeBuoy } from 'lucide-react';
 import { useState } from 'react';
 
 const faqs = [
@@ -53,166 +53,120 @@ const faqs = [
 
 const categories = ['Todos', ...Array.from(new Set(faqs.map(f => f.category)))];
 
-function FAQItem({ question, answer, index }: { question: string; answer: string; index: number }) {
-  const [isOpen, setIsOpen] = useState(false);
+const categoryMeta: Record<string, { icon: any; desc: string }> = {
+  'Serviços': { icon: Layers, desc: 'O que fazemos' },
+  'Processo': { icon: Workflow, desc: 'Como trabalhamos' },
+  'Financeiro': { icon: Wallet, desc: 'Pagamento e orçamento' },
+  'Suporte': { icon: LifeBuoy, desc: 'Depois da entrega' },
+};
 
+function FAQItem({ question, answer, category, open, onToggle }: { question: string; answer: string; category: string; open: boolean; onToggle: () => void }) {
+  const Icon = categoryMeta[category]?.icon || HelpCircle;
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.06 }}
-      className="border rounded-2xl overflow-hidden transition-all duration-200"
+    <div
+      className="rounded-2xl overflow-hidden transition-all duration-200 bg-white"
       style={{
-        borderColor: isOpen ? 'rgba(13,31,78,0.2)' : 'var(--border-color)',
-        background: 'white',
-        boxShadow: isOpen ? '0 4px 20px rgba(13,31,78,0.08)' : '0 1px 4px rgba(13,31,78,0.04)',
+        border: `1px solid ${open ? 'rgba(196,154,42,0.45)' : 'var(--border-color)'}`,
+        boxShadow: open ? '0 10px 30px rgba(13,31,78,0.09)' : '0 1px 4px rgba(13,31,78,0.04)',
       }}
     >
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full text-left px-6 py-5 flex items-center justify-between gap-4 group"
-      >
-        <span
-          className="text-sm sm:text-base font-bold leading-snug transition-colors duration-200"
-          style={{ color: isOpen ? 'var(--brand-navy)' : 'var(--text-primary)' }}
-        >
-          {question}
+      <button onClick={onToggle} aria-expanded={open} className="w-full text-left px-5 sm:px-6 py-5 flex items-center gap-4">
+        <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors" style={{ background: open ? 'var(--brand-navy)' : 'var(--bg-tertiary)', color: open ? 'var(--brand-gold)' : 'var(--brand-navy)' }}>
+          <Icon className="w-[18px] h-[18px]" />
         </span>
-        <div
-          className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-200"
-          style={{
-            background: isOpen ? 'var(--brand-navy)' : 'var(--bg-tertiary)',
-            color: isOpen ? '#fff' : 'var(--text-muted)',
-          }}
-        >
-          {isOpen
-            ? <Minus className="w-4 h-4" />
-            : <Plus className="w-4 h-4" />
-          }
-        </div>
+        <span className="flex-1 text-[15px] font-bold leading-snug" style={{ color: 'var(--brand-navy)' }}>{question}</span>
+        <ChevronDown className="w-5 h-5 flex-shrink-0 transition-transform duration-300" style={{ color: 'var(--brand-gold)', transform: open ? 'rotate(180deg)' : 'none' }} />
       </button>
-
       <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <div
-              className="px-6 pb-5 text-sm leading-relaxed"
-              style={{ color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)' }}
-            >
-              <div className="pt-4">{answer}</div>
-            </div>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
+            <p className="px-5 sm:px-6 pb-6 pl-[4.5rem] sm:pl-[5.25rem] text-sm leading-7" style={{ color: 'var(--text-secondary)' }}>{answer}</p>
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
 export default function FAQ() {
   const [activeCategory, setActiveCategory] = useState('Todos');
+  const [query, setQuery] = useState('');
+  const [openQ, setOpenQ] = useState<string | null>(faqs[0].question);
 
-  const filtered = activeCategory === 'Todos'
-    ? faqs
-    : faqs.filter(f => f.category === activeCategory);
+  const q = query.trim().toLowerCase();
+  const filtered = faqs.filter(f => (activeCategory === 'Todos' || f.category === activeCategory) && (!q || (f.question + ' ' + f.answer).toLowerCase().includes(q)));
+  const countOf = (c: string) => c === 'Todos' ? faqs.length : faqs.filter(f => f.category === c).length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative min-h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}
-    >
-      {/* Blurs sutis */}
-      <div className="fixed inset-0 pointer-events-none -z-10">
-        <div className="absolute top-[5%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[140px]" style={{ background: 'rgba(13,31,78,0.04)' }} />
-        <div className="absolute bottom-[10%] left-[-5%] w-[400px] h-[400px] rounded-full blur-[120px]" style={{ background: 'rgba(196,154,42,0.04)' }} />
-      </div>
-
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* ── HERO ── */}
-      <section
-        className="relative pt-32 pb-20 overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}
-      >
+      <section className="relative pt-32 pb-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}>
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-2xl"
-          >
+        <div className="absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(196,154,42,0.14), transparent 70%)' }} />
+        <div className="max-w-4xl mx-auto px-6 text-center relative">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
-                Central de Ajuda
-              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>Central de ajuda</span>
+              <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
             </div>
-            <h1
-              className="font-black text-white leading-[1.05] tracking-tight mb-5"
-              style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)' }}
-            >
-              Dúvidas{' '}
-              <span style={{ color: 'var(--brand-gold)' }}>Frequentes</span>
+            <h1 className="font-black text-white leading-[1.05] tracking-tight mb-4" style={{ fontSize: 'clamp(2rem, 5vw, 3.4rem)' }}>
+              Como podemos <span style={{ color: 'var(--brand-gold)' }}>ajudar?</span>
             </h1>
-            <p className="text-base leading-relaxed max-w-lg" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              Tudo o que você precisa saber sobre nossos serviços, processos e formas de trabalho.
+            <p className="text-base leading-relaxed max-w-lg mx-auto mb-8" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Respostas rápidas sobre nossos serviços, processo de trabalho, pagamento e suporte.
             </p>
+            <div className="relative max-w-xl mx-auto">
+              <Search className="w-5 h-5 absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Busque por prazo, pagamento, suporte…"
+                className="w-full pl-14 pr-5 py-4 rounded-2xl text-sm font-medium outline-none bg-white shadow-2xl"
+                style={{ color: 'var(--brand-navy)' }}
+              />
+            </div>
           </motion.div>
         </div>
       </section>
 
       {/* ── CONTEÚDO ── */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12">
+      <section className="py-14 md:py-20">
+        <div className="max-w-6xl mx-auto px-6 sm:px-8 grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-8 lg:gap-12 items-start">
+          {/* categorias */}
+          <nav className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 lg:sticky lg:top-28 -mx-6 px-6 lg:mx-0 lg:px-0">
+            {categories.map(cat => {
+              const on = activeCategory === cat;
+              const Icon = categoryMeta[cat]?.icon || HelpCircle;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-2xl text-left whitespace-nowrap transition-all flex-shrink-0 lg:w-full"
+                  style={{ background: on ? 'var(--brand-navy)' : 'white', border: `1px solid ${on ? 'var(--brand-navy)' : 'var(--border-color)'}`, boxShadow: on ? '0 8px 20px rgba(13,31,78,0.2)' : 'none' }}
+                >
+                  <Icon className="w-4 h-4" style={{ color: on ? 'var(--brand-gold)' : 'var(--brand-navy)' }} />
+                  <span className="flex-1">
+                    <span className="block text-sm font-black" style={{ color: on ? '#fff' : 'var(--brand-navy)' }}>{cat}</span>
+                    <span className="hidden lg:block text-[11px]" style={{ color: on ? 'rgba(255,255,255,0.55)' : 'var(--text-muted)' }}>{categoryMeta[cat]?.desc || 'Todas as perguntas'}</span>
+                  </span>
+                  <span className="text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: on ? 'rgba(255,255,255,0.15)' : 'var(--bg-tertiary)', color: on ? '#fff' : 'var(--text-muted)' }}>{countOf(cat)}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          {/* Filtro por categoria */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-wrap gap-2 mb-10"
-          >
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all duration-200"
-                style={{
-                  background: activeCategory === cat ? 'var(--brand-navy)' : 'white',
-                  color: activeCategory === cat ? '#fff' : 'var(--text-secondary)',
-                  border: `1px solid ${activeCategory === cat ? 'var(--brand-navy)' : 'var(--border-color)'}`,
-                  boxShadow: activeCategory === cat ? '0 4px 12px rgba(13,31,78,0.2)' : 'none',
-                }}
-              >
-                {cat}
-              </button>
+          {/* perguntas */}
+          <div className="space-y-3 min-w-0">
+            {filtered.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-2xl border" style={{ borderColor: 'var(--border-color)' }}>
+                <HelpCircle className="w-10 h-10 mx-auto mb-3" style={{ color: 'var(--brand-gold)' }} />
+                <p className="font-black" style={{ color: 'var(--brand-navy)' }}>Nada encontrado para "{query}"</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Tente outra palavra ou fale direto com a gente.</p>
+              </div>
+            ) : filtered.map(f => (
+              <FAQItem key={f.question} {...f} open={openQ === f.question} onToggle={() => setOpenQ(openQ === f.question ? null : f.question)} />
             ))}
-          </motion.div>
-
-          {/* Lista de perguntas */}
-          <div className="space-y-3">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeCategory}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-3"
-              >
-                {filtered.map((faq, i) => (
-                  <FAQItem key={faq.question} question={faq.question} answer={faq.answer} index={i} />
-                ))}
-              </motion.div>
-            </AnimatePresence>
           </div>
         </div>
       </section>
