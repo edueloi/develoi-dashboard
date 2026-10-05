@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass, Target, Trophy, Users, ShieldCheck, Plus, Trash2, Edit2,
   CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight, Camera, X, Loader2,
+  LayoutDashboard, Gem, Swords, Flag, CalendarClock, TrendingUp, Scale, Flame,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
@@ -53,17 +54,25 @@ const GOAL_STATUS_CONFIG: Record<GoalStatus, { label: string; color: BadgeColor 
 };
 
 const SECTIONS = [
-  { key: 'overview',    label: 'Visão Geral',  icon: Compass },
-  { key: 'goals',       label: 'Metas',        icon: Target },
-  { key: 'achievements',label: 'Conquistas',   icon: Trophy },
-  { key: 'partners',    label: 'Sócios',       icon: Users },
-  { key: 'legal',       label: 'Checklist Jurídico', icon: ShieldCheck },
+  { key: 'dashboard',    label: 'Painel',       icon: LayoutDashboard },
+  { key: 'identity',     label: 'Identidade',   icon: Compass },
+  { key: 'swot',         label: 'SWOT',         icon: Swords },
+  { key: 'goals',        label: 'Metas',        icon: Target },
+  { key: 'achievements', label: 'Conquistas',   icon: Trophy },
+  { key: 'partners',     label: 'Sócios',       icon: Users },
+  { key: 'legal',        label: 'Jurídico',     icon: ShieldCheck },
 ] as const;
 type SectionKey = typeof SECTIONS[number]['key'];
 
+const lines = (t?: string | null) => (t || '').split('\n').map(x => x.trim()).filter(Boolean);
+const TAB_KEY = 'develoi:plano:aba';
+
 export function BusinessPlanManager() {
   const { isDark } = useTheme();
-  const [section, setSection] = useState<SectionKey>('overview');
+  const [section, setSectionState] = useState<SectionKey>(() => {
+    try { const v = localStorage.getItem(TAB_KEY) as SectionKey | null; return v && SECTIONS.some(s => s.key === v) ? v : 'dashboard'; } catch { return 'dashboard'; }
+  });
+  const setSection = (k: SectionKey) => { setSectionState(k); try { localStorage.setItem(TAB_KEY, k); } catch { /* sem storage */ } };
 
   const [plan, setPlan] = useState<BusinessPlan | null>(null);
   const [goals, setGoals] = useState<BusinessGoal[]>([]);
@@ -71,6 +80,7 @@ export function BusinessPlanManager() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [evaluations, setEvaluations] = useState<PartnerEvaluation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -90,7 +100,7 @@ export function BusinessPlanManager() {
       setPartners(Array.isArray(partnersData?.partners) ? partnersData.partners : []);
       setEvaluations(Array.isArray(evalData) ? evalData : []);
     } catch {
-      // silencioso — cada seção mostra seu próprio estado vazio
+      // silencioso: cada seção mostra seu próprio estado vazio
     } finally {
       setLoading(false);
     }
@@ -99,39 +109,300 @@ export function BusinessPlanManager() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
   useLiveEvents(['BusinessPlan', 'BusinessGoal', 'Achievement', 'Partner', 'PartnerEvaluation'], () => fetchAll());
 
+  const activePartners = partners.filter(p => p.active);
+  const counts: Partial<Record<SectionKey, number>> = {
+    goals: goals.filter(g => g.status !== 'done').length, achievements: achievements.length, partners: activePartners.length,
+    legal: (plan?.legalChecklist ?? []).filter(i => !i.done).length,
+  };
+
   return (
-    <div className="space-y-4 sm:space-y-5 dashboard-density">
-      <div>
-        <h2 className="text-lg font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
-          Plano de Negócio
-        </h2>
-        <p className="text-xs text-slate-400 mt-0.5">A estratégia da Develoi: missão, metas, conquistas e responsabilidades de cada sócio</p>
+    <div className="space-y-4 sm:space-y-5 dashboard-density w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Central do Plano de Negócio</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Estratégia, metas, conquistas e responsabilidades da Develoi em um só lugar</p>
+          {plan?.updatedAt && (
+            <p className="text-[11px] text-slate-400 mt-1">Plano atualizado em {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}</p>
+          )}
+        </div>
+        <Button size="sm" variant="outline" className="self-start" iconLeft={<History className="w-3.5 h-3.5" />} onClick={() => setShowHistory(true)}>HISTÓRICO DE ALTERAÇÕES</Button>
       </div>
 
-      <div className="inline-flex flex-wrap gap-1 p-1 rounded-xl bg-slate-100 dark:bg-white/5">
-        {SECTIONS.map(s => (
-          <button
-            key={s.key}
-            onClick={() => setSection(s.key)}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${section === s.key ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'}`}
-            style={section === s.key ? { color: isDark ? '#fff' : '#0D1F4E' } : undefined}
-          >
-            <s.icon className="w-3.5 h-3.5" /> {s.label}
-          </button>
-        ))}
+      {/* Abas: rolam no celular e ficam à vista ao descer a página */}
+      <div className="sticky top-0 z-20 -mx-1 px-1 py-2 backdrop-blur" style={{ background: isDark ? 'rgba(11,17,32,0.85)' : 'rgba(240,242,248,0.9)' }}>
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5 snap-x" role="tablist" aria-label="Seções do plano de negócio">
+          {SECTIONS.map(t => {
+            const on = section === t.key, n = counts[t.key];
+            return (
+              <button key={t.key} role="tab" aria-selected={on} onClick={() => setSection(t.key)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 snap-start border transition-all"
+                style={on ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.25)' } : { background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', color: '#64748B', borderColor: 'rgba(148,163,184,0.3)' }}>
+                <t.icon className="w-3.5 h-3.5" />{t.label}
+                {n ? <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full" style={on ? { background: 'rgba(255,255,255,0.2)' } : { background: 'rgba(100,116,139,0.12)' }}>{n}</span> : null}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {loading ? (
         <div className="text-center py-12 text-slate-400">Carregando...</div>
       ) : (
         <>
-          {section === 'overview' && plan && <OverviewSection plan={plan} onSaved={fetchAll} />}
+          {section === 'dashboard' && plan && <DashboardSection plan={plan} goals={goals} achievements={achievements} partners={activePartners} evaluations={evaluations} go={setSection} />}
+          {section === 'identity' && plan && <IdentitySection plan={plan} onSaved={fetchAll} />}
+          {section === 'swot' && plan && <SwotSection plan={plan} onSaved={fetchAll} />}
           {section === 'goals' && <GoalsSection goals={goals} partners={partners} onRefresh={fetchAll} />}
           {section === 'achievements' && <AchievementsSection achievements={achievements} onRefresh={fetchAll} />}
           {section === 'partners' && <PartnersSection partners={partners} goals={goals} evaluations={evaluations} onRefresh={fetchAll} />}
           {section === 'legal' && plan && <LegalSection plan={plan} onSaved={fetchAll} />}
         </>
       )}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+    </div>
+  );
+}
+
+// ─── Peças de visualização (SVG simples, sem biblioteca) ────────────────────────
+
+function Panel({ title, icon: Icon, color = '#0D1F4E', action, children, className = '' }: { title: string; icon?: any; color?: string; action?: React.ReactNode; children: React.ReactNode; className?: string }) {
+  return (
+    <section className={`min-w-0 rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-4 sm:p-5 ${className}`}>
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <h3 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 min-w-0">
+          {Icon && <span className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}><Icon className="w-3.5 h-3.5" style={{ color }} /></span>}
+          <span className="truncate">{title}</span>
+        </h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function KpiCard({ icon: Icon, label, value, sub, color }: { icon: any; label: string; value: React.ReactNode; sub?: string; color: string }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-3.5 sm:p-4" style={{ borderTop: `3px solid ${color}` }}>
+      <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-300"><Icon className="w-3.5 h-3.5 flex-shrink-0" style={{ color }} /><span className="truncate">{label}</span></div>
+      <div className="mt-1.5 text-2xl font-black truncate" style={{ color }}>{value}</div>
+      {sub && <div className="text-[11px] text-slate-400 truncate mt-0.5">{sub}</div>}
+    </div>
+  );
+}
+
+function RingChart({ value, size = 64, stroke = 8, color, label }: { value: number; size?: number; stroke?: number; color: string; label?: string }) {
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r, v = Math.max(0, Math.min(100, value));
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(148,163,184,0.2)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${(v / 100) * c} ${c}`} />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[11px] font-black text-slate-700 dark:text-slate-200">{label ?? `${Math.round(v)}%`}</span>
+    </div>
+  );
+}
+
+function DonutChart({ items, center, sub }: { items: { label: string; value: number; color: string }[]; center: string; sub: string }) {
+  const total = items.reduce((a, i) => a + i.value, 0);
+  const R = 50, C = 2 * Math.PI * R;
+  let acc = 0;
+  return (
+    <div className="relative w-36 h-36 flex-shrink-0">
+      <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
+        <circle cx="70" cy="70" r={R} fill="none" stroke="rgba(148,163,184,0.18)" strokeWidth="18" />
+        {total > 0 && items.filter(i => i.value > 0).map(i => {
+          const len = (i.value / total) * C;
+          const el = <circle key={i.label} cx="70" cy="70" r={R} fill="none" stroke={i.color} strokeWidth="18" strokeDasharray={`${Math.max(len - 1.5, 0)} ${C}`} strokeDashoffset={-acc} />;
+          acc += len;
+          return el;
+        })}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">{center}</span>
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">{sub}</span>
+      </div>
+    </div>
+  );
+}
+
+const GOAL_COLORS: Record<GoalStatus, string> = { not_started: '#94A3B8', in_progress: '#2563EB', done: '#15803D', at_risk: '#DC2626' };
+const daysTo = (iso?: string | null) => (iso ? Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000) : null);
+const deadlineText = (iso?: string | null, done?: boolean) => {
+  const n = daysTo(iso);
+  if (n === null) return 'Sem prazo';
+  if (done) return `Prazo ${format(new Date(iso as string), 'dd/MM/yyyy')}`;
+  if (n < 0) return `Atrasada ${-n} ${-n === 1 ? 'dia' : 'dias'}`;
+  if (n === 0) return 'Vence hoje';
+  if (n <= 30) return `Faltam ${n} ${n === 1 ? 'dia' : 'dias'}`;
+  return `Até ${format(new Date(iso as string), 'dd/MM/yyyy')}`;
+};
+
+// ─── Painel: a estratégia em números ──────────────────────────────────────────────
+
+function DashboardSection({ plan, goals, achievements, partners, evaluations, go }: {
+  plan: BusinessPlan; goals: BusinessGoal[]; achievements: Achievement[]; partners: Partner[]; evaluations: PartnerEvaluation[]; go: (k: SectionKey) => void;
+}) {
+  const { isDark } = useTheme();
+  const [monthly, setMonthly] = useState<MonthlyStat[] | null>(null);
+  useEffect(() => { fetch('/api/achievements/monthly-stats').then(r => r.json()).then(d => setMonthly(Array.isArray(d) ? d : [])).catch(() => setMonthly([])); }, []);
+
+  const done = goals.filter(g => g.status === 'done').length;
+  const atRisk = goals.filter(g => g.status === 'at_risk').length;
+  const avg = goals.length ? Math.round(goals.reduce((a, g) => a + (g.progress || 0), 0) / goals.length) : 0;
+  const year = new Date().getFullYear();
+  const achYear = achievements.filter(a => new Date(a.achievedAt).getFullYear() === year).length;
+  const scores = evaluations.filter(e => e.score != null).map(e => e.score as number);
+  const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+  const legal = plan.legalChecklist ?? [];
+  const legalDone = legal.filter(i => i.done).length;
+  const legalPct = legal.length ? Math.round((legalDone / legal.length) * 100) : 0;
+
+  const byStatus = (['done', 'in_progress', 'at_risk', 'not_started'] as GoalStatus[]).map(k => ({ label: GOAL_STATUS_CONFIG[k].label, value: goals.filter(g => g.status === k).length, color: GOAL_COLORS[k] }));
+  const upcoming = goals.filter(g => g.status !== 'done' && g.targetDate).sort((a, b) => new Date(a.targetDate as string).getTime() - new Date(b.targetDate as string).getTime()).slice(0, 5);
+  const topGoals = [...goals].filter(g => g.status !== 'done').sort((a, b) => (b.status === 'at_risk' ? 1 : 0) - (a.status === 'at_risk' ? 1 : 0) || b.progress - a.progress).slice(0, 6);
+  const latest = [...achievements].sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime()).slice(0, 4);
+  const swot = [
+    { label: 'Forças', n: lines(plan.swotStrengths).length, color: '#15803D' },
+    { label: 'Oportunidades', n: lines(plan.swotOpportunities).length, color: '#2563EB' },
+    { label: 'Fraquezas', n: lines(plan.swotWeaknesses).length, color: '#C49A2A' },
+    { label: 'Ameaças', n: lines(plan.swotThreats).length, color: '#DC2626' },
+  ];
+  const swotMax = Math.max(1, ...swot.map(x => x.n));
+  const partnerGoal = (id: string) => { const g = goals.filter(x => x.scope === 'partner' && x.partnerId === id); return g.length ? Math.round(g.reduce((a, x) => a + x.progress, 0) / g.length) : null; };
+  const partnerScore = (id: string) => { const sc = evaluations.filter(e => e.partnerId === id && e.score != null).map(e => e.score as number); return sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : null; };
+
+  return (
+    <div className="space-y-4 sm:space-y-5">
+      {/* Resumo da estratégia */}
+      {(plan.missionText || plan.visionText) && (
+        <div className="rounded-2xl p-5 sm:p-6 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#0D1F4E 0%,#1B3A8A 100%)' }}>
+          <div className="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-white/5" />
+          <p className="text-[11px] font-black uppercase tracking-widest text-[#C49A2A]">Nossa missão</p>
+          <p className="mt-1.5 text-sm sm:text-base leading-relaxed text-white/90 max-w-4xl line-clamp-3">{plan.missionText}</p>
+          <button onClick={() => go('identity')} className="mt-3 text-xs font-black text-[#C49A2A] flex items-center gap-1 hover:underline">Ver identidade completa <ArrowRight className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <KpiCard icon={Target} label="Metas concluídas" value={`${done}/${goals.length}`} sub={goals.length ? `${goals.length - done} em aberto` : 'Nenhuma meta ainda'} color="#15803D" />
+        <KpiCard icon={TrendingUp} label="Progresso médio" value={`${avg}%`} sub="de todas as metas" color="#2563EB" />
+        <KpiCard icon={Flame} label="Metas em risco" value={atRisk} sub={atRisk ? 'pedem atenção' : 'tudo sob controle'} color={atRisk ? '#DC2626' : '#94A3B8'} />
+        <KpiCard icon={Trophy} label="Conquistas" value={achievements.length} sub={`${achYear} em ${year}`} color="#C49A2A" />
+        <KpiCard icon={Users} label="Sócios" value={partners.length} sub={avgScore ? `Nota média ${avgScore.toFixed(1).replace('.', ',')}` : 'Sem avaliações'} color="#7C3AED" />
+        <KpiCard icon={Scale} label="Checklist jurídico" value={`${legalPct}%`} sub={legal.length ? `${legalDone} de ${legal.length} resolvidos` : 'Sem itens'} color="#0891B2" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        <Panel title="Metas por situação" icon={Target} color="#15803D" action={<button onClick={() => go('goals')} className="text-[11px] font-black text-blue-600">Ver metas</button>}>
+          {goals.length === 0 ? <p className="text-sm text-slate-400">Cadastre as primeiras metas para ver o gráfico.</p> : (
+            <div className="flex items-center gap-4 flex-wrap justify-center sm:justify-start">
+              <DonutChart items={byStatus} center={`${goals.length ? Math.round((done / goals.length) * 100) : 0}%`} sub="concluído" />
+              <ul className="space-y-1.5 text-xs min-w-[140px] flex-1">
+                {byStatus.map(i => (
+                  <li key={i.label} className="flex items-center gap-2"><i className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: i.color }} /><span className="flex-1 text-slate-600 dark:text-slate-300">{i.label}</span><b className="text-slate-900 dark:text-white">{i.value}</b></li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Metas em andamento" icon={TrendingUp} color="#2563EB" className="lg:col-span-2" action={<button onClick={() => go('goals')} className="text-[11px] font-black text-blue-600">Ver todas</button>}>
+          {topGoals.length === 0 ? <p className="text-sm text-slate-400">Nenhuma meta em andamento.</p> : (
+            <div className="space-y-3">
+              {topGoals.map(g => (
+                <div key={g.id}>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-bold text-slate-700 dark:text-slate-200 truncate">{g.title}</span>
+                    <span className="font-black flex-shrink-0" style={{ color: GOAL_COLORS[g.status] }}>{g.progress}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 mt-1"><div className="h-full rounded-full" style={{ width: `${g.progress}%`, background: GOAL_COLORS[g.status] }} /></div>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{g.scope === 'partner' && g.partner ? g.partner.name : 'Empresa'} · {deadlineText(g.targetDate)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        <Panel title="Sócios" icon={Users} color="#7C3AED" action={<button onClick={() => go('partners')} className="text-[11px] font-black text-blue-600">Ver sócios</button>}>
+          {partners.length === 0 ? <p className="text-sm text-slate-400">Cadastre os sócios em Sociedade & Lucros.</p> : (
+            <>
+              <div className="flex h-3 rounded-full overflow-hidden mb-3 bg-slate-100 dark:bg-white/10">
+                {partners.map((p, i) => <div key={p.id} title={`${p.name} ${p.sharePercent}%`} style={{ width: `${p.sharePercent}%`, background: p.color || ['#0D1F4E', '#C49A2A', '#15803D', '#7C3AED'][i % 4] }} />)}
+              </div>
+              <ul className="space-y-2.5">
+                {partners.map((p, i) => {
+                  const pg = partnerGoal(p.id), sc = partnerScore(p.id);
+                  return (
+                    <li key={p.id} className="flex items-center gap-2.5">
+                      <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black flex-shrink-0" style={{ background: p.color || ['#0D1F4E', '#C49A2A', '#15803D', '#7C3AED'][i % 4] }}>{p.name[0]?.toUpperCase()}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{p.name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{p.sharePercent}% · {pg !== null ? `metas ${pg}%` : 'sem metas'}{sc ? ` · nota ${sc.toFixed(1).replace('.', ',')}` : ''}</p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </Panel>
+
+        <Panel title="SWOT em números" icon={Swords} color="#C49A2A" action={<button onClick={() => go('swot')} className="text-[11px] font-black text-blue-600">Ver análise</button>}>
+          <div className="space-y-3">
+            {swot.map(x => (
+              <div key={x.label}>
+                <div className="flex justify-between text-xs"><span className="font-bold text-slate-600 dark:text-slate-300">{x.label}</span><b style={{ color: x.color }}>{x.n}</b></div>
+                <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 mt-1"><div className="h-full rounded-full" style={{ width: `${(x.n / swotMax) * 100}%`, background: x.color }} /></div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel title="Próximos prazos" icon={CalendarClock} color="#DC2626" action={<button onClick={() => go('goals')} className="text-[11px] font-black text-blue-600">Metas</button>}>
+          {upcoming.length === 0 ? <p className="text-sm text-slate-400">Nenhuma meta com prazo definido.</p> : (
+            <ul className="space-y-2.5">
+              {upcoming.map(g => {
+                const n = daysTo(g.targetDate) ?? 0;
+                const color = n < 0 ? '#DC2626' : n <= 30 ? '#C49A2A' : '#64748B';
+                return (
+                  <li key={g.id} className="flex items-center gap-2.5">
+                    <span className="w-9 h-9 rounded-lg flex flex-col items-center justify-center flex-shrink-0 text-[9px] font-black leading-tight" style={{ background: `${color}18`, color }}>
+                      <span>{format(new Date(g.targetDate as string), 'dd')}</span><span className="uppercase">{format(new Date(g.targetDate as string), 'MMM')}</span>
+                    </span>
+                    <div className="min-w-0 flex-1"><p className="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">{g.title}</p><p className="text-[10px] font-semibold" style={{ color }}>{deadlineText(g.targetDate)}</p></div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5">
+        <Panel title="Últimas conquistas" icon={Trophy} color="#C49A2A" className="lg:col-span-1" action={<button onClick={() => go('achievements')} className="text-[11px] font-black text-blue-600">Ver todas</button>}>
+          {latest.length === 0 ? <p className="text-sm text-slate-400">Registre os marcos importantes da Develoi.</p> : (
+            <ul className="space-y-3">
+              {latest.map(a => (
+                <li key={a.id} className="flex gap-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0"><Gem className="w-4 h-4" /></span>
+                  <div className="min-w-0"><p className="text-xs font-black text-slate-800 dark:text-slate-100 line-clamp-2">{a.title}</p><p className="text-[10px] text-slate-400">{format(new Date(a.achievedAt), 'dd/MM/yyyy')}</p></div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+          {monthly && monthly.length > 0 ? (
+            <>
+              <MonthlyBarChart title="Clientes novos por mês" color="#2a78d6" data={monthly} values={monthly.map(d => d.newClients)} isDark={isDark} />
+              <MonthlyBarChart title="Contatos feitos por mês" color="#eb6834" data={monthly} values={monthly.map(d => d.contacts)} isDark={isDark} />
+            </>
+          ) : <Panel title="Crescimento" icon={TrendingUp} color="#2563EB" className="sm:col-span-2"><p className="text-sm text-slate-400">Os gráficos de clientes novos e contatos aparecem aqui quando houver dados.</p></Panel>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -202,6 +473,7 @@ function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_CONFIG
       <div className="flex items-center gap-2 mb-3">
         <cfg.icon className="w-4 h-4" style={{ color: cfg.color }} />
         <p className="text-xs font-black uppercase tracking-widest" style={{ color: cfg.color }}>{cfg.label}</p>
+        <span className="ml-auto text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: `${cfg.color}18`, color: cfg.color }}>{items.length}</span>
       </div>
       {items.length ? (
         <ul className="space-y-2">
@@ -219,61 +491,53 @@ function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_CONFIG
   );
 }
 
-function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
+function SectionHeader({ title, subtitle, onEdit, editLabel }: { title: string; subtitle?: string; onEdit: () => void; editLabel: string }) {
+  const { isDark } = useTheme();
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="min-w-0">
+        <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{title}</h3>
+        {subtitle && <p className="text-xs text-slate-400 mt-0.5">{subtitle}</p>}
+      </div>
+      <Button size="sm" variant="outline" className="self-start sm:self-auto" iconLeft={<Edit2 className="w-3.5 h-3.5" />} onClick={onEdit}>{editLabel}</Button>
+    </div>
+  );
+}
+
+function IdentitySection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
   const { isDark } = useTheme();
   const [editing, setEditing] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Quem somos</h3>
-          {plan.updatedAt && (
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Atualizado em {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}
-            </p>
-          )}
-        </div>
-        <Button size="sm" variant="outline" className="self-start sm:self-auto" iconLeft={<Edit2 className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>EDITAR VISÃO GERAL</Button>
-      </div>
-
+      <SectionHeader title="Quem somos" subtitle="Missão, visão, valores, público e como a Develoi ganha dinheiro" onEdit={() => setEditing(true)} editLabel="EDITAR IDENTIDADE" />
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 items-start">
         <InfoBlock icon={Compass} label="Missão" text={plan.missionText} color="#0D1F4E" isDark={isDark} />
         <InfoBlock icon={Target} label="Visão" text={plan.visionText} color="#2563EB" isDark={isDark} />
         <InfoBlock icon={Star} label="Valores" text={plan.valuesText} color="#C49A2A" isDark={isDark} className="md:col-span-2 xl:col-span-1" />
       </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
         <InfoBlock icon={Users} label="Mercado-Alvo / Público" text={plan.targetMarket} color="#15803D" isDark={isDark} />
         <InfoBlock icon={Trophy} label="Modelo de Negócio" text={plan.businessModel} color="#7C3AED" isDark={isDark} className="lg:col-span-2" />
       </div>
+      {editing && <OverviewEditModal plan={plan} initialTab="identity" onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
+    </div>
+  );
+}
 
-      <div>
-        <h3 className="text-base font-black mb-3 sm:mb-4" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Análise SWOT</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-          <SwotQuadrant field="swotStrengths" text={plan.swotStrengths} isDark={isDark} />
-          <SwotQuadrant field="swotWeaknesses" text={plan.swotWeaknesses} isDark={isDark} />
-          <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
-          <SwotQuadrant field="swotThreats" text={plan.swotThreats} isDark={isDark} />
-        </div>
-
-        <div className="mt-4 sm:mt-5">
-          <InfoBlock icon={CheckCircle2} label="Conclusão da Análise SWOT" text={plan.swotConclusion} color="#0D1F4E" isDark={isDark} />
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3">
-          {plan.updatedAt && (
-            <p className="text-[11px] text-slate-400">
-              Atualizado em {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}
-            </p>
-          )}
-          <Button size="sm" variant="outline" iconLeft={<History className="w-3.5 h-3.5" />} onClick={() => setShowHistory(true)}>VER HISTÓRICO</Button>
-        </div>
+function SwotSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
+  const { isDark } = useTheme();
+  const [editing, setEditing] = useState(false);
+  return (
+    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
+      <SectionHeader title="Análise SWOT" subtitle="Forças e fraquezas (de dentro) · Oportunidades e ameaças (de fora)" onEdit={() => setEditing(true)} editLabel="EDITAR SWOT" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+        <SwotQuadrant field="swotStrengths" text={plan.swotStrengths} isDark={isDark} />
+        <SwotQuadrant field="swotWeaknesses" text={plan.swotWeaknesses} isDark={isDark} />
+        <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
+        <SwotQuadrant field="swotThreats" text={plan.swotThreats} isDark={isDark} />
       </div>
-
-      {editing && <OverviewEditModal plan={plan} onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
-      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
+      <InfoBlock icon={CheckCircle2} label="Conclusão da análise: o que isso significa na prática" text={plan.swotConclusion} color="#0D1F4E" isDark={isDark} />
+      {editing && <OverviewEditModal plan={plan} initialTab="swot" onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
     </div>
   );
 }
@@ -343,7 +607,7 @@ function HistoryModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; onClose: () => void; onSuccess: () => void }) {
+function OverviewEditModal({ plan, initialTab = 'identity', onClose, onSuccess }: { plan: BusinessPlan; initialTab?: 'identity' | 'market' | 'swot'; onClose: () => void; onSuccess: () => void }) {
   const { profile } = useAuth();
   const { show: toast } = useToast();
   const [form, setForm] = useState({
@@ -375,7 +639,7 @@ function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; o
     }
   };
 
-  const [tab, setTab] = useState<'identity' | 'market' | 'swot'>('identity');
+  const [tab, setTab] = useState<'identity' | 'market' | 'swot'>(initialTab);
   const TABS: { id: typeof tab; label: string; hint: string; keys: (keyof typeof form)[] }[] = [
     { id: 'identity', label: 'Identidade', hint: 'Missão, visão e valores', keys: ['missionText', 'visionText', 'valuesText'] },
     { id: 'market', label: 'Mercado e modelo', hint: 'Quem atendemos e como ganhamos dinheiro', keys: ['targetMarket', 'businessModel'] },
@@ -444,11 +708,16 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
   const { isDark } = useTheme();
   const { show: toast } = useToast();
   const [filterScope, setFilterScope] = useState<'all' | GoalScope>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | GoalStatus>('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editing, setEditing] = useState<BusinessGoal | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const filtered = goals.filter(g => filterScope === 'all' || g.scope === filterScope);
+  const filtered = goals
+    .filter(g => (filterScope === 'all' || g.scope === filterScope) && (filterStatus === 'all' || g.status === filterStatus))
+    .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0) || (a.targetDate ? new Date(a.targetDate).getTime() : Infinity) - (b.targetDate ? new Date(b.targetDate).getTime() : Infinity));
+  const statusCount = (k: GoalStatus) => goals.filter(g => g.status === k).length;
+  const avg = goals.length ? Math.round(goals.reduce((a, g) => a + (g.progress || 0), 0) / goals.length) : 0;
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -464,46 +733,60 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 self-start">
-          {([['all', 'Todas'], ['company', 'Da Empresa'], ['partner', 'De Sócios']] as [string, string][]).map(([v, l]) => (
+    <div className="space-y-4 sm:space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-4">
+          <RingChart value={avg} size={72} stroke={9} color="#2563EB" />
+          <div>
+            <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Metas</h3>
+            <p className="text-xs text-slate-400">{goals.length} no total · {statusCount('done')} concluídas · progresso médio de {avg}%</p>
+          </div>
+        </div>
+        <Button size="sm" className="self-start lg:self-auto" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA META</Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        {([['all', 'Todas', goals.length, '#0D1F4E'], ...(['in_progress', 'at_risk', 'not_started', 'done'] as GoalStatus[]).map(k => [k, GOAL_STATUS_CONFIG[k].label, statusCount(k), GOAL_COLORS[k]])] as [string, string, number, string][]).map(([v, l, n, c]) => (
+          <button key={v} onClick={() => setFilterStatus(v as any)} className="px-3 py-1.5 rounded-full text-xs font-black border whitespace-nowrap"
+            style={filterStatus === v ? { background: c, color: '#fff', borderColor: c } : { color: c, borderColor: `${c}55`, background: `${c}10` }}>{l} · {n}</button>
+        ))}
+        <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 ml-auto">
+          {([['all', 'Todas'], ['company', 'Empresa'], ['partner', 'Sócios']] as [string, string][]).map(([v, l]) => (
             <button key={v} onClick={() => setFilterScope(v as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${filterScope === v ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500'}`}
-              style={filterScope === v ? { color: isDark ? '#fff' : '#0D1F4E' } : undefined}>
-              {l}
-            </button>
+              className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-colors ${filterScope === v ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500'}`}
+              style={filterScope === v ? { color: isDark ? '#fff' : '#0D1F4E' } : undefined}>{l}</button>
           ))}
         </div>
-        <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA META</Button>
       </div>
 
       {filtered.length === 0 ? (
-        <EmptyState icon={Target} title="Nenhuma meta cadastrada" description="Defina metas para a empresa ou para um sócio específico." action={<Button onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA META</Button>} />
+        <EmptyState icon={Target} title="Nenhuma meta aqui" description="Defina metas para a empresa ou para um sócio específico." action={<Button onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA META</Button>} />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           <AnimatePresence>
             {filtered.map(g => {
-              const statusCfg = GOAL_STATUS_CONFIG[g.status];
+              const statusCfg = GOAL_STATUS_CONFIG[g.status], color = GOAL_COLORS[g.status];
+              const n = daysTo(g.targetDate);
+              const late = g.status !== 'done' && n !== null && n < 0;
               return (
-                <motion.div key={g.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{g.title}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {g.scope === 'partner' && g.partner ? `Sócio: ${g.partner.name}` : 'Meta da empresa'}
-                        {g.targetDate && ` · Até ${format(new Date(g.targetDate), 'dd/MM/yyyy')}`}
-                      </p>
+                <motion.div key={g.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/70 dark:border-white/10 shadow-sm p-4 flex flex-col gap-3 min-w-0" style={{ borderTop: `3px solid ${color}` }}>
+                  <div className="flex items-start gap-3">
+                    <RingChart value={g.progress} size={56} stroke={7} color={color} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-black leading-snug break-words" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{g.title}</p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">{g.scope === 'partner' && g.partner ? `Sócio: ${g.partner.name}` : 'Meta da empresa'}</p>
                     </div>
                     <RowMenu items={[
                       { label: 'Editar', icon: Edit2, onClick: () => { setEditing(g); setIsFormOpen(true); } },
                       { label: 'Remover', icon: Trash2, onClick: () => setDeletingId(g.id), danger: true },
                     ]} />
                   </div>
-                  {g.description && <p className="text-xs text-slate-500 dark:text-slate-300">{g.description}</p>}
-                  <ProgressBar progress={g.progress} size="sm" />
-                  <Badge color={statusCfg.color} size="sm" pill>{statusCfg.label}</Badge>
+                  {g.description && <p className="text-xs text-slate-500 dark:text-slate-300 line-clamp-3">{g.description}</p>}
+                  <div className="flex items-center justify-between gap-2 mt-auto pt-1">
+                    <Badge color={statusCfg.color} size="sm" pill>{statusCfg.label}</Badge>
+                    <span className="text-[11px] font-bold flex items-center gap-1" style={{ color: late ? '#DC2626' : '#94A3B8' }}><CalendarClock className="w-3 h-3" />{deadlineText(g.targetDate, g.status === 'done')}</span>
+                  </div>
                 </motion.div>
               );
             })}
@@ -646,16 +929,23 @@ function AchievementsSection({ achievements, onRefresh }: { achievements: Achiev
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-12 h-12 rounded-2xl flex items-center justify-center bg-amber-100 text-amber-700 flex-shrink-0"><Trophy className="w-6 h-6" /></span>
+          <div className="min-w-0">
+            <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Conquistas</h3>
+            <p className="text-xs text-slate-400">{achievements.length} marcos registrados{achievements[0] ? ` · o último foi em ${format(new Date(achievements[0].achievedAt), 'dd/MM/yyyy')}` : ''}</p>
+          </div>
+        </div>
+        <Button size="sm" className="self-start sm:self-auto" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA CONQUISTA</Button>
+      </div>
+
       {monthlyStats && monthlyStats.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <MonthlyBarChart title="Clientes novos por mês" color="#2a78d6" data={monthlyStats} values={monthlyStats.map(d => d.newClients)} isDark={isDark} />
           <MonthlyBarChart title="Contatos feitos por mês" color="#eb6834" data={monthlyStats} values={monthlyStats.map(d => d.contacts)} isDark={isDark} />
         </div>
       )}
-
-      <div className="flex justify-end">
-        <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA CONQUISTA</Button>
-      </div>
 
       {achievements.length === 0 ? (
         <EmptyState icon={Trophy} title="Nenhuma conquista registrada" description="Marque aqui os marcos importantes da Develoi." action={<Button onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA CONQUISTA</Button>} />
@@ -665,7 +955,7 @@ function AchievementsSection({ achievements, onRefresh }: { achievements: Achiev
           {achievements.map(a => (
             <div key={a.id} className="relative">
               <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-slate-900" style={{ background: '#C49A2A' }} />
-              <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 flex items-start justify-between gap-3">
+              <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/70 dark:border-white/10 shadow-sm p-4 flex items-start justify-between gap-3" style={{ borderLeft: '4px solid #C49A2A' }}>
                 {a.photoUrl && (
                   <img src={a.photoUrl} alt={a.title} className="w-16 h-16 rounded-lg object-cover border border-slate-200/60 dark:border-white/10 flex-shrink-0" />
                 )}
@@ -788,8 +1078,21 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
     }
   };
 
+  const act = partners.filter(p => p.active);
+  const palette = ['#0D1F4E', '#C49A2A', '#15803D', '#7C3AED', '#DC2626', '#0891B2'];
   return (
     <div className="space-y-4">
+      {act.length > 0 && (
+        <Panel title="Participação na sociedade" icon={Users} color="#7C3AED">
+          <div className="flex h-4 rounded-full overflow-hidden bg-slate-100 dark:bg-white/10">
+            {act.map((p, i) => <div key={p.id} title={`${p.name} ${p.sharePercent}%`} style={{ width: `${p.sharePercent}%`, background: p.color || palette[i % palette.length] }} />)}
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-3">
+            {act.map((p, i) => <span key={p.id} className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300"><i className="w-2.5 h-2.5 rounded-full" style={{ background: p.color || palette[i % palette.length] }} /><b>{p.name}</b> {p.sharePercent}%</span>)}
+          </div>
+        </Panel>
+      )}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
       {partners.filter(p => p.active).map(p => {
         const partnerGoals = goals.filter(g => g.scope === 'partner' && g.partnerId === p.id);
         const partnerEvals = evaluations.filter(e => e.partnerId === p.id);
@@ -871,6 +1174,7 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
           </div>
         );
       })}
+      </div>
 
       {editingResp && <ResponsibilitiesModal partner={editingResp} onClose={() => setEditingResp(null)} onSuccess={() => { setEditingResp(null); onRefresh(); }} />}
       {evalPartner && <EvaluationFormModal partner={evalPartner} onClose={() => setEvalPartner(null)} onSuccess={() => { setEvalPartner(null); onRefresh(); }} />}
@@ -1019,10 +1323,14 @@ function LegalSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => vo
         Esta lista é só um lembrete dos temas mais comuns para uma empresa de tecnologia. Para ter certeza do que se aplica à Develoi, confirme cada ponto com o contador ou advogado da empresa.
       </div>
 
-      <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 sm:p-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Checklist</p>
-          <span className="text-xs font-bold text-slate-400">{doneCount}/{checklist.length} resolvidos</span>
+      <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/70 dark:border-white/10 shadow-sm p-4 sm:p-5">
+        <div className="flex items-center gap-4 mb-4">
+          <RingChart value={checklist.length ? (doneCount / checklist.length) * 100 : 0} size={72} stroke={9} color="#0891B2" />
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Checklist jurídico</p>
+            <p className="text-xs text-slate-400">{doneCount} de {checklist.length} itens resolvidos</p>
+            <div className="h-2 rounded-full bg-slate-100 dark:bg-white/10 mt-2"><div className="h-full rounded-full bg-cyan-600" style={{ width: `${checklist.length ? (doneCount / checklist.length) * 100 : 0}%` }} /></div>
+          </div>
         </div>
         <div className="space-y-1">
           {checklist.map(item => (
