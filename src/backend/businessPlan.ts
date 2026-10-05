@@ -174,6 +174,7 @@ export function registerBusinessPlanRoutes(app: Express) {
           dueDate: req.body?.dueDate ? new Date(req.body.dueDate) : null,
           result: req.body?.result || null,
           notes: req.body?.notes || null,
+          status: req.body?.status || "not_started",
           createdByName: req.body?.createdByName || null,
         },
       }));
@@ -182,7 +183,7 @@ export function registerBusinessPlanRoutes(app: Express) {
 
   app.patch("/api/swot-action-plans/:id", async (req, res) => {
     try {
-      const allowed = ["title", "description", "responsible", "result", "notes"];
+      const allowed = ["title", "description", "responsible", "result", "notes", "status"];
       const data: any = {};
       for (const k of allowed) if (k in (req.body ?? {})) data[k] = req.body[k];
       if ("dueDate" in (req.body ?? {})) data.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;

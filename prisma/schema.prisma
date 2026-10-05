@@ -963,6 +963,7 @@ model SwotActionPlan {
   dueDate       DateTime? // prazo
   result        String?   @db.Text // resultado alcançado
   notes         String?   @db.Text // observação
+  status        String    @default("not_started") @db.VarChar(15) // not_started | in_progress | done | at_risk
   createdByName String?   @db.VarChar(100)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
