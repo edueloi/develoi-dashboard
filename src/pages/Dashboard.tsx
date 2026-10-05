@@ -1681,11 +1681,22 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
   ];
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="" size="lg">
-      <form onSubmit={handleSubmit}>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title=""
+      size="lg"
+      footer={
+        <div className="flex gap-3 w-full">
+          <Button type="button" variant="outline" size="lg" onClick={onClose}>CANCELAR</Button>
+          <Button type="submit" form="edit-project-form" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
+        </div>
+      }
+    >
+      <form id="edit-project-form" onSubmit={handleSubmit}>
 
         {/* Header do modal */}
-        <div className="relative rounded-2xl overflow-hidden mb-6 p-6" style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)' }}>
+        <div className="relative rounded-2xl overflow-hidden mb-5 p-5" style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)' }}>
           <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.2))' }} />
           <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
           <div className="relative z-10 flex items-center gap-4">
@@ -1701,7 +1712,7 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
         </div>
 
         {/* Tabs de seção */}
-        <div className="flex gap-1 mb-6 p-1 rounded-2xl border" style={{ background: 'rgba(240,242,248,0.6)', borderColor: 'rgba(13,31,78,0.08)' }}>
+        <div className="flex gap-1 mb-6 p-1 rounded-2xl border sticky top-0 z-10 backdrop-blur" style={{ background: '#EEF1F8', borderColor: 'rgba(13,31,78,0.08)' }}>
           {sections.map(s => (
             <button
               key={s.key}
@@ -1730,7 +1741,7 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
 
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">Status Atual</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {statusOptions.map(opt => (
                   <button
                     key={opt.value}
@@ -1750,7 +1761,7 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input label="Prazo Final" type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2 ml-1">Progresso: <span className="text-[#0D1F4E]">{progress}%</span></p>
@@ -1825,7 +1836,7 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 ml-1">
                   Membros com acesso ({allowedUsers.length} selecionado{allowedUsers.length !== 1 ? 's' : ''})
                 </p>
-                <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto custom-scrollbar p-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto custom-scrollbar p-1">
                   {members.map(member => {
                     const selected = allowedUsers.includes(member.uid);
                     return (
@@ -1862,20 +1873,6 @@ function EditProjectModal({ project, onClose }: { project: Project; onClose: () 
           </div>
         )}
 
-        {/* Footer de ação */}
-        <div className="flex gap-3 mt-7 pt-5" style={{ borderTop: '1px solid rgba(13,31,78,0.07)' }}>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold border transition-all hover:bg-slate-50"
-            style={{ color: '#64748b', borderColor: 'rgba(13,31,78,0.1)' }}
-          >
-            Cancelar
-          </button>
-          <Button type="submit" loading={loading} fullWidth size="lg">
-            SALVAR ALTERAÇÕES
-          </Button>
-        </div>
       </form>
     </Modal>
   );
