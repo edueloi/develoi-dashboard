@@ -14,7 +14,7 @@ import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLiveEvents } from '../../lib/liveEvents';
-import { RowMenu } from './financeShared';
+import { RowMenu, parseDay } from './financeShared';
 import { SidePanel } from '../ui/SidePanel';
 import { format } from 'date-fns';
 
@@ -1800,7 +1800,7 @@ function PartnersSection({ partners, goals, evaluations, onRefresh }: {
                   <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.name}</p>
                   <p className="text-[11px] text-slate-400">
                     {p.role || 'Sócio'} · {p.sharePercent}% da sociedade
-                    {p.birthDate && ` · 🎂 ${format(new Date(p.birthDate), 'dd/MM')}`}
+                    {p.birthDate && ` · 🎂 ${format(parseDay(p.birthDate)!, 'dd/MM')}`}
                   </p>
                 </div>
               </div>
