@@ -29,8 +29,12 @@ export default function AboutSection() {
               <p>A Develoi nasceu com uma essência familiar e um propósito claro: usar a tecnologia para ajudar pessoas e empresas a evoluírem de verdade.</p>
               <p>Não somos apenas fornecedores de código. Nós nos envolvemos de verdade nos projetos, entendemos suas dores, comemoramos suas vitórias e trabalhamos lado a lado para garantir resultados palpáveis.</p>
             </div>
-            <div className="pl-4 py-3 text-sm font-semibold leading-relaxed" style={{ borderLeft: '3px solid var(--brand-gold)', color: 'var(--brand-navy)', background: 'rgba(196,154,42,0.05)' }}>
+            <div className="pl-5 pr-4 py-4 rounded-r-xl text-base font-semibold leading-relaxed" style={{ borderLeft: '4px solid var(--brand-gold)', color: 'var(--brand-navy)', background: 'rgba(196,154,42,0.07)' }}>
               "Não somos apenas uma empresa de tecnologia. Somos parceiros na construção do seu crescimento."
+            </div>
+            <div className="flex flex-wrap gap-3 mt-8">
+              <a href="/valores" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white hover:opacity-90 transition-opacity" style={{ background: 'var(--brand-navy)' }}>Missão, visão e valores →</a>
+              <a href="/#contato" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm border hover:bg-white transition-colors" style={{ borderColor: 'var(--border-color)', color: 'var(--brand-navy)' }}>Fale com a gente</a>
             </div>
           </motion.div>
 

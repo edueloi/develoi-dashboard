@@ -109,7 +109,7 @@ export default function Values() {
               <h2 className="text-xl font-black tracking-tight mb-4" style={{ color: 'var(--brand-navy)' }}>
                 Nossa Missão
               </h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-base leading-relaxed whitespace-pre-line" style={{ color: 'var(--text-secondary)' }}>
                 {mission}
               </p>
             </motion.div>
@@ -136,7 +136,7 @@ export default function Values() {
               <h2 className="text-xl font-black tracking-tight mb-4 text-white">
                 Nossa Visão
               </h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              <p className="text-base leading-relaxed whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.75)' }}>
                 {vision}
               </p>
             </motion.div>
@@ -166,7 +166,7 @@ export default function Values() {
               className="font-black tracking-tight"
               style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', color: 'var(--brand-navy)' }}
             >
-              Nossos 7 Valores
+              Nossos {values.length} Valores
             </h2>
             <p className="text-sm mt-3 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
               Estes princípios definem como trabalhamos, como nos relacionamos e como entregamos valor a cada cliente.
@@ -174,7 +174,7 @@ export default function Values() {
           </motion.div>
 
           {/* Grid de valores */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {values.map((v, i) => {
               const IconComp = valueIcons[i % valueIcons.length];
               return (
@@ -184,7 +184,7 @@ export default function Values() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: i * 0.06 }}
-                  className="bg-white rounded-2xl p-6 border group transition-all duration-250 hover:-translate-y-1"
+                  className="relative overflow-hidden bg-white rounded-2xl p-7 border group transition-all duration-250 hover:-translate-y-1"
                   style={{
                     borderColor: 'var(--border-color)',
                     boxShadow: '0 2px 12px rgba(13,31,78,0.04)',
@@ -198,24 +198,17 @@ export default function Values() {
                     (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.04)';
                   }}
                 >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                      style={{ background: 'var(--bg-tertiary)' }}
-                    >
-                      <IconComp className="w-4.5 h-4.5" style={{ color: 'var(--brand-navy)' }} />
+                  <span className="absolute right-4 top-2 text-5xl font-black select-none" style={{ color: 'rgba(196,154,42,0.12)' }}>{String(i + 1).padStart(2, '0')}</span>
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)' }}>
+                      <IconComp className="w-5 h-5" style={{ color: 'var(--brand-gold)' }} />
                     </div>
-                    <div>
-                      <span className="text-[10px] font-black uppercase tracking-widest block mb-1" style={{ color: 'var(--text-muted)' }}>
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <h3 className="font-black text-sm leading-snug mb-2" style={{ color: 'var(--brand-navy)' }}>
-                        {v.title}
-                      </h3>
-                      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                        {v.description}
-                      </p>
-                    </div>
+                    <h3 className="font-black text-base leading-snug mb-2" style={{ color: 'var(--brand-navy)' }}>
+                      {v.title}
+                    </h3>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                      {v.description}
+                    </p>
                   </div>
                 </motion.div>
               );

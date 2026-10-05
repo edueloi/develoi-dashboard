@@ -73,11 +73,14 @@ function FeaturedSlider({ featured }: { featured: Case[] }) {
     stopAuto();
     setDragging(true);
     setDragStartX(e.clientX);
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDragOffset(0);
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!dragging) return;
-    setDragOffset(e.clientX - dragStartX);
+    const dx = e.clientX - dragStartX;
+    // só captura o ponteiro quando é arrasto de verdade; capturar no clique engolia o clique do botão "Ver Projeto"
+    if (Math.abs(dx) > 8 && !(e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setDragOffset(dx);
   };
   const onPointerUp = () => {
     if (!dragging) return;
@@ -198,7 +201,7 @@ function FeaturedSlider({ featured }: { featured: Case[] }) {
               <div className="flex items-center gap-3">
                 <Link
                   to={`/projetos/${c.slug}`}
-                  onClick={e => dragging && e.preventDefault()}
+                  onClick={e => Math.abs(dragOffset) > 8 && e.preventDefault()}
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200 hover:opacity-90 hover:-translate-y-px group"
                   style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}
                 >
