@@ -20,6 +20,14 @@ const DEFAULT_LEGAL_CHECKLIST = [
   { id: "pro-labore", label: "Pró-labore dos sócios definido e formalizado, se aplicável", done: false },
 ];
 
+const FIELD_LABELS: Record<string, string> = {
+  missionText: "Missão", visionText: "Visão", valuesText: "Valores",
+  swotStrengths: "Forças", swotWeaknesses: "Fraquezas", swotOpportunities: "Oportunidades", swotThreats: "Ameaças",
+  swotConclusion: "Conclusão da Análise SWOT",
+  targetMarket: "Mercado-Alvo / Público", businessModel: "Modelo de Negócio",
+  legalChecklist: "Checklist Jurídico", legalNotes: "Observações Jurídicas",
+};
+
 async function getOrCreatePlan() {
   const existing = await prisma.businessPlan.findUnique({ where: { id: "main" } });
   if (existing) return existing;
@@ -34,15 +42,40 @@ export function registerBusinessPlanRoutes(app: Express) {
 
   app.patch("/api/business-plan", async (req, res) => {
     try {
-      await getOrCreatePlan();
+      const current = await getOrCreatePlan();
       const allowed = [
         "missionText", "visionText", "valuesText",
-        "swotStrengths", "swotWeaknesses", "swotOpportunities", "swotThreats",
+        "swotStrengths", "swotWeaknesses", "swotOpportunities", "swotThreats", "swotConclusion",
         "targetMarket", "businessModel", "legalChecklist", "legalNotes", "updatedByName",
       ];
       const data: any = {};
       for (const k of allowed) if (k in req.body) data[k] = req.body[k];
-      res.json(await prisma.businessPlan.update({ where: { id: "main" }, data }));
+
+      const changes: { field: string; label: string; before: string | null; after: string | null }[] = [];
+      for (const k of Object.keys(data)) {
+        if (k === "updatedByName") continue;
+        if (k === "legalChecklist") {
+          const before = JSON.stringify((current as any)[k] ?? null);
+          const after = JSON.stringify(data[k] ?? null);
+          if (before !== after) changes.push({ field: k, label: FIELD_LABELS[k] ?? k, before: null, after: null });
+          continue;
+        }
+        const before = (current as any)[k] ?? null;
+        const after = data[k] ?? null;
+        if (before !== after) changes.push({ field: k, label: FIELD_LABELS[k] ?? k, before, after });
+      }
+
+      const updated = await prisma.businessPlan.update({ where: { id: "main" }, data });
+      if (changes.length) {
+        await prisma.businessPlanHistory.create({ data: { changedByName: req.body?.updatedByName || null, changes: changes as any } });
+      }
+      res.json(updated);
+    } catch (e) { fail(res, e); }
+  });
+
+  app.get("/api/business-plan/history", async (_req, res) => {
+    try {
+      res.json(await prisma.businessPlanHistory.findMany({ orderBy: { changedAt: "desc" }, take: 100 }));
     } catch (e) { fail(res, e); }
   });
 

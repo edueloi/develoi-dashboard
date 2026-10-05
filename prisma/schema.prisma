@@ -913,12 +913,21 @@ model BusinessPlan {
   swotWeaknesses    String?  @db.Text // fraquezas
   swotOpportunities String?  @db.Text // oportunidades
   swotThreats       String?  @db.Text // ameaças
+  swotConclusion    String?  @db.Text // conclusão da análise SWOT: o que isso significa na prática
   targetMarket      String?  @db.Text // público-alvo / mercado
   businessModel     String?  @db.Text // como a Develoi ganha dinheiro (modelo SaaS, planos, etc.)
   legalChecklist    Json?    // [{ id, label, done }] — pontos jurídicos/societários comuns de empresa SaaS
   legalNotes        String?  @db.Text // observações sobre contrato social, regime tributário, LGPD, etc.
   updatedByName     String?  @db.VarChar(100)
   updatedAt         DateTime @updatedAt
+}
+
+// Histórico de alterações do Plano de Negócio: quem mudou o quê e quando
+model BusinessPlanHistory {
+  id            String   @id @default(uuid())
+  changedByName String?  @db.VarChar(100)
+  changes       Json     // [{ field, label, before, after }]
+  changedAt     DateTime @default(now())
 }
 
 // Metas da empresa ou de um sócio específico, com acompanhamento de progresso

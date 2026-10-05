@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Compass, Target, Trophy, Users, ShieldCheck, Plus, Trash2, Edit2,
-  CheckCircle2, Circle, AlertTriangle, Save, Star,
+  CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
@@ -21,9 +21,14 @@ interface Partner { id: string; name: string; sharePercent: number; email?: stri
 interface BusinessPlan {
   missionText?: string | null; visionText?: string | null; valuesText?: string | null;
   swotStrengths?: string | null; swotWeaknesses?: string | null; swotOpportunities?: string | null; swotThreats?: string | null;
+  swotConclusion?: string | null;
   targetMarket?: string | null; businessModel?: string | null;
   legalChecklist?: { id: string; label: string; done: boolean }[] | null; legalNotes?: string | null;
   updatedByName?: string | null; updatedAt?: string;
+}
+interface BusinessPlanHistoryEntry {
+  id: string; changedByName?: string | null; changedAt: string;
+  changes: { field: string; label: string; before: string | null; after: string | null }[];
 }
 type GoalScope = 'company' | 'partner';
 type GoalStatus = 'not_started' | 'in_progress' | 'done' | 'at_risk';
@@ -216,6 +221,7 @@ function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_CONFIG
 function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
   const { isDark } = useTheme();
   const [editing, setEditing] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
@@ -250,10 +256,89 @@ function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
           <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
           <SwotQuadrant field="swotThreats" text={plan.swotThreats} isDark={isDark} />
         </div>
+
+        <div className="mt-4 sm:mt-5 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm p-5 sm:p-6">
+          <InfoBlock icon={CheckCircle2} label="Conclusão da Análise SWOT" text={plan.swotConclusion} color="#0D1F4E" isDark={isDark} />
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-3">
+          {plan.updatedAt && (
+            <p className="text-[11px] text-slate-400">
+              Atualizado em {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}
+            </p>
+          )}
+          <Button size="sm" variant="outline" iconLeft={<History className="w-3.5 h-3.5" />} onClick={() => setShowHistory(true)}>VER HISTÓRICO</Button>
+        </div>
       </div>
 
       {editing && <OverviewEditModal plan={plan} onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
     </div>
+  );
+}
+
+function HistoryModal({ onClose }: { onClose: () => void }) {
+  const { isDark } = useTheme();
+  const [history, setHistory] = useState<BusinessPlanHistoryEntry[] | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/business-plan/history').then(r => r.json()).then(setHistory).catch(() => setHistory([]));
+  }, []);
+
+  return (
+    <Modal isOpen={true} onClose={onClose} title="Histórico de Alterações do Plano" size="lg">
+      {history === null ? (
+        <div className="text-center py-10 text-slate-400">Carregando...</div>
+      ) : history.length === 0 ? (
+        <EmptyState icon={History} title="Nenhuma alteração registrada ainda" description="Assim que alguém editar o plano, aparece aqui quem mudou, o quê e quando." />
+      ) : (
+        <div className="space-y-2.5 max-h-[65vh] overflow-y-auto pr-1">
+          {history.map(h => {
+            const open = openId === h.id;
+            return (
+              <div key={h.id} className="rounded-xl border border-slate-200/60 dark:border-white/10 overflow-hidden">
+                <button
+                  onClick={() => setOpenId(open ? null : h.id)}
+                  className="w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>
+                      {h.changedByName || 'Alguém'} <span className="font-medium text-slate-400">alterou {h.changes.map(c => c.label).join(', ')}</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{format(new Date(h.changedAt), 'dd/MM/yyyy HH:mm')}</p>
+                  </div>
+                  <ArrowRight className={`w-4 h-4 text-slate-300 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                </button>
+                {open && (
+                  <div className="px-3.5 pb-3.5 space-y-3">
+                    {h.changes.map((c, i) => (
+                      <div key={i} className="text-xs">
+                        <p className="font-black mb-1" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{c.label}</p>
+                        {c.before === null && c.after === null ? (
+                          <p className="text-slate-400 italic">Lista de itens alterada.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-500/10">
+                              <p className="text-[9px] font-black uppercase tracking-wider text-rose-500 mb-1">Antes</p>
+                              <p className="text-slate-600 dark:text-slate-300 whitespace-pre-line">{c.before || '—'}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-500/10">
+                              <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600 mb-1">Depois</p>
+                              <p className="text-slate-600 dark:text-slate-300 whitespace-pre-line">{c.after || '—'}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -265,6 +350,7 @@ function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; o
     targetMarket: plan.targetMarket || '', businessModel: plan.businessModel || '',
     swotStrengths: plan.swotStrengths || '', swotWeaknesses: plan.swotWeaknesses || '',
     swotOpportunities: plan.swotOpportunities || '', swotThreats: plan.swotThreats || '',
+    swotConclusion: plan.swotConclusion || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -292,7 +378,7 @@ function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; o
   const TABS: { id: typeof tab; label: string; hint: string; keys: (keyof typeof form)[] }[] = [
     { id: 'identity', label: 'Identidade', hint: 'Missão, visão e valores', keys: ['missionText', 'visionText', 'valuesText'] },
     { id: 'market', label: 'Mercado e modelo', hint: 'Quem atendemos e como ganhamos dinheiro', keys: ['targetMarket', 'businessModel'] },
-    { id: 'swot', label: 'Análise SWOT', hint: 'Forças, fraquezas, oportunidades e ameaças', keys: ['swotStrengths', 'swotWeaknesses', 'swotOpportunities', 'swotThreats'] },
+    { id: 'swot', label: 'Análise SWOT', hint: 'Forças, fraquezas, oportunidades e ameaças', keys: ['swotStrengths', 'swotWeaknesses', 'swotOpportunities', 'swotThreats', 'swotConclusion'] },
   ];
   const idx = TABS.findIndex(t => t.id === tab);
   const filled = (t: typeof TABS[number]) => t.keys.filter(k => form[k].trim()).length;
@@ -336,11 +422,14 @@ function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; o
           </div>
         )}
         {tab === 'swot' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {field('swotStrengths', 'Forças', 'O que fazemos bem? (uma por linha)', 9)}
-            {field('swotWeaknesses', 'Fraquezas', 'Onde precisamos melhorar?', 9)}
-            {field('swotOpportunities', 'Oportunidades', 'O que podemos aproveitar no mercado?', 9)}
-            {field('swotThreats', 'Ameaças', 'O que pode atrapalhar o crescimento?', 9)}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {field('swotStrengths', 'Forças', 'O que fazemos bem? (uma por linha)', 9)}
+              {field('swotWeaknesses', 'Fraquezas', 'Onde precisamos melhorar?', 9)}
+              {field('swotOpportunities', 'Oportunidades', 'O que podemos aproveitar no mercado?', 9)}
+              {field('swotThreats', 'Ameaças', 'O que pode atrapalhar o crescimento?', 9)}
+            </div>
+            {field('swotConclusion', 'Conclusão da Análise SWOT', 'O que esses pontos significam na prática? O que a empresa deve priorizar a partir disso?', 5)}
           </div>
         )}
       </form>
