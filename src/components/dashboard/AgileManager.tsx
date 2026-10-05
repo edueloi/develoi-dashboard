@@ -56,6 +56,23 @@ function Assignee({ name, size = 24 }: { name?: string | null; size?: number }) 
   );
 }
 
+// Duplica um ticket: copia os campos, volta para "A Fazer" e zera as subtarefas (comentários e histórico não vão)
+async function duplicateFeature(f: Feature): Promise<string | null> {
+  const key = `${f.projectId.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const acts = parseActivities(f.activities).map(a => ({ ...a, id: uuidv4(), done: false }));
+  const res = await fetch(`/api/projects/${f.projectId}/features`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      id: uuidv4(), key, projectId: f.projectId, sprintId: f.sprintId || null,
+      title: `${f.title} (cópia)`, description: f.description || '', type: f.type || 'task', priority: f.priority || 'medium', points: f.points || 0,
+      status: 'todo', reporter: f.reporter || '', assignedTo: f.assignedTo || null, functionalArea: f.functionalArea || '',
+      functionalRequirements: f.functionalRequirements || '', acceptanceCriteria: f.acceptanceCriteria || '', businessRules: f.businessRules || '',
+      deadline: f.deadline || null, activities: stringifyActivities(acts), linkedDemandId: f.linkedDemandId || null, linkedDemandTitle: f.linkedDemandTitle || null,
+    }),
+  });
+  return res.ok ? key : null;
+}
+
 // itens do menu "quem assume": eu, cada pessoa da equipe e remover
 function useAssignItems(feature: Feature, onRefresh: () => void) {
   const { profile } = useAuth();
@@ -69,6 +86,7 @@ function useAssignItems(feature: Feature, onRefresh: () => void) {
     onRefresh();
   };
   const items: { label: string; icon: any; onClick: () => void; danger?: boolean }[] = [];
+  items.push({ label: 'Duplicar ticket', icon: Copy, onClick: async () => { const k = await duplicateFeature(feature); if (k) onRefresh(); } });
   if (me && feature.assignedTo !== me) items.push({ label: 'Assumir (eu)', icon: UsersIcon, onClick: () => assign(me) });
   team.filter(n => n !== me && n !== feature.assignedTo).forEach(n => items.push({ label: `Atribuir a ${n}`, icon: User, onClick: () => assign(n) }));
   if (feature.assignedTo) items.push({ label: 'Remover responsável', icon: X, onClick: () => assign(null), danger: true });
@@ -1349,6 +1367,7 @@ function CommentsPanel({ projectId, featureId }: { projectId: string; featureId:
 function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature: Feature; onClose: () => void; onSuccess: () => void; onChanged?: () => void }) {
   const { profile, isAdmin } = useAuth();
   const [mode, setMode] = useState<'view' | 'edit'>('view');
+  const [dupBusy, setDupBusy] = useState(false);
   const [title,       setTitle]       = useState(feature.title);
   const [desc,        setDesc]        = useState(feature.description || '');
   const [type,        setType]        = useState(feature.type || 'task');
@@ -1436,7 +1455,7 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
         <div className="flex gap-2 sm:justify-between items-center">
           <button type="button" onClick={() => setConfirmDelete(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button>
           <div className="flex gap-2 flex-1 sm:flex-none">
-            <Button type="button" variant="outline" onClick={onClose} className="hidden sm:inline-flex">FECHAR</Button>
+            <Button type="button" variant="outline" iconLeft={<Copy className="w-4 h-4" />} loading={dupBusy} onClick={async () => { setDupBusy(true); const k = await duplicateFeature(feature); setDupBusy(false); if (k) { onChanged?.(); onClose(); } }}>DUPLICAR</Button>
             <Button type="button" fullWidth className="sm:w-56" iconLeft={<Pencil className="w-4 h-4" />} onClick={() => setMode('edit')}>EDITAR TICKET</Button>
           </div>
         </div>
