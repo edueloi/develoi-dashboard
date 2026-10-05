@@ -220,6 +220,14 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, [projectIdsKey]);
 
+  // o ticket é "meu" se sou o responsável (nome ou uid) ou estou em parceria
+  const isMineFeature = (f: Feature) => {
+    const me = profile?.displayName;
+    const collab = (f as any).collaborators as string[] | null | undefined;
+    return f.assignedTo === profile?.uid || (!!me && (f.assignedTo === me || (Array.isArray(collab) && collab.includes(me))));
+  };
+  const openProject = (p: Project, tab: ActiveTab) => { setSelectedProject(p); goTo(tab, p); };
+
   const goTo = (tab: ActiveTab, project?: Project | null) => {
     const proj = project !== undefined ? project : selectedProject;
     const path = TAB_TO_PATH[tab];
@@ -465,7 +473,7 @@ export default function Dashboard() {
         {/* Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
           <div className="p-3 sm:p-4 lg:p-5 pb-8">
-            <AnimatePresence mode="wait">
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
               {activeTab === 'overview' && (
                 <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-6">
 
@@ -573,6 +581,101 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* ── PROJETOS E O QUE AINDA FALTA FAZER ── */}
+                  {(() => {
+                    const PRIO: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+                    const now = Date.now();
+                    const rows = projects
+                      .map(pr => {
+                        const fs = allFeatures.filter(f => f.projectId === pr.id);
+                        const pending = fs.filter(f => f.status !== 'done');
+                        return {
+                          pr, total: fs.length, done: fs.length - pending.length,
+                          backlog: pending.filter(f => !f.sprintId).length,
+                          doing: pending.filter(f => ['in-progress', 'review', 'testing'].includes(f.status)).length,
+                          todo: pending.filter(f => f.status === 'todo' && f.sprintId).length,
+                          late: pending.filter(f => f.deadline && new Date(f.deadline).getTime() < now).length,
+                        };
+                      })
+                      .sort((a, b) => (a.pr.status === 'completed' ? 1 : 0) - (b.pr.status === 'completed' ? 1 : 0) || (b.backlog + b.doing + b.todo) - (a.backlog + a.doing + a.todo));
+                    const backlogList = allFeatures
+                      .filter(f => f.status !== 'done' && !f.sprintId)
+                      .sort((a, b) => (PRIO[a.priority || 'medium'] ?? 2) - (PRIO[b.priority || 'medium'] ?? 2) || new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime())
+                      .slice(0, 8);
+                    const prioColor: Record<string, string> = { critical: '#DC2626', high: '#D97706', medium: '#2563EB', low: '#64748B' };
+                    const prioLabel: Record<string, string> = { critical: 'Crítica', high: 'Alta', medium: 'Média', low: 'Baixa' };
+                    return (
+                      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                        <div className="xl:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
+                          <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.08)' }}><Briefcase className="w-4 h-4" style={{ color: '#0D1F4E' }} /></div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Projetos e o que falta fazer</p>
+                                <p className="text-[10px] text-slate-400">Backlog, andamento e atrasos de cada projeto, com acesso rápido</p>
+                              </div>
+                            </div>
+                            <button onClick={() => goTo('projects')} className="text-[11px] font-black text-indigo-600 hover:underline flex-shrink-0">Todos os projetos</button>
+                          </div>
+                          {rows.length === 0 ? <p className="p-6 text-sm text-slate-400">Nenhum projeto ainda.</p> : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 sm:p-5">
+                              {rows.map(({ pr, total, done, backlog, doing, todo, late }) => (
+                                <div key={pr.id} className="rounded-2xl border border-slate-200/70 dark:border-white/10 p-4 flex flex-col gap-3 min-w-0 hover:shadow-md transition-shadow">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black flex-shrink-0" style={{ background: '#0D1F4E' }}>{pr.name[0]?.toUpperCase()}</div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{pr.name}</p>
+                                      <p className="text-[10px] font-semibold text-slate-400 truncate">{pr.status === 'completed' ? 'Concluído' : pr.status === 'on-hold' ? 'Em espera' : 'Ativo'}{total ? ` · ${done} de ${total} tickets feitos` : ' · sem tickets'}</p>
+                                    </div>
+                                    <span className="text-xs font-black text-slate-500">{pr.progress ?? 0}%</span>
+                                  </div>
+                                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${pr.progress ?? 0}%` }} /></div>
+                                  <div className="flex flex-wrap gap-1.5 text-[10px] font-black">
+                                    <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-600">Backlog {backlog}</span>
+                                    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">Em andamento {doing}</span>
+                                    <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700">A fazer {todo}</span>
+                                    {late > 0 && <span className="px-2 py-1 rounded-full bg-red-50 text-red-600">Atrasados {late}</span>}
+                                  </div>
+                                  <div className="flex gap-1.5 mt-auto pt-1">
+                                    {([['backlog', 'Backlog'], ['board', 'Quadro'], ['summary', 'Resumo']] as const).map(([t, l]) => (
+                                      <button key={t} onClick={() => openProject(pr, t as ActiveTab)} className="flex-1 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-[11px] font-black text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">{l}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+                          <div className="px-5 sm:px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Backlog pendente</p>
+                            <p className="text-[10px] text-slate-400">Tickets criados que ainda não entraram em uma sprint</p>
+                          </div>
+                          {backlogList.length === 0 ? <p className="p-6 text-sm text-slate-400">Nada parado no backlog. 🎉</p> : (
+                            <ul className="divide-y divide-slate-100 dark:divide-white/5 flex-1">
+                              {backlogList.map(f => {
+                                const pr = projects.find(x => x.id === f.projectId);
+                                return (
+                                  <li key={f.id}>
+                                    <button onClick={() => pr && openProject(pr, 'backlog')} className="w-full text-left px-5 sm:px-6 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3">
+                                      <span className="w-1.5 self-stretch rounded-full flex-shrink-0" style={{ background: prioColor[f.priority || 'medium'] }} />
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-2">{f.title}</span>
+                                        <span className="block text-[10px] text-slate-400 mt-0.5 truncate">{f.key} · {pr?.name ?? 'Projeto'} · {prioLabel[f.priority || 'medium']}{f.assignedTo ? ` · ${f.assignedTo.split(' ')[0]}` : ' · sem responsável'}</span>
+                                      </span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                          <button onClick={() => goTo('backlog')} className="px-5 py-3 text-xs font-black text-indigo-600 hover:bg-indigo-50/50 border-t border-slate-100 dark:border-white/5 text-left">Abrir o backlog do projeto selecionado</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* ── LINHA PRINCIPAL: Minhas tarefas + Prazos próximos ── */}
                   <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
@@ -592,7 +695,7 @@ export default function Dashboard() {
                       <div className="divide-y divide-slate-100 dark:divide-white/5">
                         {(() => {
                           const myTasks = allFeatures
-                            .filter(f => f.status !== 'done' && f.assignedTo === profile?.uid)
+                            .filter(f => f.status !== 'done' && isMineFeature(f))
                             .sort((a, b) => {
                               const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
                               const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
@@ -807,7 +910,7 @@ export default function Dashboard() {
                 <EmptyState icon={ShieldCheck} title="Acesso restrito" description="Essa área é só para os sócios da Develoi." />
               ))}
               {activeTab === 'profile' && <MyProfile />}
-            </AnimatePresence>
+            </motion.div>
           </div>
         </main>
       </div>
