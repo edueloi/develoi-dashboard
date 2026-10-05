@@ -623,7 +623,7 @@ async function startServer() {
     });
 
     app.delete("/api/site/team/:id", async (req, res) => {
-      await prisma.teamMember.delete({ where: { id: req.params.id } });
+      await prisma.teamMember.deleteMany({ where: { id: req.params.id } }); // não derruba o servidor se já foi removido
       res.json({ success: true });
     });
 
