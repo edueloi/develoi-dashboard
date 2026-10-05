@@ -85,6 +85,7 @@ model Feature {
   acceptanceCriteria      String?  @db.Text
   functionalRequirements  String?  @db.Text
   businessRules           String?  @db.Text
+  collaborators           Json?    // pessoas que trabalham em parceria com o responsável: ["Nome", ...]
   linkedDemandId          String?
   linkedDemandTitle       String?  @db.VarChar(512)
   createdAt               DateTime @default(now())

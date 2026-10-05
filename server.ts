@@ -387,7 +387,7 @@ async function startServer() {
         'id','key','projectId','sprintId','title','description','status','priority','category',
         'assignedTo','type','tags','points','deadline','activities','testCases','testEvidence',
         'testObservations','reporter','functionalArea','acceptanceCriteria','functionalRequirements',
-        'businessRules','linkedDemandId','linkedDemandTitle','createdAt',
+        'businessRules','linkedDemandId','linkedDemandTitle','collaborators','createdAt',
       ];
       const clean: any = {};
       for (const k of allowed) { if (k in body) clean[k] = body[k]; }

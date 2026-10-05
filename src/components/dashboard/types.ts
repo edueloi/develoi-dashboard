@@ -43,6 +43,7 @@ export interface Feature {
   testScenarios?: string;
   businessRules?: string;
   assignedTo?: string;
+  collaborators?: string[] | null;
   reporter?: string;
   isValidated?: boolean;
   validatedBy?: string;

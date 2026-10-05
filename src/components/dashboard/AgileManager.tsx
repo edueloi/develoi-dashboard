@@ -56,6 +56,43 @@ function Assignee({ name, size = 24 }: { name?: string | null; size?: number }) 
   );
 }
 
+// Quem trabalha no ticket: o responsável e quem está em parceria
+const peopleOf = (f: { assignedTo?: string | null; collaborators?: string[] | null }) => [...new Set([f.assignedTo, ...(Array.isArray(f.collaborators) ? f.collaborators : [])].filter(Boolean) as string[])];
+const isMine = (f: { assignedTo?: string | null; collaborators?: string[] | null }, me?: string | null) => !!me && peopleOf(f).includes(me);
+
+function AssigneeStack({ feature, size = 24 }: { feature: { assignedTo?: string | null; collaborators?: string[] | null }; size?: number }) {
+  const people = peopleOf(feature);
+  if (people.length === 0) return <Assignee name={null} size={size} />;
+  return (
+    <span className="flex items-center flex-shrink-0" title={people.join(' + ')}>
+      {people.slice(0, 3).map((n, i) => <span key={n} className="rounded-lg ring-2 ring-white" style={{ marginLeft: i ? -size * 0.3 : 0 }}><Assignee name={n} size={size} /></span>)}
+      {people.length > 3 && <span className="text-[10px] font-black text-slate-400 ml-1">+{people.length - 3}</span>}
+    </span>
+  );
+}
+
+// escolhe quem trabalha junto (parceria): chips com X e um seletor para adicionar
+function PartnersField({ value, onChange, team, exclude }: { value: string[]; onChange: (v: string[]) => void; team: string[]; exclude?: string }) {
+  const options = team.filter(n => n !== exclude && !value.includes(n));
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5 mb-1.5">
+        {value.length === 0 && <span className="text-xs text-slate-400">Ninguém em parceria</span>}
+        {value.map(n => (
+          <span key={n} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">
+            <Assignee name={n} size={18} />{n.split(' ')[0]}
+            <button type="button" onClick={() => onChange(value.filter(x => x !== n))} className="text-indigo-300 hover:text-rose-500"><X className="w-3 h-3" /></button>
+          </span>
+        ))}
+      </div>
+      {options.length > 0 && (
+        <Select aria-label="Adicionar parceiro" value="" onChange={e => { if (e.target.value) onChange([...value, e.target.value]); }}
+          options={[{ value: '', label: '+ Adicionar parceiro' }, ...options.map(n => ({ value: n, label: n }))]} />
+      )}
+    </div>
+  );
+}
+
 // Duplica um ticket: copia os campos, volta para "A Fazer" e zera as subtarefas (comentários e histórico não vão)
 async function duplicateFeature(f: Feature): Promise<string | null> {
   const key = `${f.projectId.slice(0, 3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -67,7 +104,7 @@ async function duplicateFeature(f: Feature): Promise<string | null> {
       title: `${f.title} (cópia)`, description: f.description || '', type: f.type || 'task', priority: f.priority || 'medium', points: f.points || 0,
       status: 'todo', reporter: f.reporter || '', assignedTo: f.assignedTo || null, functionalArea: f.functionalArea || '',
       functionalRequirements: f.functionalRequirements || '', acceptanceCriteria: f.acceptanceCriteria || '', businessRules: f.businessRules || '',
-      deadline: f.deadline || null, activities: stringifyActivities(acts), linkedDemandId: f.linkedDemandId || null, linkedDemandTitle: f.linkedDemandTitle || null,
+      deadline: f.deadline || null, activities: stringifyActivities(acts), linkedDemandId: f.linkedDemandId || null, linkedDemandTitle: f.linkedDemandTitle || null, collaborators: f.collaborators ?? null,
     }),
   });
   return res.ok ? key : null;
@@ -89,6 +126,13 @@ function useAssignItems(feature: Feature, onRefresh: () => void) {
   items.push({ label: 'Duplicar ticket', icon: Copy, onClick: async () => { const k = await duplicateFeature(feature); if (k) onRefresh(); } });
   if (me && feature.assignedTo !== me) items.push({ label: 'Assumir (eu)', icon: UsersIcon, onClick: () => assign(me) });
   team.filter(n => n !== me && n !== feature.assignedTo).forEach(n => items.push({ label: `Atribuir a ${n}`, icon: User, onClick: () => assign(n) }));
+  const partners = Array.isArray(feature.collaborators) ? feature.collaborators : [];
+  const setPartners = async (list: string[]) => {
+    await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ collaborators: list.length ? list : null, actorId: profile?.uid, actorName: me }) });
+    onRefresh();
+  };
+  if (feature.assignedTo) team.filter(n => n !== feature.assignedTo && !partners.includes(n)).forEach(n => items.push({ label: `Trabalhar em dupla com ${n}`, icon: UsersIcon, onClick: () => setPartners([...partners, n]) }));
+  partners.forEach(n => items.push({ label: `Tirar a parceria de ${n}`, icon: X, onClick: () => setPartners(partners.filter(x => x !== n)) }));
   if (feature.assignedTo) items.push({ label: 'Remover responsável', icon: X, onClick: () => assign(null), danger: true });
   return items;
 }
@@ -311,7 +355,7 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
   const [year, setYear] = useState<'all' | number>('all');
 
   const backlogAll = features.filter(f => !f.sprintId);
-  const backlogFeatures = backlogAll.filter(f => (typeF === 'all' || (f.type || 'task') === typeF) && (whoF === 'all' || (whoF === 'me' ? f.assignedTo === me?.displayName : !f.assignedTo)) && (!q.trim() || `${f.key ?? ''} ${f.title}`.toLowerCase().includes(q.trim().toLowerCase())));
+  const backlogFeatures = backlogAll.filter(f => (typeF === 'all' || (f.type || 'task') === typeF) && (whoF === 'all' || (whoF === 'me' ? isMine(f, me?.displayName) : !f.assignedTo)) && (!q.trim() || `${f.key ?? ''} ${f.title}`.toLowerCase().includes(q.trim().toLowerCase())));
   const running = sprints.filter(s => s.status === 'active');
   const planned = sprints.filter(s => s.status === 'planned');
   const completed = sprints.filter(s => s.status === 'completed').sort((a, b) => new Date(b.endDate ?? b.startDate ?? b.createdAt).getTime() - new Date(a.endDate ?? a.startDate ?? a.createdAt).getTime());
@@ -786,7 +830,7 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           <div className="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500">
             {feature.points || 0}
           </div>
-          <Assignee name={feature.assignedTo} />
+          <AssigneeStack feature={feature} />
           {assignItems.length > 0 && <RowMenu items={assignItems} />}
           {/* Edit */}
           <button
@@ -857,7 +901,7 @@ function ActiveBoardView({ projectId, features, sprints, activeSprint, onRefresh
   }
 
   const sprintAll = features.filter(f => f.sprintId === sprint.id);
-  const sprintFeatures = sprintAll.filter(f => whoF === 'all' || (whoF === 'me' ? f.assignedTo === me?.displayName : !f.assignedTo));
+  const sprintFeatures = sprintAll.filter(f => whoF === 'all' || (whoF === 'me' ? isMine(f, me?.displayName) : !f.assignedTo));
   const columns = [
     { id: 'todo',        label: 'A Fazer',          color: 'default'  },
     { id: 'in-progress', label: 'Em Desenvolvimento', color: 'info'   },
@@ -920,7 +964,7 @@ function ActiveBoardView({ projectId, features, sprints, activeSprint, onRefresh
 
         <div className="flex flex-wrap gap-1.5 items-center">
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-1">Mostrar</span>
-          {([['all', `Todos (${sprintAll.length})`], ['me', `Meus (${sprintAll.filter(f => f.assignedTo === me?.displayName).length})`], ['none', `Sem responsável (${sprintAll.filter(f => !f.assignedTo).length})`]] as const).map(([v, l]) => (
+          {([['all', `Todos (${sprintAll.length})`], ['me', `Meus (${sprintAll.filter(f => isMine(f, me?.displayName)).length})`], ['none', `Sem responsável (${sprintAll.filter(f => !f.assignedTo).length})`]] as const).map(([v, l]) => (
             <button key={v} onClick={() => setWhoF(v)} className="px-3 py-1.5 rounded-full text-xs font-bold border"
               style={whoF === v ? { background: '#4F46E5', color: '#fff', borderColor: '#4F46E5' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)', background: '#fff' }}>{l}</button>
           ))}
@@ -1031,8 +1075,8 @@ function BoardCard({ provided, feature, onRefresh }: { provided: any; feature: F
           )}
           <div className="flex items-center justify-between pt-2 border-t border-slate-50">
             <div className="flex items-center gap-2 min-w-0">
-              <Assignee name={feature.assignedTo} size={26} />
-              <span className="text-[10px] font-bold text-slate-400 truncate">{feature.assignedTo ? feature.assignedTo.split(' ')[0] : 'Sem responsável'}</span>
+              <AssigneeStack feature={feature} size={26} />
+              <span className="text-[10px] font-bold text-slate-400 truncate">{peopleOf(feature).length ? peopleOf(feature).map(n => n.split(' ')[0]).join(' + ') : 'Sem responsável'}</span>
             </div>
             <div className="flex items-center gap-1" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
               {assignItems.length > 0 && <RowMenu items={assignItems} />}
@@ -1377,6 +1421,7 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
   const [sprintId,    setSprintId]    = useState(feature.sprintId || '');
   const [reporter,    setReporter]    = useState(feature.reporter || '');
   const [assignee,    setAssignee]    = useState(feature.assignedTo || '');
+  const [collab,      setCollab]      = useState<string[]>(Array.isArray(feature.collaborators) ? feature.collaborators : []);
   const team = useTeam();
   const [sprints,     setSprints]     = useState<Sprint[]>([]);
   const [area,        setArea]        = useState(feature.functionalArea || '');
@@ -1404,7 +1449,7 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title, description: desc, type, priority, points: type === 'epic' ? 0 : points, status, sprintId: sprintId || null,
-          reporter, assignedTo: assignee || null, functionalArea: area,
+          reporter, assignedTo: assignee || null, collaborators: collab.length ? collab : null, functionalArea: area,
           functionalRequirements: funcReqs,
           acceptanceCriteria: acceptance,
           businessRules: objective,
@@ -1533,6 +1578,8 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
             </div>
             {profile?.displayName && assignee !== profile.displayName && <button type="button" onClick={() => setAssignee(profile.displayName as string)} className="text-[11px] font-black text-indigo-600 mt-1.5 hover:underline">Assumir para mim</button>}
           </div>
+          <div className="col-span-2"><label className={lbl}>Em parceria com (trabalham juntos)</label>
+            <PartnersField value={collab} onChange={setCollab} team={team} exclude={assignee} /></div>
           <div className="col-span-2"><label className={lbl}>Relator (quem solicitou)</label>
             <Select value={reporter} onChange={e => setReporter(e.target.value)}
               options={[{ value: '', label: 'Não informado' }, ...[...new Set([...team, ...(reporter ? [reporter] : [])])].map(n => ({ value: n, label: n }))]} /></div>
@@ -1646,6 +1693,10 @@ function TicketView({ feature, full, sprintName, team, me, onPatch }: {
             </select>
             {me && feature.assignedTo !== me && <button type="button" onClick={() => onPatch({ assignedTo: me })} className="text-[11px] font-black text-indigo-600 hover:underline">Assumir para mim</button>}
           </div>
+        </div>
+        <div className="sm:col-span-2 rounded-xl border border-slate-200 p-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Em parceria (trabalham juntos neste ticket)</p>
+          <PartnersField value={Array.isArray(feature.collaborators) ? feature.collaborators : []} onChange={v => onPatch({ collaborators: v.length ? v : null })} team={team} exclude={feature.assignedTo || undefined} />
         </div>
         <div className="rounded-xl border border-slate-200 p-3 flex items-center gap-3">
           <Assignee name={feature.reporter} size={36} />
@@ -2900,6 +2951,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   const [sprintId,   setSprintId]   = useState(defaultSprintId);
   const [reporter,   setReporter]   = useState('');
   const [assignee,   setAssignee]   = useState('');
+  const [collab,     setCollab]     = useState<string[]>([]);
   const team = useTeam();
   const [area,       setArea]       = useState('');
   const [funcReqs,   setFuncReqs]   = useState('');
@@ -2931,6 +2983,7 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
           status: 'todo',
           reporter,
           assignedTo: assignee || null,
+          collaborators: collab.length ? collab : null,
           functionalArea: area,
           functionalRequirements: funcReqs,
           acceptanceCriteria: acceptance,
@@ -2953,59 +3006,52 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
   const cfg = TYPE_CONFIG[type];
   const modalTitles = { story: 'Nova História', task: 'Nova Tarefa', bug: 'Novo Bug', epic: 'Nova Demanda' };
 
+  const lbl = 'text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block';
+  const typeChips = ([['story', 'História', <CheckCircle2 className="w-4 h-4" />], ['task', 'Tarefa', <Briefcase className="w-4 h-4" />], ['bug', 'Bug', <AlertCircle className="w-4 h-4" />], ['epic', 'Demanda', <Rocket className="w-4 h-4" />]] as const);
+
   return (
-    <Modal isOpen onClose={onClose} title={modalTitles[type]} size="2xl">
-      <form onSubmit={handleSubmit} className="space-y-5">
-
-        {/* Seletor de tipo visual */}
-        <TypeSelector value={type} onChange={handleTypeChange} />
-
-        {/* Identificação comum */}
-        <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
-        <Input
-          label="Título *"
-          required
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder={
-            type === 'story' ? 'Ex: [CINF-2383] Alteração de Labels na tela de Aviso Embarque' :
-            type === 'task'  ? 'Ex: Configurar integração com API de pagamentos' :
-            type === 'bug'   ? 'Ex: [BUG] Filtro de datas não retorna resultados corretos' :
-                               'Ex: Módulo de Relatórios Gerenciais'
-          }
-        />
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
-            <option value="low">Baixa</option>
-            <option value="medium">Média</option>
-            <option value="high">Alta</option>
-            <option value="critical">Crítica</option>
-          </Select>
-          <Select label="Sprint" value={sprintId} onChange={e => setSprintId(e.target.value)}>
-            <option value="">Backlog</option>
-            {sprints.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.status === 'active' ? 'Ativa' : 'Planejada'})
-              </option>
+    <SidePanel isOpen onClose={onClose}
+      title={<span className="flex items-center gap-2"><Plus className="w-4 h-4 text-indigo-600" /><span>{modalTitles[type]}</span></span>}
+      footer={
+        <div className="flex gap-2 sm:justify-end">
+          <Button type="button" variant="outline" onClick={onClose} className="hidden sm:inline-flex">CANCELAR</Button>
+          <Button type="submit" form="new-ticket-form" loading={loading} fullWidth className="sm:w-64" size="lg">CRIAR {cfg.label.toUpperCase()}</Button>
+        </div>
+      }>
+      {(full: boolean) => (
+      <form id="new-ticket-form" onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className={lbl}>Tipo</label>
+          <div className="flex flex-wrap gap-2">
+            {typeChips.map(([id, label, icon]) => (
+              <button key={id} type="button" onClick={() => handleTypeChange(id)} className={cn('flex items-center gap-2 px-3.5 py-2 rounded-xl border-2 text-xs font-black transition-all',
+                type === id ? `${TYPE_CONFIG[id].badge} border-current shadow-sm` : 'border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50')}>{icon}{label}</button>
             ))}
-          </Select>
-          {type !== 'epic' && (
-            <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
-          )}
-          <Input label="Prazo" type="date" iconLeft={<Calendar className="w-4 h-4" />} value={deadline} onChange={e => setDeadline(e.target.value)} />
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1.5">{type === 'story' ? 'Funcionalidade do ponto de vista do usuário.' : type === 'task' ? 'Trabalho técnico ou operacional.' : type === 'bug' ? 'Defeito ou comportamento incorreto.' : 'Iniciativa maior para agrupar histórias e tarefas.'}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
-          <Select label="Responsável (quem vai assumir)" value={assignee} onChange={e => setAssignee(e.target.value)}
-            options={[{ value: '', label: 'Ninguém ainda' }, ...[...new Set([...team, ...(assignee ? [assignee] : [])])].map(n => ({ value: n, label: n }))]} />
-          {(type === 'story' || type === 'task' || type === 'bug') && (
-            <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
-          )}
+        <input value={title} onChange={e => setTitle(e.target.value)} required autoFocus
+          placeholder={type === 'story' ? 'Título da história' : type === 'task' ? 'O que precisa ser feito?' : type === 'bug' ? 'Qual é o bug?' : 'Nome da demanda'}
+          className="w-full text-xl sm:text-2xl font-black text-slate-900 bg-transparent border-0 border-b-2 border-slate-200 focus:border-[#0D1F4E] focus:outline-none px-0 py-1.5 transition-colors placeholder:text-slate-300" />
+
+        <div className={cn('rounded-2xl border border-slate-200 bg-slate-50/60 p-4 grid gap-3.5', full ? 'grid-cols-4' : 'grid-cols-2')}>
+          <h3 className="text-sm font-black text-slate-900 col-span-full">Detalhes</h3>
+          <div><label className={lbl}>Prioridade</label>
+            <Select value={priority} onChange={e => setPriority(e.target.value as any)} options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }, { value: 'critical', label: 'Crítica' }]} /></div>
+          <div><label className={lbl}>Sprint</label>
+            <Select value={sprintId} onChange={e => setSprintId(e.target.value)} options={[{ value: '', label: 'Backlog' }, ...sprints.map(sp => ({ value: sp.id, label: `${sp.name} (${sp.status === 'active' ? 'ativa' : 'planejada'})` }))]} /></div>
+          {type !== 'epic' && <div><label className={lbl}>Story points</label><Input type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} /></div>}
+          <div><label className={lbl}>Prazo</label><Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} /></div>
+          <div className={full ? 'col-span-2' : 'col-span-2'}><label className={lbl}>Responsável (quem vai assumir)</label>
+            <Select value={assignee} onChange={e => setAssignee(e.target.value)} options={[{ value: '', label: 'Ninguém ainda' }, ...[...new Set([...team, ...(assignee ? [assignee] : [])])].map(n => ({ value: n, label: n }))]} /></div>
+          <div className="col-span-2"><label className={lbl}>Em parceria com (trabalham juntos)</label>
+            <PartnersField value={collab} onChange={setCollab} team={team} exclude={assignee} /></div>
+          <div className="col-span-2"><label className={lbl}>Relator (quem solicitou)</label>
+            <Select value={reporter} onChange={e => setReporter(e.target.value)} options={[{ value: '', label: 'Não informado' }, ...[...new Set([...team, ...(reporter ? [reporter] : [])])].map(n => ({ value: n, label: n }))]} /></div>
+          {(type === 'story' || type === 'task' || type === 'bug') && <div className="col-span-2"><label className={lbl}>Tela / funcionalidade</label><Input placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} /></div>}
         </div>
 
-        {/* Campos específicos por tipo */}
         {type === 'story' && (
           <StoryFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
             acceptance={acceptance} setAcceptance={setAcceptance} objective={objective} setObjective={setObjective}
@@ -3023,11 +3069,8 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
           <EpicFields desc={desc} setDesc={setDesc} objective={objective} setObjective={setObjective}
             funcReqs={funcReqs} setFuncReqs={setFuncReqs} />
         )}
-
-        <Button type="submit" loading={loading} fullWidth size="lg">
-          CRIAR {cfg.label.toUpperCase()}
-        </Button>
       </form>
-    </Modal>
+      )}
+    </SidePanel>
   );
 }
