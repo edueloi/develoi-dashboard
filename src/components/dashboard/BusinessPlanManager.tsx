@@ -139,21 +139,52 @@ const SWOT_CONFIG = {
   swotThreats:       { label: 'Ameaças',        icon: ShieldCheck,  color: '#DC2626', bg: 'rgba(220,38,38,0.06)',  border: 'rgba(220,38,38,0.25)' },
 } as const;
 
-function InfoBlock({ icon: Icon, label, text, color, isDark }: { icon: any; label: string; text?: string | null; color: string; isDark: boolean }) {
+// Texto corrido, com listas ("- item") e subtítulos ("TÍTULO:") bem separados, em vez de uma parede de texto
+function RichText({ text, isDark }: { text: string; isDark: boolean }) {
+  const color = isDark ? 'rgba(255,255,255,0.86)' : '#334155';
+  type Block = { kind: 'p' | 'h' | 'ul'; lines: string[] };
+  const blocks: Block[] = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line) { blocks.push({ kind: 'p', lines: [] }); continue; } // linha em branco: fecha o bloco atual
+    const bullet = /^([-•*])\s+(.*)$/.exec(line);
+    const last = blocks[blocks.length - 1];
+    if (bullet) {
+      if (last && last.kind === 'ul') last.lines.push(bullet[2]); else blocks.push({ kind: 'ul', lines: [bullet[2]] });
+    } else if (/^[A-ZÀ-Ú0-9 ()\/&,.\-]{6,}:?(\s*\(.*\):?)?$/.test(line) && line === line.toUpperCase() || /^[^.!?]{3,70}:$/.test(line)) {
+      blocks.push({ kind: 'h', lines: [line.replace(/:$/, '')] });
+    } else if (last && last.kind === 'p' && last.lines.length) last.lines.push(line);
+    else blocks.push({ kind: 'p', lines: [line] });
+  }
   return (
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
-          <Icon className="w-3.5 h-3.5" style={{ color }} />
-        </div>
-        <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      </div>
-      {text ? (
-        <p className="text-sm leading-relaxed whitespace-pre-line" style={{ color: isDark ? 'rgba(255,255,255,0.85)' : '#334155' }}>{text}</p>
-      ) : (
-        <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>
-      )}
+    <div className="space-y-3 text-sm leading-relaxed" style={{ color }}>
+      {blocks.filter(b => b.lines.length).map((b, i) =>
+        b.kind === 'ul' ? (
+          <ul key={i} className="space-y-1.5">
+            {b.lines.map((l, k) => (
+              <li key={k} className="flex items-start gap-2.5"><span className="w-1.5 h-1.5 rounded-full mt-[9px] flex-shrink-0 bg-slate-300 dark:bg-white/30" /><span className="min-w-0 break-words">{l}</span></li>
+            ))}
+          </ul>
+        ) : b.kind === 'h' ? (
+          <p key={i} className="pt-1 text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-300 break-words">{b.lines[0]}</p>
+        ) : (
+          <p key={i} className="break-words">{b.lines.join(' ')}</p>
+        ))}
     </div>
+  );
+}
+
+function InfoBlock({ icon: Icon, label, text, color, isDark, className = '' }: { icon: any; label: string; text?: string | null; color: string; isDark: boolean; className?: string }) {
+  return (
+    <section className={`min-w-0 rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-5 sm:p-6 ${className}`} style={{ borderTop: `3px solid ${color}` }}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}15` }}>
+          <Icon className="w-4 h-4" style={{ color }} />
+        </div>
+        <h4 className="text-xs font-black uppercase tracking-widest" style={{ color }}>{label}</h4>
+      </div>
+      {text ? <RichText text={text} isDark={isDark} /> : <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>}
+    </section>
   );
 }
 
@@ -187,35 +218,33 @@ function OverviewSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
   const [editing, setEditing] = useState(false);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Quem somos</h3>
+    <div className="space-y-5 sm:space-y-6 w-full min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Quem somos</h3>
           {plan.updatedAt && (
             <p className="text-[11px] text-slate-400 mt-0.5">
               Atualizado em {format(new Date(plan.updatedAt), 'dd/MM/yyyy HH:mm')}{plan.updatedByName ? ` por ${plan.updatedByName}` : ''}
             </p>
           )}
         </div>
-        <Button size="sm" variant="outline" iconLeft={<Edit2 className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>EDITAR VISÃO GERAL</Button>
+        <Button size="sm" variant="outline" className="self-start sm:self-auto" iconLeft={<Edit2 className="w-3.5 h-3.5" />} onClick={() => setEditing(true)}>EDITAR VISÃO GERAL</Button>
       </div>
 
-      <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm p-5 sm:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <InfoBlock icon={Compass} label="Missão" text={plan.missionText} color="#0D1F4E" isDark={isDark} />
-          <InfoBlock icon={Target} label="Visão" text={plan.visionText} color="#2563EB" isDark={isDark} />
-          <InfoBlock icon={Star} label="Valores" text={plan.valuesText} color="#C49A2A" isDark={isDark} />
-        </div>
-        <div className="h-px my-6" style={{ background: isDark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <InfoBlock icon={Users} label="Mercado-Alvo / Público" text={plan.targetMarket} color="#15803D" isDark={isDark} />
-          <InfoBlock icon={Trophy} label="Modelo de Negócio" text={plan.businessModel} color="#C49A2A" isDark={isDark} />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 items-start">
+        <InfoBlock icon={Compass} label="Missão" text={plan.missionText} color="#0D1F4E" isDark={isDark} />
+        <InfoBlock icon={Target} label="Visão" text={plan.visionText} color="#2563EB" isDark={isDark} />
+        <InfoBlock icon={Star} label="Valores" text={plan.valuesText} color="#C49A2A" isDark={isDark} className="md:col-span-2 xl:col-span-1" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
+        <InfoBlock icon={Users} label="Mercado-Alvo / Público" text={plan.targetMarket} color="#15803D" isDark={isDark} />
+        <InfoBlock icon={Trophy} label="Modelo de Negócio" text={plan.businessModel} color="#7C3AED" isDark={isDark} className="lg:col-span-2" />
       </div>
 
       <div>
-        <p className="text-sm font-black mb-3" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Análise SWOT</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <h3 className="text-base font-black mb-3 sm:mb-4" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Análise SWOT</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
           <SwotQuadrant field="swotStrengths" text={plan.swotStrengths} isDark={isDark} />
           <SwotQuadrant field="swotWeaknesses" text={plan.swotWeaknesses} isDark={isDark} />
           <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
@@ -259,27 +288,61 @@ function OverviewEditModal({ plan, onClose, onSuccess }: { plan: BusinessPlan; o
     }
   };
 
+  const [tab, setTab] = useState<'identity' | 'market' | 'swot'>('identity');
+  const TABS: { id: typeof tab; label: string; hint: string; keys: (keyof typeof form)[] }[] = [
+    { id: 'identity', label: 'Identidade', hint: 'Missão, visão e valores', keys: ['missionText', 'visionText', 'valuesText'] },
+    { id: 'market', label: 'Mercado e modelo', hint: 'Quem atendemos e como ganhamos dinheiro', keys: ['targetMarket', 'businessModel'] },
+    { id: 'swot', label: 'Análise SWOT', hint: 'Forças, fraquezas, oportunidades e ameaças', keys: ['swotStrengths', 'swotWeaknesses', 'swotOpportunities', 'swotThreats'] },
+  ];
+  const idx = TABS.findIndex(t => t.id === tab);
+  const filled = (t: typeof TABS[number]) => t.keys.filter(k => form[k].trim()).length;
+
+  const field = (k: keyof typeof form, label: string, placeholder: string, rows = 8) => (
+    <Textarea key={k} label={label} value={form[k]} onChange={set(k)} rows={rows} placeholder={placeholder} className="leading-relaxed" />
+  );
+
   return (
-    <Modal isOpen={true} onClose={onClose} title="Editar Visão Geral" size="2xl">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Textarea label="Missão" value={form.missionText} onChange={set('missionText')} rows={4} placeholder="Por que a Develoi existe?" />
-          <Textarea label="Visão" value={form.visionText} onChange={set('visionText')} rows={4} placeholder="Onde queremos chegar?" />
-          <Textarea label="Valores" value={form.valuesText} onChange={set('valuesText')} rows={4} placeholder="O que guia nossas decisões?" />
+    <Modal isOpen={true} onClose={onClose} title="Editar Visão Geral" size="2xl"
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row gap-2">
+          {idx > 0 && <Button type="button" variant="outline" onClick={() => setTab(TABS[idx - 1].id)}>VOLTAR</Button>}
+          {idx < TABS.length - 1 && <Button type="button" variant="outline" onClick={() => setTab(TABS[idx + 1].id)}>PRÓXIMA ABA</Button>}
+          <Button type="submit" form="overview-form" loading={saving} className="sm:ml-auto" size="lg" iconLeft={<Save className="w-4 h-4" />}>SALVAR PLANO</Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Textarea label="Mercado-Alvo / Público" value={form.targetMarket} onChange={set('targetMarket')} rows={3} placeholder="Quem são nossos clientes ideais?" />
-          <Textarea label="Modelo de Negócio" value={form.businessModel} onChange={set('businessModel')} rows={3} placeholder="Como a Develoi ganha dinheiro (planos, assinaturas...)" />
+      }>
+      <form id="overview-form" onSubmit={handleSubmit} className="space-y-5">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" role="tablist">
+          {TABS.map(t => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
+              className="px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 border transition-colors"
+              style={tab === t.id ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.35)' }}>
+              {t.label} <span className="opacity-70 font-bold">· {filled(t)}/{t.keys.length}</span>
+            </button>
+          ))}
         </div>
-        <div className="h-px" style={{ background: '#f1f5f9' }} />
-        <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Análise SWOT</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Textarea label="Forças" value={form.swotStrengths} onChange={set('swotStrengths')} rows={4} placeholder="O que fazemos bem?" />
-          <Textarea label="Fraquezas" value={form.swotWeaknesses} onChange={set('swotWeaknesses')} rows={4} placeholder="Onde precisamos melhorar?" />
-          <Textarea label="Oportunidades" value={form.swotOpportunities} onChange={set('swotOpportunities')} rows={4} placeholder="O que podemos aproveitar no mercado?" />
-          <Textarea label="Ameaças" value={form.swotThreats} onChange={set('swotThreats')} rows={4} placeholder="O que pode atrapalhar o crescimento?" />
-        </div>
-        <Button type="submit" loading={saving} fullWidth size="lg" iconLeft={<Save className="w-4 h-4" />}>SALVAR PLANO</Button>
+        <p className="text-xs text-slate-500">{TABS[idx].hint}. Dica: comece a linha com <b>-</b> para fazer uma lista e use um título terminado em <b>:</b> para separar partes.</p>
+
+        {tab === 'identity' && (
+          <div className="space-y-4">
+            {field('missionText', 'Missão', 'Por que a Develoi existe?', 6)}
+            {field('visionText', 'Visão', 'Onde queremos chegar?', 6)}
+            {field('valuesText', 'Valores', 'O que guia nossas decisões? (um valor por linha)', 8)}
+          </div>
+        )}
+        {tab === 'market' && (
+          <div className="space-y-4">
+            {field('targetMarket', 'Mercado-alvo / público', 'Quem são nossos clientes ideais?', 6)}
+            {field('businessModel', 'Modelo de negócio', 'Como a Develoi ganha dinheiro (projetos, assinaturas...)', 14)}
+          </div>
+        )}
+        {tab === 'swot' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {field('swotStrengths', 'Forças', 'O que fazemos bem? (uma por linha)', 9)}
+            {field('swotWeaknesses', 'Fraquezas', 'Onde precisamos melhorar?', 9)}
+            {field('swotOpportunities', 'Oportunidades', 'O que podemos aproveitar no mercado?', 9)}
+            {field('swotThreats', 'Ameaças', 'O que pode atrapalhar o crescimento?', 9)}
+          </div>
+        )}
       </form>
     </Modal>
   );
