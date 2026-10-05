@@ -604,6 +604,7 @@ model TeamRecipient {
   notifyReceivables Boolean  @default(true)  // resumo de contas a receber
   notifyMeetings    Boolean  @default(true)  // lembrete de reuniões
   notifyBirthdays   Boolean  @default(true)  // aniversário de sócios e clientes
+  notifyContact     Boolean  @default(false) // mensagens enviadas pela página de contato do site
   active            Boolean  @default(true)
   createdAt         DateTime @default(now())
 
@@ -1020,4 +1021,19 @@ model SwotRating {
   ratedAt     DateTime @default(now())
 
   @@index([itemId])
+}
+
+// Mensagens enviadas pelo formulário da página de contato do site
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String   @db.VarChar(150)
+  email     String?  @db.VarChar(200)
+  phone     String?  @db.VarChar(40)
+  service   String?  @db.VarChar(120)
+  message   String   @db.Text
+  notified  Boolean  @default(false) // a equipe já foi avisada pelo bot
+  handled   Boolean  @default(false) // alguém já respondeu
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

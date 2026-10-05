@@ -13,7 +13,7 @@ import { casesController } from "./src/backend/casesController.js";
 import { botController } from "./src/backend/botController.js";
 import { resumeSession, startConversationSweeper } from "./src/backend/wa.js";
 import { runBillingNotices, startBillingScheduler, enforceOverdueBlocks } from "./src/backend/billingNotifier.js";
-import { registerTeamNoticeRoutes, startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
+import { registerTeamNoticeRoutes, registerContactRoutes,startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
 import { registerReceiptRoutes, sendThanksAndReceipt } from "./src/backend/receipts.js";
@@ -895,6 +895,7 @@ async function startServer() {
     });
 
     registerTeamNoticeRoutes(app);
+    registerContactRoutes(app);
     registerReceivableRoutes(app);
     registerAsaasRoutes(app);
     registerReceiptRoutes(app);

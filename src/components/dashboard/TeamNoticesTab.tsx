@@ -13,7 +13,7 @@ import { useLiveEvents } from '../../lib/liveEvents';
 
 interface Recipient {
   id: string; name: string; phone: string; userId?: string | null;
-  notifyPayables: boolean; notifyReceivables: boolean; notifyMeetings: boolean; notifyBirthdays: boolean; active: boolean;
+  notifyPayables: boolean; notifyReceivables: boolean; notifyMeetings: boolean; notifyBirthdays: boolean; notifyContact: boolean; active: boolean;
 }
 interface Meeting {
   id: string; title: string; startsAt: string; location?: string | null; notes?: string | null;
@@ -194,6 +194,7 @@ export function TeamNoticesTab() {
                     ['notifyReceivables', 'Contas a receber', DollarSign],
                     ['notifyMeetings', 'Reuniões', CalendarClock],
                     ['notifyBirthdays', 'Aniversários', Cake],
+                    ['notifyContact', 'Contato do site', Send],
                   ] as const).map(([key, label, Icon]) => (
                     <button key={key} onClick={() => patchRecipient(r.id, { [key]: !r[key] })}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${r[key] ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-white/10 text-slate-400 hover:border-slate-300'}`}>
@@ -277,6 +278,7 @@ function RecipientFormModal({ rec, users, onClose, onSaved }: {
   const [receivables, setReceivables] = useState(rec?.notifyReceivables ?? true);
   const [meetings, setMeetings] = useState(rec?.notifyMeetings ?? true);
   const [birthdays, setBirthdays] = useState(rec?.notifyBirthdays ?? true);
+  const [contact, setContact] = useState(rec?.notifyContact ?? false);
   const [saving, setSaving] = useState(false);
 
   const pickUser = (uid: string) => {
@@ -291,7 +293,7 @@ function RecipientFormModal({ rec, users, onClose, onSaved }: {
     try {
       const res = await fetch(rec ? `/api/team-notices/recipients/${rec.id}` : '/api/team-notices/recipients', {
         method: rec ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, userId: userId || null, notifyPayables: payables, notifyReceivables: receivables, notifyMeetings: meetings, notifyBirthdays: birthdays }),
+        body: JSON.stringify({ name, phone, userId: userId || null, notifyPayables: payables, notifyReceivables: receivables, notifyMeetings: meetings, notifyBirthdays: birthdays, notifyContact: contact }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Erro');
@@ -329,6 +331,7 @@ function RecipientFormModal({ rec, users, onClose, onSaved }: {
           <Check label="Contas a receber" hint="Resumo do dia: assinaturas e valores avulsos" value={receivables} onChange={setReceivables} />
           <Check label="Reuniões" hint="Lembrete 24 horas antes de cada reunião em que ela participa" value={meetings} onChange={setMeetings} />
           <Check label="Aniversários" hint="Aviso quando for aniversário de um sócio ou cliente, hoje ou amanhã" value={birthdays} onChange={setBirthdays} />
+          <Check label="Contato do site" hint="Aviso na hora quando alguém enviar uma mensagem pela página de contato do site" value={contact} onChange={setContact} />
         </div>
       </form>
     </Modal>

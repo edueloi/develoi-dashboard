@@ -105,14 +105,15 @@ export default function Footer() {
 
         <div className="h-px bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent mb-12" />
         
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 text-[11px] dash-text-2 font-black uppercase tracking-widest opacity-40">
-          <p>© {new Date().getFullYear()} Develoi. Soluções Digitais.</p>
-          <a href="/privacidade" className="hover:opacity-70 transition-opacity duration-200">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 md:gap-6 text-center md:text-left text-xs dash-text-2 font-medium">
+          <div className="space-y-1">
+            <p className="font-bold dash-text">Develoi Soluções Digitais</p>
+            <p className="opacity-70">CNPJ 30.968.335/0001-69</p>
+          </div>
+          <p className="opacity-70">© {new Date().getFullYear()} Develoi Soluções Digitais. Todos os direitos reservados.</p>
+          <a href="/privacidade" className="font-semibold opacity-70 hover:opacity-100 transition-opacity duration-200">
             Política de Privacidade
           </a>
-          <p className="flex items-center gap-2">
-            DESIGNED WITH <span className="text-rose-500 animate-pulse">♥</span> BY DEVELOI
-          </p>
         </div>
       </div>
     </footer>

@@ -206,8 +206,59 @@ export function startTeamNoticeScheduler() {
 
 // ─── Rotas ───────────────────────────────────────────────────────────────────
 
+const fail = (res: any, e: any) => res.status(500).json({ error: e.message });
+
+// ─── Mensagens da página de contato do site ─────────────────────────────────
+const lastByIp = new Map<string, number>();
+
+async function notifyContactTeam(m: { id: string; name: string; email: string | null; phone: string | null; service: string | null; message: string }) {
+  const targets = await prisma.teamRecipient.findMany({ where: { active: true, notifyContact: true } });
+  if (!targets.length || getSessionInfo().status !== "connected") return false;
+  const text = [
+    `📩 *Nova mensagem pelo site*`,
+    `👤 ${m.name}`,
+    m.phone ? `📱 ${m.phone}` : null,
+    m.email ? `✉️ ${m.email}` : null,
+    m.service ? `🔧 Interesse: ${m.service}` : null,
+    `\n💬 ${m.message.slice(0, 700)}`,
+  ].filter(Boolean).join("\n");
+  let ok = false;
+  for (const r of targets) { if (await sendMessage(r.phone, text)) { ok = true; await sleep(1500); } }
+  if (ok) await prisma.contactMessage.update({ where: { id: m.id }, data: { notified: true } });
+  return ok;
+}
+
+export function registerContactRoutes(app: Express) {
+  // público: formulário da página de contato
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const b = req.body ?? {};
+      if (b.website) return res.json({ success: true }); // campo-isca: robô
+      const name = String(b.name ?? "").trim().slice(0, 150);
+      const message = String(b.message ?? "").trim().slice(0, 4000);
+      const phone = String(b.phone ?? "").trim().slice(0, 40);
+      const email = String(b.email ?? "").trim().slice(0, 200);
+      if (!name || !message) return res.status(400).json({ error: "Informe seu nome e a mensagem." });
+      if (!phone && !email) return res.status(400).json({ error: "Informe um WhatsApp ou e-mail para retornarmos." });
+      const ip = String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "");
+      if (Date.now() - (lastByIp.get(ip) || 0) < 20_000) return res.status(429).json({ error: "Aguarde alguns segundos para enviar outra mensagem." });
+      lastByIp.set(ip, Date.now());
+      const saved = await prisma.contactMessage.create({ data: { name, message, phone: phone || null, email: email || null, service: String(b.service ?? "").trim().slice(0, 120) || null } });
+      res.json({ success: true });
+      notifyContactTeam(saved).catch(e => console.error("[contato] aviso falhou:", e));
+    } catch (e) { fail(res, e); }
+  });
+
+  // painel: lista e marca como respondida
+  app.get("/api/contact-messages", async (_req, res) => {
+    try { res.json(await prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 100 })); } catch (e) { fail(res, e); }
+  });
+  app.patch("/api/contact-messages/:id", async (req, res) => {
+    try { res.json(await prisma.contactMessage.update({ where: { id: req.params.id }, data: { handled: !!req.body?.handled } })); } catch (e) { fail(res, e); }
+  });
+}
+
 export function registerTeamNoticeRoutes(app: Express) {
-  const fail = (res: any, e: any) => res.status(500).json({ error: e.message });
   const recipientData = (b: any) => ({
     ...(b.name !== undefined && { name: String(b.name).trim() }),
     ...(b.phone !== undefined && { phone: digits(b.phone) }),
@@ -216,6 +267,7 @@ export function registerTeamNoticeRoutes(app: Express) {
     ...(b.notifyReceivables !== undefined && { notifyReceivables: !!b.notifyReceivables }),
     ...(b.notifyMeetings !== undefined && { notifyMeetings: !!b.notifyMeetings }),
     ...(b.notifyBirthdays !== undefined && { notifyBirthdays: !!b.notifyBirthdays }),
+    ...(b.notifyContact !== undefined && { notifyContact: !!b.notifyContact }),
     ...(b.active !== undefined && { active: !!b.active }),
   });
 
