@@ -38,7 +38,11 @@ interface BusinessGoal {
   targetDate?: string | null; status: GoalStatus; progress: number; createdAt: string;
 }
 interface Achievement { id: string; title: string; description?: string | null; achievedAt: string }
-interface SwotActionPlan { id: string; title: string; description?: string | null; createdByName?: string | null; createdAt: string }
+interface SwotActionPlan {
+  id: string; title: string; description?: string | null;
+  responsible?: string | null; dueDate?: string | null; result?: string | null; notes?: string | null;
+  createdByName?: string | null; createdAt: string;
+}
 interface PartnerEvaluation {
   id: string; partnerId: string; partner?: { id: string; name: string; color?: string | null; role?: string | null };
   period: string; score?: number | null; strengths?: string | null; improvements?: string | null; goalsNextPeriod?: string | null;
@@ -481,12 +485,30 @@ function ActionPlansBlock({ actionPlans, onRefresh }: { actionPlans: SwotActionP
         <div className="space-y-2.5">
           {actionPlans.map(p => (
             <div key={p.id} className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  {format(new Date(p.createdAt), 'dd/MM/yyyy')}{p.createdByName ? ` · ${p.createdByName}` : ''}
-                </p>
-                <p className="text-sm font-black mt-0.5" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.title}</p>
-                {p.description && <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 whitespace-pre-line">{p.description}</p>}
+              <div className="min-w-0 flex-1 space-y-2">
+                <div>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                    Registrado em {format(new Date(p.createdAt), 'dd/MM/yyyy')}{p.createdByName ? ` · ${p.createdByName}` : ''}
+                  </p>
+                  <p className="text-sm font-black mt-0.5" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{p.title}</p>
+                  {p.description && <p className="text-xs text-slate-500 dark:text-slate-300 mt-1 whitespace-pre-line">{p.description}</p>}
+                </div>
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-300">
+                  <span><b className="font-black">Quem fará:</b> {p.responsible || '—'}</span>
+                  <span><b className="font-black">Prazo:</b> {p.dueDate ? format(new Date(p.dueDate), 'dd/MM/yyyy') : '—'}</span>
+                </div>
+
+                {p.result && (
+                  <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-xs text-slate-600 dark:text-slate-300">
+                    <b className="font-black text-emerald-700 dark:text-emerald-400">Resultado: </b>{p.result}
+                  </div>
+                )}
+                {p.notes && (
+                  <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-white/5 text-xs text-slate-600 dark:text-slate-300">
+                    <b className="font-black text-slate-500 dark:text-slate-300">Observação: </b>{p.notes}
+                  </div>
+                )}
               </div>
               <RowMenu items={[
                 { label: 'Editar', icon: Edit2, onClick: () => { setEditing(p); setIsFormOpen(true); } },
@@ -509,6 +531,10 @@ function ActionPlanFormModal({ actionPlan, onClose, onSuccess }: { actionPlan: S
   const { show: toast } = useToast();
   const [title, setTitle] = useState(actionPlan?.title || '');
   const [description, setDescription] = useState(actionPlan?.description || '');
+  const [responsible, setResponsible] = useState(actionPlan?.responsible || '');
+  const [dueDate, setDueDate] = useState<string | null>(actionPlan?.dueDate ? actionPlan.dueDate.slice(0, 10) : null);
+  const [result, setResult] = useState(actionPlan?.result || '');
+  const [notes, setNotes] = useState(actionPlan?.notes || '');
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -517,7 +543,7 @@ function ActionPlanFormModal({ actionPlan, onClose, onSuccess }: { actionPlan: S
     try {
       const res = await fetch(actionPlan ? `/api/swot-action-plans/${actionPlan.id}` : '/api/swot-action-plans', {
         method: actionPlan ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description, createdByName: profile?.displayName }),
+        body: JSON.stringify({ title, description, responsible, dueDate, result, notes, createdByName: profile?.displayName }),
       });
       if (!res.ok) throw new Error();
       toast(actionPlan ? 'Plano de ação atualizado' : 'Plano de ação registrado', 'success');
@@ -532,8 +558,17 @@ function ActionPlanFormModal({ actionPlan, onClose, onSuccess }: { actionPlan: S
   return (
     <Modal isOpen={true} onClose={onClose} title={actionPlan ? 'Editar Plano de Ação' : 'Novo Plano de Ação'} size="md">
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Input label="Título" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Revisão de SWOT — Outubro/2026" />
-        <Textarea label="O que vamos fazer a respeito" value={description} onChange={e => setDescription(e.target.value)} rows={6} placeholder="Ações concretas, quem é responsável e até quando, com base na conclusão da análise SWOT." />
+        <Input label="O que será feito" required value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex: Montar time comercial dedicado" />
+        <Textarea label="Detalhes" value={description} onChange={e => setDescription(e.target.value)} rows={4} placeholder="Ações concretas com base na conclusão da análise SWOT." />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input label="Quem fará" value={responsible} onChange={e => setResponsible(e.target.value)} placeholder="Ex: Elcio (CEO)" />
+          <div className="flex flex-col gap-1.5">
+            <label className="ds-label">Prazo</label>
+            <DatePicker value={dueDate} onChange={setDueDate} />
+          </div>
+        </div>
+        <Textarea label="Resultado" value={result} onChange={e => setResult(e.target.value)} rows={3} placeholder="Preencha depois, quando a ação for concluída: o que foi alcançado." />
+        <Textarea label="Observação" value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Qualquer detalhe adicional (opcional)." />
         <Button type="submit" loading={saving} fullWidth size="lg">SALVAR</Button>
       </form>
     </Modal>
