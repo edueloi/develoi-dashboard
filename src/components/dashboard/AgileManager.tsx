@@ -21,6 +21,7 @@ import type { Feature, Sprint, FeatureComment } from './types';
 import { useAuth } from '../../contexts/AuthContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { RowMenu } from './financeShared';
+import { useNavigate } from 'react-router-dom';
 
 const DraggableComponent = Draggable as any;
 const DroppableComponent = Droppable as any;
@@ -241,6 +242,7 @@ export function AgileManager({ projectId, view }: AgileManagerProps) {
           <ActiveBoardView
             projectId={projectId}
             features={features}
+            sprints={sprints}
             activeSprint={activeSprint}
             onRefresh={fetchAll}
           />
@@ -484,6 +486,7 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
   sprint: Sprint; features: Feature[]; isAdmin: boolean; onRefresh: () => void;
   onStart: () => void; onFinish: () => void; onDelete: () => void; onAddTicket: () => void; onPause?: () => void; onResume?: () => void;
 }) {
+  const navigate = useNavigate();
   const [expanded, setExpanded]         = useState(sprint.status !== 'completed');
   const [menuOpen, setMenuOpen]         = useState(false);
   const [editing, setEditing]           = useState(false);
@@ -571,6 +574,12 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
                         <Pencil className="w-4 h-4 text-slate-400" /> Editar Sprint
                       </button>
 
+                      <button
+                        onClick={() => { try { localStorage.setItem(BOARD_SPRINT_KEY, sprint.id); } catch { /* sem storage */ } navigate(`/dashboard/quadro${window.location.search}`); setMenuOpen(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <Kanban className="w-4 h-4 text-slate-400" /> Abrir no Quadro
+                      </button>
                       {/* Adicionar ticket */}
                       {sprint.status !== 'completed' && <button
                         onClick={() => { onAddTicket(); setMenuOpen(false); }}
@@ -802,25 +811,32 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
 
 // ─── ActiveBoardView ──────────────────────────────────────────────────────────
 
-function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
-  projectId: string; features: Feature[]; activeSprint?: Sprint; onRefresh: () => void;
+const BOARD_SPRINT_KEY = 'develoi:quadro:sprint';
+
+function ActiveBoardView({ projectId, features, sprints, activeSprint, onRefresh }: {
+  projectId: string; features: Feature[]; sprints: Sprint[]; activeSprint?: Sprint; onRefresh: () => void;
 }) {
   const [reportOpen, setReportOpen] = useState(false);
   const [whoF, setWhoF] = useState<'all' | 'me' | 'none'>('all');
   const { profile: me } = useAuth();
+  const [selId, setSelId] = useState<string>(() => { try { return localStorage.getItem(BOARD_SPRINT_KEY) || ''; } catch { return ''; } });
+  const pick = (id: string) => { setSelId(id); try { localStorage.setItem(BOARD_SPRINT_KEY, id); } catch { /* sem storage */ } };
 
-  if (!activeSprint) {
+  // sprint exibida: a escolhida (se ainda existir no projeto), senão a ativa, senão a primeira planejada, senão a última concluída
+  const sprint = sprints.find(sp => sp.id === selId) ?? activeSprint ?? sprints.find(sp => sp.status === 'planned') ?? [...sprints].reverse().find(sp => sp.status === 'completed');
+
+  if (!sprint) {
     return (
       <EmptyState
         icon={Kanban}
-        title="Nenhuma Sprint Ativa"
-        description="Vá para o Backlog e inicie uma sprint para visualizar o quadro kanban."
+        title="Nenhuma sprint ainda"
+        description="Crie uma sprint no Backlog para ver o quadro kanban."
         className="py-10"
       />
     );
   }
 
-  const sprintAll = features.filter(f => f.sprintId === activeSprint.id);
+  const sprintAll = features.filter(f => f.sprintId === sprint.id);
   const sprintFeatures = sprintAll.filter(f => whoF === 'all' || (whoF === 'me' ? f.assignedTo === me?.displayName : !f.assignedTo));
   const columns = [
     { id: 'todo',        label: 'A Fazer',          color: 'default'  },
@@ -829,56 +845,78 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
     { id: 'testing',     label: 'Em Teste',          color: 'warning' },
     { id: 'done',        label: 'Concluído',         color: 'success' },
   ];
+  const doneAll = sprintAll.filter(f => f.status === 'done');
+  const pct = sprintAll.length ? Math.round((doneAll.length / sprintAll.length) * 100) : 0;
+  const ptsAll = sprintAll.reduce((a, f) => a + (f.points || 0), 0), ptsDone = doneAll.reduce((a, f) => a + (f.points || 0), 0);
+  const subDone = sprintAll.reduce((a, f) => a + parseActivities(f.activities).filter(x => x.done).length, 0);
+  const subAll = sprintAll.reduce((a, f) => a + parseActivities(f.activities).length, 0);
+  const stLabel = { active: 'Ativa', planned: 'Planejada', completed: 'Concluída' }[sprint.status];
+  const stColor = { active: '#4F46E5', planned: '#C49A2A', completed: '#15803D' }[sprint.status];
+  const optLabel = (sp: Sprint) => `${sp.status === 'active' ? '● ' : sp.status === 'completed' ? '✓ ' : '○ '}${sp.name}${sp.status === 'completed' ? ` (${new Date(sp.endDate ?? sp.startDate ?? sp.createdAt).getFullYear()})` : ''}`;
+  const ordered = [...sprints].sort((a, b) => ({ active: 0, planned: 1, completed: 2 }[a.status] - { active: 0, planned: 1, completed: 2 }[b.status]));
+
+  // quem entregou o quê (conclusões da sprint por responsável)
+  const byPerson = new Map<string, { done: number; total: number }>();
+  sprintAll.forEach(f => { const n = f.assignedTo || 'Sem responsável'; const x = byPerson.get(n) ?? { done: 0, total: 0 }; x.total++; if (f.status === 'done') x.done++; byPerson.set(n, x); });
 
   return (
-    <div className="space-y-4">
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-white shadow-sm">
-            <Rocket className="w-4 h-4" />
+    <div className="space-y-4 w-full min-w-0">
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0" style={{ background: stColor }}><Rocket className="w-5 h-5" /></div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight truncate">{sprint.name}</h2>
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-white" style={{ background: stColor }}>{stLabel}</span>
+              </div>
+              <p className="text-[11px] font-semibold text-slate-400 flex items-center gap-1.5"><Calendar className="w-3 h-3" />
+                {sprint.startDate ? format(new Date(sprint.startDate), 'dd MMM yyyy', { locale: ptBR }) : 'sem início'} a {sprint.endDate ? format(new Date(sprint.endDate), 'dd MMM yyyy', { locale: ptBR }) : 'em andamento'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-black text-slate-900 tracking-tight">{activeSprint.name}</h2>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-              <Calendar className="w-3 h-3" />
-              {activeSprint.startDate ? format(new Date(activeSprint.startDate), 'dd MMM') : '?'} — {activeSprint.endDate ? format(new Date(activeSprint.endDate), 'dd MMM') : '?'}
-            </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="min-w-[220px]"><Select aria-label="Sprint" value={sprint.id} onChange={e => pick(e.target.value)} options={ordered.map(sp => ({ value: sp.id, label: optLabel(sp) }))} /></div>
+            <Button variant="outline" size="sm" iconLeft={<BarChart2 className="w-4 h-4" />} onClick={() => setReportOpen(true)}>RELATÓRIO</Button>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-center">
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Concluído</p>
-            <p className="text-base font-black text-emerald-600">
-              {Math.round((sprintFeatures.filter(f => f.status === 'done').length / (sprintFeatures.length || 1)) * 100)}%
-            </p>
-          </div>
-          <div className="h-7 w-px bg-slate-100" />
-          <div className="text-center">
-            <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-1">Pontos Totais</p>
-            <p className="text-base font-black text-slate-900">{sprintFeatures.reduce((a, f) => a + (f.points || 0), 0)}</p>
-          </div>
-          <Button variant="outline" size="sm" iconLeft={<BarChart2 className="w-4 h-4" />} onClick={() => setReportOpen(true)}>RELATÓRIO</Button>
-        </div>
-      </div>
 
-      <div className="flex flex-wrap gap-1.5 items-center">
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-1">Mostrar</span>
-        {([['all', `Todos (${sprintAll.length})`], ['me', `Meus (${sprintAll.filter(f => f.assignedTo === me?.displayName).length})`], ['none', `Sem responsável (${sprintAll.filter(f => !f.assignedTo).length})`]] as const).map(([v, l]) => (
-          <button key={v} onClick={() => setWhoF(v)} className="px-3 py-1.5 rounded-full text-xs font-bold border"
-            style={whoF === v ? { background: '#4F46E5', color: '#fff', borderColor: '#4F46E5' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)', background: '#fff' }}>{l}</button>
-        ))}
+        {sprint.goal && <p className="text-xs text-slate-500 border-l-4 border-indigo-200 pl-3">{sprint.goal}</p>}
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { l: 'Concluído', v: `${pct}%`, s: `${doneAll.length} de ${sprintAll.length} tickets`, c: '#15803D' },
+            { l: 'Pontos entregues', v: `${ptsDone}/${ptsAll}`, s: 'story points', c: '#4F46E5' },
+            { l: 'Subtarefas', v: subAll ? `${subDone}/${subAll}` : '—', s: subAll ? `${Math.round((subDone / subAll) * 100)}% feitas` : 'sem subtarefas', c: '#0891B2' },
+            { l: 'Em andamento', v: String(sprintAll.filter(f => f.status !== 'done' && f.status !== 'todo').length), s: `${sprintAll.filter(f => f.status === 'todo').length} a fazer`, c: '#C49A2A' },
+          ].map(k => (
+            <div key={k.l} className="rounded-xl border border-slate-200 p-3" style={{ borderTop: `3px solid ${k.c}` }}>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{k.l}</p>
+              <p className="text-xl font-black" style={{ color: k.c }}>{k.v}</p>
+              <p className="text-[10px] text-slate-400">{k.s}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-1.5 items-center">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mr-1">Mostrar</span>
+          {([['all', `Todos (${sprintAll.length})`], ['me', `Meus (${sprintAll.filter(f => f.assignedTo === me?.displayName).length})`], ['none', `Sem responsável (${sprintAll.filter(f => !f.assignedTo).length})`]] as const).map(([v, l]) => (
+            <button key={v} onClick={() => setWhoF(v)} className="px-3 py-1.5 rounded-full text-xs font-bold border"
+              style={whoF === v ? { background: '#4F46E5', color: '#fff', borderColor: '#4F46E5' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)', background: '#fff' }}>{l}</button>
+          ))}
+        </div>
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-3 custom-scrollbar">
         {columns.map(col => (
           <DroppableComponent key={col.id} droppableId={col.id}>
             {(provided: any) => (
-              <div {...provided.droppableProps} ref={provided.innerRef} className="min-w-[250px] w-[250px] flex flex-col gap-2">
+              <div {...provided.droppableProps} ref={provided.innerRef} className="min-w-[260px] w-[260px] flex flex-col gap-2">
                 <div className="flex items-center justify-between px-3 py-2 bg-white/70 border border-slate-200 rounded-lg">
                   <Badge color={col.color as any} dot pill size="sm">{col.label}</Badge>
                   <span className="text-[10px] font-black text-slate-400">{sprintFeatures.filter(f => f.status === col.id).length}</span>
                 </div>
-                <div className="space-y-2 min-h-[360px]">
+                <div className="space-y-2 min-h-[320px]">
                   {sprintFeatures.filter(f => f.status === col.id).map((f, i) => (
                     <DraggableComponent key={f.id} draggableId={f.id} index={i}>
                       {(prov: any) => <BoardCard provided={prov} feature={f} onRefresh={onRefresh} />}
@@ -892,9 +930,41 @@ function ActiveBoardView({ projectId, features, activeSprint, onRefresh }: {
         ))}
       </div>
 
+      {/* Conclusões da sprint */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2 mb-3"><CheckCircle2 className="w-4 h-4 text-emerald-500" />Concluídos nesta sprint ({doneAll.length})</h3>
+          {doneAll.length === 0 ? <p className="text-sm text-slate-400">Nenhum ticket concluído ainda.</p> : (
+            <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+              {doneAll.map(f => (
+                <li key={f.id} className="flex items-center gap-2.5 text-sm">
+                  <Assignee name={f.assignedTo} size={24} />
+                  <span className="text-[10px] font-black text-indigo-600 w-16 truncate flex-shrink-0">{f.key}</span>
+                  <span className="font-semibold text-slate-700 truncate flex-1">{f.title}</span>
+                  <span className="text-[10px] font-black text-slate-400 flex-shrink-0">{f.points || 0} pts</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2 mb-3"><UsersIcon className="w-4 h-4 text-indigo-500" />Entrega por pessoa</h3>
+          {byPerson.size === 0 ? <p className="text-sm text-slate-400">Sem tickets nesta sprint.</p> : (
+            <ul className="space-y-3">
+              {[...byPerson.entries()].map(([name, v]) => (
+                <li key={name}>
+                  <div className="flex items-center gap-2 text-xs"><Assignee name={name === 'Sem responsável' ? null : name} size={22} /><span className="font-bold text-slate-700 flex-1 truncate">{name}</span><span className="font-black text-slate-500">{v.done}/{v.total}</span></div>
+                  <div className="h-1.5 rounded-full bg-slate-100 mt-1.5"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${(v.done / v.total) * 100}%` }} /></div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       {reportOpen && (
-        <Modal isOpen={true} onClose={() => setReportOpen(false)} title={`Relatório: ${activeSprint.name}`} size="lg">
-          <BurnDownChart sprint={activeSprint} features={sprintFeatures} />
+        <Modal isOpen={true} onClose={() => setReportOpen(false)} title={`Relatório: ${sprint.name}`} size="lg">
+          <BurnDownChart sprint={sprint} features={sprintAll} />
         </Modal>
       )}
     </div>
@@ -1275,16 +1345,18 @@ function CommentsPanel({ projectId, featureId }: { projectId: string; featureId:
 // ─── EditFeatureModal ─────────────────────────────────────────────────────────
 
 function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; onClose: () => void; onSuccess: () => void }) {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [title,       setTitle]       = useState(feature.title);
   const [desc,        setDesc]        = useState(feature.description || '');
   const [type,        setType]        = useState(feature.type || 'task');
   const [priority,    setPriority]    = useState(feature.priority || 'medium');
   const [points,      setPoints]      = useState(feature.points || 0);
   const [status,      setStatus]      = useState(feature.status || 'todo');
+  const [sprintId,    setSprintId]    = useState(feature.sprintId || '');
   const [reporter,    setReporter]    = useState(feature.reporter || '');
   const [assignee,    setAssignee]    = useState(feature.assignedTo || '');
   const team = useTeam();
+  const [sprints,     setSprints]     = useState<Sprint[]>([]);
   const [area,        setArea]        = useState(feature.functionalArea || '');
   const [funcReqs,    setFuncReqs]    = useState(feature.functionalRequirements || '');
   const [acceptance,  setAcceptance]  = useState(feature.acceptanceCriteria || '');
@@ -1294,17 +1366,22 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
   const [linkedDemand, setLinkedDemand] = useState<{ id: string; title: string } | null>(
     feature.linkedDemandId ? { id: feature.linkedDemandId, title: feature.linkedDemandTitle || '' } : null
   );
+  const [tab,           setTab]           = useState<'desc' | 'subtasks' | 'comments' | 'links'>('desc');
   const [loading,       setLoading]       = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    fetch(`/api/projects/${feature.projectId}/sprints?userId=${profile?.uid || ''}&isAdmin=${isAdmin}`).then(r => r.json()).then(d => setSprints(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [feature.projectId]); // eslint-disable-line
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setLoading(true);
     try {
       await fetch(`/api/projects/${feature.projectId}/features/${feature.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title, description: desc, type, priority, points: type === 'epic' ? 0 : points, status,
+          title, description: desc, type, priority, points: type === 'epic' ? 0 : points, status, sprintId: sprintId || null,
           reporter, assignedTo: assignee || null, functionalArea: area,
           functionalRequirements: funcReqs,
           acceptanceCriteria: acceptance,
@@ -1329,85 +1406,99 @@ function EditFeatureModal({ feature, onClose, onSuccess }: { feature: Feature; o
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const handleTypeChange = (newType: string) => {
-    setType(newType as any);
-  };
+  const typeLabel = { story: 'História', task: 'Tarefa', bug: 'Bug', epic: 'Demanda' }[type as 'story'] || 'Ticket';
+  const doneActs = activities.filter(a => a.done).length;
+  const sprintOptions = [{ value: '', label: 'Backlog (sem sprint)' }, ...sprints.filter(sp => sp.status !== 'completed' || sp.id === sprintId).map(sp => ({ value: sp.id, label: `${sp.name}${sp.status === 'active' ? ' (ativa)' : sp.status === 'completed' ? ' (concluída)' : ''}` }))];
+  const lbl = 'text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block';
 
-  const editTitles = { story: 'Editar História', task: 'Editar Tarefa', bug: 'Editar Bug', epic: 'Editar Demanda' };
+  const tabBtn = (id: typeof tab, label: string, n?: number) => (
+    <button key={id} type="button" onClick={() => setTab(id)} className="px-3.5 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-colors"
+      style={tab === id ? { background: '#fff', color: '#0D1F4E', boxShadow: '0 1px 3px rgba(0,0,0,.12)' } : { color: '#64748B' }}>
+      {label}{n !== undefined && <span className="ml-1.5 opacity-60">({n})</span>}
+    </button>
+  );
 
   return (
-    <Modal isOpen onClose={onClose} title={`${feature.key || '—'} — ${editTitles[type as keyof typeof editTitles] || 'Editar Ticket'}`} size="2xl">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <Modal isOpen onClose={onClose} size="full"
+      title={<span className="flex items-center gap-2 min-w-0"><span className="flex-shrink-0">{TYPE_ICONS[type]}</span><span className="text-[11px] font-black text-indigo-600 tracking-widest flex-shrink-0">{feature.key || '—'}</span><span className="text-xs font-bold text-slate-400 flex-shrink-0">{typeLabel}</span></span> as any}
+      footer={
+        <div className="flex gap-2 sm:justify-between items-center">
+          <button type="button" onClick={() => setConfirmDelete(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button>
+          <div className="flex gap-2 flex-1 sm:flex-none">
+            <Button type="button" variant="outline" onClick={onClose} className="hidden sm:inline-flex">CANCELAR</Button>
+            <Button type="submit" form="ticket-form" loading={loading} fullWidth className="sm:w-56">SALVAR ALTERAÇÕES</Button>
+          </div>
+        </div>
+      }>
+      <form id="ticket-form" onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6 lg:gap-8 items-start">
+        {/* ── conteúdo ── */}
+        <div className="space-y-5 min-w-0">
+          <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Título do ticket"
+            className="w-full text-xl sm:text-2xl font-black text-slate-900 bg-transparent border-0 border-b-2 border-transparent hover:border-slate-200 focus:border-[#0D1F4E] focus:outline-none px-0 py-1 transition-colors" />
 
-        {/* Seletor de tipo */}
-        <TypeSelector value={type} onChange={handleTypeChange} />
+          <div className="inline-flex p-1 rounded-xl bg-slate-100 max-w-full overflow-x-auto">
+            {tabBtn('desc', 'Descrição')}
+            {tabBtn('subtasks', 'Subtarefas', activities.length ? doneActs : undefined)}
+            {tabBtn('comments', 'Comentários e histórico')}
+            {tabBtn('links', 'Vínculos', linkedDemand ? 1 : 0)}
+          </div>
 
-        {/* Identificação */}
-        <FSection icon={<FileText className="w-4 h-4" />} label="Identificação" />
-        <Input label="Título *" required value={title} onChange={e => setTitle(e.target.value)} />
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Select label="Prioridade" value={priority} onChange={e => setPriority(e.target.value as any)}>
-            <option value="low">Baixa</option>
-            <option value="medium">Média</option>
-            <option value="high">Alta</option>
-            <option value="critical">Crítica</option>
-          </Select>
-          <Select label="Status" value={status} onChange={e => setStatus(e.target.value as any)}>
-            <option value="todo">A Fazer</option>
-            <option value="in-progress">Em Desenvolvimento</option>
-            <option value="review">Em Revisão</option>
-            <option value="testing">Em Teste</option>
-            <option value="done">Concluído</option>
-          </Select>
-          {type !== 'epic' && (
-            <Input label="Story Points" type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} />
+          {tab === 'desc' && (
+            <div className="space-y-4">
+              {type === 'story' && <StoryFields split desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs} acceptance={acceptance} setAcceptance={setAcceptance} objective={objective} setObjective={setObjective} linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={feature.projectId} />}
+              {type === 'task' && <TaskFields split desc={desc} setDesc={setDesc} activities={activities} setActivities={setActivities} linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={feature.projectId} />}
+              {type === 'bug' && <BugFields split desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs} acceptance={acceptance} setAcceptance={setAcceptance} activities={activities} setActivities={setActivities} />}
+              {type === 'epic' && <EpicFields desc={desc} setDesc={setDesc} objective={objective} setObjective={setObjective} funcReqs={funcReqs} setFuncReqs={setFuncReqs} />}
+            </div>
           )}
-          <Input label="Prazo" type="date" iconLeft={<Calendar className="w-4 h-4" />} value={deadline} onChange={e => setDeadline(e.target.value)} />
+          {tab === 'subtasks' && (
+            <div>
+              <p className="text-xs text-slate-400 mb-3">{type === 'bug' ? 'Cenários de teste e passos para validar a correção.' : 'Passos menores que compõem este ticket. Marque conforme for concluindo.'}</p>
+              <ActivitiesField activities={activities} setActivities={setActivities} />
+            </div>
+          )}
+          {tab === 'comments' && <CommentsPanel projectId={feature.projectId} featureId={feature.id} />}
+          {tab === 'links' && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">{type === 'story' ? 'Demanda pai desta história.' : 'Demanda a que este ticket está vinculado.'}</p>
+              <LinkedDemandPicker projectId={feature.projectId} value={linkedDemand} onChange={setLinkedDemand} />
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input label="Relator" iconLeft={<User className="w-4 h-4" />} placeholder="Quem solicitou?" value={reporter} onChange={e => setReporter(e.target.value)} />
-          <Select label="Responsável (quem vai assumir)" value={assignee} onChange={e => setAssignee(e.target.value)}
-            options={[{ value: '', label: 'Ninguém ainda' }, ...[...new Set([...team, ...(assignee ? [assignee] : [])])].map(n => ({ value: n, label: n }))]} />
+        {/* ── detalhes (barra lateral) ── */}
+        <aside className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3.5 lg:sticky lg:top-0">
+          <h3 className="text-sm font-black text-slate-900">Detalhes</h3>
+          <div><label className={lbl}>Status</label>
+            <Select value={status} onChange={e => setStatus(e.target.value as any)} options={[{ value: 'todo', label: 'A Fazer' }, { value: 'in-progress', label: 'Em Desenvolvimento' }, { value: 'review', label: 'Em Revisão' }, { value: 'testing', label: 'Em Teste' }, { value: 'done', label: 'Concluído' }]} /></div>
+          <div><label className={lbl}>Sprint (jogar para uma sprint)</label>
+            <Select value={sprintId} onChange={e => setSprintId(e.target.value)} options={sprintOptions} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={lbl}>Tipo</label>
+              <Select value={type} onChange={e => setType(e.target.value as any)} options={[{ value: 'story', label: 'História' }, { value: 'task', label: 'Tarefa' }, { value: 'bug', label: 'Bug' }, { value: 'epic', label: 'Demanda' }]} /></div>
+            <div><label className={lbl}>Prioridade</label>
+              <Select value={priority} onChange={e => setPriority(e.target.value as any)} options={[{ value: 'low', label: 'Baixa' }, { value: 'medium', label: 'Média' }, { value: 'high', label: 'Alta' }, { value: 'critical', label: 'Crítica' }]} /></div>
+          </div>
+          <div><label className={lbl}>Responsável (quem assume)</label>
+            <div className="flex items-center gap-2">
+              <Assignee name={assignee} size={32} />
+              <div className="flex-1 min-w-0"><Select value={assignee} onChange={e => setAssignee(e.target.value)}
+                options={[{ value: '', label: 'Ninguém ainda' }, ...[...new Set([...team, ...(assignee ? [assignee] : [])])].map(n => ({ value: n, label: n }))]} /></div>
+            </div>
+            {profile?.displayName && assignee !== profile.displayName && <button type="button" onClick={() => setAssignee(profile.displayName as string)} className="text-[11px] font-black text-indigo-600 mt-1.5 hover:underline">Assumir para mim</button>}
+          </div>
+          <div><label className={lbl}>Relator (quem solicitou)</label>
+            <Select value={reporter} onChange={e => setReporter(e.target.value)}
+              options={[{ value: '', label: 'Não informado' }, ...[...new Set([...team, ...(reporter ? [reporter] : [])])].map(n => ({ value: n, label: n }))]} /></div>
+          <div className="grid grid-cols-2 gap-3">
+            {type !== 'epic' && <div><label className={lbl}>Story points</label><Input type="number" min="0" value={points} onChange={e => setPoints(Number(e.target.value))} /></div>}
+            <div><label className={lbl}>Prazo</label><Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} /></div>
+          </div>
           {(type === 'story' || type === 'task' || type === 'bug') && (
-            <Input label="Tela / Funcionalidade" iconLeft={<Layers className="w-4 h-4" />} placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} />
+            <div><label className={lbl}>Tela / funcionalidade</label><Input placeholder="Ex: Acompanhamento Aviso Embarque" value={area} onChange={e => setArea(e.target.value)} /></div>
           )}
-        </div>
-
-        {/* Campos específicos por tipo */}
-        {type === 'story' && (
-          <StoryFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
-            acceptance={acceptance} setAcceptance={setAcceptance} objective={objective} setObjective={setObjective}
-            linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={feature.projectId} />
-        )}
-        {type === 'task' && (
-          <TaskFields desc={desc} setDesc={setDesc} activities={activities} setActivities={setActivities}
-            linkedDemand={linkedDemand} setLinkedDemand={setLinkedDemand} projectId={feature.projectId} />
-        )}
-        {type === 'bug' && (
-          <BugFields desc={desc} setDesc={setDesc} funcReqs={funcReqs} setFuncReqs={setFuncReqs}
-            acceptance={acceptance} setAcceptance={setAcceptance} activities={activities} setActivities={setActivities} />
-        )}
-        {type === 'epic' && (
-          <EpicFields desc={desc} setDesc={setDesc} objective={objective} setObjective={setObjective}
-            funcReqs={funcReqs} setFuncReqs={setFuncReqs} />
-        )}
-
-        {/* Ações */}
-        <div className="flex gap-3 pt-2">
-          <Button type="submit" loading={loading} fullWidth size="lg">SALVAR ALTERAÇÕES</Button>
-          <button type="button" onClick={() => setConfirmDelete(true)}
-            className="px-4 py-2.5 rounded-2xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all shrink-0">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+        </aside>
       </form>
-
-      <div className="pt-2">
-        <FSection icon={<MessageSquare className="w-4 h-4" />} label="Comentários & Atividade" />
-        <CommentsPanel projectId={feature.projectId} featureId={feature.id} />
-      </div>
 
       {confirmDelete && (
         <ConfirmModal isOpen onClose={() => setConfirmDelete(false)} onConfirm={handleDelete}
@@ -2512,7 +2603,7 @@ function TypeSelector({ value, onChange }: { value: string; onChange: (v: string
 
 // ─── FormFields por tipo ──────────────────────────────────────────────────────
 
-function StoryFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcceptance, objective, setObjective, linkedDemand, setLinkedDemand, projectId }: any) {
+function StoryFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcceptance, objective, setObjective, linkedDemand, setLinkedDemand, projectId, split }: any) {
   return (
     <>
       <FSection icon={<FileText className="w-4 h-4" />} label="Narrativa do Usuário" />
@@ -2545,13 +2636,13 @@ function StoryFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcce
       <FSection icon={<Target className="w-4 h-4" />} label="Objetivo de Negócio" />
       <Textarea label="Objetivo" placeholder="Qual o valor desta história para o negócio?" value={objective} onChange={(e: any) => setObjective(e.target.value)} rows={2} />
 
-      <FSection icon={<Link2 className="w-4 h-4" />} label="Demanda Pai" />
-      <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
+      {!split && <><FSection icon={<Link2 className="w-4 h-4" />} label="Demanda Pai" />
+      <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} /></>}
     </>
   );
 }
 
-function TaskFields({ desc, setDesc, activities, setActivities, linkedDemand, setLinkedDemand, projectId }: any) {
+function TaskFields({ desc, setDesc, activities, setActivities, linkedDemand, setLinkedDemand, projectId, split }: any) {
   return (
     <>
       <FSection icon={<FileText className="w-4 h-4" />} label="Descrição" />
@@ -2563,16 +2654,18 @@ function TaskFields({ desc, setDesc, activities, setActivities, linkedDemand, se
         rows={4}
       />
 
+      {!split && <>
       <FSection icon={<CheckSquare className="w-4 h-4" />} label="Subtarefas / Checklist" />
       <ActivitiesField activities={activities} setActivities={setActivities} />
 
       <FSection icon={<Link2 className="w-4 h-4" />} label="Vinculada a" />
       <LinkedDemandPicker projectId={projectId} value={linkedDemand} onChange={setLinkedDemand} />
+      </>}
     </>
   );
 }
 
-function BugFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcceptance, activities, setActivities }: any) {
+function BugFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAcceptance, activities, setActivities, split }: any) {
   return (
     <>
       <FSection icon={<AlertCircle className="w-4 h-4" />} label="Passos para Reproduzir" />
@@ -2600,8 +2693,10 @@ function BugFields({ desc, setDesc, funcReqs, setFuncReqs, acceptance, setAccept
         rows={3}
       />
 
+      {!split && <>
       <FSection icon={<CheckSquare className="w-4 h-4" />} label="Cenários de Teste" />
       <ActivitiesField activities={activities} setActivities={setActivities} />
+      </>}
     </>
   );
 }
