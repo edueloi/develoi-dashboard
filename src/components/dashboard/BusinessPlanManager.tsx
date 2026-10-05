@@ -4,6 +4,7 @@ import {
   Compass, Target, Trophy, Users, ShieldCheck, Plus, Trash2, Edit2,
   CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight, Camera, X, Loader2,
   LayoutDashboard, Gem, Swords, Flag, CalendarClock, TrendingUp, Scale, Flame,
+  Lightbulb, Quote, Repeat, Code2, ThumbsUp, ThumbsDown, ShieldAlert, Sparkles, Layers,
 } from 'lucide-react';
 import {
   Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
@@ -465,28 +466,39 @@ function InfoBlock({ icon: Icon, label, text, color, isDark, className = '' }: {
   );
 }
 
-function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_CONFIG; text?: string | null; isDark: boolean }) {
-  const cfg = SWOT_CONFIG[field];
-  const items = (text || '').split('\n').map(s => s.trim()).filter(Boolean);
+// Cada quadrante do SWOT: letra grande, contagem e itens numerados
+const SWOT_STYLE = {
+  swotStrengths:     { letter: 'S', title: 'Forças',        hint: 'O que temos de bom por dentro', icon: ThumbsUp,    color: '#15803D', soft: 'rgba(21,128,61,0.08)',  border: 'rgba(21,128,61,0.28)' },
+  swotWeaknesses:    { letter: 'W', title: 'Fraquezas',     hint: 'O que precisamos melhorar por dentro', icon: ThumbsDown, color: '#B45309', soft: 'rgba(217,119,6,0.09)', border: 'rgba(217,119,6,0.32)' },
+  swotOpportunities: { letter: 'O', title: 'Oportunidades', hint: 'O que o mercado oferece a nosso favor', icon: Lightbulb, color: '#2563EB', soft: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.28)' },
+  swotThreats:       { letter: 'T', title: 'Ameaças',       hint: 'O que vem de fora e pode atrapalhar', icon: ShieldAlert, color: '#DC2626', soft: 'rgba(220,38,38,0.07)', border: 'rgba(220,38,38,0.28)' },
+} as const;
+
+function SwotQuadrant({ field, text, isDark }: { field: keyof typeof SWOT_STYLE; text?: string | null; isDark: boolean }) {
+  const cfg = SWOT_STYLE[field];
+  const items = lines(text);
   return (
-    <div className="rounded-2xl p-4 sm:p-5 border" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : cfg.bg, borderColor: cfg.border }}>
-      <div className="flex items-center gap-2 mb-3">
-        <cfg.icon className="w-4 h-4" style={{ color: cfg.color }} />
-        <p className="text-xs font-black uppercase tracking-widest" style={{ color: cfg.color }}>{cfg.label}</p>
-        <span className="ml-auto text-[11px] font-black px-2 py-0.5 rounded-full" style={{ background: `${cfg.color}18`, color: cfg.color }}>{items.length}</span>
+    <div className="rounded-2xl border overflow-hidden flex flex-col min-w-0" style={{ background: isDark ? 'rgba(255,255,255,0.04)' : '#fff', borderColor: cfg.border }}>
+      <div className="flex items-center gap-3 p-4 sm:p-5" style={{ background: cfg.soft, borderBottom: `1px solid ${cfg.border}` }}>
+        <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-black text-white flex-shrink-0 shadow-sm" style={{ background: cfg.color }}>{cfg.letter}</span>
+        <div className="min-w-0 flex-1">
+          <h4 className="text-sm font-black uppercase tracking-widest" style={{ color: cfg.color }}>{cfg.title}</h4>
+          <p className="text-[11px] text-slate-500 dark:text-slate-300 leading-snug">{cfg.hint}</p>
+        </div>
+        <span className="text-xl font-black flex-shrink-0" style={{ color: cfg.color }}>{items.length}</span>
       </div>
-      {items.length ? (
-        <ul className="space-y-2">
-          {items.map((it, i) => (
-            <li key={i} className="flex items-start gap-2 text-sm leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.85)' : '#334155' }}>
-              <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: cfg.color }} />
-              <span>{it}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>
-      )}
+      <div className="p-4 sm:p-5 flex-1">
+        {items.length ? (
+          <ol className="space-y-2.5">
+            {items.map((it, i) => (
+              <li key={i} className="flex items-start gap-3 text-sm leading-snug" style={{ color: isDark ? 'rgba(255,255,255,0.88)' : '#334155' }}>
+                <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0 mt-px" style={{ background: cfg.soft, color: cfg.color, border: `1px solid ${cfg.border}` }}>{i + 1}</span>
+                <span className="min-w-0 break-words">{it}</span>
+              </li>
+            ))}
+          </ol>
+        ) : <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>}
+      </div>
     </div>
   );
 }
@@ -504,21 +516,120 @@ function SectionHeader({ title, subtitle, onEdit, editLabel }: { title: string; 
   );
 }
 
+// Divide o texto do modelo de negócio em partes: título curto seguido de parágrafos
+function parseModel(text?: string | null) {
+  const blocks = (text || '').split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
+  const sections: { title: string; paras: string[] }[] = [];
+  for (const b of blocks) {
+    const first = b.split('\n')[0].trim();
+    const isHeading = !b.includes('\n') && b.length <= 70 && !/[.;:]$/.test(b);
+    if (isHeading) sections.push({ title: b, paras: [] });
+    else if (sections.length) sections[sections.length - 1].paras.push(b);
+    else sections.push({ title: '', paras: [b] });
+    void first;
+  }
+  return sections;
+}
+// Parágrafo com itens separados por ";" vira lista
+const toItems = (para: string) => {
+  const parts = para.split(/;\s+/).map(x => x.trim()).filter(Boolean);
+  if (parts.length < 3) return null;
+  const head = parts[0].split(/:\s+/);
+  return { intro: head.length > 1 ? head[0] : '', items: head.length > 1 ? [head.slice(1).join(': '), ...parts.slice(1)] : parts };
+};
+
+const FRONT_STYLE = [
+  { icon: Code2, color: '#2563EB' },
+  { icon: Repeat, color: '#7C3AED' },
+  { icon: Layers, color: '#0891B2' },
+];
+
+function BusinessModelHero({ text, isDark }: { text?: string | null; isDark: boolean }) {
+  const sections = parseModel(text);
+  // a primeira parte ("Modelo de Negócio" + visão geral) vira o texto de abertura; o resto vira as "frentes"
+  const hasIntro = sections.length > 1 && /modelo/i.test(sections[0].title);
+  const intro = hasIntro ? sections[0].paras.join(' ') : '';
+  const fronts = hasIntro ? sections.slice(1) : sections;
+  const structured = fronts.length >= 2 || (fronts.length === 1 && fronts[0].title);
+  return (
+    <section className="rounded-3xl overflow-hidden border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm min-w-0">
+      <div className="p-5 sm:p-7 text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg,#0D1F4E 0%,#2A1B6B 100%)' }}>
+        <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full bg-white/5" />
+        <div className="absolute right-24 -bottom-16 w-40 h-40 rounded-full bg-[#C49A2A]/10" />
+        <div className="relative">
+          <p className="text-[11px] font-black uppercase tracking-widest text-[#C49A2A] flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5" />Modelo de negócio</p>
+          <h3 className="text-xl sm:text-2xl font-black mt-1">Como a Develoi gera receita</h3>
+          {intro && <p className="mt-3 text-sm sm:text-base leading-relaxed text-white/85 max-w-4xl">{intro}</p>}
+        </div>
+      </div>
+      <div className="p-4 sm:p-6">
+        {!text ? <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>
+          : !structured ? <RichText text={text} isDark={isDark} />
+          : (
+            <div className={`grid grid-cols-1 gap-4 sm:gap-5 ${fronts.length >= 3 ? 'lg:grid-cols-3' : fronts.length === 2 ? 'md:grid-cols-2' : ''}`}>
+              {fronts.map((f, i) => {
+                const st = FRONT_STYLE[i % FRONT_STYLE.length];
+                return (
+                  <div key={f.title + i} className="rounded-2xl border p-4 sm:p-5 min-w-0" style={{ borderColor: `${st.color}33`, background: isDark ? 'rgba(255,255,255,0.03)' : `${st.color}08` }}>
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white" style={{ background: st.color }}><st.icon className="w-5 h-5" /></span>
+                      <h4 className="text-sm font-black leading-tight" style={{ color: isDark ? '#fff' : st.color }}>{f.title || 'Frente de atuação'}</h4>
+                    </div>
+                    <div className="space-y-3 text-sm leading-relaxed" style={{ color: isDark ? 'rgba(255,255,255,0.86)' : '#334155' }}>
+                      {f.paras.map((para, k) => {
+                        const list = toItems(para);
+                        return list ? (
+                          <div key={k}>
+                            {list.intro && <p className="mb-2">{list.intro}:</p>}
+                            <ul className="space-y-1.5">
+                              {list.items.map((it, n) => <li key={n} className="flex items-start gap-2"><span className="w-1.5 h-1.5 rounded-full mt-[9px] flex-shrink-0" style={{ background: st.color }} /><span className="min-w-0 break-words">{it.replace(/\.$/, '')}</span></li>)}
+                            </ul>
+                          </div>
+                        ) : <p key={k} className="break-words">{para}</p>;
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+      </div>
+    </section>
+  );
+}
+
 function IdentitySection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
   const { isDark } = useTheme();
   const [editing, setEditing] = useState(false);
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
-      <SectionHeader title="Quem somos" subtitle="Missão, visão, valores, público e como a Develoi ganha dinheiro" onEdit={() => setEditing(true)} editLabel="EDITAR IDENTIDADE" />
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 items-start">
-        <InfoBlock icon={Compass} label="Missão" text={plan.missionText} color="#0D1F4E" isDark={isDark} />
-        <InfoBlock icon={Target} label="Visão" text={plan.visionText} color="#2563EB" isDark={isDark} />
-        <InfoBlock icon={Star} label="Valores" text={plan.valuesText} color="#C49A2A" isDark={isDark} className="md:col-span-2 xl:col-span-1" />
+      <SectionHeader title="Quem somos" subtitle="Como a Develoi ganha dinheiro, para quem trabalha e no que acredita" onEdit={() => setEditing(true)} editLabel="EDITAR IDENTIDADE" />
+
+      <BusinessModelHero text={plan.businessModel} isDark={isDark} />
+
+      <InfoBlock icon={Users} label="Mercado-alvo / público" text={plan.targetMarket} color="#15803D" isDark={isDark} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+        {[{ icon: Compass, label: 'Missão', text: plan.missionText, color: '#0D1F4E', sub: 'Por que existimos' }, { icon: Target, label: 'Visão', text: plan.visionText, color: '#2563EB', sub: 'Onde queremos chegar' }].map(b => (
+          <section key={b.label} className="relative rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-5 sm:p-6 min-w-0 overflow-hidden">
+            <Quote className="absolute right-4 top-4 w-14 h-14 opacity-[0.06]" style={{ color: b.color }} />
+            <div className="flex items-center gap-2.5 mb-4">
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white" style={{ background: b.color }}><b.icon className="w-5 h-5" /></span>
+              <div><h4 className="text-sm font-black uppercase tracking-widest" style={{ color: b.color }}>{b.label}</h4><p className="text-[11px] text-slate-400">{b.sub}</p></div>
+            </div>
+            {b.text ? <RichText text={b.text} isDark={isDark} /> : <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>}
+          </section>
+        ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
-        <InfoBlock icon={Users} label="Mercado-Alvo / Público" text={plan.targetMarket} color="#15803D" isDark={isDark} />
-        <InfoBlock icon={Trophy} label="Modelo de Negócio" text={plan.businessModel} color="#7C3AED" isDark={isDark} className="lg:col-span-2" />
-      </div>
+
+      <section className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-5 sm:p-6 min-w-0" style={{ borderTop: '3px solid #C49A2A' }}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100 text-amber-700"><Star className="w-5 h-5" /></span>
+          <div><h4 className="text-sm font-black uppercase tracking-widest text-amber-700">Valores</h4><p className="text-[11px] text-slate-400">O que guia as nossas decisões</p></div>
+        </div>
+        {plan.valuesText ? <div className="lg:columns-2 lg:gap-10 [&>div>*]:break-inside-avoid"><RichText text={plan.valuesText} isDark={isDark} /></div> : <p className="text-sm text-slate-400 italic">Ainda não preenchido.</p>}
+      </section>
+
       {editing && <OverviewEditModal plan={plan} initialTab="identity" onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
     </div>
   );
@@ -527,16 +638,51 @@ function IdentitySection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () =>
 function SwotSection({ plan, onSaved }: { plan: BusinessPlan; onSaved: () => void }) {
   const { isDark } = useTheme();
   const [editing, setEditing] = useState(false);
+  const n = { s: lines(plan.swotStrengths).length, w: lines(plan.swotWeaknesses).length, o: lines(plan.swotOpportunities).length, t: lines(plan.swotThreats).length };
+  const good = n.s + n.o, bad = n.w + n.t, total = Math.max(1, good + bad);
   return (
     <div className="space-y-5 sm:space-y-6 w-full min-w-0">
-      <SectionHeader title="Análise SWOT" subtitle="Forças e fraquezas (de dentro) · Oportunidades e ameaças (de fora)" onEdit={() => setEditing(true)} editLabel="EDITAR SWOT" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+      <SectionHeader title="Análise SWOT" subtitle="Um retrato honesto de onde estamos: o que é nosso (dentro) e o que vem do mercado (fora)" onEdit={() => setEditing(true)} editLabel="EDITAR SWOT" />
+
+      {/* Balanço: pontos a favor x pontos de atenção */}
+      <div className="rounded-2xl border border-slate-200/70 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 text-xs font-black mb-2">
+          <span className="text-emerald-700 flex items-center gap-1.5"><ThumbsUp className="w-4 h-4" />{good} pontos a favor <span className="text-slate-400 font-semibold">(forças + oportunidades)</span></span>
+          <span className="text-rose-600 flex items-center gap-1.5 text-right"><span className="text-slate-400 font-semibold hidden sm:inline">(fraquezas + ameaças)</span> {bad} pontos de atenção<ShieldAlert className="w-4 h-4" /></span>
+        </div>
+        <div className="flex h-3 rounded-full overflow-hidden bg-slate-100 dark:bg-white/10">
+          <div style={{ width: `${(good / total) * 100}%`, background: 'linear-gradient(90deg,#15803D,#2563EB)' }} />
+          <div style={{ width: `${(bad / total) * 100}%`, background: 'linear-gradient(90deg,#D97706,#DC2626)' }} />
+        </div>
+      </div>
+
+      {/* Matriz 2x2 com os eixos nomeados */}
+      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-3 md:gap-y-4">
+        <div className="hidden md:block" />
+        <p className="hidden md:flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-emerald-700"><ThumbsUp className="w-3.5 h-3.5" />Ajuda a Develoi</p>
+        <p className="hidden md:flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-rose-600"><ShieldAlert className="w-3.5 h-3.5" />Atrapalha a Develoi</p>
+
+        <p className="hidden md:flex items-center justify-center text-[11px] font-black uppercase tracking-widest text-slate-400 [writing-mode:vertical-rl] rotate-180">Interno (nós)</p>
         <SwotQuadrant field="swotStrengths" text={plan.swotStrengths} isDark={isDark} />
         <SwotQuadrant field="swotWeaknesses" text={plan.swotWeaknesses} isDark={isDark} />
+
+        <p className="hidden md:flex items-center justify-center text-[11px] font-black uppercase tracking-widest text-slate-400 [writing-mode:vertical-rl] rotate-180">Externo (mercado)</p>
         <SwotQuadrant field="swotOpportunities" text={plan.swotOpportunities} isDark={isDark} />
         <SwotQuadrant field="swotThreats" text={plan.swotThreats} isDark={isDark} />
       </div>
-      <InfoBlock icon={CheckCircle2} label="Conclusão da análise: o que isso significa na prática" text={plan.swotConclusion} color="#0D1F4E" isDark={isDark} />
+
+      {/* Leitura estratégica */}
+      <section className="rounded-3xl overflow-hidden text-white relative" style={{ background: 'linear-gradient(135deg,#0D1F4E 0%,#1B3A8A 100%)' }}>
+        <div className="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-white/5" />
+        <div className="relative p-5 sm:p-7">
+          <p className="text-[11px] font-black uppercase tracking-widest text-[#C49A2A] flex items-center gap-1.5"><Lightbulb className="w-3.5 h-3.5" />Leitura estratégica</p>
+          <h3 className="text-lg font-black mt-1">O que isso significa na prática</h3>
+          <div className="mt-3 max-w-4xl text-sm sm:text-base leading-relaxed text-white/90 space-y-3 break-words">
+            {plan.swotConclusion ? plan.swotConclusion.split(/\n+/).filter(l => l.trim()).map((l, i) => <p key={i}>{l}</p>) : <p className="text-white/60 italic">Ainda não preenchido. Escreva a conclusão em "Editar SWOT".</p>}
+          </div>
+        </div>
+      </section>
+
       {editing && <OverviewEditModal plan={plan} initialTab="swot" onClose={() => setEditing(false)} onSuccess={() => { setEditing(false); onSaved(); }} />}
     </div>
   );
