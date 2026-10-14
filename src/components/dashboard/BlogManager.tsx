@@ -6,7 +6,7 @@ import {
   Save, X, ArrowLeft, TrendingUp, BookOpen, CheckCircle2,
 } from "lucide-react";
 import {
-  PanelCard, Button, Input, Select, Textarea, Badge, Modal,
+  PanelCard, Button, Input, Select, Textarea, Badge, Modal, Tabs,
   StatGrid, StatCard, EmptyState,
 } from "../ui";
 import RichTextEditor from "../ui/RichTextEditor";
@@ -119,32 +119,19 @@ export function BlogManager() {
 
   return (
     <div className="space-y-4">
-      {/* Sub-nav */}
-      {tab !== "editor" && (
-        <div className="flex max-w-full overflow-x-auto items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
-          {([
-            { id: "overview", label: "Visão Geral", icon: BarChart2 },
-            { id: "posts",    label: "Posts",       icon: FileText },
-            { id: "categories", label: "Categorias", icon: Tag },
-            { id: "authors",  label: "Autores",     icon: Users },
-            { id: "subscribers", label: "Assinantes", icon: Mail },
-          ] as { id: BlogTab; label: string; icon: any }[]).map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
-                tab === id
-                  ? "bg-[#0D1F4E] text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
+      <Tabs<BlogTab>
+        items={[
+          { id: "overview", label: "Visão Geral", icon: BarChart2 },
+          { id: "posts", label: "Posts", icon: FileText },
+          { id: "categories", label: "Categorias", icon: Tag },
+          { id: "authors", label: "Autores", icon: Users },
+          { id: "subscribers", label: "Assinantes", icon: Mail },
+          ...(tab === "editor" ? [{ id: "editor" as BlogTab, label: editingPost ? "Editando" : "Novo post", icon: Plus }] : []),
+        ]}
+        value={tab}
+        onChange={setTab}
+        label="Seções do blog"
+      >
       <AnimatePresence mode="wait">
         {tab === "overview" && (
           <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -177,6 +164,7 @@ export function BlogManager() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Tabs>
     </div>
   );
 }

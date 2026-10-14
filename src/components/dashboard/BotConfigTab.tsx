@@ -1,12 +1,13 @@
 // Bot Config UI
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, Smartphone, MessageSquare, List, Plus, Trash2, Users, Wand2, Sun } from 'lucide-react';
-import { Button, PanelCard, Input, Select, Textarea, ConfirmModal, Badge } from '../ui';
+import { Button, PanelCard, Input, Select, Textarea, ConfirmModal, Badge, Tabs } from '../ui';
 import { toast } from 'react-hot-toast';
 import { BotIntelligence } from './BotIntelligence';
 
 interface AttendantRow { name: string; phone: string }
 interface SectorRow { id?: string; name: string; menuKey: string; attendants: AttendantRow[]; intake: string }
+type BotSection = 'setup' | 'messages' | 'intelligence' | 'sectors';
 
 function parseAttendantsJson(v: any): AttendantRow[] {
   try {
@@ -16,6 +17,7 @@ function parseAttendantsJson(v: any): AttendantRow[] {
 }
 
 export function BotConfigTab() {
+  const [section, setSection] = useState<BotSection>('setup');
   const [config, setConfig] = useState<any>(null);
   const [instance, setInstance] = useState<any>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -133,18 +135,29 @@ export function BotConfigTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-black dash-text">WhatsApp Bot</h2>
+          <h2 className="text-lg font-black dash-text">WhatsApp Bot</h2>
           <p className="text-sm dash-text-muted">Gerencie a conexão e fluxos do bot</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Tabs<BotSection>
+        items={[
+          { id: 'setup', label: 'Conexão', icon: Smartphone },
+          { id: 'messages', label: 'Mensagens', icon: MessageSquare },
+          { id: 'intelligence', label: 'Inteligência', icon: Wand2 },
+          { id: 'sectors', label: 'Setores', icon: Users, badge: sectorRows.length || undefined },
+        ]}
+        value={section}
+        onChange={setSection}
+        label="Seções do bot de atendimento"
+      >
+      {section === 'setup' && <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <PanelCard title="Conexão do WhatsApp" icon={Smartphone}>
           <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-xl border dash-border bg-slate-50 dark:bg-white/5">
+            <div className="flex items-center gap-3 rounded-lg border dash-border bg-slate-50 p-3 dark:bg-white/5">
               <div className={`w-3 h-3 rounded-full ${instance?.status === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`} />
               <div>
                 <p className="text-sm font-bold dash-text">
@@ -163,9 +176,9 @@ export function BotConfigTab() {
 
             <div className="flex gap-2">
               {instance?.status !== 'connected' ? (
-                <Button onClick={handleConnect} fullWidth>CONECTAR</Button>
+                <Button size="sm" onClick={handleConnect}>CONECTAR</Button>
               ) : (
-                <Button onClick={handleDisconnect} variant="danger" fullWidth>DESCONECTAR</Button>
+                <Button size="sm" onClick={handleDisconnect} variant="danger">DESCONECTAR</Button>
               )}
             </div>
           </div>
@@ -174,7 +187,7 @@ export function BotConfigTab() {
         <PanelCard title="Configurações Gerais" icon={Settings}>
           {config && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-xl border dash-border">
+              <div className="flex items-center justify-between gap-3 rounded-lg border p-3 dash-border">
                 <div>
                   <p className="text-sm font-bold dash-text">Bot Ativado</p>
                   <p className="text-xs dash-text-muted">Ligar/Desligar respostas automáticas</p>
@@ -187,7 +200,7 @@ export function BotConfigTab() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 rounded-xl border dash-border">
+              <div className="flex items-center justify-between gap-3 rounded-lg border p-3 dash-border">
                 <div>
                   <p className="text-sm font-bold dash-text">Enviar Boas-vindas</p>
                   <p className="text-xs dash-text-muted">Para novos contatos</p>
@@ -200,7 +213,7 @@ export function BotConfigTab() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 rounded-xl border dash-border">
+              <div className="flex items-center justify-between gap-3 rounded-lg border p-3 dash-border">
                 <div>
                   <p className="text-sm font-bold dash-text">Menus com botões</p>
                   <p className="text-xs dash-text-muted">Botões clicáveis só aparecem no celular; no WhatsApp Web/Desktop o cliente vê "Não foi possível carregar a mensagem". Desligado, o menu sai em texto numerado e funciona em qualquer aparelho.</p>
@@ -213,15 +226,15 @@ export function BotConfigTab() {
                 />
               </div>
 
-              <Button onClick={handleSaveConfig} iconLeft={<Save className="w-4 h-4" />}>
+              <Button size="sm" onClick={handleSaveConfig} iconLeft={<Save className="w-3.5 h-3.5" />}>
                 SALVAR CONFIGURAÇÕES
               </Button>
             </div>
           )}
         </PanelCard>
-      </div>
+      </div>}
 
-      <PanelCard title="Mensagens do bot" icon={Sun}>
+      {section === 'messages' && <PanelCard title="Mensagens do bot" icon={Sun}>
         {config && (
           <div className="space-y-4">
             <p className="text-xs dash-text-muted">
@@ -238,11 +251,11 @@ export function BotConfigTab() {
             <Button onClick={generateMenu} loading={savingMenu} iconLeft={<Wand2 className="w-4 h-4" />}>SALVAR TEXTOS E ATUALIZAR O MENU</Button>
           </div>
         )}
-      </PanelCard>
+      </PanelCard>}
 
-      <BotIntelligence />
+      {section === 'intelligence' && <BotIntelligence />}
 
-      <PanelCard title="Setores e Atendentes" icon={Users}>
+      {section === 'sectors' && <PanelCard title="Setores e Atendentes" icon={Users}>
         <div className="space-y-4">
           <p className="text-xs dash-text-muted">
             Quando o cliente escolhe um setor, o bot avisa os atendentes pelo WhatsApp com um resumo. O atendente responde
@@ -251,7 +264,7 @@ export function BotConfigTab() {
           </p>
 
           {sectorRows.map((row, i) => (
-            <div key={row.id ?? `new-${i}`} className="p-4 rounded-xl border dash-border space-y-3">
+            <div key={row.id ?? `new-${i}`} className="space-y-3 rounded-lg border p-3 dash-border">
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <Input label="Nome do setor" value={row.name} onChange={(e: any) => updateSector(i, { name: e.target.value })} />
@@ -288,15 +301,16 @@ export function BotConfigTab() {
           ))}
 
           <div className="flex gap-2 flex-wrap">
-            <Button variant="secondary" onClick={() => setSectorRows(rows => [...rows, { name: '', menuKey: String(rows.length + 1), attendants: [], intake: 'none' }])} iconLeft={<Plus className="w-4 h-4" />}>
+                <Button size="sm" variant="secondary" onClick={() => setSectorRows(rows => [...rows, { name: '', menuKey: String(rows.length + 1), attendants: [], intake: 'none' }])} iconLeft={<Plus className="w-3.5 h-3.5" />}>
               NOVO SETOR
             </Button>
-            <Button variant="secondary" onClick={generateMenu} iconLeft={<Wand2 className="w-4 h-4" />}>
+            <Button size="sm" variant="secondary" onClick={generateMenu} iconLeft={<Wand2 className="w-3.5 h-3.5" />}>
               ATUALIZAR MENU DO BOT
             </Button>
           </div>
         </div>
-      </PanelCard>
+      </PanelCard>}
+      </Tabs>
     </div>
   );
 }

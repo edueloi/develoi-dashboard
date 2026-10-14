@@ -19,6 +19,7 @@ import {
   ContentCard,
   Input,
   PanelCard,
+  PageWrapper,
   SectionTitle,
   Select,
   Tabs,
@@ -84,7 +85,7 @@ function ProjectImageField({ label, value, onChange, shape = 'banner' }: {
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <span className="ds-label">{label}</span>
-      <div className="flex min-w-0 items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 dark:border-white/10 dark:bg-white/5">
+      <div className="flex min-w-0 items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5 dark:border-white/10 dark:bg-white/5">
         <div className={cn(
           'flex shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/5',
           shape === 'banner' ? 'h-14 w-24' : 'h-14 w-14',
@@ -92,11 +93,11 @@ function ProjectImageField({ label, value, onChange, shape = 'banner' }: {
           {value ? <img src={value} alt="Prévia" className="h-full w-full object-cover" /> : <ImageIcon className="h-4 w-4 text-zinc-300" />}
         </div>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-        <Button type="button" variant="outline" size="sm" loading={uploading} iconLeft={<Camera className="h-3.5 w-3.5" />} onClick={() => fileRef.current?.click()}>
+        <Button type="button" variant="outline" size="xs" loading={uploading} iconLeft={<Camera className="h-3 w-3" />} onClick={() => fileRef.current?.click()}>
           {value ? 'Trocar imagem' : 'Enviar imagem'}
         </Button>
         {value && (
-          <Button type="button" variant="ghost" size="sm" aria-label={`Remover ${label.toLowerCase()}`} iconLeft={<X className="h-3.5 w-3.5" />} onClick={() => onChange('')} />
+          <Button type="button" variant="ghost" size="xs" aria-label={`Remover ${label.toLowerCase()}`} iconLeft={<X className="h-3 w-3" />} onClick={() => onChange('')} />
         )}
       </div>
     </div>
@@ -185,7 +186,8 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
   ];
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4 sm:space-y-5">
+    <PageWrapper>
+    <div className="mx-auto w-full max-w-[1200px] space-y-4">
       <Button type="button" variant="ghost" size="sm" iconLeft={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onCancel}>
         Voltar para projetos
       </Button>
@@ -193,17 +195,15 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
       <SectionTitle
         title={editing ? 'Editar projeto' : 'Novo projeto'}
         description={editing ? 'Atualize os dados, planejamento e permissões do projeto.' : 'Organize as informações essenciais antes de iniciar o trabalho.'}
-        icon={Briefcase}
-        action={editing ? <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-700">Edição</span> : undefined}
       />
 
       <ContentCard padding="lg">
-        <form onSubmit={submit} className="space-y-6">
-          <Tabs items={tabs} value={activeTab} onChange={value => setActiveTab(value as FormTab)} label="Seções do formulário de projeto">
+        <form onSubmit={submit} className="space-y-4">
+          <Tabs<FormTab> items={tabs} value={activeTab} onChange={setActiveTab} label="Seções do formulário de projeto">
             {activeTab === 'general' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <PanelCard title="Informações principais" description="Identifique o projeto, cliente e prazo." icon={Briefcase}>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <Input label="Nome do projeto" required value={name} onChange={event => setName(event.target.value)} placeholder="Ex.: Site institucional" />
                     <Input label="Cliente" required value={clientName} onChange={event => setClientName(event.target.value)} placeholder="Ex.: Empresa do cliente" />
                     <Input label="Prazo final" type="date" value={deadline} onChange={event => setDeadline(event.target.value)} />
@@ -229,7 +229,7 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
                 )}
 
                 <PanelCard title="Identidade visual" description="Use imagens de até 5 MB para facilitar a identificação." icon={ImageIcon}>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <ProjectImageField label="Capa do projeto" value={coverImage} onChange={setCoverImage} />
                     <ProjectImageField label="Logo do projeto" value={logoUrl} onChange={setLogoUrl} shape="square" />
                   </div>
@@ -238,12 +238,12 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
             )}
 
             {activeTab === 'details' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <PanelCard title="Metas" description="Inclua uma meta por linha para manter o escopo claro." icon={Target}>
                   <Textarea label="Metas do projeto" value={goals} onChange={event => setGoals(event.target.value)} placeholder={'Criar a identidade visual\nPublicar a primeira versão\nTreinar a equipe'} rows={7} />
                 </PanelCard>
                 <PanelCard title="Financeiro e contexto" description="Registre informações úteis para o time." icon={Briefcase}>
-                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                     <Textarea label="Financeiro e orçamento" value={financials} onChange={event => setFinancials(event.target.value)} placeholder="Valor, pagamento, parcelas e observações" rows={6} />
                     <Textarea label="História e contexto" value={history} onChange={event => setHistory(event.target.value)} placeholder="Como surgiu, expectativas e decisões importantes" rows={6} />
                   </div>
@@ -252,7 +252,7 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
             )}
 
             {activeTab === 'access' && (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <PanelCard title="Visibilidade" description="Defina quem pode localizar e acessar este projeto." icon={ShieldCheck}>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {[
@@ -260,9 +260,9 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
                       { value: 'private' as const, label: 'Privado', description: 'Somente as pessoas escolhidas abaixo podem ver.', icon: ShieldCheck },
                     ].map(option => {
                       const selected = visibility === option.value;
-                      return <button key={option.value} type="button" onClick={() => setVisibility(option.value)} className={cn('rounded-xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/30', selected ? 'border-[#0D1F4E] bg-[#0D1F4E]/5 shadow-sm dark:border-amber-400 dark:bg-amber-400/10' : 'border-zinc-200 hover:border-zinc-300 dark:border-white/10 dark:hover:border-white/20')}>
-                        <div className="flex items-center justify-between gap-3"><option.icon className={cn('h-5 w-5', selected ? 'text-[#0D1F4E] dark:text-amber-300' : 'text-zinc-400')} />{selected && <CheckCircle2 className="h-4 w-4 text-[#0D1F4E] dark:text-amber-300" />}</div>
-                        <p className="mt-3 text-sm font-black text-zinc-800 dark:text-white">{option.label}</p>
+                      return <button key={option.value} type="button" onClick={() => setVisibility(option.value)} className={cn('rounded-lg border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/30', selected ? 'border-[#0D1F4E] bg-[#0D1F4E]/5 dark:border-amber-400 dark:bg-amber-400/10' : 'border-zinc-200 hover:border-zinc-300 dark:border-white/10 dark:hover:border-white/20')}>
+                        <div className="flex items-center justify-between gap-3"><option.icon className={cn('h-4 w-4', selected ? 'text-[#0D1F4E] dark:text-amber-300' : 'text-zinc-400')} />{selected && <CheckCircle2 className="h-3.5 w-3.5 text-[#0D1F4E] dark:text-amber-300" />}</div>
+                        <p className="mt-2 text-xs font-black text-zinc-800 dark:text-white">{option.label}</p>
                         <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-white/50">{option.description}</p>
                       </button>;
                     })}
@@ -274,7 +274,7 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
                     {members.length === 0 ? <p className="text-sm text-zinc-500">Nenhum membro disponível para seleção.</p> : <div className="grid max-h-[26rem] grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
                       {members.map(member => {
                         const selected = allowedUsers.includes(member.uid);
-                        return <button key={member.uid} type="button" onClick={() => toggleUser(member.uid)} className={cn('flex min-w-0 items-center gap-3 rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/30', selected ? 'border-amber-300 bg-amber-50 dark:border-amber-400/40 dark:bg-amber-400/10' : 'border-zinc-200 hover:border-zinc-300 dark:border-white/10 dark:hover:border-white/20')}>
+                        return <button key={member.uid} type="button" onClick={() => toggleUser(member.uid)} className={cn('flex min-w-0 items-center gap-2.5 rounded-lg border p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/30', selected ? 'border-amber-300 bg-amber-50 dark:border-amber-400/40 dark:bg-amber-400/10' : 'border-zinc-200 hover:border-zinc-300 dark:border-white/10 dark:hover:border-white/20')}>
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 text-xs font-black text-zinc-500 dark:bg-white/10 dark:text-white/60">{member.photoURL ? <img src={member.photoURL} alt="" className="h-full w-full object-cover" /> : member.displayName?.[0]?.toUpperCase() || '?'}</div>
                           <div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-zinc-800 dark:text-white">{member.displayName || 'Membro sem nome'}</p><p className="truncate text-[10px] text-zinc-400">{member.email}</p></div>
                           {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />}
@@ -287,13 +287,14 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
             )}
           </Tabs>
 
-          <div className="sticky bottom-0 z-10 -mx-5 -mb-5 flex flex-col-reverse gap-2 border-t border-zinc-200 bg-white/95 px-5 py-4 backdrop-blur sm:-mx-6 sm:-mb-6 sm:flex-row sm:justify-end sm:px-6 lg:-mx-7 lg:-mb-7 lg:px-7 dark:border-white/10 dark:bg-[#10182b]/95">
-            <Button type="button" variant="outline" size="lg" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit" size="lg" loading={loading} iconLeft={<CheckCircle2 className="h-4 w-4" />}>{editing ? 'Salvar alterações' : 'Criar projeto'}</Button>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-zinc-200 pt-3 dark:border-white/10">
+            <Button type="button" variant="secondary" size="sm" onClick={onCancel} disabled={loading}>Cancelar</Button>
+            <Button type="submit" size="sm" loading={loading} iconLeft={<CheckCircle2 className="h-3.5 w-3.5" />}>{editing ? 'Salvar alterações' : 'Criar projeto'}</Button>
           </div>
         </form>
       </ContentCard>
     </div>
+    </PageWrapper>
   );
 }
 

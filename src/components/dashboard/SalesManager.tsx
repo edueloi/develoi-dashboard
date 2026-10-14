@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, Banknote, CreditCard, Landmark, Phone, UserPlus,
 } from 'lucide-react';
 import {
-  Button, Modal, ConfirmModal, Input, Select, Textarea, Badge, EmptyState,
+  Button, Modal, ConfirmModal, Input, Select, Tabs, Textarea, Badge, EmptyState,
 } from '../ui';
 import { Pagination, usePagination } from '../ui/Pagination';
 import { RowMenu } from './financeShared';
@@ -202,16 +202,13 @@ export function SalesManager() {
         ))}
       </div>
 
-      {/* Abas */}
-      <div className="flex flex-wrap gap-2">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="px-3.5 py-2 rounded-xl text-xs font-black border transition-all"
-            style={tab === t.id ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { background: 'transparent', color: '#64748B', borderColor: 'rgba(100,116,139,0.25)' }}>
-            {t.label} <span className="opacity-70">· {tabCount(t.id)}</span>
-          </button>
-        ))}
-      </div>
-
+      <Tabs<'open' | 'won' | 'closed' | 'all'>
+        items={TABS.map(item => ({ id: item.id, label: item.label, badge: tabCount(item.id) }))}
+        value={tab}
+        onChange={setTab}
+        label="Situação das vendas"
+      >
+      <div className="space-y-4">
       {/* Filtros */}
       <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3 flex flex-wrap gap-2">
         <div className="flex-1 min-w-[200px] relative">
@@ -315,6 +312,9 @@ export function SalesManager() {
           </div>
         </div>
       )}
+
+      </div>
+      </Tabs>
 
       {/* Modals */}
       {isFormOpen && (

@@ -7,7 +7,7 @@ import {
   Lightbulb, Quote, Repeat, Code2, ThumbsUp, ThumbsDown, ShieldAlert, Sparkles, Layers, Play, RotateCcw, ListChecks, MessageSquarePlus,
 } from 'lucide-react';
 import {
-  Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker,
+  Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState, Badge, ProgressBar, DatePicker, Tabs,
 } from '../ui';
 import type { BadgeColor } from '../ui/Badge';
 import { useToast } from '../ui/Toast';
@@ -141,22 +141,12 @@ export function BusinessPlanManager() {
       </div>
 
       {/* Abas: rolam no celular e ficam à vista ao descer a página */}
-      <div className="sticky top-0 z-20 -mx-1 px-1 py-2 backdrop-blur" style={{ background: isDark ? 'rgba(11,17,32,0.85)' : 'rgba(240,242,248,0.9)' }}>
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 snap-x" role="tablist" aria-label="Seções do plano de negócio">
-          {SECTIONS.map(t => {
-            const on = section === t.key, n = counts[t.key];
-            return (
-              <button key={t.key} role="tab" aria-selected={on} onClick={() => setSection(t.key)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black whitespace-nowrap flex-shrink-0 snap-start border transition-all"
-                style={on ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.25)' } : { background: isDark ? 'rgba(255,255,255,0.05)' : '#fff', color: '#64748B', borderColor: 'rgba(148,163,184,0.3)' }}>
-                <t.icon className="w-3.5 h-3.5" />{t.label}
-                {n ? <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full" style={on ? { background: 'rgba(255,255,255,0.2)' } : { background: 'rgba(100,116,139,0.12)' }}>{n}</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
+      <Tabs<SectionKey>
+        items={SECTIONS.map(item => ({ id: item.key, label: item.label, icon: item.icon, badge: counts[item.key] }))}
+        value={section}
+        onChange={setSection}
+        label="Seções do plano de negócio"
+      >
       {loading ? (
         <div className="text-center py-12 text-slate-400">Carregando...</div>
       ) : (
@@ -170,6 +160,7 @@ export function BusinessPlanManager() {
           {section === 'legal' && plan && <LegalSection plan={plan} onSaved={fetchAll} />}
         </>
       )}
+      </Tabs>
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
     </div>
   );

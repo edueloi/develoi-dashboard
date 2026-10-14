@@ -8,6 +8,7 @@ import {
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import RichTextEditor from '../ui/RichTextEditor';
+import { Tabs } from '../ui';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -101,24 +102,7 @@ export function CasesManager() {
 
   return (
     <div className="space-y-4">
-      {/* Sub Nav */}
-      <div className="flex max-w-full overflow-x-auto gap-1 bg-white border border-slate-200 rounded-xl p-1 w-fit shadow-sm">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex shrink-0 items-center gap-1.5 px-3 py-2 rounded-lg text-[11px] font-bold transition-all ${
-              activeTab === tab.id
-                ? 'bg-[#0D1F4E] text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <tab.icon className="w-3.5 h-3.5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
+      <Tabs<'overview' | 'cases' | 'editor' | 'categories'> items={tabs} value={activeTab} onChange={setActiveTab} label="Seções dos cases de sucesso">
       <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
@@ -144,6 +128,7 @@ export function CasesManager() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Tabs>
     </div>
   );
 }
