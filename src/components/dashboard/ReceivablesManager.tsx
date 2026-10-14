@@ -7,12 +7,12 @@ import { Button, Modal, Input, Select, Textarea, EmptyState, DatePicker } from '
 import { useToast } from '../ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import type { Client, ClientPayment, Receivable } from './types';
+import type { Client, ClientPayment, FinancialAttachment, Receivable } from './types';
 import { differenceInCalendarDays, format, isSameMonth, addMonths } from 'date-fns';
 import { CYCLE_LABEL, ClientFormModal } from './ClientForm';
 import { AsaasWebhookStatus } from './AsaasWebhookStatus';
 import { useLiveEvents } from '../../lib/liveEvents';
-import { PAY_METHODS, money, parseDay, fmtDate, startOfToday, firstOfMonth, Stat, RowMenu, PeriodBar } from './financeShared';
+import { FinancialAttachmentsField, PAY_METHODS, money, parseDay, fmtDate, startOfToday, firstOfMonth, Stat, RowMenu, PeriodBar } from './financeShared';
 
 type View = 'month' | 'overdue' | 'all';
 type Source = 'all' | 'subscription' | 'manual';
@@ -480,6 +480,7 @@ function ReceivableFormModal({ rec, clients, onClose, onSaved }: {
   const [plan, setPlan] = useState<'once' | 'installments'>('once');
   const [count, setCount] = useState('3');
   const [notes, setNotes] = useState(rec?.notes ?? '');
+  const [attachments, setAttachments] = useState<FinancialAttachment[]>(rec?.attachments ?? []);
   const [applyFollowing, setApplyFollowing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -494,7 +495,7 @@ function ReceivableFormModal({ rec, clients, onClose, onSaved }: {
     if (!dueDate) return toast('Informe o vencimento.', 'warning');
     setSaving(true);
     try {
-      const payload: any = { description: description.trim(), amount: total, dueDate, notes, clientId: clientId || null, payerName: clientId ? null : payerName.trim() || null };
+      const payload: any = { description: description.trim(), amount: total, dueDate, notes, clientId: clientId || null, payerName: clientId ? null : payerName.trim() || null, attachments };
       if (!editing && plan === 'installments') payload.plan = { mode: 'installments', count: n };
       const url = editing ? `/api/receivables/${rec!.id}${applyFollowing ? '?scope=following' : ''}` : '/api/receivables';
       const res = await fetch(url, { method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -578,6 +579,7 @@ function ReceivableFormModal({ rec, clients, onClose, onSaved }: {
         )}
 
         <Textarea label="Observações" value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Opcional" />
+        <FinancialAttachmentsField value={attachments} onChange={setAttachments} />
       </form>
     </Modal>
   );

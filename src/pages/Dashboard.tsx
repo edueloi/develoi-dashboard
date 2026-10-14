@@ -78,6 +78,7 @@ import { BusinessPlanManager } from '../components/dashboard/BusinessPlanManager
 import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
+import { ProjectAccessVault } from '../components/dashboard/ProjectAccessVault';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -1124,6 +1125,8 @@ function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: Activ
               )}
             </div>
           </div>
+
+          <ProjectAccessVault projectId={project.id} />
 
           {/* Galeria de imagens */}
           <ProjectGallery projectId={project.id} />

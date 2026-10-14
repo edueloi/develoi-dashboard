@@ -7,11 +7,11 @@ import { Button, Modal, Input, Select, Textarea, EmptyState, DatePicker } from '
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import type { Payable, PayablePayment, PayableType, InterestPeriod } from './types';
+import type { FinancialAttachment, Payable, PayablePayment, PayableType, InterestPeriod } from './types';
 import { differenceInCalendarDays, addMonths, addWeeks, format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useLiveEvents } from '../../lib/liveEvents';
-import { RowMenu } from './financeShared';
+import { FinancialAttachmentsField, RowMenu } from './financeShared';
 
 // ─── Configuração visual ─────────────────────────────────────────────────────
 
@@ -595,6 +595,7 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
   const [freq, setFreq] = useState<{ every: number; unit: FreqUnit }>({ every: payable?.recurrenceEvery ?? 1, unit: (payable?.recurrenceUnit as FreqUnit) ?? 'month' });
   const [customFreq, setCustomFreq] = useState(false);
   const [notes, setNotes] = useState(payable?.notes || '');
+  const [attachments, setAttachments] = useState<FinancialAttachment[]>(payable?.attachments ?? []);
   const [fine, setFine] = useState(payable?.finePercent != null ? String(payable.finePercent) : '');
   const [interest, setInterest] = useState(payable?.interestRate != null ? String(payable.interestRate) : '');
   const [interestPeriod, setInterestPeriod] = useState<InterestPeriod>(payable?.interestPeriod ?? 'month');
@@ -647,6 +648,7 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
         interestRate: interest ? Number(interest) : null,
         interestPeriod: interest ? interestPeriod : null,
         finePercent: fine ? Number(fine) : null,
+        attachments,
       };
       if (!editing && canPlan && plan !== 'once') payload.plan = { mode: plan, count: forever ? null : n, every: plan === 'monthly' ? freq.every : 1, unit: plan === 'monthly' ? freq.unit : 'month' };
 
@@ -808,6 +810,7 @@ function PayableFormModal({ payable, projects, defaultDate, onClose, onSuccess }
         </details>
 
         <Textarea label="Observações" value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Opcional" />
+        <FinancialAttachmentsField value={attachments} onChange={setAttachments} />
       </form>
     </Modal>
   );

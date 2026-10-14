@@ -29,6 +29,18 @@ export interface ProjectImage {
   createdAt: string;
 }
 
+export interface ProjectAccess {
+  id: string;
+  projectId: string;
+  label: string;
+  url?: string | null;
+  username?: string | null;
+  password?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Feature {
   id: string;
   key: string;
@@ -244,6 +256,18 @@ export interface Receivable {
   installmentNo?: number | null;
   installmentsTotal?: number | null;
   createdAt: string;
+  attachments?: FinancialAttachment[];
+}
+
+export interface FinancialAttachment {
+  id?: string;
+  kind: 'file' | 'link';
+  name: string;
+  url?: string | null;
+  dataUrl?: string;
+  mimeType?: string;
+  document?: { mimeType: string; size: number } | null;
+  createdAt?: string;
 }
 
 export interface AsaasCharge {
@@ -357,6 +381,7 @@ export interface Payable {
   finePercent?: number | null;
   parentId?: string | null;
   payments?: PayablePayment[];
+  attachments?: FinancialAttachment[];
 }
 
 // ─── Mensagens Prontas / Contato ──────────────────────────────────────────────

@@ -15,6 +15,7 @@ import { resumeSession, startConversationSweeper } from "./src/backend/wa.js";
 import { runBillingNotices, startBillingScheduler, enforceOverdueBlocks } from "./src/backend/billingNotifier.js";
 import { registerTeamNoticeRoutes, registerContactRoutes,startTeamNoticeScheduler } from "./src/backend/teamNotifier.js";
 import { registerReceivableRoutes } from "./src/backend/receivables.js";
+import { addAttachmentsToMany, financialAttachmentsInclude, registerFinancialAttachmentRoutes, syncFinancialAttachments } from "./src/backend/financialAttachments.js";
 import { registerAsaasRoutes, startAsaasScheduler } from "./src/backend/asaas.js";
 import { registerReceiptRoutes, sendThanksAndReceipt } from "./src/backend/receipts.js";
 import { registerInvoiceRoutes } from "./src/backend/invoicePage.js";
@@ -41,6 +42,33 @@ const DB_PATH = path.join(__dirname, "db.json");
 
 function hashPassword(password: string): string {
   return nodeCrypto.createHash("sha256").update(password).digest("hex");
+}
+
+// Senhas dos acessos de projeto não ficam legíveis no banco. Em produção, defina
+// PROJECT_ACCESS_ENCRYPTION_KEY para ter uma chave dedicada e estável.
+function projectAccessKey() {
+  const seed = process.env.PROJECT_ACCESS_ENCRYPTION_KEY || process.env.DATABASE_URL || "develoi-project-accesses";
+  return nodeCrypto.createHash("sha256").update(seed).digest();
+}
+
+function encryptProjectAccess(secret: string) {
+  const iv = nodeCrypto.randomBytes(12);
+  const cipher = nodeCrypto.createCipheriv("aes-256-gcm", projectAccessKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
+  return `v1:${iv.toString("base64url")}:${cipher.getAuthTag().toString("base64url")}:${encrypted.toString("base64url")}`;
+}
+
+function decryptProjectAccess(secret: string | null) {
+  if (!secret) return null;
+  try {
+    const [version, iv, tag, encrypted] = secret.split(":");
+    if (version !== "v1" || !iv || !tag || !encrypted) return null;
+    const decipher = nodeCrypto.createDecipheriv("aes-256-gcm", projectAccessKey(), Buffer.from(iv, "base64url"));
+    decipher.setAuthTag(Buffer.from(tag, "base64url"));
+    return Buffer.concat([decipher.update(Buffer.from(encrypted, "base64url")), decipher.final()]).toString("utf8");
+  } catch {
+    return null;
+  }
 }
 
 async function migrateFromJson() {
@@ -151,6 +179,7 @@ async function startServer() {
     await prisma.$connect();
     console.log("Connected to MySQL");
     await migrateFromJson();
+    registerFinancialAttachmentRoutes(app);
 
     // ─── Auth ──────────────────────────────────────────────────────────────────
     app.post("/api/auth/login", async (req, res) => {
@@ -330,6 +359,60 @@ async function startServer() {
     app.delete("/api/projects/:id", async (req, res) => {
       try {
         await prisma.project.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    const projectAccessResponse = (item: any) => ({ ...item, password: decryptProjectAccess(item.secret), secret: undefined });
+    const accessText = (value: unknown, max: number) => String(value ?? "").trim().slice(0, max);
+    const accessUrl = (value: unknown) => {
+      const raw = accessText(value, 2048);
+      if (!raw) return null;
+      const url = new URL(raw);
+      if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("O link deve começar com http:// ou https://.");
+      return url.toString();
+    };
+
+    app.get("/api/projects/:projectId/accesses", async (req, res) => {
+      try {
+        const accesses = await prisma.projectAccess.findMany({ where: { projectId: req.params.projectId }, orderBy: { createdAt: "asc" } });
+        res.json(accesses.map(projectAccessResponse));
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    app.post("/api/projects/:projectId/accesses", async (req, res) => {
+      try {
+        const label = accessText(req.body.label, 120);
+        if (!label) return res.status(400).json({ error: "Informe o nome do acesso." });
+        const project = await prisma.project.findUnique({ where: { id: req.params.projectId }, select: { id: true } });
+        if (!project) return res.status(404).json({ error: "Projeto não encontrado." });
+        const password = accessText(req.body.password, 4096);
+        const access = await prisma.projectAccess.create({
+          data: { projectId: project.id, label, url: accessUrl(req.body.url), username: accessText(req.body.username, 2048) || null, secret: password ? encryptProjectAccess(password) : null, notes: accessText(req.body.notes, 10000) || null },
+        });
+        res.json(projectAccessResponse(access));
+      } catch (e: any) { res.status(400).json({ error: e.message }); }
+    });
+
+    app.patch("/api/projects/:projectId/accesses/:id", async (req, res) => {
+      try {
+        const current = await prisma.projectAccess.findFirst({ where: { id: req.params.id, projectId: req.params.projectId } });
+        if (!current) return res.status(404).json({ error: "Acesso não encontrado." });
+        const data: any = {};
+        if (req.body.label !== undefined) { const label = accessText(req.body.label, 120); if (!label) return res.status(400).json({ error: "Informe o nome do acesso." }); data.label = label; }
+        if (req.body.url !== undefined) data.url = accessUrl(req.body.url);
+        if (req.body.username !== undefined) data.username = accessText(req.body.username, 2048) || null;
+        if (req.body.notes !== undefined) data.notes = accessText(req.body.notes, 10000) || null;
+        if (req.body.password !== undefined) { const password = accessText(req.body.password, 4096); data.secret = password ? encryptProjectAccess(password) : null; }
+        const access = await prisma.projectAccess.update({ where: { id: current.id }, data });
+        res.json(projectAccessResponse(access));
+      } catch (e: any) { res.status(400).json({ error: e.message }); }
+    });
+
+    app.delete("/api/projects/:projectId/accesses/:id", async (req, res) => {
+      try {
+        const current = await prisma.projectAccess.findFirst({ where: { id: req.params.id, projectId: req.params.projectId }, select: { id: true } });
+        if (current) await prisma.projectAccess.delete({ where: { id: current.id } });
         res.json({ success: true });
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
@@ -1033,6 +1116,7 @@ async function startServer() {
           include: {
             project: { select: { id: true, name: true } },
             payments: { orderBy: { date: 'asc' } },
+            ...financialAttachmentsInclude,
           },
         });
         res.json(payables);
@@ -1108,7 +1192,7 @@ async function startServer() {
     // (aceita também o formato antigo: recurrence = 'monthly' + recurrenceCount)
     app.post("/api/payables", async (req, res) => {
       try {
-        const { amountsByMonth, plan, ...body } = req.body;
+        const { amountsByMonth, plan, attachments, ...body } = req.body;
         const mode: 'once' | 'monthly' | 'installments' =
           plan?.mode ?? (body.recurrence === 'monthly' ? 'monthly' : 'once');
         const base = {
@@ -1154,13 +1238,18 @@ async function startServer() {
               finePercent: body.finePercent ?? null,
             })),
           });
+          if (Array.isArray(attachments) && attachments.length) {
+            const generated = await prisma.payable.findMany({ where: { parentId: parent.id }, select: { id: true } });
+            await addAttachmentsToMany(generated.map(item => ({ payableId: item.id })), attachments);
+          }
           return res.json({ ...parent, generated: count });
         }
 
         const payable = await prisma.payable.create({
           data: { ...base, recurrence: 'none' },
-          include: { project: { select: { id: true, name: true } } },
+          include: { project: { select: { id: true, name: true } }, ...financialAttachmentsInclude },
         });
+        await syncFinancialAttachments({ payableId: payable.id }, attachments);
         res.json(payable);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
@@ -1168,7 +1257,7 @@ async function startServer() {
     // ?scope=following aplica a edição também às próximas contas pendentes da mesma série
     app.patch("/api/payables/:id", async (req, res) => {
       try {
-        const { dueDate, paidDate, ...rest } = req.body;
+        const { dueDate, paidDate, attachments, ...rest } = req.body;
         const payable = await prisma.payable.update({
           where: { id: req.params.id },
           data: {
@@ -1176,8 +1265,9 @@ async function startServer() {
             dueDate: dueDate !== undefined ? (dueDate ? new Date(dueDate) : null) : undefined,
             paidDate: paidDate !== undefined ? (paidDate ? new Date(paidDate) : null) : undefined,
           },
-          include: { project: { select: { id: true, name: true } } },
+          include: { project: { select: { id: true, name: true } }, ...financialAttachmentsInclude },
         });
+        await syncFinancialAttachments({ payableId: payable.id }, attachments);
         if (rest.amount !== undefined) await recomputePayableStatus(payable.id);
 
         if (req.query.scope === 'following' && payable.parentId && payable.dueDate) {
@@ -1195,7 +1285,7 @@ async function startServer() {
 
         const refreshed = await prisma.payable.findUnique({
           where: { id: payable.id },
-          include: { project: { select: { id: true, name: true } }, payments: { orderBy: { date: 'asc' } } },
+          include: { project: { select: { id: true, name: true } }, payments: { orderBy: { date: 'asc' } }, ...financialAttachmentsInclude },
         });
         res.json(refreshed);
       } catch (e: any) { res.status(500).json({ error: e.message }); }

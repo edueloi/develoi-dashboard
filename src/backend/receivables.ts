@@ -3,6 +3,7 @@ import type { Express } from "express";
 import { randomUUID } from "crypto";
 import { prisma } from "./db.js";
 import { brtTodayUtc } from "./time.js";
+import { addAttachmentsToMany, financialAttachmentsInclude, syncFinancialAttachments } from "./financialAttachments.js";
 
 
 // Soma `n` meses mantendo o dia (31/01 + 1 mês = 28/02). Em UTC: datas de vencimento são meia-noite UTC.
@@ -16,7 +17,7 @@ function addMonthsClamped(date: Date, n: number): Date {
   return d;
 }
 
-const include = { client: { select: { id: true, name: true, phone: true } } };
+const include = { client: { select: { id: true, name: true, phone: true } }, ...financialAttachmentsInclude };
 
 export function registerReceivableRoutes(app: Express) {
   const fail = (res: any, e: any) => res.status(500).json({ error: e.message });
@@ -28,7 +29,7 @@ export function registerReceivableRoutes(app: Express) {
   // plan.mode: 'once' (padrão) | 'installments' (divide o total em N parcelas mensais)
   app.post("/api/receivables", async (req, res) => {
     try {
-      const { plan, ...b } = req.body;
+      const { plan, attachments, ...b } = req.body;
       if (!b.description?.trim() || !b.dueDate) return res.status(400).json({ error: "Informe a descrição e o vencimento." });
       const total = Number(b.amount) || 0;
       const first = new Date(b.dueDate);
@@ -53,23 +54,30 @@ export function registerReceivableRoutes(app: Express) {
             groupId, installmentNo: i + 1, installmentsTotal: count,
           })),
         });
+        if (Array.isArray(attachments) && attachments.length) {
+          const generated = await prisma.receivable.findMany({ where: { groupId }, select: { id: true } });
+          await addAttachmentsToMany(generated.map(item => ({ receivableId: item.id })), attachments);
+        }
         return res.json({ generated: count, groupId });
       }
 
-      res.json(await prisma.receivable.create({ data: { ...common, amount: total, dueDate: first }, include }));
+      const created = await prisma.receivable.create({ data: { ...common, amount: total, dueDate: first }, include });
+      await syncFinancialAttachments({ receivableId: created.id }, attachments);
+      res.json(created);
     } catch (e) { fail(res, e); }
   });
 
   // ?scope=following aplica descrição/valor/observação às próximas parcelas pendentes
   app.patch("/api/receivables/:id", async (req, res) => {
     try {
-      const { dueDate, ...rest } = req.body;
+      const { dueDate, attachments, ...rest } = req.body;
       const allowed = ["description", "amount", "notes", "clientId", "payerName"];
       const data: any = {};
       for (const k of allowed) if (k in rest) data[k] = rest[k] === "" ? null : rest[k];
       if (data.amount !== undefined) data.amount = Number(data.amount) || 0;
       if (dueDate) data.dueDate = new Date(dueDate);
       const updated = await prisma.receivable.update({ where: { id: req.params.id }, data, include });
+      await syncFinancialAttachments({ receivableId: updated.id }, attachments);
 
       if (req.query.scope === "following" && updated.groupId) {
         const { dueDate: _d, ...shared } = data;
