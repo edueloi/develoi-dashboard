@@ -11,6 +11,7 @@ import { EXTRA_INTENTS } from "./botData.js";
 import { mathAnswer } from "./botMath.js";
 import { AUGMENT_PHRASES } from "./botAugment.js";
 import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, type Facts, type Style } from "./botPersona.js";
+import { generateGeminiReply } from "./botGemini.js";
 
 // ─── Memória e ações ─────────────────────────────────────────────────────────
 
@@ -640,6 +641,31 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     return finish(true);
   }
 
+  // Quando as regras locais não têm certeza, o Gemini pode redigir uma resposta
+  // contextual. Ele não executa ações: filas, faturas e transferências continuam
+  // exclusivamente nos fluxos determinísticos acima.
+  const relatedKnowledge = u.candidates.slice(0, 8).map(candidate => {
+    const def = brain.defs.find(item => item.id === candidate.id);
+    if (!def || isChat(def)) return null;
+    const answer = (def.replies ?? [])[0]?.replace(/\s+/g, " ").slice(0, 500);
+    return answer ? `- ${def.label}${def.system ? ` (${def.system})` : ""}: ${answer}` : null;
+  }).filter((item): item is string => Boolean(item));
+  const geminiReply = await generateGeminiReply({
+    message: t,
+    recent: ctx.recent.slice(0, -1),
+    clientName: nameOf(ctx),
+    system: u.entities.system ?? ctx.lastSystem ?? null,
+    knowledge: relatedKnowledge,
+    products: brain.products,
+  });
+  if (geminiReply) {
+    ctx.fails = 0;
+    ctx.lastIntent = "gemini";
+    ctx.lastReplyDef = undefined;
+    await io.say(geminiReply);
+    return finish(true);
+  }
+
   // papo livre: se não for um pedido, a BiIA continua a conversa com naturalidade
   if (ctx.mode === "chat" && !u.mood.angry && (u.decision !== "act" || (u.intent && u.confidence < 0.8 && isChat(u.intent.def)))) {
     ctx.chitchat += 1;
@@ -836,12 +862,27 @@ export function registerBotBrainRoutes(app: Express) {
     const u = understand(text, brain.defs, brain.systems, req.body?.system || null);
     const def = u.intent?.def;
     const ctx = newBrainCtx("Cliente");
+    const localReply = def && u.decision === "act" ? fill(pick(def.id, def.replies ?? [], ctx, true), ctx, u.entities.system ?? def.system) || null : null;
+    const knowledge = u.candidates.slice(0, 8).map(candidate => {
+      const item = brain.defs.find(x => x.id === candidate.id);
+      const answer = item?.replies?.[0]?.replace(/\s+/g, " ").slice(0, 500);
+      return item && answer && !isChat(item) ? `- ${item.label}${item.system ? ` (${item.system})` : ""}: ${answer}` : null;
+    }).filter((item): item is string => Boolean(item));
+    const geminiReply = localReply ? null : await generateGeminiReply({
+      message: text,
+      recent: [],
+      clientName: "Cliente",
+      system: u.entities.system ?? req.body?.system ?? null,
+      knowledge,
+      products: brain.products,
+    });
     res.json({
       decision: u.decision, confidence: Math.round(u.confidence * 100),
       intent: def ? { id: def.id, label: def.label, action: def.action ?? "reply", custom: !!def.custom } : null,
       candidates: u.candidates.map(c => ({ id: c.id, label: c.label, score: Math.min(100, Math.round(c.score * 100)) })),
       entities: u.entities, mood: u.mood, greetingOnly: u.greetingOnly,
-      reply: def ? fill(pick(def.id, def.replies ?? [], ctx, true), ctx, u.entities.system ?? def.system) || null : null,
+      reply: localReply ?? geminiReply,
+      source: localReply ? "local" : geminiReply ? "gemini" : null,
     });
   });
 

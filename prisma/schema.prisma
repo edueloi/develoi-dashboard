@@ -537,6 +537,10 @@ model WppBotConfig {
   solutionsMsg          String?  @db.Text   // texto de "Conhecer nossas soluções"
   clientHelpMsg         String?  @db.Text   // texto de "Já sou cliente"
   menuOptions           String?  @db.Text
+  geminiEnabled         Boolean  @default(false)
+  geminiApiKeyEncrypted String?  @db.Text
+  geminiModel           String   @default("gemini-3.8-flash") @db.VarChar(80)
+  geminiSystemPrompt    String?  @db.Text
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }

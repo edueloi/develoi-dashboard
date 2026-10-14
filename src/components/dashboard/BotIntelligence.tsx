@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Brain, Plus, Trash2, Pencil, FlaskConical, HelpCircle, X } from 'lucide-react';
-import { Button, PanelCard, Input, Select, Textarea, Modal } from '../ui';
+import { Brain, Plus, Trash2, Pencil, FlaskConical, HelpCircle, X, KeyRound, Save, Wifi, ShieldCheck } from 'lucide-react';
+import { Button, PanelCard, Input, Select, Textarea, Modal, Badge } from '../ui';
 import { toast } from 'react-hot-toast';
 
 interface Kb {
@@ -13,6 +13,14 @@ interface TestResult {
   intent: { id: string; label: string; action: string; custom: boolean } | null;
   candidates: { id: string; label: string; score: number }[];
   entities: Record<string, string | number>; mood: { angry: boolean; urgent: boolean; polite: boolean }; reply: string | null;
+  source?: 'local' | 'gemini' | null;
+}
+interface GeminiConfig {
+  geminiEnabled: boolean;
+  geminiConfigured: boolean;
+  geminiKeySource: 'panel' | 'environment' | null;
+  geminiModel: string;
+  geminiSystemPrompt: string | null;
 }
 
 const ACTIONS = [
@@ -36,12 +44,27 @@ export function BotIntelligence() {
   const [testText, setTestText] = useState('');
   const [result, setResult] = useState<TestResult | null>(null);
   const [testing, setTesting] = useState(false);
+  const [gemini, setGemini] = useState<GeminiConfig | null>(null);
+  const [geminiKey, setGeminiKey] = useState('');
+  const [savingGemini, setSavingGemini] = useState(false);
+  const [testingGemini, setTestingGemini] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [a, b] = await Promise.all([fetch('/api/admin/bot/kb').then(r => r.json()), fetch('/api/admin/bot/nlu/unknown').then(r => r.json())]);
+      const [a, b, c] = await Promise.all([
+        fetch('/api/admin/bot/kb').then(r => r.json()),
+        fetch('/api/admin/bot/nlu/unknown').then(r => r.json()),
+        fetch('/api/admin/bot/config').then(r => r.json()),
+      ]);
       setRows(Array.isArray(a) ? a : []);
       setUnknown(Array.isArray(b) ? b : []);
+      setGemini({
+        geminiEnabled: c.geminiEnabled === true,
+        geminiConfigured: c.geminiConfigured === true,
+        geminiKeySource: c.geminiKeySource ?? null,
+        geminiModel: c.geminiModel || 'gemini-3.8-flash',
+        geminiSystemPrompt: c.geminiSystemPrompt ?? '',
+      });
     } catch { /* tela segue vazia */ }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -96,13 +119,113 @@ export function BotIntelligence() {
 
   const dismiss = async (u: Unknown) => { await fetch(`/api/admin/bot/nlu/unknown/${u.id}/dismiss`, { method: 'POST' }); load(); };
 
+  const saveGemini = async (quiet = false) => {
+    if (!gemini) return false;
+    setSavingGemini(true);
+    try {
+      const res = await fetch('/api/admin/bot/config', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          geminiEnabled: gemini.geminiEnabled,
+          geminiModel: gemini.geminiModel,
+          geminiSystemPrompt: gemini.geminiSystemPrompt || null,
+          ...(geminiKey.trim() ? { geminiApiKey: geminiKey.trim() } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível salvar o Gemini.');
+      setGemini(data);
+      setGeminiKey('');
+      if (!quiet) toast.success('Configuração do Gemini salva');
+      return true;
+    } catch (e: any) {
+      toast.error(e.message);
+      return false;
+    } finally {
+      setSavingGemini(false);
+    }
+  };
+
+  const testGemini = async () => {
+    setTestingGemini(true);
+    try {
+      if (!(await saveGemini(true))) return;
+      const res = await fetch('/api/admin/bot/gemini/test', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Não foi possível conectar ao Gemini.');
+      toast.success(`Gemini conectado — ${data.model}`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setTestingGemini(false);
+    }
+  };
+
+  const clearGeminiKey = async () => {
+    if (!confirm('Remover a chave do Gemini salva no painel?')) return;
+    const res = await fetch('/api/admin/bot/config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clearGeminiApiKey: true, geminiEnabled: false }),
+    });
+    if (!res.ok) return toast.error('Não foi possível remover a chave.');
+    setGemini(await res.json());
+    setGeminiKey('');
+    toast.success('Chave do Gemini removida');
+  };
+
   return (
     <PanelCard title="BiIA, a inteligência do bot" icon={Brain}>
       <div className="space-y-6">
         <p className="text-xs dash-text-muted">
           O bot entende mensagens livres (com erros de digitação, gírias e abreviações), responde com variações e age: manda a fatura, o extrato, abre suporte ou chama a equipe.
-          Aqui você ensina novas respostas sobre os seus sistemas. Tudo é nosso, sem IA externa.
+          Aqui você ensina respostas sobre os seus sistemas e, se desejar, usa o Gemini como apoio quando as regras locais não tiverem uma resposta segura.
         </p>
+
+        {/* Gemini */}
+        <div className="rounded-xl border dash-border p-4 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"><KeyRound className="h-4 w-4" /></div>
+              <div>
+                <p className="text-sm font-bold dash-text">Gemini para conversas</p>
+                <p className="text-xs dash-text-muted">Entra somente quando a inteligência local não reconhece a mensagem. Fluxos, filas e atendimento humano continuam com prioridade.</p>
+              </div>
+            </div>
+            <Badge color={gemini?.geminiEnabled && gemini?.geminiConfigured ? 'success' : 'default'}>
+              {gemini?.geminiEnabled && gemini?.geminiConfigured ? 'ATIVO' : gemini?.geminiConfigured ? 'CONFIGURADO' : 'NÃO CONFIGURADO'}
+            </Badge>
+          </div>
+
+          {gemini && <>
+            <label className="flex items-start justify-between gap-4 rounded-lg border p-3 dash-border">
+              <span>
+                <span className="block text-sm font-bold dash-text">Usar Gemini nas respostas</span>
+                <span className="block text-[11px] dash-text-muted">Se a API falhar, a BiIA continua funcionando com a inteligência local.</span>
+              </span>
+              <input type="checkbox" checked={gemini.geminiEnabled} onChange={e => setGemini({ ...gemini, geminiEnabled: e.target.checked })} className="mt-0.5 h-5 w-5 accent-indigo-600" />
+            </label>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Input type="password" label="Chave da API do Gemini" value={geminiKey} onChange={(e: any) => setGeminiKey(e.target.value)}
+                placeholder={gemini.geminiConfigured ? 'Chave já configurada — digite somente para trocar' : 'Cole a chave criada no Google AI Studio'} />
+              <Select label="Modelo" value={gemini.geminiModel} onChange={(e: any) => setGemini({ ...gemini, geminiModel: e.target.value })} options={[
+                { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash — recomendado' },
+                { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — econômico' },
+                { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — compatibilidade' },
+              ]} />
+            </div>
+            <Textarea label="Orientações adicionais para a BiIA (opcional)" rows={4} value={gemini.geminiSystemPrompt ?? ''}
+              onChange={(e: any) => setGemini({ ...gemini, geminiSystemPrompt: e.target.value })}
+              placeholder="Ex.: Seja objetiva, faça apenas uma pergunta por vez e priorize suporte aos clientes ativos." />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={() => saveGemini()} loading={savingGemini} iconLeft={<Save className="h-3.5 w-3.5" />}>SALVAR GEMINI</Button>
+              <Button size="sm" variant="secondary" onClick={testGemini} loading={testingGemini} iconLeft={<Wifi className="h-3.5 w-3.5" />}>TESTAR CONEXÃO</Button>
+              {gemini.geminiKeySource === 'panel' && <Button size="sm" variant="outline" onClick={clearGeminiKey}>REMOVER CHAVE</Button>}
+              <span className="flex items-center gap-1 text-[11px] dash-text-muted"><ShieldCheck className="h-3.5 w-3.5" /> A chave fica criptografada no servidor e nunca é exibida novamente.</span>
+            </div>
+          </>}
+        </div>
 
         {/* Simulador */}
         <div className="rounded-xl border dash-border p-4 space-y-3">
@@ -113,10 +236,16 @@ export function BotIntelligence() {
           </div>
           {result && (
             <div className="rounded-lg bg-slate-50 dark:bg-white/5 p-3 text-sm space-y-2">
-              {result.greetingOnly ? <p>É só uma saudação: o bot responde com o menu.</p> : result.intent ? (
+              {result.greetingOnly ? <p>É só uma saudação: o bot responde com o menu.</p> : result.source === 'gemini' && result.reply ? (
+                <>
+                  <p className="rounded-lg bg-white dark:bg-black/20 p-2.5 whitespace-pre-wrap">{result.reply}</p>
+                  <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pelo Gemini</p>
+                </>
+              ) : result.intent ? (
                 <>
                   <p><b>{result.intent.label}</b> <span className="text-xs text-slate-400">· {result.confidence}% de certeza · {result.decision === 'act' ? 'age' : result.decision === 'ask' ? 'pergunta "você quis dizer…?"' : 'não entende'}</span></p>
                   {result.reply && <p className="rounded-lg bg-white dark:bg-black/20 p-2.5 whitespace-pre-wrap">{result.reply}</p>}
+                  {result.source === 'gemini' && <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pelo Gemini</p>}
                   <p className="text-xs text-slate-400">Ação: {result.intent.action}{result.entities.system ? ` · sistema: ${result.entities.system}` : ''}{result.entities.document ? ` · documento: ${result.entities.document}` : ''}{result.mood.angry ? ' · cliente irritado' : ''}{result.mood.urgent ? ' · urgente' : ''}</p>
                   {result.candidates.length > 1 && <p className="text-xs text-slate-400">Outras possibilidades: {result.candidates.slice(1).map(c => `${c.label} (${c.score}%)`).join(', ')}</p>}
                 </>

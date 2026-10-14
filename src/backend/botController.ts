@@ -2,6 +2,19 @@ import { Request, Response } from "express";
 import { prisma } from "./db.js";
 import { randomUUID } from "crypto";
 import { connectSession, disconnectSession, getSessionInfo, sendMessage as sendWppMessage, setClientConversation, acceptWaitingConversation, closeActiveConversation, offerConversation, startConversation, notifyQueueChanged } from "./wa.js";
+import { encryptSecret } from "./secrets.js";
+import { resetGeminiConfigCache, testGeminiConnection } from "./botGemini.js";
+
+function publicBotConfig(config: any) {
+  const { geminiApiKeyEncrypted: _secret, ...safe } = config;
+  const fromPanel = Boolean(config.geminiApiKeyEncrypted);
+  const fromEnvironment = Boolean(process.env.GEMINI_API_KEY?.trim());
+  return {
+    ...safe,
+    geminiConfigured: fromPanel || fromEnvironment,
+    geminiKeySource: fromPanel ? "panel" : fromEnvironment ? "environment" : null,
+  };
+}
 
 
 // ─── Textos padrão do menu (editáveis na tela do bot) ────────────────────────
@@ -431,7 +444,7 @@ export const botController = {
           data: { botEnabled: true }
         });
       }
-      res.json(config);
+      res.json(publicBotConfig(config));
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Erro ao buscar configurações." });
@@ -443,15 +456,44 @@ export const botController = {
       const config = await prisma.wppBotConfig.findFirst();
       if (!config) return res.status(404).json({ error: "Config não encontrada" });
 
+      const body = req.body ?? {};
+      const data: Record<string, unknown> = {};
+      for (const key of ["botEnabled", "sendWelcome", "menuEnabled", "useButtons", "geminiEnabled"] as const) {
+        if (typeof body[key] === "boolean") data[key] = body[key];
+      }
+      for (const key of ["menuWelcomeMsg", "solutionsMsg", "clientHelpMsg", "menuOptions"] as const) {
+        if (body[key] === null || typeof body[key] === "string") data[key] = body[key] === null ? null : String(body[key]).slice(0, 20_000);
+      }
+      if (body.geminiSystemPrompt === null || typeof body.geminiSystemPrompt === "string") {
+        data.geminiSystemPrompt = body.geminiSystemPrompt === null ? null : String(body.geminiSystemPrompt).trim().slice(0, 4000) || null;
+      }
+      if (typeof body.geminiModel === "string") {
+        const model = body.geminiModel.trim();
+        if (!/^[a-zA-Z0-9._-]{3,80}$/.test(model)) return res.status(400).json({ error: "Nome de modelo do Gemini inválido." });
+        data.geminiModel = model;
+      }
+      if (body.clearGeminiApiKey === true) data.geminiApiKeyEncrypted = null;
+      if (typeof body.geminiApiKey === "string" && body.geminiApiKey.trim()) {
+        const apiKey = body.geminiApiKey.trim();
+        if (apiKey.length < 20 || apiKey.length > 300) return res.status(400).json({ error: "A chave da API do Gemini parece inválida." });
+        data.geminiApiKeyEncrypted = encryptSecret(apiKey, "gemini-api-key");
+      }
+
       const updated = await prisma.wppBotConfig.update({
         where: { id: config.id },
-        data: req.body
+        data,
       });
-      res.json(updated);
+      resetGeminiConfigCache();
+      res.json(publicBotConfig(updated));
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: "Erro ao atualizar configurações." });
     }
+  },
+
+  async testGemini(_req: Request, res: Response) {
+    const result = await testGeminiConnection();
+    res.status(result.ok ? 200 : 400).json(result);
   }
 
 };

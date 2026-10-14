@@ -792,6 +792,7 @@ async function startServer() {
     app.get("/api/admin/bot/status", botController.status);
     app.get("/api/admin/bot/config", botController.getBotConfig);
     app.put("/api/admin/bot/config", botController.updateBotConfig);
+    app.post("/api/admin/bot/gemini/test", botController.testGemini);
 
     // ─── Social Media Automation (Instagram) ────────────────────────────────────
     app.post("/api/admin/social/instagram/publish", async (req, res) => {

@@ -279,7 +279,7 @@ export function BotConfigTab() {
                 <input type="checkbox" className="w-4 h-4 mt-0.5 accent-indigo-600" checked={row.intake === 'support'}
                   onChange={e => updateSector(i, { intake: e.target.checked ? 'support' : 'none' })} />
                 <span>Triagem de suporte
-                  <span className="block text-[11px] dash-text-muted">Antes da fila, o bot pergunta o sistema (botões dos produtos marcados para suporte), o CPF/CNPJ e o assunto, e mostra a posição na fila.</span>
+                  <span className="block text-[11px] dash-text-muted">Antes da fila, o bot pergunta o sistema e o problema, aceita CPF/CNPJ opcionalmente e mostra a posição na fila.</span>
                 </span>
               </label>
 
