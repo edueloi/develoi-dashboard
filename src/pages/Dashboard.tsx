@@ -79,6 +79,7 @@ import { ProductsManager } from '../components/dashboard/ProductsManager';
 import { ClientContactManager } from '../components/dashboard/ClientContactManager';
 import { MyProfile } from '../components/dashboard/MyProfile';
 import { ProjectAccessVault } from '../components/dashboard/ProjectAccessVault';
+import { ProjectFormPage } from '../components/dashboard/ProjectFormPage';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -459,7 +460,7 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {activeTab === 'projects' && (
+            {activeTab === 'projects' && !isNewProjectModalOpen && !editingProject && (
               <button
                 onClick={() => setIsNewProjectModalOpen(true)}
                 className="flex items-center gap-2 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all hover:opacity-90"
@@ -846,11 +847,32 @@ export default function Dashboard() {
               )}
 
               {activeTab === 'projects' && (
-                <ProjectsList
-                  projects={projects}
-                  onSelect={(p) => { setSelectedProject(p); goTo('summary', p); }}
-                  onEdit={(p) => setEditingProject(p)}
-                />
+                isNewProjectModalOpen ? (
+                  <ProjectFormPage
+                    onCancel={() => setIsNewProjectModalOpen(false)}
+                    onSaved={(savedProject) => {
+                      setProjects(current => [savedProject, ...current]);
+                      setSelectedProject(savedProject);
+                      setIsNewProjectModalOpen(false);
+                    }}
+                  />
+                ) : editingProject ? (
+                  <ProjectFormPage
+                    project={editingProject}
+                    onCancel={() => setEditingProject(null)}
+                    onSaved={(savedProject) => {
+                      setProjects(current => current.map(project => project.id === savedProject.id ? savedProject : project));
+                      setSelectedProject(current => current?.id === savedProject.id ? savedProject : current);
+                      setEditingProject(null);
+                    }}
+                  />
+                ) : (
+                  <ProjectsList
+                    projects={projects}
+                    onSelect={(p) => { setSelectedProject(p); goTo('summary', p); }}
+                    onEdit={(p) => setEditingProject(p)}
+                  />
+                )
               )}
 
               {activeTab === 'backlog' && (
@@ -916,9 +938,6 @@ export default function Dashboard() {
         </main>
       </div>
 
-      {/* Modals */}
-      {isNewProjectModalOpen && <NewProjectModal onClose={() => setIsNewProjectModalOpen(false)} />}
-      {editingProject && <EditProjectModal project={editingProject} onClose={() => setEditingProject(null)} />}
     </div>
   );
 }

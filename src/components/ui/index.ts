@@ -9,6 +9,8 @@ export { Switch } from './Switch';
 export { DatePicker } from './DatePicker';
 export { Calendar } from './Calendar';
 export { Combobox } from './Combobox';
+export { Tabs } from './Tabs';
+export type { TabItem } from './Tabs';
 export { default as RichTextEditor } from './RichTextEditor';
 
 // ── Feedback ───────────────────────────────────────────────────────────────
