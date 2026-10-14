@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Copy, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Pencil, Plus, Trash2, UserRound } from 'lucide-react';
-import { Button, Input, Textarea } from '../ui';
+import { Button, EmptyState, IconButton, Input, PanelCard, Textarea } from '../ui';
 import type { ProjectAccess } from './types';
 
 type Draft = { label: string; url: string; username: string; password: string; notes: string };
@@ -74,19 +74,16 @@ export function ProjectAccessVault({ projectId }: { projectId: string }) {
   };
 
   return (
-    <section className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-5 sm:px-6 py-4 border-b" style={{ borderColor: 'rgba(13,31,78,0.06)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.1)' }}><KeyRound className="w-4 h-4 text-violet-600" /></div>
-          <div><p className="text-sm font-black text-[#0D1F4E]">Acessos do projeto</p><p className="text-[11px] text-slate-400">Logins, links e credenciais compartilhadas da equipe.</p></div>
-        </div>
-        <Button type="button" size="sm" iconLeft={<Plus className="w-3.5 h-3.5" />} onClick={() => { resetForm(); setShowForm(true); }}>NOVO ACESSO</Button>
-      </div>
-
-      <div className="p-5 sm:p-6 space-y-3">
+    <PanelCard
+      icon={KeyRound}
+      title="Acessos do projeto"
+      description="Logins, links e credenciais compartilhadas da equipe."
+      action={<Button type="button" size="xs" iconLeft={<Plus size={12} />} onClick={() => { resetForm(); setShowForm(true); }}>Novo acesso</Button>}
+      contentClassName="space-y-3"
+    >
         {showForm && (
-          <form onSubmit={save} className="rounded-xl border border-violet-100 bg-violet-50/40 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-3"><p className="text-xs font-black text-violet-900">{editingId ? 'Editar acesso' : 'Novo acesso'}</p><button type="button" onClick={resetForm} className="text-xs font-bold text-slate-400 hover:text-slate-700">Cancelar</button></div>
+          <form onSubmit={save} className="space-y-3 rounded-lg border border-violet-100 bg-violet-50/40 p-3 dark:border-violet-500/20 dark:bg-violet-500/5">
+            <div className="flex items-center justify-between gap-3"><p className="text-xs font-black text-violet-900 dark:text-violet-300">{editingId ? 'Editar acesso' : 'Novo acesso'}</p><Button type="button" size="xs" variant="ghost" onClick={resetForm}>Cancelar</Button></div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Input label="Nome" required value={draft.label} onChange={e => change('label', e.target.value)} placeholder="Ex.: Painel de hospedagem" />
               <Input label="Link" value={draft.url} onChange={e => change('url', e.target.value)} placeholder="https://..." />
@@ -99,24 +96,23 @@ export function ProjectAccessVault({ projectId }: { projectId: string }) {
           </form>
         )}
 
-        {loading ? <div className="py-6 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-violet-500" /></div> : accesses.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center"><KeyRound className="w-5 h-5 mx-auto mb-2 text-slate-300" /><p className="text-xs font-bold text-slate-500">Nenhum acesso cadastrado</p><p className="text-[11px] text-slate-400 mt-1">Guarde aqui os acessos importantes deste projeto.</p></div>
+        {loading ? <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-violet-500" /></div> : accesses.length === 0 ? (
+          <EmptyState icon={KeyRound} title="Nenhum acesso cadastrado" description="Guarde aqui os acessos importantes deste projeto." />
         ) : accesses.map(access => {
           const isRevealed = !!revealed[access.id];
-          return <div key={access.id} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3.5">
-            <div className="flex items-start gap-3"><div className="mt-0.5 w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center"><KeyRound className="w-4 h-4 text-violet-500" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-black text-[#0D1F4E] truncate">{access.label}</p>{access.url && <a href={access.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 text-[11px] text-indigo-600 hover:underline truncate"><ExternalLink className="w-3 h-3 flex-shrink-0" />{access.url}</a>}</div><div className="flex gap-1"><button type="button" onClick={() => edit(access)} className="p-1.5 text-slate-400 hover:text-indigo-600" aria-label={`Editar ${access.label}`}><Pencil className="w-3.5 h-3.5" /></button><button type="button" onClick={() => void remove(access)} className="p-1.5 text-slate-400 hover:text-rose-600" aria-label={`Remover ${access.label}`}><Trash2 className="w-3.5 h-3.5" /></button></div></div>
+          return <div key={access.id} className="rounded-lg border border-slate-100 bg-slate-50/70 p-3 dark:border-white/10 dark:bg-white/5">
+            <div className="flex items-start gap-3"><div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-100 bg-white dark:border-white/10 dark:bg-white/5"><KeyRound className="h-4 w-4 text-violet-500" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-black text-[#0D1F4E] dark:text-white">{access.label}</p>{access.url && <a href={access.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 truncate text-[11px] text-indigo-600 hover:underline dark:text-indigo-400"><ExternalLink className="h-3 w-3 flex-shrink-0" />{access.url}</a>}</div><div className="flex gap-1"><IconButton type="button" size="xs" onClick={() => edit(access)} aria-label={`Editar ${access.label}`}><Pencil size={13} /></IconButton><IconButton type="button" size="xs" variant="danger" onClick={() => void remove(access)} aria-label={`Remover ${access.label}`}><Trash2 size={13} /></IconButton></div></div>
               {access.username && <Credential icon={UserRound} label="Usuário" value={access.username} onCopy={() => void copy(access.username)} />}
-              {access.password && <Credential icon={KeyRound} label="Senha" value={isRevealed ? access.password : '••••••••••'} onCopy={() => copy(access.password)} action={<button type="button" onClick={() => setRevealed(current => ({ ...current, [access.id]: !isRevealed }))} className="p-1 text-slate-400 hover:text-violet-600" aria-label={isRevealed ? 'Ocultar senha' : 'Mostrar senha'}>{isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}</button>} />}
+              {access.password && <Credential icon={KeyRound} label="Senha" value={isRevealed ? access.password : '••••••••••'} onCopy={() => copy(access.password)} action={<IconButton type="button" size="xs" onClick={() => setRevealed(current => ({ ...current, [access.id]: !isRevealed }))} aria-label={isRevealed ? 'Ocultar senha' : 'Mostrar senha'}>{isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}</IconButton>} />}
               {access.notes && <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{access.notes}</p>}
             </div></div>
           </div>;
         })}
         {!showForm && error && <p className="text-xs text-rose-600">{error}</p>}
-      </div>
-    </section>
+    </PanelCard>
   );
 }
 
 function Credential({ icon: Icon, label, value, onCopy, action }: { icon: any; label: string; value: string; onCopy: () => void; action?: React.ReactNode }) {
-  return <div className="mt-2 flex items-center gap-2 rounded-lg bg-white border border-slate-100 px-2.5 py-1.5"><Icon className="w-3.5 h-3.5 text-slate-400" /><span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</span><span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">{value}</span>{action}<button type="button" onClick={onCopy} className="p-1 text-slate-400 hover:text-indigo-600" aria-label={`Copiar ${label}`}><Copy className="w-3.5 h-3.5" /></button></div>;
+  return <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-1.5 dark:border-white/10 dark:bg-white/5"><Icon className="h-3.5 w-3.5 text-slate-400" /><span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</span><span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700 dark:text-white/70">{value}</span>{action}<IconButton type="button" size="xs" onClick={onCopy} aria-label={`Copiar ${label}`}><Copy size={13} /></IconButton></div>;
 }

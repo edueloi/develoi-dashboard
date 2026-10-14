@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Bell, Plus, Edit2, Trash2, Send, CalendarClock, Wallet, DollarSign, Users, MapPin, CheckCircle2, AlertTriangle, ChevronDown, Cake,
 } from 'lucide-react';
-import { Button, Modal, ConfirmModal, Input, Select, Textarea, EmptyState } from '../ui';
+import { Alert, Button, Checkbox, Modal, ConfirmModal, Input, PanelCard, SectionTitle, Select, Tabs, Textarea, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -19,6 +19,7 @@ interface Meeting {
   id: string; title: string; startsAt: string; location?: string | null; notes?: string | null;
   reminderSentAt?: string | null; attendees: { recipientId: string; recipient: { id: string; name: string } }[];
 }
+type NoticeTab = 'recipients' | 'meetings';
 
 const formatPhone = (p: string) => {
   const d = p.replace(/\D/g, '');
@@ -46,6 +47,7 @@ export function TeamNoticesTab() {
   const [deletingMeeting, setDeletingMeeting] = useState<Meeting | null>(null);
   const [showPast, setShowPast] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
+  const [tab, setTab] = useState<NoticeTab>('recipients');
 
   const load = useCallback(async () => {
     try {
@@ -146,29 +148,30 @@ export function TeamNoticesTab() {
   };
 
   return (
-    <div className="space-y-5 dashboard-density">
-      <div>
-        <h2 className="text-lg font-black tracking-tight" style={{ color: text }}>Avisos da equipe</h2>
-        <p className="text-xs text-slate-400 mt-0.5">O bot manda no WhatsApp da equipe o resumo de contas e o lembrete de reuniões</p>
-      </div>
+    <div className="space-y-4 dashboard-density">
+      <SectionTitle icon={Bell} title="Avisos da equipe" description="Notificações de contas, reuniões e acontecimentos enviadas pelo WhatsApp" />
 
       {botStatus !== 'connected' && !loading && (
-        <div className="flex items-start gap-2.5 text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 rounded-xl px-4 py-3">
-          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>O WhatsApp do bot está desconectado, então nenhum aviso é enviado. Conecte em <b>Bot de Atendimento</b>.</span>
-        </div>
+        <Alert variant="warning" title="WhatsApp desconectado">Nenhum aviso será enviado enquanto o Bot de Atendimento estiver desconectado.</Alert>
       )}
 
+      <Tabs<NoticeTab>
+        items={[
+          { id: 'recipients', label: 'Destinatários', icon: Users, badge: recipients.length || undefined },
+          { id: 'meetings', label: 'Reuniões', icon: CalendarClock, badge: upcoming.length || undefined },
+        ]}
+        value={tab}
+        onChange={setTab}
+        label="Seções dos avisos da equipe"
+      >
       {/* Quem recebe */}
-      <section className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/5">
-          <div>
-            <p className="text-sm font-black flex items-center gap-2" style={{ color: text }}><Users className="w-4 h-4" /> Quem recebe os avisos</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Resumo de contas todo dia às 9h (só se houver algo vencendo) e lembrete de reunião 24h antes.</p>
-          </div>
-          <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} onClick={() => setRecForm({ open: true, rec: null })}>ADICIONAR</Button>
-        </div>
-
+      {tab === 'recipients' && <PanelCard
+        icon={Users}
+        title="Quem recebe os avisos"
+        description="Resumo diário de contas e lembretes de reunião enviados pelo bot."
+        action={<Button size="xs" iconLeft={<Plus size={12} />} onClick={() => setRecForm({ open: true, rec: null })}>Adicionar</Button>}
+        contentClassName="p-0"
+      >
         {loading ? (
           <div className="text-center py-8 text-slate-400 text-sm">Carregando…</div>
         ) : recipients.length === 0 ? (
@@ -196,10 +199,9 @@ export function TeamNoticesTab() {
                     ['notifyBirthdays', 'Aniversários', Cake],
                     ['notifyContact', 'Contato do site', Send],
                   ] as const).map(([key, label, Icon]) => (
-                    <button key={key} onClick={() => patchRecipient(r.id, { [key]: !r[key] })}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${r[key] ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-white/10 text-slate-400 hover:border-slate-300'}`}>
-                      <Icon className="w-3 h-3" /> {label}
-                    </button>
+                    <Button key={key} size="xs" variant={r[key] ? 'primary' : 'outline'} iconLeft={<Icon size={11} />} onClick={() => patchRecipient(r.id, { [key]: !r[key] })}>
+                      {label}
+                    </Button>
                   ))}
                 </div>
 
@@ -215,18 +217,16 @@ export function TeamNoticesTab() {
             ))}
           </div>
         )}
-      </section>
+      </PanelCard>}
 
       {/* Reuniões */}
-      <section className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-white/5">
-          <div>
-            <p className="text-sm font-black flex items-center gap-2" style={{ color: text }}><CalendarClock className="w-4 h-4" /> Reuniões</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">O bot avisa os participantes 24 horas antes.</p>
-          </div>
-          <Button size="sm" iconLeft={<Plus className="w-4 h-4" />} disabled={recipients.length === 0} onClick={() => setMeetForm({ open: true, meeting: null })}>NOVA REUNIÃO</Button>
-        </div>
-
+      {tab === 'meetings' && <PanelCard
+        icon={CalendarClock}
+        title="Reuniões"
+        description="O bot avisa os participantes 24 horas antes."
+        action={<Button size="xs" iconLeft={<Plus size={12} />} disabled={recipients.length === 0} onClick={() => setMeetForm({ open: true, meeting: null })}>Nova reunião</Button>}
+        contentClassName="p-0"
+      >
         {upcoming.length === 0 ? (
           <div className="text-center py-8 text-slate-400 text-sm">
             {recipients.length === 0 ? 'Cadastre quem recebe os avisos para poder marcar reuniões.' : 'Nenhuma reunião marcada.'}
@@ -237,14 +237,15 @@ export function TeamNoticesTab() {
 
         {past.length > 0 && (
           <>
-            <button onClick={() => setShowPast(v => !v)} className="w-full px-4 py-2 flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 dark:border-white/5">
+            <Button size="xs" variant="ghost" onClick={() => setShowPast(v => !v)} className="w-full justify-between rounded-none border-x-0 border-b-0 px-4 py-2">
               <span>Reuniões passadas · {past.length}</span>
               <ChevronDown className={`w-4 h-4 transition-transform ${showPast ? '' : '-rotate-90'}`} />
-            </button>
+            </Button>
             {showPast && <div className="divide-y divide-slate-100 dark:divide-white/5">{past.slice(0, 20).map(meetingRow)}</div>}
           </>
         )}
-      </section>
+      </PanelCard>}
+      </Tabs>
 
       {recForm.open && (
         <RecipientFormModal rec={recForm.rec} users={users} onClose={() => setRecForm({ open: false, rec: null })}
@@ -304,18 +305,15 @@ function RecipientFormModal({ rec, users, onClose, onSaved }: {
   };
 
   const Check = ({ label, hint, value, onChange }: { label: string; hint: string; value: boolean; onChange: (v: boolean) => void }) => (
-    <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/5 cursor-pointer">
-      <input type="checkbox" className="w-4 h-4 mt-0.5 accent-indigo-600" checked={value} onChange={e => onChange(e.target.checked)} />
-      <span><span className="block text-sm font-bold text-slate-700 dark:text-slate-200">{label}</span><span className="block text-[11px] text-slate-400">{hint}</span></span>
-    </label>
+    <Checkbox checked={value} onChange={onChange} label={label} description={hint} variant="card" />
   );
 
   return (
     <Modal isOpen onClose={onClose} title={rec ? 'Editar pessoa' : 'Adicionar pessoa'} size="md"
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" form="recipient-form" loading={saving} fullWidth size="lg">{rec ? 'SALVAR' : 'ADICIONAR'}</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" size="sm" form="recipient-form" loading={saving}>{rec ? 'Salvar' : 'Adicionar'}</Button>
         </div>
       }>
       <form id="recipient-form" onSubmit={submit} className="space-y-4">
@@ -381,8 +379,8 @@ function MeetingFormModal({ meeting, recipients, onClose, onSaved }: {
     <Modal isOpen onClose={onClose} title={meeting ? 'Editar reunião' : 'Nova reunião'} size="md"
       footer={
         <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" form="meeting-form" loading={saving} fullWidth size="lg">{meeting ? 'SALVAR ALTERAÇÕES' : 'MARCAR REUNIÃO'}</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" size="sm" form="meeting-form" loading={saving}>{meeting ? 'Salvar alterações' : 'Marcar reunião'}</Button>
         </div>
       }>
       <form id="meeting-form" onSubmit={submit} className="space-y-4">
@@ -393,17 +391,16 @@ function MeetingFormModal({ meeting, recipients, onClose, onSaved }: {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="ds-label">Quem participa?</label>
-            <button type="button" className="text-[11px] font-bold text-indigo-500 hover:underline"
+            <Button type="button" size="xs" variant="ghost"
               onClick={() => setSelected(selected.size === recipients.length ? new Set() : new Set(recipients.map(r => r.id)))}>
               {selected.size === recipients.length ? 'Limpar' : 'Todos'}
-            </button>
+            </Button>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {recipients.map(r => (
-              <button type="button" key={r.id} onClick={() => toggle(r.id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${selected.has(r.id) ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-white/10 text-slate-500 hover:border-slate-300'}`}>
+              <Button type="button" size="xs" variant={selected.has(r.id) ? 'primary' : 'outline'} key={r.id} onClick={() => toggle(r.id)}>
                 {r.name}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

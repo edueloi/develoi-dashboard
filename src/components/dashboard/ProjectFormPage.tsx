@@ -187,7 +187,7 @@ export function ProjectFormPage({ project, onCancel, onSaved }: ProjectFormPageP
 
   return (
     <PageWrapper>
-    <div className="mx-auto w-full max-w-[1200px] space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <Button type="button" variant="ghost" size="sm" iconLeft={<ArrowLeft className="h-3.5 w-3.5" />} onClick={onCancel}>
         Voltar para projetos
       </Button>

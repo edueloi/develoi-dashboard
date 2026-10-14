@@ -14,8 +14,10 @@ import { ptBR } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../../lib/utils';
 import {
-  Badge, Button, Modal, ConfirmModal, ProgressBar,
-  Input, Select, Textarea, EmptyState,
+  Badge, Button, IconButton, Modal, ConfirmModal, ProgressBar,
+  Input, Select, Textarea, EmptyState, Tabs, SectionTitle,
+  FilterLine, FilterLineSection, FilterLineItem, FilterLineSegmented, FilterLineSearch,
+  DropdownMenu, Radio, Checkbox,
 } from '../ui';
 import type { Feature, Sprint, FeatureComment } from './types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -398,42 +400,56 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
       onAddTicket={() => onCreateTicket(sprint.id)} onPause={() => handlePause(sprint.id)} onResume={() => handleResume(sprint.id)} {...extra} />
   );
 
-  const tabBtn = (id: 'plan' | 'done', label: string, n: number, Icon: any) => (
-    <button key={id} onClick={() => setTab(id)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border transition-all whitespace-nowrap"
-      style={tab === id ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E', boxShadow: '0 4px 12px rgba(13,31,78,0.25)' } : { background: '#fff', color: '#64748B', borderColor: 'rgba(148,163,184,0.35)' }}>
-      <Icon className="w-3.5 h-3.5" />{label}<span className="text-[10px] px-1.5 py-0.5 rounded-full" style={tab === id ? { background: 'rgba(255,255,255,0.2)' } : { background: 'rgba(100,116,139,0.12)' }}>{n}</span>
-    </button>
-  );
-
   return (
     <div className="space-y-4 w-full min-w-0">
-      {/* Cabeçalho */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-[#0D1F4E] rounded-xl flex items-center justify-center text-white shadow-sm flex-shrink-0"><History className="w-5 h-5" /></div>
-          <div className="min-w-0">
-            <h2 className="text-lg font-black text-slate-900 tracking-tight">Planejamento Ágil</h2>
-            <p className="text-[11px] font-semibold text-slate-400">
-              {backlogAll.length} no backlog · {running.length} {running.length === 1 ? 'sprint ativa' : 'sprints ativas'} · {planned.length} {planned.length === 1 ? 'planejada' : 'planejadas'} · {completed.length} {completed.length === 1 ? 'concluída' : 'concluídas'}
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" iconLeft={<Plus className="w-3.5 h-3.5" />} onClick={onCreateSprint}>NOVA SPRINT</Button>
-          <Button size="sm" variant="outline" iconLeft={<Upload className="w-3.5 h-3.5" />} onClick={onImport}>IMPORTAR</Button>
-          <Button size="sm" iconLeft={<Rocket className="w-3.5 h-3.5" />} onClick={() => onCreateTicket(undefined)}>NOVO TICKET</Button>
-        </div>
-      </div>
+      <SectionTitle
+        title="Planejamento Ágil"
+        description={`${backlogAll.length} no backlog · ${running.length} ${running.length === 1 ? 'sprint ativa' : 'sprints ativas'} · ${planned.length} ${planned.length === 1 ? 'planejada' : 'planejadas'} · ${completed.length} ${completed.length === 1 ? 'concluída' : 'concluídas'}`}
+        icon={History}
+        action={<>
+          <Button size="xs" variant="outline" iconLeft={<Plus className="h-3.5 w-3.5" />} onClick={onCreateSprint}>Nova sprint</Button>
+          <Button size="xs" variant="outline" iconLeft={<Upload className="h-3.5 w-3.5" />} onClick={onImport}>Importar</Button>
+          <Button size="xs" iconLeft={<Rocket className="h-3.5 w-3.5" />} onClick={() => onCreateTicket(undefined)}>Novo ticket</Button>
+        </>}
+      />
 
-      {/* Abas */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex gap-2 overflow-x-auto">{tabBtn('plan', 'Planejamento', backlogAll.length + running.length + planned.length, ListTodo)}{tabBtn('done', 'Concluídas', completed.length, Archive)}</div>
-        <div className="relative sm:ml-auto sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder={tab === 'plan' ? 'Buscar ticket no backlog…' : 'Buscar sprint ou ticket…'}
-            className="w-full h-10 pl-9 pr-3 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-[#0D1F4E]" />
-        </div>
-      </div>
+      <Tabs<'plan' | 'done'>
+        items={[
+          { id: 'plan', label: 'Planejamento', icon: ListTodo, badge: backlogAll.length + running.length + planned.length },
+          { id: 'done', label: 'Concluídas', icon: Archive, badge: completed.length },
+        ]}
+        value={tab}
+        onChange={setTab}
+        label="Visões do backlog"
+      >
+        <FilterLine>
+          <FilterLineSection grow>
+            <FilterLineItem grow minWidth={240}>
+              <FilterLineSearch value={q} onChange={setQ} placeholder={tab === 'plan' ? 'Buscar ticket no backlog…' : 'Buscar sprint ou ticket…'} />
+            </FilterLineItem>
+          </FilterLineSection>
+          {tab === 'plan' && (
+            <FilterLineSection align="right">
+              <FilterLineSegmented className="max-w-full overflow-x-auto" size="sm" value={typeF} onChange={setTypeF} options={[
+                { value: 'all', label: 'Todos' }, { value: 'story', label: 'Histórias' },
+                { value: 'task', label: 'Tarefas' }, { value: 'bug', label: 'Bugs' }, { value: 'epic', label: 'Épicos' },
+              ]} />
+              <FilterLineSegmented className="max-w-full overflow-x-auto" size="sm" value={whoF} onChange={setWhoF} options={[
+                { value: 'all', label: 'Qualquer responsável' },
+                { value: 'me', label: 'Meus tickets' },
+                { value: 'none', label: 'Sem responsável' },
+              ]} />
+            </FilterLineSection>
+          )}
+          {tab === 'done' && completed.length > 0 && (
+            <FilterLineSection align="right">
+              <FilterLineSegmented className="max-w-full overflow-x-auto" size="sm" value={year} onChange={setYear} options={(['all', ...years] as ('all' | number)[]).map(item => ({
+                value: item,
+                label: `${item === 'all' ? 'Todos' : item} · ${item === 'all' ? completed.length : completed.filter(sprint => sprintYear(sprint) === item).length}`,
+              }))} />
+            </FilterLineSection>
+          )}
+        </FilterLine>
 
       {/* ═══ PLANEJAMENTO: backlog de um lado, sprints do outro (dá para arrastar entre eles) ═══ */}
       {tab === 'plan' && (
@@ -442,12 +458,12 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
           <div className="space-y-4 order-1 xl:order-2 min-w-0">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><Play className="w-3.5 h-3.5" />Sprints em andamento e planejadas</h3>
             {running.length + planned.length === 0 ? (
-              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center">
-                <Rocket className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm font-bold text-slate-500">Nenhuma sprint ativa ou planejada</p>
-                <p className="text-xs text-slate-400 mt-1">Crie uma sprint ou retome uma concluída na aba "Concluídas".</p>
-                <div className="flex justify-center gap-2 mt-3"><Button size="sm" onClick={onCreateSprint}>NOVA SPRINT</Button>{completed.length > 0 && <Button size="sm" variant="outline" onClick={() => setTab('done')}>VER CONCLUÍDAS</Button>}</div>
-              </div>
+              <EmptyState
+                icon={Rocket}
+                title="Nenhuma sprint ativa ou planejada"
+                description="Crie uma sprint ou retome uma concluída na aba Concluídas."
+                action={<div className="mt-1 flex flex-wrap justify-center gap-2"><Button size="xs" onClick={onCreateSprint}>Nova sprint</Button>{completed.length > 0 && <Button size="xs" variant="outline" onClick={() => setTab('done')}>Ver concluídas</Button>}</div>}
+              />
             ) : (
               <>
                 {running.map(sp => sprintCard(sp))}
@@ -461,7 +477,7 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
             <DroppableComponent droppableId="backlog">
               {(provided: any, snapshot: any) => (
                 <div ref={provided.innerRef} {...provided.droppableProps}
-                  className={cn('rounded-2xl border overflow-hidden transition-colors bg-white shadow-sm', snapshot.isDraggingOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200')}>
+                  className={cn('overflow-hidden rounded-lg border bg-white shadow-sm transition-colors', snapshot.isDraggingOver ? 'border-indigo-400 bg-indigo-50/30' : 'border-slate-200')}>
                   <div className="p-3 sm:p-4 border-b border-slate-100 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
@@ -471,25 +487,13 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
                           <p className="text-[10px] font-semibold text-slate-400">{backlogAll.length} {backlogAll.length === 1 ? 'ticket' : 'tickets'} · {pts(backlogAll)} pts · ainda sem sprint</p>
                         </div>
                       </div>
-                      <button onClick={() => onCreateTicket('')} className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:bg-indigo-50 px-2.5 py-1.5 rounded-xl flex-shrink-0"><Plus className="w-3.5 h-3.5" />Ticket</button>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {([['all', 'Todos'], ['story', 'Histórias'], ['task', 'Tarefas'], ['bug', 'Bugs'], ['epic', 'Épicos']] as const).map(([v, l]) => (
-                        <button key={v} onClick={() => setTypeF(v)} className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
-                          style={typeF === v ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)' }}>{l}</button>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {([['all', 'Qualquer responsável'], ['me', 'Meus tickets'], ['none', 'Sem responsável']] as const).map(([v, l]) => (
-                        <button key={v} onClick={() => setWhoF(v)} className="px-2.5 py-1 rounded-full text-[11px] font-bold border"
-                          style={whoF === v ? { background: '#4F46E5', color: '#fff', borderColor: '#4F46E5' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)' }}>{l}</button>
-                      ))}
+                      <Button size="xs" variant="ghost" iconLeft={<Plus className="h-3.5 w-3.5" />} onClick={() => onCreateTicket('')}>Ticket</Button>
                     </div>
                     <p className="text-[11px] text-slate-400">Arraste um ticket para uma sprint ao lado para planejar. No menu ⋮ do ticket você define quem assume.</p>
                   </div>
                   <div className="p-2 space-y-2 min-h-[96px] xl:max-h-[calc(100vh-18rem)] xl:overflow-y-auto">
                     {backlogFeatures.length === 0 ? (
-                      <div className="py-8 text-center"><p className="text-sm font-bold text-slate-400">{backlogAll.length ? 'Nenhum ticket com esses filtros.' : 'Backlog vazio. Adicione tickets ou tire de uma sprint.'}</p></div>
+                      <EmptyState className="border-0 bg-transparent" icon={ListTodo} title={backlogAll.length ? 'Nenhum ticket com esses filtros' : 'Backlog vazio'} description={backlogAll.length ? 'Altere os filtros para encontrar outros tickets.' : 'Adicione tickets ou retire um item de uma sprint.'} />
                     ) : backlogFeatures.map((f, i) => (
                       <DraggableComponent key={f.id} draggableId={f.id} index={i}>
                         {(prov: any, snap: any) => <FeatureRow feature={f} provided={prov} isDragging={snap.isDragging} onRefresh={onRefresh} />}
@@ -508,24 +512,10 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
       {tab === 'done' && (
         <div className="space-y-5">
           {completed.length === 0 ? (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-10 text-center">
-              <Archive className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-500">Nenhuma sprint concluída ainda</p>
-              <p className="text-xs text-slate-400 mt-1">Quando você concluir uma sprint, ela fica guardada aqui, organizada por ano.</p>
-            </div>
+            <EmptyState icon={Archive} title="Nenhuma sprint concluída ainda" description="Quando você concluir uma sprint, ela ficará guardada aqui e organizada por ano." />
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1"><CalendarRange className="w-3.5 h-3.5" />Ano</span>
-                {(['all', ...years] as ('all' | number)[]).map(y => (
-                  <button key={String(y)} onClick={() => setYear(y)} className="px-3 py-1.5 rounded-full text-xs font-black border"
-                    style={year === y ? { background: '#0D1F4E', color: '#fff', borderColor: '#0D1F4E' } : { color: '#64748B', borderColor: 'rgba(148,163,184,0.4)', background: '#fff' }}>
-                    {y === 'all' ? 'Todos' : y} <span className="opacity-60">· {y === 'all' ? completed.length : completed.filter(sp => sprintYear(sp) === y).length}</span>
-                  </button>
-                ))}
-              </div>
-
-              {doneByYear.length === 0 && <p className="text-sm text-slate-400 text-center py-8">Nada encontrado com essa busca.</p>}
+              {doneByYear.length === 0 && <EmptyState icon={Search} title="Nada encontrado" description="Tente outro termo ou selecione outro ano." />}
               {doneByYear.map(({ y, list }) => {
                 const allF = list.flatMap(sp => featsOf(sp.id));
                 return (
@@ -553,6 +543,7 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
           )}
         </div>
       )}
+      </Tabs>
     </div>
   );
 }
@@ -565,22 +556,11 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
 }) {
   const navigate = useNavigate();
   const [expanded, setExpanded]         = useState(sprint.status !== 'completed');
-  const [menuOpen, setMenuOpen]         = useState(false);
   const [editing, setEditing]           = useState(false);
   const [managingAccess, setManagingAccess] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const isRestricted = Array.isArray(sprint.allowedUsers) && sprint.allowedUsers.length > 0;
-
-  // Close menu on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const statusConfig = {
     active:    { label: 'Sprint Ativa', color: 'success' as const, icon: Play },
@@ -633,96 +613,19 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
                 {sprint.status === 'planned' && <Button size="xs" variant="outline" iconLeft={<Play className="w-3 h-3" />} onClick={onStart}>INICIAR</Button>}
                 {sprint.status === 'completed' && onResume && <Button size="xs" variant="outline" iconLeft={<RotateCcw className="w-3 h-3" />} onClick={onResume}>RETOMAR</Button>}
                 {sprint.status === 'active' && <Button size="xs" variant="outline" iconLeft={<CheckCircle2 className="w-3 h-3" />} onClick={() => setConfirmFinish(true)}>CONCLUIR</Button>}
-                {/* 3-dot menu — todas as ações ficam aqui */}
-                <div className="relative" ref={menuRef}>
-                  <button
-                    onClick={() => setMenuOpen(!menuOpen)}
-                    className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                  {menuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-1.5 overflow-hidden">
-                      {/* Editar */}
-                      <button
-                        onClick={() => { setEditing(true); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <Pencil className="w-4 h-4 text-slate-400" /> Editar Sprint
-                      </button>
-
-                      <button
-                        onClick={() => { try { localStorage.setItem(BOARD_SPRINT_KEY, sprint.id); } catch { /* sem storage */ } navigate(`/dashboard/quadro${window.location.search}`); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <Kanban className="w-4 h-4 text-slate-400" /> Abrir no Quadro
-                      </button>
-                      {/* Adicionar ticket */}
-                      {sprint.status !== 'completed' && <button
-                        onClick={() => { onAddTicket(); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                      >
-                        <Plus className="w-4 h-4 text-slate-400" /> Adicionar Ticket
-                      </button>}
-
-                      {/* Quem pode ver — só quem é administrador pode mexer nisso */}
-                      {isAdmin && (
-                        <button
-                          onClick={() => { setManagingAccess(true); setMenuOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
-                          <Lock className="w-4 h-4 text-slate-400" /> Quem Pode Ver
-                        </button>
-                      )}
-
-                      <div className="h-px bg-slate-100 my-1" />
-
-                      {/* Iniciar / Concluir */}
-                      {sprint.status === 'planned' && (
-                        <button
-                          onClick={() => { onStart(); setMenuOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
-                        >
-                          <Play className="w-4 h-4" /> Iniciar Sprint
-                        </button>
-                      )}
-                      {sprint.status === 'completed' && onResume && (
-                        <button
-                          onClick={() => { onResume(); setMenuOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
-                        >
-                          <RotateCcw className="w-4 h-4" /> Retomar Sprint
-                        </button>
-                      )}
-                      {sprint.status === 'active' && onPause && (
-                        <button
-                          onClick={() => { onPause(); setMenuOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors"
-                        >
-                          <Pause className="w-4 h-4" /> Pausar (voltar a planejada)
-                        </button>
-                      )}
-                      {sprint.status === 'active' && (
-                        <button
-                          onClick={() => { setConfirmFinish(true); setMenuOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
-                        >
-                          <CheckCircle2 className="w-4 h-4" /> Concluir Sprint
-                        </button>
-                      )}
-
-                      <div className="h-px bg-slate-100 my-1" />
-
-                      {/* Excluir */}
-                      <button
-                        onClick={() => { setConfirmDelete(true); setMenuOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-rose-500 hover:bg-rose-50 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" /> Excluir Sprint
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <DropdownMenu items={[
+                  { label: 'Editar sprint', icon: <Pencil className="h-4 w-4" />, onClick: () => setEditing(true) },
+                  { label: 'Abrir no quadro', icon: <Kanban className="h-4 w-4" />, onClick: () => { try { localStorage.setItem(BOARD_SPRINT_KEY, sprint.id); } catch { /* sem storage */ } navigate(`/dashboard/quadro${window.location.search}`); } },
+                  { label: 'Adicionar ticket', icon: <Plus className="h-4 w-4" />, onClick: onAddTicket, hidden: sprint.status === 'completed' },
+                  { label: 'Quem pode ver', icon: <Lock className="h-4 w-4" />, onClick: () => setManagingAccess(true), hidden: !isAdmin },
+                  { type: 'divider' },
+                  { label: 'Iniciar sprint', icon: <Play className="h-4 w-4" />, onClick: onStart, hidden: sprint.status !== 'planned' },
+                  { label: 'Retomar sprint', icon: <RotateCcw className="h-4 w-4" />, onClick: onResume, hidden: sprint.status !== 'completed' || !onResume },
+                  { label: 'Pausar sprint', icon: <Pause className="h-4 w-4" />, onClick: onPause, hidden: sprint.status !== 'active' || !onPause },
+                  { label: 'Concluir sprint', icon: <CheckCircle2 className="h-4 w-4" />, onClick: () => setConfirmFinish(true), hidden: sprint.status !== 'active' },
+                  { type: 'divider' },
+                  { label: 'Excluir sprint', icon: <Trash2 className="h-4 w-4" />, onClick: () => setConfirmDelete(true), variant: 'danger' },
+                ]} />
               </div>
             </div>
 
@@ -847,21 +750,26 @@ function FeatureRow({ feature, provided, isDragging, onRefresh }: {
           <AssigneeStack feature={feature} />
           {assignItems.length > 0 && <RowMenu items={assignItems} />}
           {/* Edit */}
-          <button
+          <IconButton
+            size="xs"
             onClick={() => setEditing(true)}
-            className="p-1.5 opacity-0 group-hover:opacity-100 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
+            className="opacity-0 group-hover:opacity-100"
             title="Editar"
+            aria-label="Editar ticket"
           >
             <Edit2 className="w-3.5 h-3.5" />
-          </button>
+          </IconButton>
           {/* Delete */}
-          <button
+          <IconButton
+            size="xs"
+            variant="danger"
             onClick={() => setConfirmDelete(true)}
-            className="p-1.5 opacity-0 group-hover:opacity-100 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all"
+            className="opacity-0 group-hover:opacity-100"
             title="Excluir"
+            aria-label="Excluir ticket"
           >
             <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          </IconButton>
         </div>
       </div>
 
@@ -1500,30 +1408,23 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
   const sprintOptions = [{ value: '', label: 'Backlog (sem sprint)' }, ...sprints.filter(sp => sp.status !== 'completed' || sp.id === sprintId).map(sp => ({ value: sp.id, label: `${sp.name}${sp.status === 'active' ? ' (ativa)' : sp.status === 'completed' ? ' (concluída)' : ''}` }))];
   const lbl = 'text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 block';
 
-  const tabBtn = (id: typeof tab, label: string, n?: number) => (
-    <button key={id} type="button" onClick={() => setTab(id)} className="px-3.5 py-2 rounded-lg text-xs font-black whitespace-nowrap transition-colors"
-      style={tab === id ? { background: '#fff', color: '#0D1F4E', boxShadow: '0 1px 3px rgba(0,0,0,.12)' } : { color: '#64748B' }}>
-      {label}{n !== undefined && <span className="ml-1.5 opacity-60">({n})</span>}
-    </button>
-  );
-
   return (
     <SidePanel isOpen onClose={onClose}
       title={<span className="flex items-center gap-2 min-w-0"><span className="flex-shrink-0">{TYPE_ICONS[type]}</span><span className="text-[11px] font-black text-indigo-600 tracking-widest flex-shrink-0">{feature.key || '—'}</span><span className="text-xs font-bold text-slate-400 flex-shrink-0">{typeLabel}</span></span> as any}
       footer={mode === 'view' ? (
         <div className="flex gap-2 sm:justify-between items-center">
-          <button type="button" onClick={() => setConfirmDelete(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button>
+          <Button type="button" size="sm" variant="danger" iconLeft={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDelete(true)}>Excluir</Button>
           <div className="flex gap-2 flex-1 sm:flex-none">
-            <Button type="button" variant="outline" iconLeft={<Copy className="w-4 h-4" />} loading={dupBusy} onClick={async () => { setDupBusy(true); const k = await duplicateFeature(feature); setDupBusy(false); if (k) { onChanged?.(); onClose(); } }}>DUPLICAR</Button>
-            <Button type="button" fullWidth className="sm:w-56" iconLeft={<Pencil className="w-4 h-4" />} onClick={() => setMode('edit')}>EDITAR TICKET</Button>
+            <Button type="button" size="sm" variant="outline" iconLeft={<Copy className="w-4 h-4" />} loading={dupBusy} onClick={async () => { setDupBusy(true); const k = await duplicateFeature(feature); setDupBusy(false); if (k) { onChanged?.(); onClose(); } }}>Duplicar</Button>
+            <Button type="button" size="sm" iconLeft={<Pencil className="w-4 h-4" />} onClick={() => setMode('edit')}>Editar ticket</Button>
           </div>
         </div>
       ) : (
         <div className="flex gap-2 sm:justify-between items-center">
-          <button type="button" onClick={() => setConfirmDelete(true)} className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-all flex items-center gap-1.5 text-xs font-black"><Trash2 className="w-4 h-4" /><span className="hidden sm:inline">EXCLUIR</span></button>
+          <Button type="button" size="sm" variant="danger" iconLeft={<Trash2 className="h-4 w-4" />} onClick={() => setConfirmDelete(true)}>Excluir</Button>
           <div className="flex gap-2 flex-1 sm:flex-none">
-            <Button type="button" variant="outline" onClick={() => setMode('view')} className="hidden sm:inline-flex">CANCELAR</Button>
-            <Button type="submit" form="ticket-form" loading={loading} fullWidth className="sm:w-56">SALVAR ALTERAÇÕES</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setMode('view')} className="hidden sm:inline-flex">Cancelar</Button>
+            <Button type="submit" size="sm" form="ticket-form" loading={loading}>Salvar alterações</Button>
           </div>
         </div>
       )}>
@@ -1541,12 +1442,17 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
           <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Título do ticket"
             className="w-full text-xl sm:text-2xl font-black text-slate-900 bg-transparent border-0 border-b-2 border-transparent hover:border-slate-200 focus:border-[#0D1F4E] focus:outline-none px-0 py-1 transition-colors" />
 
-          <div className="inline-flex p-1 rounded-xl bg-slate-100 max-w-full overflow-x-auto">
-            {tabBtn('desc', 'Descrição')}
-            {tabBtn('subtasks', 'Subtarefas', activities.length ? doneActs : undefined)}
-            {tabBtn('comments', 'Comentários e histórico')}
-            {tabBtn('links', 'Vínculos', linkedDemand ? 1 : 0)}
-          </div>
+          <Tabs<'desc' | 'subtasks' | 'comments' | 'links'>
+            items={[
+              { id: 'desc', label: 'Descrição', icon: FileText },
+              { id: 'subtasks', label: 'Subtarefas', icon: CheckSquare, badge: activities.length ? `${doneActs}/${activities.length}` : undefined },
+              { id: 'comments', label: 'Comentários e histórico', icon: MessageSquare },
+              { id: 'links', label: 'Vínculos', icon: Link2, badge: linkedDemand ? 1 : 0 },
+            ]}
+            value={tab}
+            onChange={setTab}
+            label="Seções do ticket"
+          >
 
           {tab === 'desc' && (
             <div className="space-y-4">
@@ -1569,10 +1475,11 @@ function EditFeatureModal({ feature, onClose, onSuccess, onChanged }: { feature:
               <LinkedDemandPicker projectId={feature.projectId} value={linkedDemand} onChange={setLinkedDemand} />
             </div>
           )}
+          </Tabs>
         </div>
 
         {/* ── detalhes (barra lateral) ── */}
-        <aside className={cn('rounded-2xl border border-slate-200 bg-slate-50/60 p-4', full ? 'space-y-3.5 sticky top-0' : 'grid grid-cols-2 gap-3.5 order-first')}>
+        <aside className={cn('rounded-lg border border-slate-200 bg-slate-50/60 p-4', full ? 'space-y-3.5 sticky top-0' : 'grid grid-cols-2 gap-3.5 order-first')}>
           <h3 className="text-sm font-black text-slate-900 col-span-2">Detalhes</h3>
           <div><label className={lbl}>Status</label>
             <Select value={status} onChange={e => setStatus(e.target.value as any)} options={[{ value: 'todo', label: 'A Fazer' }, { value: 'in-progress', label: 'Em Desenvolvimento' }, { value: 'review', label: 'Em Revisão' }, { value: 'testing', label: 'Em Teste' }, { value: 'done', label: 'Concluído' }]} /></div>
@@ -1749,15 +1656,14 @@ function EditSprintModal({ sprint, onClose, onSuccess }: { sprint: Sprint; onClo
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Editar Sprint" size="md">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <Modal isOpen={true} onClose={onClose} title="Editar sprint" size="md" footer={<div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button><Button size="sm" type="submit" form="edit-sprint-form" loading={loading}>Salvar alterações</Button></div>}>
+      <form id="edit-sprint-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Nome da Sprint" required value={name} onChange={e => setName(e.target.value)} />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Data Início" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
           <Input label="Data Fim"    type="date" value={endDate}   onChange={e => setEndDate(e.target.value)} />
         </div>
         <Textarea label="Objetivo da Sprint" value={goal} onChange={e => setGoal(e.target.value)} rows={3} placeholder="O que queremos alcançar nesta sprint?" />
-        <Button type="submit" loading={loading} fullWidth size="lg">SALVAR</Button>
       </form>
     </Modal>
   );
@@ -1803,27 +1709,11 @@ function SprintVisibilityModal({ sprint, onClose, onSuccess }: { sprint: Sprint;
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Quem Pode Ver Esta Sprint" size="md">
-      <div className="space-y-5">
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setRestricted(false)}
-            className={cn('p-3 rounded-2xl border-2 text-left transition-all',
-              !restricted ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300')}
-          >
-            <p className="text-sm font-black text-slate-900">Todo Mundo</p>
-            <p className="text-xs text-slate-500 mt-0.5">Qualquer pessoa da equipe pode ver</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => setRestricted(true)}
-            className={cn('p-3 rounded-2xl border-2 text-left transition-all',
-              restricted ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300')}
-          >
-            <p className="text-sm font-black text-slate-900">Só Quem Eu Escolher</p>
-            <p className="text-xs text-slate-500 mt-0.5">Só as pessoas marcadas abaixo veem</p>
-          </button>
+    <Modal isOpen={true} onClose={onClose} title="Visibilidade da sprint" size="md" footer={<div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button><Button size="sm" onClick={handleSave} loading={saving} disabled={restricted && selected.size === 0}>Salvar acesso</Button></div>}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <Radio value="public" checked={!restricted} onChange={() => setRestricted(false)} label="Toda a equipe" description="Qualquer pessoa da equipe pode visualizar." variant="card" />
+          <Radio value="restricted" checked={restricted} onChange={() => setRestricted(true)} label="Pessoas escolhidas" description="Somente pessoas selecionadas podem visualizar." variant="card" />
         </div>
 
         {restricted && (
@@ -1832,33 +1722,26 @@ function SprintVisibilityModal({ sprint, onClose, onSuccess }: { sprint: Sprint;
             {loadingMembers ? (
               <div className="py-6 flex justify-center"><Loader2 className="w-5 h-5 text-indigo-500 animate-spin" /></div>
             ) : members.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4 text-center">Nenhuma pessoa cadastrada em Membros ainda.</p>
+              <EmptyState icon={UsersIcon} title="Nenhuma pessoa cadastrada" description="Adicione pessoas no menu Membros para definir o acesso." />
             ) : (
-              <div className="max-h-64 overflow-y-auto space-y-1 border border-slate-100 rounded-2xl p-2">
+              <div className="max-h-64 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
                 {members.map(m => (
-                  <button
+                  <Checkbox
                     key={m.uid}
-                    type="button"
-                    onClick={() => toggle(m.uid)}
-                    className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50 transition-colors text-left"
-                  >
-                    {selected.has(m.uid) ? <CheckSquare className="w-4 h-4 text-indigo-600 shrink-0" /> : <Square className="w-4 h-4 text-slate-300 shrink-0" />}
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-slate-700 truncate">{m.displayName || m.email}</p>
-                      <p className="text-xs text-slate-400 truncate">{m.email}</p>
-                    </div>
-                  </button>
+                    checked={selected.has(m.uid)}
+                    onChange={() => toggle(m.uid)}
+                    label={m.displayName || m.email}
+                    description={m.email}
+                    className="rounded-md px-2 py-2 hover:bg-slate-50"
+                  />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        <Button onClick={handleSave} loading={saving} fullWidth size="lg" disabled={restricted && selected.size === 0}>
-          SALVAR
-        </Button>
         {restricted && selected.size === 0 && (
-          <p className="text-xs text-amber-600 text-center -mt-3">Marque pelo menos uma pessoa.</p>
+          <p className="text-center text-xs text-amber-600">Marque pelo menos uma pessoa.</p>
         )}
       </div>
     </Modal>
@@ -1888,15 +1771,14 @@ function NewSprintModal({ projectId, onClose, onSuccess }: { projectId: string; 
   };
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Nova Sprint" size="md">
-      <form onSubmit={handleSubmit} className="space-y-5">
+    <Modal isOpen={true} onClose={onClose} title="Nova sprint" size="md" footer={<div className="flex justify-end gap-2"><Button size="sm" variant="outline" onClick={onClose}>Cancelar</Button><Button size="sm" type="submit" form="new-sprint-form" loading={loading}>Criar sprint</Button></div>}>
+      <form id="new-sprint-form" onSubmit={handleSubmit} className="space-y-4">
         <Input label="Nome" required value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Sprint Alpha #1" />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input label="Início" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
           <Input label="Fim"    type="date" value={endDate}   onChange={e => setEndDate(e.target.value)} />
         </div>
         <Textarea label="Objetivo" value={goal} onChange={e => setGoal(e.target.value)} placeholder="O que pretendemos alcançar?" rows={3} />
-        <Button type="submit" loading={loading} fullWidth size="lg">CRIAR SPRINT</Button>
       </form>
     </Modal>
   );
@@ -2580,7 +2462,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
       {step === 'input' ? (
         <div className="space-y-5">
           {/* Info */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex gap-3">
+          <div className="flex gap-3 rounded-lg border border-indigo-200 bg-indigo-50 p-3">
             <Sparkles className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
             <div>
               <p className="text-sm font-black text-indigo-800">Importar via arquivo .txt ou texto colado</p>
@@ -2637,7 +2519,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
             onDrop={handleDrop}
             onDragOver={e => e.preventDefault()}
             onClick={() => fileRef.current?.click()}
-            className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all"
+            className="cursor-pointer rounded-lg border-2 border-dashed border-slate-300 p-5 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/30"
           >
             {loading ? (
               <div className="flex flex-col items-center gap-2">
@@ -2669,10 +2551,7 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
                 {rawText && <span className="ml-2 text-indigo-400 normal-case font-bold">{rawText.length} caracteres lidos</span>}
               </label>
               {rawText && (
-                <button type="button" onClick={() => { setRawText(''); setFileName(''); }}
-                  className="text-[10px] font-black text-rose-400 hover:text-rose-600 transition-colors">
-                  LIMPAR
-                </button>
+                <Button type="button" size="xs" variant="ghost" className="text-rose-500" onClick={() => { setRawText(''); setFileName(''); }}>Limpar</Button>
               )}
             </div>
             <Textarea
@@ -2684,28 +2563,23 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
             />
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+            <Button type="button" size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button
               type="button"
-              fullWidth
-              size="lg"
+              size="sm"
               iconLeft={<Sparkles className="w-4 h-4" />}
               onClick={handleParse}
               disabled={!rawText.trim()}
             >
-              ANALISAR E PREENCHER CAMPOS
+              Analisar e preencher campos
             </Button>
-            <button type="button" onClick={onClose} className="px-5 py-3 rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-sm transition-colors">
-              CANCELAR
-            </button>
           </div>
         </div>
       ) : (
         <div className="space-y-5">
           <div className="flex items-center justify-between">
-            <button type="button" onClick={() => setStep('input')} className="text-xs font-black text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-1">
-              ← Voltar e editar texto
-            </button>
+            <Button type="button" size="xs" variant="ghost" onClick={() => setStep('input')}>← Voltar e editar texto</Button>
             <span className={cn('text-xs font-black px-3 py-1 rounded-full border', cfg.badge)}>
               {cfg.detectedLabel}
             </span>
@@ -2759,13 +2633,9 @@ Contexto do que preciso: [DESCREVA AQUI A INICIATIVA]`,
               funcReqs={funcReqs} setFuncReqs={setFuncReqs} />
           )}
 
-          <div className="flex gap-3 pt-2">
-            <Button type="button" loading={loading} fullWidth size="lg" onClick={handleCreate}>
-              CRIAR TICKET
-            </Button>
-            <button type="button" onClick={onClose} className="px-5 py-3 rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-bold text-sm transition-colors">
-              CANCELAR
-            </button>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
+            <Button type="button" size="sm" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" size="sm" loading={loading} onClick={handleCreate}>Criar ticket</Button>
           </div>
         </div>
       )}
@@ -3028,8 +2898,8 @@ function NewFeatureModal({ projectId, defaultSprintId, sprints, onClose, onSucce
       title={<span className="flex items-center gap-2"><Plus className="w-4 h-4 text-indigo-600" /><span>{modalTitles[type]}</span></span>}
       footer={
         <div className="flex gap-2 sm:justify-end">
-          <Button type="button" variant="outline" onClick={onClose} className="hidden sm:inline-flex">CANCELAR</Button>
-          <Button type="submit" form="new-ticket-form" loading={loading} fullWidth className="sm:w-64" size="lg">CRIAR {cfg.label.toUpperCase()}</Button>
+          <Button type="button" size="sm" variant="outline" onClick={onClose} className="hidden sm:inline-flex">Cancelar</Button>
+          <Button type="submit" size="sm" form="new-ticket-form" loading={loading}>Criar {cfg.label.toLowerCase()}</Button>
         </div>
       }>
       {(full: boolean) => (

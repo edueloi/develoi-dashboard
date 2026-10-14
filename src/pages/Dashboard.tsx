@@ -42,7 +42,8 @@ import {
   EmptyState,
   Column,
   Combobox,
-  PageWrapper
+  PageWrapper,
+  IconButton
 } from '../components/ui';
 
 // Dashboard feature components
@@ -81,6 +82,8 @@ import { ClientContactManager } from '../components/dashboard/ClientContactManag
 import { MyProfile } from '../components/dashboard/MyProfile';
 import { ProjectAccessVault } from '../components/dashboard/ProjectAccessVault';
 import { ProjectFormPage } from '../components/dashboard/ProjectFormPage';
+import { DashboardOverview } from '../components/dashboard/DashboardOverview';
+import { ProjectSummaryView } from '../components/dashboard/ProjectSummaryView';
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -462,13 +465,13 @@ export default function Dashboard() {
               </div>
             )}
             {activeTab === 'projects' && !isNewProjectModalOpen && !editingProject && (
-              <button
+              <Button
+                size="sm"
                 onClick={() => setIsNewProjectModalOpen(true)}
-                className="flex items-center gap-2 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all hover:opacity-90"
-                style={{ background: '#0D1F4E' }}
+                iconLeft={<Plus className="h-3.5 w-3.5" />}
               >
-                <Plus className="w-3.5 h-3.5" /> Novo Projeto
-              </button>
+                Novo projeto
+              </Button>
             )}
           </div>
         </header>
@@ -477,374 +480,28 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
           <PageWrapper>
             <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
+
               {activeTab === 'overview' && (
-                <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-6">
-
-                  {/* ── HERO BANNER ── */}
-                  <div className="relative rounded-3xl overflow-hidden" style={{ minHeight: 200 }}>
-                    <img
-                      src="/capa-header.png"
-                      alt="Develoi Hub"
-                      className="absolute inset-0 w-full h-full object-cover object-center"
-                    />
-                    <div className="absolute inset-0" style={{ background: 'linear-gradient(100deg, rgba(6,17,43,0.93) 40%, rgba(6,17,43,0.55) 80%, rgba(6,17,43,0.3))' }} />
-                    <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.2))' }} />
-                    <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-
-                    <div className="relative z-10 px-8 py-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                      <div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <img src="/LOGO-MENU-BRANCO.png" alt="Develoi" className="h-7 object-contain" />
-                          <span className="text-[10px] font-black uppercase tracking-[0.25em] px-2.5 py-1 rounded-full" style={{ background: 'rgba(196,154,42,0.2)', color: '#C49A2A' }}>Hub</span>
-                        </div>
-                        <h2 className="text-2xl font-black text-white leading-tight tracking-tight mb-1">
-                          Olá, {profile?.displayName?.split(' ')[0]}
-                        </h2>
-                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        <button
-                          onClick={() => setIsNewProjectModalOpen(true)}
-                          className="flex items-center gap-2 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all hover:opacity-90"
-                          style={{ background: '#C49A2A', boxShadow: '0 4px 16px rgba(196,154,42,0.35)', color: '#06112B' }}
-                        >
-                          <Plus className="w-3.5 h-3.5" /> Novo Projeto
-                        </button>
-                        <button
-                          onClick={() => goTo('projects')}
-                          className="flex items-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl transition-all hover:opacity-90"
-                          style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}
-                        >
-                          <FolderOpen className="w-3.5 h-3.5" /> Projetos
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── STATS ── */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                      { label: 'Projetos Ativos', value: projects.filter(p => p.status === 'active').length, icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)', sub: 'em andamento', onClick: () => goTo('projects') },
-                      { label: 'Concluídos', value: projects.filter(p => p.status === 'completed').length, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)', sub: 'entregues', onClick: () => goTo('projects') },
-                      { label: 'Em Espera', value: projects.filter(p => p.status === 'on-hold').length, icon: AlertCircle, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)', sub: 'pausados', onClick: () => goTo('projects') },
-                      { label: 'Clientes Únicos', value: new Set(projects.map(p => p.clientName).filter(Boolean)).size, icon: Users, color: '#2563EB', bg: 'rgba(37,99,235,0.08)', sub: 'atendidos', onClick: () => {} },
-                    ].map((s, i) => (
-                      <motion.button
-                        key={s.label}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.07 }}
-                        onClick={s.onClick}
-                        className="bg-white dark:bg-white/5 rounded-2xl p-5 shadow-sm border border-slate-200/60 dark:border-white/10 group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left w-full"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: s.bg }}>
-                            <s.icon className="w-5 h-5" style={{ color: s.color }} />
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.sub}</span>
-                        </div>
-                        <p className="text-3xl font-black tracking-tight" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{s.value}</p>
-                        <p className="text-xs text-slate-400 font-medium mt-0.5">{s.label}</p>
-                        <div className="mt-3 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.05)' }}>
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: projects.length > 0 ? `${Math.min(100, (s.value / projects.length) * 100)}%` : '0%', background: s.color }} />
-                        </div>
-                      </motion.button>
-                    ))}
-                  </div>
-
-                  {/* ── O QUE É O DEVELOI HUB ── */}
-                  <div className="rounded-3xl overflow-hidden border" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 16px rgba(13,31,78,0.05)' }}>
-                    <div className="px-6 py-5 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
-                        <Sparkles className="w-4 h-4" style={{ color: '#C49A2A' }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Sobre o Develoi Hub</p>
-                        <p className="text-[10px] text-slate-400">Sistema interno de gestão de projetos e negócios</p>
-                      </div>
-                    </div>
-                    <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-3 gap-5">
-                      {[
-                        { icon: Rocket, color: '#0D1F4E', bg: 'rgba(13,31,78,0.07)', title: 'Gestão Ágil de Projetos', desc: 'Planeje e entregue projetos com Backlog, Kanban, Cronograma e Controle de Qualidade integrados em tempo real.' },
-                        { icon: TrendingUp, color: '#15803D', bg: 'rgba(21,128,61,0.08)', title: 'Controle Comercial', desc: 'Gerencie vendas, produtos, planos e o relacionamento com seus clientes e leads em um único lugar.' },
-                        { icon: Globe, color: '#C49A2A', bg: 'rgba(196,154,42,0.1)', title: 'Conteúdo do Site', desc: 'Alimente o portfólio, blog, equipe e valores do site público da Develoi diretamente pelo Hub.' },
-                      ].map(item => (
-                        <div key={item.title} className="flex items-start gap-4 p-4 rounded-2xl border" style={{ borderColor: 'rgba(13,31,78,0.06)', background: 'rgba(240,242,248,0.3)' }}>
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.bg }}>
-                            <item.icon className="w-5 h-5" style={{ color: item.color }} />
-                          </div>
-                          <div>
-                            <p className="font-black text-sm mb-1" style={{ color: '#0D1F4E' }}>{item.title}</p>
-                            <p className="text-xs text-slate-400 leading-relaxed">{item.desc}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* ── PROJETOS E O QUE AINDA FALTA FAZER ── */}
-                  {(() => {
-                    const PRIO: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-                    const now = Date.now();
-                    const rows = projects
-                      .map(pr => {
-                        const fs = allFeatures.filter(f => f.projectId === pr.id);
-                        const pending = fs.filter(f => f.status !== 'done');
-                        return {
-                          pr, total: fs.length, done: fs.length - pending.length,
-                          backlog: pending.filter(f => !f.sprintId).length,
-                          doing: pending.filter(f => ['in-progress', 'review', 'testing'].includes(f.status)).length,
-                          todo: pending.filter(f => f.status === 'todo' && f.sprintId).length,
-                          late: pending.filter(f => f.deadline && new Date(f.deadline).getTime() < now).length,
-                        };
-                      })
-                      .sort((a, b) => (a.pr.status === 'completed' ? 1 : 0) - (b.pr.status === 'completed' ? 1 : 0) || (b.backlog + b.doing + b.todo) - (a.backlog + a.doing + a.todo));
-                    const backlogList = allFeatures
-                      .filter(f => f.status !== 'done' && !f.sprintId)
-                      .sort((a, b) => (PRIO[a.priority || 'medium'] ?? 2) - (PRIO[b.priority || 'medium'] ?? 2) || new Date((b as any).createdAt).getTime() - new Date((a as any).createdAt).getTime())
-                      .slice(0, 8);
-                    const prioColor: Record<string, string> = { critical: '#DC2626', high: '#D97706', medium: '#2563EB', low: '#64748B' };
-                    const prioLabel: Record<string, string> = { critical: 'Crítica', high: 'Alta', medium: 'Média', low: 'Baixa' };
-                    return (
-                      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-                        <div className="xl:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
-                          <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.08)' }}><Briefcase className="w-4 h-4" style={{ color: '#0D1F4E' }} /></div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Projetos e o que falta fazer</p>
-                                <p className="text-[10px] text-slate-400">Backlog, andamento e atrasos de cada projeto, com acesso rápido</p>
-                              </div>
-                            </div>
-                            <button onClick={() => goTo('projects')} className="text-[11px] font-black text-indigo-600 hover:underline flex-shrink-0">Todos os projetos</button>
-                          </div>
-                          {rows.length === 0 ? <p className="p-6 text-sm text-slate-400">Nenhum projeto ainda.</p> : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 sm:p-5">
-                              {rows.map(({ pr, total, done, backlog, doing, todo, late }) => (
-                                <div key={pr.id} className="rounded-2xl border border-slate-200/70 dark:border-white/10 p-4 flex flex-col gap-3 min-w-0 hover:shadow-md transition-shadow">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black flex-shrink-0" style={{ background: '#0D1F4E' }}>{pr.name[0]?.toUpperCase()}</div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-black truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{pr.name}</p>
-                                      <p className="text-[10px] font-semibold text-slate-400 truncate">{pr.status === 'completed' ? 'Concluído' : pr.status === 'on-hold' ? 'Em espera' : 'Ativo'}{total ? ` · ${done} de ${total} tickets feitos` : ' · sem tickets'}</p>
-                                    </div>
-                                    <span className="text-xs font-black text-slate-500">{pr.progress ?? 0}%</span>
-                                  </div>
-                                  <div className="h-1.5 rounded-full bg-slate-100 dark:bg-white/10"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${pr.progress ?? 0}%` }} /></div>
-                                  <div className="flex flex-wrap gap-1.5 text-[10px] font-black">
-                                    <span className="px-2 py-1 rounded-full bg-slate-100 text-slate-600">Backlog {backlog}</span>
-                                    <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700">Em andamento {doing}</span>
-                                    <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700">A fazer {todo}</span>
-                                    {late > 0 && <span className="px-2 py-1 rounded-full bg-red-50 text-red-600">Atrasados {late}</span>}
-                                  </div>
-                                  <div className="flex gap-1.5 mt-auto pt-1">
-                                    {([['backlog', 'Backlog'], ['board', 'Quadro'], ['summary', 'Resumo']] as const).map(([t, l]) => (
-                                      <button key={t} onClick={() => openProject(pr, t as ActiveTab)} className="flex-1 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 text-[11px] font-black text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">{l}</button>
-                                    ))}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
-                          <div className="px-5 sm:px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Backlog pendente</p>
-                            <p className="text-[10px] text-slate-400">Tickets criados que ainda não entraram em uma sprint</p>
-                          </div>
-                          {backlogList.length === 0 ? <p className="p-6 text-sm text-slate-400">Nada parado no backlog. 🎉</p> : (
-                            <ul className="divide-y divide-slate-100 dark:divide-white/5 flex-1">
-                              {backlogList.map(f => {
-                                const pr = projects.find(x => x.id === f.projectId);
-                                return (
-                                  <li key={f.id}>
-                                    <button onClick={() => pr && openProject(pr, 'backlog')} className="w-full text-left px-5 sm:px-6 py-3 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-start gap-3">
-                                      <span className="w-1.5 self-stretch rounded-full flex-shrink-0" style={{ background: prioColor[f.priority || 'medium'] }} />
-                                      <span className="min-w-0 flex-1">
-                                        <span className="block text-sm font-bold text-slate-800 dark:text-slate-100 line-clamp-2">{f.title}</span>
-                                        <span className="block text-[10px] text-slate-400 mt-0.5 truncate">{f.key} · {pr?.name ?? 'Projeto'} · {prioLabel[f.priority || 'medium']}{f.assignedTo ? ` · ${f.assignedTo.split(' ')[0]}` : ' · sem responsável'}</span>
-                                      </span>
-                                    </button>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          )}
-                          <button onClick={() => goTo('backlog')} className="px-5 py-3 text-xs font-black text-indigo-600 hover:bg-indigo-50/50 border-t border-slate-100 dark:border-white/5 text-left">Abrir o backlog do projeto selecionado</button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* ── LINHA PRINCIPAL: Minhas tarefas + Prazos próximos ── */}
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-
-                    {/* Minhas tarefas pendentes — col span 3 */}
-                    <div className="lg:col-span-3 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden">
-                      <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.08)' }}>
-                            <ListTodo className="w-4 h-4" style={{ color: '#0D1F4E' }} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Minhas Tarefas Pendentes</p>
-                            <p className="text-[10px] text-slate-400">Atribuídas a você, em todos os projetos</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="divide-y divide-slate-100 dark:divide-white/5">
-                        {(() => {
-                          const myTasks = allFeatures
-                            .filter(f => f.status !== 'done' && isMineFeature(f))
-                            .sort((a, b) => {
-                              const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-                              const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-                              return da - db;
-                            })
-                            .slice(0, 6);
-                          const statusLabel: Record<string, string> = { todo: 'A Fazer', 'in-progress': 'Em Progresso', review: 'Em Revisão', testing: 'Em Teste' };
-                          if (myTasks.length === 0) {
-                            return (
-                              <div className="px-6 py-10 text-center">
-                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: 'rgba(13,31,78,0.06)' }}>
-                                  <CheckCircle2 className="w-5 h-5 text-slate-300" />
-                                </div>
-                                <p className="text-sm text-slate-400 font-medium">Nenhuma tarefa pendente atribuída a você.</p>
-                              </div>
-                            );
-                          }
-                          return myTasks.map((task) => {
-                            const proj = projects.find(p => p.id === task.projectId);
-                            return (
-                              <button
-                                key={task.id}
-                                onClick={() => proj && goTo('board', proj)}
-                                className="w-full flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors text-left group/row"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{task.title}</p>
-                                  <p className="text-[11px] text-slate-400 truncate">{proj?.name ?? 'Projeto'}</p>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {task.deadline && (
-                                    <span className="text-[10px] font-bold text-slate-400 hidden sm:flex items-center gap-1">
-                                      <Calendar className="w-3 h-3" />
-                                      {format(new Date(task.deadline), 'dd MMM', { locale: ptBR })}
-                                    </span>
-                                  )}
-                                  <span className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wide ${
-                                    task.status === 'todo' ? 'bg-slate-100 text-slate-500' :
-                                    task.status === 'in-progress' ? 'bg-yellow-50 text-yellow-600' :
-                                    task.status === 'review' ? 'bg-purple-50 text-purple-600' :
-                                    'bg-blue-50 text-blue-600'
-                                  }`}>
-                                    {statusLabel[task.status] ?? task.status}
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* Prazos próximos — col span 2 */}
-                    <div className="lg:col-span-2 bg-white dark:bg-white/5 rounded-2xl border border-slate-200/60 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
-                      <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.1)' }}>
-                          <Clock className="w-4 h-4" style={{ color: '#C49A2A' }} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-black" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>Prazos Próximos</p>
-                          <p className="text-[10px] text-slate-400">Tarefas com entrega mais próxima</p>
-                        </div>
-                      </div>
-                      <div className="p-6 space-y-4 flex-1">
-                        {(() => {
-                          const upcoming = allFeatures
-                            .filter(f => f.status !== 'done' && f.deadline)
-                            .sort((a, b) => new Date(a.deadline as string).getTime() - new Date(b.deadline as string).getTime())
-                            .slice(0, 6);
-                          if (upcoming.length === 0) {
-                            return (
-                              <div className="flex flex-col items-center justify-center h-full py-8 text-center">
-                                <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(196,154,42,0.08)' }}>
-                                  <Clock className="w-5 h-5" style={{ color: '#C49A2A' }} />
-                                </div>
-                                <p className="text-sm text-slate-400">Nenhum prazo definido nas tarefas.</p>
-                              </div>
-                            );
-                          }
-                          return upcoming.map((task) => {
-                            const proj = projects.find(p => p.id === task.projectId);
-                            const isOverdue = new Date(task.deadline as string).getTime() < Date.now();
-                            return (
-                              <button
-                                key={task.id}
-                                onClick={() => proj && goTo('board', proj)}
-                                className="w-full flex items-center gap-3 text-left"
-                              >
-                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOverdue ? 'bg-red-500' : 'bg-amber-400'}`} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold truncate" style={{ color: isDark ? '#fff' : '#0D1F4E' }}>{task.title}</p>
-                                  <p className="text-[10px] text-slate-400 truncate">{proj?.name ?? 'Projeto'}</p>
-                                </div>
-                                <span className={`text-[10px] font-black flex-shrink-0 ${isOverdue ? 'text-red-500' : 'text-slate-400'}`}>
-                                  {format(new Date(task.deadline as string), 'dd MMM', { locale: ptBR })}
-                                </span>
-                              </button>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── ATALHOS RÁPIDOS ── */}
-                  <div className="rounded-3xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 16px rgba(13,31,78,0.04)' }}>
-                    <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
-                        <Sparkles className="w-4 h-4" style={{ color: '#0D1F4E' }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Atalhos Rápidos</p>
-                        <p className="text-[10px] text-slate-400">Navegue direto para as seções do sistema</p>
-                      </div>
-                    </div>
-                    <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                      {[
-                        { icon: FolderOpen, label: 'Projetos', tab: 'projects' as const, color: '#0D1F4E', bg: 'rgba(13,31,78,0.07)' },
-                        { icon: Star, label: 'Portfólio', tab: 'portfolio' as const, color: '#C49A2A', bg: 'rgba(196,154,42,0.1)' },
-                        { icon: BookOpen, label: 'Blog', tab: 'blog' as const, color: '#2563EB', bg: 'rgba(37,99,235,0.09)' },
-                        { icon: BarChart2, label: 'Vendas', tab: 'sales' as const, color: '#15803D', bg: 'rgba(21,128,61,0.08)' },
-                        { icon: Users, label: 'Membros', tab: 'members' as const, color: '#7C3AED', bg: 'rgba(124,58,237,0.09)' },
-                        { icon: MessageSquare, label: 'Chat', tab: 'chat' as const, color: '#0891B2', bg: 'rgba(8,145,178,0.09)' },
-                      ].map(item => (
-                        <button
-                          key={item.tab}
-                          onClick={() => goTo(item.tab)}
-                          className="flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-md"
-                          style={{ borderColor: 'rgba(13,31,78,0.07)', background: 'rgba(240,242,248,0.3)' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = item.color + '30'; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.07)'; }}
-                        >
-                          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: item.bg }}>
-                            <item.icon className="w-5 h-5" style={{ color: item.color }} />
-                          </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: '#0D1F4E' }}>{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                </motion.div>
+                <DashboardOverview
+                  projects={projects}
+                  features={allFeatures}
+                  userId={profile?.uid}
+                  userName={profile?.displayName}
+                  onNewProject={() => setIsNewProjectModalOpen(true)}
+                  onNavigate={goTo}
+                />
               )}
 
               {activeTab === 'summary' && selectedProject && (
-                <ProjectSummary project={selectedProject} goTo={goTo} />
+                <ProjectSummaryView
+                  project={selectedProject}
+                  gallery={<ProjectGallery projectId={selectedProject.id} />}
+                  onEdit={() => {
+                    setEditingProject(selectedProject);
+                    goTo('projects');
+                  }}
+                  onNavigate={goTo}
+                />
               )}
 
               {activeTab === 'projects' && (
@@ -1007,331 +664,6 @@ function EmptyProjectState({ onAction }: { onAction: () => void }) {
 
 // ─── ProjectSummary ───────────────────────────────────────────────────────────
 
-function ProjectSummary({ project, goTo }: { project: Project; goTo: (tab: ActiveTab) => void }) {
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-  const prog = project.progress ?? 0;
-  const statusConfig = {
-    active:    { label: 'Ativo',     dotColor: '#22c55e', barColor: '#15803D', bg: 'rgba(21,128,61,0.1)',  text: '#15803D' },
-    completed: { label: 'Concluído', dotColor: '#60a5fa', barColor: '#2563EB', bg: 'rgba(37,99,235,0.1)', text: '#2563EB' },
-    'on-hold': { label: 'Em Espera', dotColor: '#fbbf24', barColor: '#C49A2A', bg: 'rgba(196,154,42,0.1)', text: '#C49A2A' },
-  };
-  const sc = statusConfig[project.status as keyof typeof statusConfig] ?? statusConfig['on-hold'];
-
-  const quickLinks = [
-    { icon: ListTodo,     label: 'Backlog',     tab: 'backlog'   as const },
-    { icon: Kanban,       label: 'Quadro',      tab: 'board'     as const },
-    { icon: Calendar,     label: 'Cronograma',  tab: 'timeline'  as const },
-    { icon: ShieldCheck,  label: 'Qualidade',   tab: 'tests'     as const },
-    { icon: MessageSquare,label: 'Chat',        tab: 'chat'      as const },
-  ];
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-12">
-
-      {/* ── HERO DO PROJETO ── */}
-      <div className="relative rounded-3xl overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)', boxShadow: '0 12px 48px rgba(13,31,78,0.2)' }}>
-        <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.2) 60%, transparent)' }} />
-        <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        <div className="absolute top-0 right-0 w-64 h-64 rounded-full -mr-32 -mt-32 blur-3xl opacity-20" style={{ background: '#C49A2A' }} />
-
-        <div className="relative z-10 p-8 flex flex-col md:flex-row md:items-center gap-6 justify-between">
-          <div className="flex items-start gap-5">
-            {/* Avatar / Logo */}
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl flex-shrink-0 overflow-hidden"
-              style={{ background: 'rgba(196,154,42,0.15)', color: '#C49A2A', border: '1px solid rgba(196,154,42,0.25)' }}
-            >
-              {project.logoUrl ? (
-                <img src={project.logoUrl} alt="" className="w-full h-full object-cover" />
-              ) : (
-                project.name[0]
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <h2 className="text-2xl font-black text-white tracking-tight leading-tight">{project.name}</h2>
-                <span
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
-                  style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.text}25` }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: sc.dotColor }} />
-                  {sc.label}
-                </span>
-              </div>
-              <p className="text-sm mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                Cliente: <span className="font-bold text-white/75">{project.clientName || 'N/A'}</span>
-                {project.deadline && (
-                  <> &bull; Prazo: <span className="font-bold text-white/75">{format(new Date(project.deadline), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</span></>
-                )}
-              </p>
-              {/* Progresso inline */}
-              <div className="flex items-center gap-3">
-                <div className="w-40 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${prog}%` }}
-                    transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-                    className="h-full rounded-full"
-                    style={{ background: sc.barColor }}
-                  />
-                </div>
-                <span className="text-sm font-black" style={{ color: sc.barColor }}>{prog}%</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>concluído</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Ações */}
-          <div className="flex-shrink-0 flex items-center gap-2">
-            {project.projectUrl && (
-              <a
-                href={project.projectUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
-                style={{ background: 'rgba(196,154,42,0.15)', color: '#C49A2A', border: '1px solid rgba(196,154,42,0.3)' }}
-              >
-                <ExternalLink className="w-4 h-4" /> Ver Site
-              </a>
-            )}
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
-              style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}
-            >
-              <Settings className="w-4 h-4" /> Configurar Projeto
-            </button>
-          </div>
-        </div>
-
-        {/* Atalhos rápidos */}
-        <div className="relative z-10 px-8 pb-5 flex items-center gap-2 flex-wrap">
-          {quickLinks.map(ql => (
-            <button
-              key={ql.tab}
-              onClick={() => goTo(ql.tab)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all hover:bg-white/10"
-              style={{ color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <ql.icon className="w-3 h-3" /> {ql.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── CORPO ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Coluna principal */}
-        <div className="lg:col-span-2 space-y-5">
-
-          {/* Descrição */}
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-            <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
-                <Briefcase className="w-4 h-4" style={{ color: '#0D1F4E' }} />
-              </div>
-              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Descrição do Projeto</p>
-            </div>
-            <div className="px-6 py-5">
-              {project.description ? (
-                <p className="text-sm text-slate-600 leading-relaxed">{project.description}</p>
-              ) : (
-                <div className="flex items-center gap-3 py-4 px-4 rounded-xl border border-dashed" style={{ borderColor: 'rgba(13,31,78,0.1)' }}>
-                  <Pencil className="w-4 h-4 text-slate-300 flex-shrink-0" />
-                  <p className="text-sm text-slate-400 italic">Nenhuma descrição ainda. <button onClick={() => setIsEditModalOpen(true)} className="text-[#0D1F4E] font-bold underline underline-offset-2">Adicionar descrição</button></p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <ProjectAccessVault projectId={project.id} />
-
-          {/* Galeria de imagens */}
-          <ProjectGallery projectId={project.id} />
-
-          {/* Metas + Financeiro */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-            {/* Metas */}
-            <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-              <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(196,154,42,0.1)' }}>
-                  <Target className="w-4 h-4" style={{ color: '#C49A2A' }} />
-                </div>
-                <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Metas & Objetivos</p>
-                {project.goals && project.goals.length > 0 && (
-                  <span className="ml-auto text-[10px] font-black px-2 py-0.5 rounded-lg" style={{ background: 'rgba(196,154,42,0.1)', color: '#C49A2A' }}>
-                    {project.goals.length}
-                  </span>
-                )}
-              </div>
-              <div className="px-5 py-4">
-                {project.goals && project.goals.length > 0 ? (
-                  <ul className="space-y-3">
-                    {project.goals.map((goal, i) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <div className="mt-1.5 w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 text-[9px] font-black" style={{ background: 'rgba(196,154,42,0.1)', color: '#C49A2A' }}>
-                          {i + 1}
-                        </div>
-                        <span className="text-sm text-slate-700 leading-snug font-medium">{goal}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-sm text-slate-400 italic py-2">Nenhuma meta definida.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Financeiro */}
-            <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-              <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(21,128,61,0.08)' }}>
-                  <TrendingUp className="w-4 h-4" style={{ color: '#15803D' }} />
-                </div>
-                <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Financeiro & Orçamento</p>
-              </div>
-              <div className="px-5 py-4">
-                {project.financials ? (
-                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">{project.financials}</p>
-                ) : (
-                  <p className="text-sm text-slate-400 italic py-2">Informações financeiras não disponíveis.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* História */}
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-            <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37,99,235,0.08)' }}>
-                <History className="w-4 h-4 text-blue-600" />
-              </div>
-              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>História & Contexto</p>
-            </div>
-            <div className="px-6 py-5">
-              {project.history ? (
-                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{project.history}</p>
-              ) : (
-                <p className="text-sm text-slate-400 italic">O histórico deste projeto ainda não foi registrado.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Coluna lateral */}
-        <div className="space-y-5">
-
-          {/* Detalhes rápidos */}
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
-                <Eye className="w-4 h-4" style={{ color: '#0D1F4E' }} />
-              </div>
-              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Detalhes Rápidos</p>
-            </div>
-            <div className="divide-y divide-slate-50">
-              {[
-                { label: 'Cliente',    value: project.clientName || 'N/A',    icon: Users },
-                { label: 'Status',     value: sc.label,                        icon: AlertCircle, valueColor: sc.text },
-                { label: 'Progresso',  value: `${prog}%`,                      icon: TrendingUp,  valueColor: sc.barColor },
-                { label: 'Prazo Final',value: project.deadline ? format(new Date(project.deadline), 'dd/MM/yyyy') : 'Não definido', icon: Calendar },
-                { label: 'Visibilidade',value: project.visibility === 'private' ? 'Privado' : 'Público', icon: Eye },
-              ].map(row => (
-                <div key={row.label} className="flex items-center justify-between px-5 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <row.icon className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
-                    <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">{row.label}</span>
-                  </div>
-                  <span className="text-sm font-black" style={{ color: (row as any).valueColor || '#0D1F4E' }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-            {/* Barra de progresso visual */}
-            <div className="px-5 pb-5 pt-2">
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(13,31,78,0.06)' }}>
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${prog}%` }}
-                  transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-                  className="h-full rounded-full"
-                  style={{ background: sc.barColor }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Ações rápidas */}
-          <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-            <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.09)' }}>
-                <Zap className="w-4 h-4 text-violet-600" />
-              </div>
-              <p className="text-sm font-black" style={{ color: '#0D1F4E' }}>Ações do Projeto</p>
-            </div>
-            <div className="p-4 space-y-2">
-              {quickLinks.map(ql => (
-                <button
-                  key={ql.tab}
-                  onClick={() => {
-                    goTo(ql.tab);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-left transition-all hover:-translate-y-px hover:shadow-sm"
-                  style={{ background: 'rgba(240,242,248,0.5)', color: '#0D1F4E', border: '1px solid rgba(13,31,78,0.07)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.18)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(13,31,78,0.07)'; }}
-                >
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.08)' }}>
-                    <ql.icon className="w-3.5 h-3.5" style={{ color: '#0D1F4E' }} />
-                  </div>
-                  {ql.label}
-                  <ArrowRight className="w-3.5 h-3.5 ml-auto text-slate-300" />
-                </button>
-              ))}
-              <button
-                onClick={() => setIsEditModalOpen(true)}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-left transition-all hover:-translate-y-px hover:shadow-sm mt-1"
-                style={{ background: 'rgba(13,31,78,0.05)', color: '#0D1F4E', border: '1px solid rgba(13,31,78,0.1)' }}
-              >
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(13,31,78,0.08)' }}>
-                  <Settings className="w-3.5 h-3.5" style={{ color: '#0D1F4E' }} />
-                </div>
-                Configurar Projeto
-                <ArrowRight className="w-3.5 h-3.5 ml-auto text-slate-300" />
-              </button>
-            </div>
-          </div>
-
-          {/* Banner CTA */}
-          <div className="p-6 rounded-2xl relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 8px 32px rgba(13,31,78,0.2)' }}>
-            <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #C49A2A, rgba(196,154,42,0.1))' }} />
-            <div className="absolute top-0 right-0 w-24 h-24 rounded-full -mr-12 -mt-12 blur-2xl opacity-25" style={{ background: '#C49A2A' }} />
-            <div className="relative z-10">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: '#C49A2A' }}>
-                <Rocket className="w-5 h-5" style={{ color: '#06112B' }} />
-              </div>
-              <h4 className="text-base font-black text-white leading-tight mb-2">Próxima fase pronta?</h4>
-              <p className="text-xs leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Valide as entregas e gerencie as funcionalidades no Quadro Kanban.
-              </p>
-              <button
-                onClick={() => goTo('board')}
-                className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest transition-all hover:gap-2.5"
-                style={{ color: '#C49A2A' }}
-              >
-                Abrir Quadro <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {isEditModalOpen && <EditProjectModal project={project} onClose={() => setIsEditModalOpen(false)} />}
-    </motion.div>
-  );
-}
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
@@ -1443,41 +775,38 @@ function ProjectGallery({ projectId }: { projectId: string }) {
   if (loading) return null;
 
   return (
-    <div className="rounded-2xl border overflow-hidden" style={{ background: 'white', borderColor: 'rgba(13,31,78,0.08)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}>
-      <div className="flex items-center gap-3 px-6 py-4" style={{ borderBottom: '1px solid rgba(13,31,78,0.06)' }}>
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(13,31,78,0.07)' }}>
-          <Image className="w-4 h-4" style={{ color: '#0D1F4E' }} />
-        </div>
-        <p className="text-sm font-black flex-1" style={{ color: '#0D1F4E' }}>Imagens do Projeto</p>
-        <span className="text-[10px] font-black px-2 py-0.5 rounded-lg" style={{ background: 'rgba(13,31,78,0.06)', color: '#64748b' }}>
-          {images.length}/{MAX_PROJECT_IMAGES}
-        </span>
-      </div>
-      <div className="p-5">
+    <PanelCard
+      icon={Image}
+      title="Imagens do projeto"
+      description="Referências, telas e materiais visuais"
+      action={<Badge size="xs" color="default">{images.length}/{MAX_PROJECT_IMAGES}</Badge>}
+    >
         {images.length === 0 && (
-          <p className="text-sm text-slate-400 italic mb-4">Nenhuma imagem adicionada ainda.</p>
+          <EmptyState className="mb-3" icon={Image} title="Nenhuma imagem adicionada" description="Envie até 8 imagens para documentar o projeto." />
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
           {images.map((img, i) => (
-            <div key={img.id} className="group relative rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(13,31,78,0.08)' }}>
+            <div key={img.id} className="group relative overflow-hidden rounded-lg border border-slate-200 dark:border-white/10">
               <button type="button" onClick={() => setViewerIndex(i)} className="block w-full aspect-square">
                 <img src={img.url} alt={img.caption || ''} className="w-full h-full object-cover" />
               </button>
-              <button
+              <IconButton
                 type="button"
                 onClick={() => handleDelete(img.id)}
-                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500"
+                size="xs"
+                variant="danger"
+                className="absolute right-1.5 top-1.5 opacity-0 group-hover:opacity-100"
+                aria-label="Remover imagem"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
+                <X size={13} />
+              </IconButton>
               <input
                 type="text"
                 value={img.caption || ''}
                 onChange={e => handleCaptionChange(img.id, e.target.value)}
                 onBlur={e => handleCaptionBlur(img.id, e.target.value)}
                 placeholder="Adicionar descrição..."
-                className="w-full text-[11px] px-2 py-1.5 outline-none border-t bg-white text-slate-600 placeholder:text-slate-300"
-                style={{ borderColor: 'rgba(13,31,78,0.06)' }}
+                className="w-full border-t border-slate-100 bg-white px-2 py-1.5 text-[11px] text-slate-600 outline-none placeholder:text-slate-300 focus:border-blue-300 dark:border-white/10 dark:bg-white/5 dark:text-white/70"
               />
             </div>
           ))}
@@ -1487,8 +816,7 @@ function ProjectGallery({ projectId }: { projectId: string }) {
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
-              className="flex flex-col items-center justify-center gap-1.5 aspect-square rounded-xl border-2 border-dashed transition-all disabled:opacity-50"
-              style={{ borderColor: 'rgba(13,31,78,0.15)', color: '#94a3b8' }}
+              className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-slate-300 text-slate-400 transition-colors hover:border-blue-300 hover:text-blue-600 disabled:opacity-50 dark:border-white/20"
             >
               {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
               <span className="text-[10px] font-bold">{uploading ? 'Enviando...' : 'Adicionar foto'}</span>
@@ -1496,8 +824,6 @@ function ProjectGallery({ projectId }: { projectId: string }) {
           )}
         </div>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-      </div>
-
       {viewerIndex !== null && images[viewerIndex] && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-6" onClick={() => setViewerIndex(null)}>
           <button onClick={() => setViewerIndex(null)} className="absolute top-5 right-5 p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-all">
@@ -1522,7 +848,7 @@ function ProjectGallery({ projectId }: { projectId: string }) {
           </div>
         </div>
       )}
-    </div>
+    </PanelCard>
   );
 }
 
