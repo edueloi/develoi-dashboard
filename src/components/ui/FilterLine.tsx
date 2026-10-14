@@ -70,7 +70,7 @@ interface FilterLineDateRangeProps {
 }
 
 export const FilterLine: React.FC<FilterLineProps> = ({ children, className = '', ...props }) => (
-  <div className={cx('w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm md:p-4', className)} {...props}>
+  <div className={cx('w-full rounded-lg border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-white/5', className)} {...props}>
     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
       {children}
     </div>
@@ -113,7 +113,7 @@ export const FilterLineGroup: React.FC<FilterLineGroupProps> = ({
   children, className = '', compact = false, ...props
 }) => (
   <div
-    className={cx('inline-flex items-center rounded-xl bg-zinc-100', compact ? 'gap-1 p-1' : 'gap-1.5 p-1', className)}
+    className={cx('inline-flex items-center rounded-lg bg-slate-100 dark:bg-white/10', compact ? 'gap-1 p-1' : 'gap-1.5 p-1', className)}
     {...props}
   >
     {children}
@@ -133,9 +133,9 @@ export function FilterLineSegmented<T extends string | number = string>({
             type="button"
             onClick={() => onChange(option.value)}
             className={cx(
-              'inline-flex items-center gap-2 rounded-lg font-bold transition-all',
-              size === 'sm' ? 'px-3 py-1.5 text-[10px]' : 'px-4 py-2 text-xs',
-              active ? 'bg-white text-amber-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'
+              'inline-flex items-center gap-2 rounded-md font-semibold transition-colors',
+              size === 'sm' ? 'px-3 py-1.5 text-[11px]' : 'px-4 py-2 text-xs',
+              active ? 'bg-white text-[#0D1F4E] shadow-sm dark:bg-[#0D1F4E] dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-white/50 dark:hover:text-white'
             )}
           >
             {option.icon}
@@ -154,11 +154,11 @@ export function FilterLineViewToggle<T extends string | number = string>({
   const isList = String(value) === String(listValue);
 
   return (
-    <div className={cx('inline-flex items-center rounded-xl border border-zinc-200 bg-white p-1', className)}>
+    <div className={cx('inline-flex items-center rounded-lg border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-white/5', className)}>
       <button
         type="button"
         onClick={() => onChange(gridValue)}
-        className={cx('inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all', isGrid ? 'bg-amber-50 text-amber-600' : 'text-zinc-400 hover:bg-zinc-50')}
+        className={cx('inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors', isGrid ? 'bg-[#0D1F4E]/10 text-[#0D1F4E] dark:bg-amber-400/10 dark:text-amber-300' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5')}
         aria-label="Grade"
       >
         <LayoutGrid size={15} />
@@ -166,7 +166,7 @@ export function FilterLineViewToggle<T extends string | number = string>({
       <button
         type="button"
         onClick={() => onChange(listValue)}
-        className={cx('inline-flex h-8 w-8 items-center justify-center rounded-lg transition-all', isList ? 'bg-amber-50 text-amber-600' : 'text-zinc-400 hover:bg-zinc-50')}
+        className={cx('inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors', isList ? 'bg-[#0D1F4E]/10 text-[#0D1F4E] dark:bg-amber-400/10 dark:text-amber-300' : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5')}
         aria-label="Lista"
       >
         <ListIcon size={15} />
@@ -179,8 +179,8 @@ export const FilterLineSearch: React.FC<FilterLineSearchProps> = ({
   value, onChange, placeholder = 'Buscar...', className = '', ...props
 }) => (
   <div className={cx(
-    'flex h-10 w-full items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 transition-all',
-    'focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/10 focus-within:bg-white',
+    'flex h-9 w-full items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 transition-colors dark:border-white/10 dark:bg-white/5',
+    'focus-within:border-[#0D1F4E]/50 focus-within:ring-2 focus-within:ring-[#0D1F4E]/10 focus-within:bg-white dark:focus-within:bg-white/10',
     className
   )}>
     <Search size={15} className="shrink-0 text-zinc-400" />
@@ -189,7 +189,7 @@ export const FilterLineSearch: React.FC<FilterLineSearchProps> = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-transparent text-xs font-bold text-zinc-800 outline-none placeholder:text-zinc-400 placeholder:font-normal"
+      className="w-full bg-transparent text-xs font-medium text-slate-800 outline-none placeholder:text-slate-400 dark:text-white dark:placeholder:text-white/30"
     />
   </div>
 );
@@ -199,13 +199,13 @@ export const FilterLineDateRange: React.FC<FilterLineDateRangeProps> = ({
 }) => (
   <div className={cx('flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3', className)}>
     <div className="flex items-center gap-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{fromLabel}</span>
+      <span className="text-[11px] font-semibold text-slate-500 dark:text-white/50">{fromLabel}</span>
       <div className="min-w-[140px]">
         <DatePicker value={from} onChange={onFromChange} />
       </div>
     </div>
     <div className="flex items-center gap-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{toLabel}</span>
+      <span className="text-[11px] font-semibold text-slate-500 dark:text-white/50">{toLabel}</span>
       <div className="min-w-[140px]">
         <DatePicker value={to} onChange={onToChange} />
       </div>

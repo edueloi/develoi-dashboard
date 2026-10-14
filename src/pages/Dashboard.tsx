@@ -41,7 +41,8 @@ import {
   Textarea,
   EmptyState,
   Column,
-  Combobox
+  Combobox,
+  PageWrapper
 } from '../components/ui';
 
 // Dashboard feature components
@@ -474,7 +475,7 @@ export default function Dashboard() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
-          <div className="p-3 sm:p-4 lg:p-5 pb-8">
+          <PageWrapper>
             <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
               {activeTab === 'overview' && (
                 <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} className="space-y-6">
@@ -934,7 +935,7 @@ export default function Dashboard() {
               ))}
               {activeTab === 'profile' && <MyProfile />}
             </motion.div>
-          </div>
+          </PageWrapper>
         </main>
       </div>
 

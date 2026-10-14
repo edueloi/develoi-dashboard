@@ -1,5 +1,6 @@
 import React from "react";
 import { cn } from "@/src/lib/utils";
+import { uiTheme } from './theme';
 
 interface PanelCardProps extends React.HTMLAttributes<HTMLElement> {
   title?: string;
@@ -10,7 +11,6 @@ interface PanelCardProps extends React.HTMLAttributes<HTMLElement> {
   headerClassName?: string;
   iconWrapClassName?: string;
   iconClassName?: string;
-  noPadding?: boolean;
 }
 
 export function PanelCard({
@@ -24,7 +24,6 @@ export function PanelCard({
   headerClassName,
   iconWrapClassName,
   iconClassName,
-  noPadding = false,
   ...props
 }: PanelCardProps) {
   const hasHeader = !!(title || Icon || action);
@@ -32,7 +31,8 @@ export function PanelCard({
   return (
     <section
       className={cn(
-        "overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm",
+        "overflow-hidden",
+        uiTheme.surface,
         className
       )}
       {...props}
@@ -40,7 +40,7 @@ export function PanelCard({
       {hasHeader && (
         <div
           className={cn(
-            "flex flex-col gap-3 border-b border-zinc-100 dark:border-white/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between",
+            "flex flex-col gap-3 border-b border-slate-100 px-3 py-2.5 lg:flex-row lg:items-center lg:justify-between dark:border-white/10",
             headerClassName
           )}
         >
@@ -48,21 +48,21 @@ export function PanelCard({
             {Icon && (
               <div
                 className={cn(
-                  "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-100 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10",
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-amber-100 bg-amber-50 dark:border-amber-500/20 dark:bg-amber-500/10",
                   iconWrapClassName
                 )}
               >
-                <Icon size={16} className={cn("text-amber-600 dark:text-amber-400", iconClassName)} />
+                <Icon size={14} className={cn("text-amber-600 dark:text-amber-400", iconClassName)} />
               </div>
             )}
 
             {(title || description) && (
               <div className="min-w-0">
                 {title && (
-                  <h3 className="text-base font-black tracking-tight text-zinc-900 dark:text-white">{title}</h3>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">{title}</h3>
                 )}
                 {description && (
-                  <p className="mt-1 text-sm leading-relaxed text-zinc-500 dark:text-white/40">{description}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 dark:text-white/50">{description}</p>
                 )}
               </div>
             )}
@@ -72,7 +72,7 @@ export function PanelCard({
         </div>
       )}
 
-      <div className={cn(!noPadding && "p-4", contentClassName)}>{children}</div>
+      <div className={cn("p-3", contentClassName)}>{children}</div>
     </section>
   );
 }

@@ -151,7 +151,7 @@ export const Modal: React.FC<ModalProps> = ({
                 "w-full bg-white dark:bg-[#111118] relative flex flex-col pointer-events-auto overflow-hidden",
                 // Mobile styles
                 isBottomSheet && [
-                  "rounded-t-2xl sm:rounded-xl",
+                  "rounded-t-lg sm:rounded-lg",
                   "max-h-[92dvh] sm:max-h-[88vh]",
                   "shadow-[0_-12px_48px_rgba(0,0,0,0.12)]",
                 ],
@@ -160,10 +160,10 @@ export const Modal: React.FC<ModalProps> = ({
                 ],
                 // Desktop styles
                 !isBottomSheet && !isMobileFullscreen && [
-                  "rounded-xl",
+                  "rounded-lg",
                   "max-h-[90dvh] sm:max-h-[88vh]",
                 ],
-                "sm:rounded-xl sm:shadow-[0_20px_48px_rgba(0,0,0,0.14)] sm:border sm:border-zinc-200/60 dark:sm:border-white/10",
+                "sm:rounded-lg sm:shadow-xl sm:border sm:border-slate-200 dark:sm:border-white/10",
                 sizeClasses[size],
                 className
               )}
@@ -181,18 +181,18 @@ export const Modal: React.FC<ModalProps> = ({
                   className={cn(
                     "flex items-center justify-between shrink-0",
                     "px-4 sm:px-5",
-                    "border-b border-zinc-100 dark:border-white/10",
+                    "border-b border-slate-200 dark:border-white/10",
                     isBottomSheet ? "pt-4 pb-3 sm:py-3" : "py-3"
                   )}
                 >
-                  <div className="text-sm sm:text-[15px] font-black text-zinc-900 dark:text-white uppercase tracking-wide truncate pr-4 font-display">
+                  <div className="truncate pr-4 text-sm font-semibold text-zinc-900 dark:text-white">
                     {title}
                   </div>
                   {!hideCloseButton && (
                     <button
                       onClick={onClose}
                       aria-label="Fechar"
-                      className="p-2 -mr-1 rounded-xl text-zinc-400 dark:text-white/40 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 transition-all active:scale-90 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shrink-0"
+                      className="-mr-1 rounded-md p-2 text-zinc-400 transition-colors hover:bg-slate-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0D1F4E]/25 dark:text-white/40 dark:hover:bg-white/10 dark:hover:text-white shrink-0"
                     >
                       <X size={18} />
                     </button>
@@ -201,13 +201,13 @@ export const Modal: React.FC<ModalProps> = ({
               )}
 
               {/* Body — scrollável */}
-              <div className="flex-1 overflow-y-auto overscroll-contain w-full p-4 sm:p-5 relative scroll-smooth">
+              <div className="relative w-full flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 scroll-smooth">
                 {/* Botão fechar flutuante (quando sem título) */}
                 {!title && !hideCloseButton && (
                   <button
                     onClick={onClose}
                     aria-label="Fechar"
-                    className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/90 dark:bg-white/10 shadow-sm border border-zinc-200/60 dark:border-white/10 text-zinc-500 dark:text-white/50 hover:text-zinc-900 dark:hover:text-white transition-all active:scale-90"
+                    className="absolute right-4 top-4 z-10 rounded-md border border-slate-200 bg-white p-2 text-zinc-500 transition-colors hover:bg-slate-50 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-white/50 dark:hover:text-white"
                   >
                     <X size={17} strokeWidth={2.5} />
                   </button>
@@ -219,7 +219,7 @@ export const Modal: React.FC<ModalProps> = ({
               {footer && (
                 <div
                   className={cn(
-                    "shrink-0 border-t border-zinc-100 dark:border-white/10",
+                    "shrink-0 border-t border-slate-200 dark:border-white/10",
                     "px-4 py-3 sm:px-5 sm:py-3",
                     // Safe area para dispositivos com home bar
                     "pb-[calc(1rem+env(safe-area-inset-bottom,0px))] sm:pb-5"

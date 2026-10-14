@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, MoreVertical, ExternalLink, FileText, Link2,
 import type { FinancialAttachment } from './types';
 import { addMonths, format, isSameMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Tabs } from '../ui';
+import type { TabItem } from '../ui';
 
 // Peças comuns das telas de Contas a Pagar e Contas a Receber.
 
@@ -113,18 +115,9 @@ export function PeriodBar<V extends string>({ options, view, onView, monthView, 
   onCursor: (d: Date) => void;
   text: string;
 }) {
+  const tabs = options.map(option => ({ id: option.value, label: option.label })) as readonly TabItem<V>[];
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-      <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 self-start">
-        {options.map(o => (
-          <button key={o.value} onClick={() => onView(o.value)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${view === o.value ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'}`}
-            style={view === o.value ? { color: o.danger ? '#DC2626' : text } : undefined}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-
+    <Tabs<V> items={tabs} value={view} onChange={onView} label="Período das contas">
       {view === monthView && (
         <div className="inline-flex items-center gap-1 self-start">
           <button onClick={() => onCursor(addMonths(cursor, -1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500" aria-label="Mês anterior"><ChevronLeft className="w-4 h-4" /></button>
@@ -137,7 +130,7 @@ export function PeriodBar<V extends string>({ options, view, onView, monthView, 
           )}
         </div>
       )}
-    </div>
+    </Tabs>
   );
 }
 

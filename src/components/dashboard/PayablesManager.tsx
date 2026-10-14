@@ -3,7 +3,7 @@ import {
   Wallet, Plus, Edit2, Trash2, Building2, Boxes, RotateCcw, CheckCircle2, Clock, AlertCircle,
   TrendingUp, Receipt, ChevronLeft, ChevronRight, MoreVertical, Banknote, Repeat, Layers, ChevronDown,
 } from 'lucide-react';
-import { Button, Modal, Input, Select, Textarea, EmptyState, DatePicker } from '../ui';
+import { Button, Modal, Input, Select, Tabs, Textarea, EmptyState, DatePicker } from '../ui';
 import { useToast } from '../ui/Toast';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -271,21 +271,11 @@ export function PayablesManager() {
       </div>
 
       {/* Período */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="inline-flex p-1 rounded-xl bg-slate-100 dark:bg-white/5 self-start">
-          {([
-            ['month', 'Mês'],
-            ['overdue', overdueCount ? `Atrasadas (${overdueCount})` : 'Atrasadas'],
-            ['all', 'Todas'],
-          ] as [View, string][]).map(([v, label]) => (
-            <button key={v} onClick={() => setView(v)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${view === v ? 'bg-white dark:bg-white/15 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'}`}
-              style={view === v ? { color: v === 'overdue' ? '#DC2626' : text } : undefined}>
-              {label}
-            </button>
-          ))}
-        </div>
-
+      <Tabs<View> items={[
+        { id: 'month', label: 'Mês' },
+        { id: 'overdue', label: overdueCount ? `Atrasadas (${overdueCount})` : 'Atrasadas' },
+        { id: 'all', label: 'Todas' },
+      ]} value={view} onChange={setView} label="Período das contas a pagar">
         {view === 'month' && (
           <div className="inline-flex items-center gap-1 self-start">
             <button onClick={() => setCursor(addMonths(cursor, -1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500" aria-label="Mês anterior"><ChevronLeft className="w-4 h-4" /></button>
@@ -298,7 +288,7 @@ export function PayablesManager() {
             )}
           </div>
         )}
-      </div>
+      </Tabs>
 
       {/* Resumo */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
