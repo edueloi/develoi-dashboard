@@ -75,7 +75,10 @@ const safeJson = <T,>(s: string | null | undefined, fallback: T): T => { try { r
 export async function loadBrain(force = false): Promise<Brain> {
   if (!force && cache && Date.now() - cache.at < CACHE_MS) return cache.brain;
   const [rows, products] = await Promise.all([
-    prisma.wppBotKnowledge.findMany({ where: { enabled: true } }),
+    prisma.wppBotKnowledge.findMany({ where: { enabled: true } }).catch(error => {
+      console.error("[BiIA] Base de conhecimento indisponível; usando respostas padrão:", error instanceof Error ? error.message : error);
+      return [];
+    }),
     prisma.product.findMany({ where: { active: true }, select: { name: true, description: true, price: true, type: true } }).catch(() => []),
   ]);
   // nada mudou na base nem nos produtos: reaproveita o cérebro (e o índice de busca já montado)
@@ -542,6 +545,35 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     return finish(true);
   }
 
+  // Frases curtas precisam de respostas determinísticas. Sem estas proteções, uma
+  // correspondência aproximada pode transformar uma dúvida sobre a BiIA ou sobre
+  // o sistema em elogio, feedback ou outra resposta sem relação com a conversa.
+  const direct = strip(t);
+  const directWords = direct.split(/\s+/).filter(Boolean).length;
+  const mentionsBiia = /\b(bia|biia)\b/.test(direct);
+  const mentionsAssistant = /\b(sistema|robo|bot|assistente|ia)\b/.test(direct);
+  if (mentionsBiia && mentionsAssistant) {
+    ctx.lastIntent = "bot_identity";
+    ctx.fails = 0;
+    await io.say("Isso mesmo: eu sou a *BiIA*, assistente virtual da Develoi. 😊 Posso ajudar com o sistema, fatura, extrato ou encaminhar você para uma pessoa da equipe. O que você precisa?");
+    return finish(true);
+  }
+
+  if (/\b(voce|vc|voces) aceita(m)?\b.*\b(algo|alguma coisa|isso)\b/.test(direct)) {
+    ctx.lastIntent = "clarify_accept";
+    ctx.fails = 0;
+    await io.say("Você quer saber se aceitamos uma forma de pagamento ou se pode enviar um arquivo ou comprovante por aqui? Me diga qual dos dois para eu responder direitinho. 😊");
+    return finish(true);
+  }
+
+  const hasProblemSignal = /\b(erro|problema|travou|lento|senha|cancelar|cancelamento|nao consigo|nao funciona|nao abre|nao carrega|nao salva|nao entra)\b/.test(direct);
+  if (directWords <= 6 && /\bsistema\b/.test(direct) && !hasProblemSignal) {
+    ctx.lastIntent = "support_problem";
+    ctx.fails = 0;
+    await io.say("Entendi, a sua dúvida é sobre o sistema. O que está acontecendo: você não consegue acessar, emitir ou cancelar algo, ou é outro problema?");
+    return finish(true);
+  }
+
   const u = understand(t, brain.defs, brain.systems, ctx.lastSystem, { lastIntent: ctx.lastIntent, lastAction: ctx.lastAction });
   if (u.greetingOnly) return false;
   // "estou com fome e não comi nada" não é teste de teclado: só vale "asdf", "teste" e afins
@@ -663,23 +695,18 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
 export function idleNudge(ctx: { lastIntent?: string; pushName?: string | null }): string {
   const nome = firstName(ctx.pushName);
   const hi = nome ? `${nome}, ` : "";
-  if (ctx.lastIntent === "invoice" || ctx.lastIntent === "statement") return `${hi}ainda por aí? 😊 Se precisar da fatura ou do extrato, é só me dizer.`;
-  if (ctx.lastIntent === "support_problem") return `${hi}conseguiu resolver? Se ainda precisar de ajuda com o sistema, me avise que eu chamo o suporte. 🛠️`;
-  return `${hi}ainda está por aí? 😊 Se precisar de algo, é só me escrever. Vou encerrar este atendimento em alguns minutos por falta de interação.`;
+  if (ctx.lastIntent === "invoice" || ctx.lastIntent === "statement") return `${hi}continuo por aqui. Se ainda precisar da fatura ou do extrato, é só me dizer. 😊`;
+  if (ctx.lastIntent === "support_problem") return `${hi}continuo por aqui. Me conte o que está acontecendo no sistema para eu encaminhar ao suporte.`;
+  return `${hi}continuo por aqui. 😊 Se quiser, me diga em uma frase o que precisa e eu encaminho você para o setor certo.`;
 }
 
 export function idleClose(ctx: { lastIntent?: string; pushName?: string | null }): string {
   const nome = firstName(ctx.pushName);
   const hi = nome ? `, ${nome}` : "";
-  const base = [
-    `Como não tivemos retorno, vou encerrar o atendimento por aqui${hi}. 😊 Quando quiser retomar, é só mandar uma mensagem, estou sempre por perto!`,
-    `Vou encerrar esta conversa por inatividade${hi}, mas fica à vontade para chamar de novo quando precisar. Até logo! 👋`,
-    `Vou fechar por aqui${hi} já que ficou quietinho. 🙂 Se surgir qualquer coisa, me chama que eu volto na hora!`,
-  ];
-  const i = Math.floor(Math.random() * base.length);
-  if (ctx.lastIntent === "invoice" || ctx.lastIntent === "statement") return `${base[i]}\n\nSe ainda precisar da sua fatura, é só pedir "segunda via". 🧾`;
-  if (ctx.lastIntent === "support_problem") return `${base[i]}\n\nSe o problema continuar, escreva "suporte" que abrimos um atendimento na hora. 🛠️`;
-  return base[i];
+  const base = `Vou encerrar esta conversa por enquanto${hi}. Quando precisar, envie uma nova mensagem e continuamos por aqui. 👋`;
+  if (ctx.lastIntent === "invoice" || ctx.lastIntent === "statement") return `${base}\n\nPara retomar, você pode escrever “segunda via” ou “extrato”.`;
+  if (ctx.lastIntent === "support_problem") return `${base}\n\nSe o problema continuar, escreva “preciso de suporte” e encaminharemos o atendimento.`;
+  return base;
 }
 
 // ─── Base inicial (editável depois no painel) ────────────────────────────────

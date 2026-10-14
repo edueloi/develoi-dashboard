@@ -43,7 +43,7 @@ const sectorQueues = new Map<string, string[]>(); // Map<sectorId, clientKey[]>
 const INACTIVITY_WARN_MS = 15 * 60 * 1000;
 const INACTIVITY_CLOSE_MS = 20 * 60 * 1000;
 const EXIT_CMD   = /^&sair$/i;
-const BACK_CMD   = /^(0|o|menu|inicio|início|voltar|cancelar|sair)$/i; // "o" (letra) é o zero digitado errado
+const BACK_CMD   = /^(0|o|menu|inicio|início|voltar|sair)$/i; // "cancelar" é um assunto financeiro, não um comando de navegação
 
 
 let session: ActiveSession | null = null;
@@ -528,9 +528,10 @@ function extractIncomingText(message: any): string {
 
 // ─── Saudação e textos do menu ───────────────────────────────────────────────
 const GREETING = /^(oi+|olá|ola|oie|ei|opa|hello|hi|bom dia|boa tarde|boa noite|início|inicio|menu)[\s!.,?]*$/i;
-const OUTBOUND_QUIET_MS = 30 * 60 * 1000; // conversa iniciada por nós sem resposta há mais de 30 min: se o cliente responde agora, a BiIA recebe e avisa quem iniciou
-const SESSION_IDLE_MS = 25 * 60 * 1000; // sem interação: o bot encerra e quem volta a escrever recebe o menu de novo
-const IDLE_NUDGE_MS = 15 * 60 * 1000;   // antes de encerrar, o bot pergunta se a pessoa ainda está lá
+const HUMAN_CONTEXT_MS = 60 * 60 * 1000;  // por 60 min, uma conversa iniciada/atendida por pessoa continua humana e a BiIA não interfere
+const OUTBOUND_QUIET_MS = HUMAN_CONTEXT_MS; // depois desse período, só avisa o atendente; nunca responde ao cliente se a conversa ainda é humana
+const SESSION_IDLE_MS = HUMAN_CONTEXT_MS; // só inicia uma nova conversa do bot após 60 min sem interação
+const IDLE_NUDGE_MS = 50 * 60 * 1000;     // lembrete discreto dez minutos antes de encerrar
 
 // Bom dia / Boa tarde / Boa noite conforme o horário de Brasília
 export function saudacao(date: Date = new Date()): string {
@@ -589,7 +590,7 @@ export async function notifyQueueChanged(sectorId: string | null | undefined) {
   } catch (e) { console.error("[whatsapp] aviso de posição na fila:", e); }
 }
 
-// ─── Suporte: sistema → CPF/CNPJ → assunto → fila ────────────────────────────
+// ─── Suporte: sistema → assunto (documento opcional) → fila ─────────────────
 async function findClientByDocument(doc: string) {
   const rows = await prisma.client.findMany({ where: { status: { not: "cancelled" }, document: { not: null } }, select: { id: true, name: true, document: true } });
   return rows.find(r => digits(r.document ?? "") === doc) ?? null;
@@ -603,26 +604,37 @@ async function sendSystemChoices(state: any, intro: string) {
 
 async function askIntakeDoc(state: any, sock: any) {
   state.intake.step = "doc";
-  await botSay(state, sock, "Para agilizar o seu atendimento, informe o *CPF ou CNPJ* do seu cadastro (somente números).\nSe ainda não é cliente, digite *pular*.");
+  await botSay(state, sock, "Se quiser agilizar a identificação, informe o *CPF ou CNPJ* do cadastro (somente números). Esse dado é opcional: você também pode escrever diretamente o que está acontecendo.");
+}
+
+function documentInText(text: string): string | null {
+  const candidates = text.match(/\d[\d.\/-]{9,18}\d/g) ?? [];
+  return candidates.map(digits).find(doc => doc.length === 11 || doc.length === 14) ?? null;
 }
 
 async function askIntakeSubject(state: any, sock: any) {
   state.intake.step = "subject";
-  await botSay(state, sock, "Obrigado! Agora, em uma mensagem, descreva o *assunto* ou o problema que está enfrentando. ✍️");
+  await botSay(state, sock, "Agora me conte, em uma frase, *o que está acontecendo*. Se quiser, inclua também o CPF ou CNPJ do cadastro para agilizar a identificação — esse dado é opcional. ✍️");
 }
 
 async function beginSupportIntake(state: any, sock: any, sector: { id: string; name: string }, preset?: { system?: string | null; detail?: string }) {
   const products = await prisma.product.findMany({ where: { active: true, supportEnabled: true }, orderBy: { createdAt: "asc" }, take: 9 });
   state.intake = { sector, step: "system", options: [] as { id: string; label: string }[], docTries: 0 };
-  if (products.length === 0) { await askIntakeDoc(state, sock); return; } // sem sistemas cadastrados: pula direto
+  brainOf(state).lastIntent = "support_problem";
+  if (products.length === 0) { await askIntakeSubject(state, sock); return; } // sem sistemas cadastrados: pula direto
   state.intake.options = [...products.map((p, i) => ({ id: String(i + 1), label: p.name })), { id: String(products.length + 1), label: "Outro assunto" }];
   // o cliente já disse de qual sistema fala: pula a pergunta
   const known = preset?.system ? state.intake.options.find((o: any) => o.label.toLowerCase().includes(String(preset.system).toLowerCase()) || String(preset.system).toLowerCase().includes(o.label.toLowerCase())) : null;
   if (known) {
     state.intake.system = known.label;
     if (preset?.detail) state.intake.detail = preset.detail.slice(0, 1000);
+    if (state.intake.detail) {
+      await botSay(state, sock, `Entendi: é sobre o *${known.label}* e você precisa de ajuda com “${state.intake.detail}”. Vou encaminhar ao suporte. 👍`);
+      await enqueueSupport(state, sock, "");
+      return;
+    }
     await botSay(state, sock, `Entendi, é sobre o *${known.label}*. 👍`);
-    await askIntakeDoc(state, sock);
+    await askIntakeSubject(state, sock);
     return;
   }
   await sendSystemChoices(state, `*${sector.name}* 🛠️\nSobre qual sistema ou produto você precisa de ajuda? Selecione uma das opções abaixo:`);
@@ -653,12 +665,52 @@ ${positionText(it.sector.name, pos)}`);
 async function handleIntakeReply(state: any, sock: any, key: string, text: string, clientPhone: string) {
   const it = state.intake;
   const t = text.trim();
+  const normalized = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const isPlanCancellation = /\b(plano|assinatura|contrato|mensalidade|servico da develoi)\b/.test(normalized);
+  const isSystemCancellation = /\b(venda|pedido|nota|nf|orcamento|cadastro|produto|operacao|lancamento)\b/.test(normalized);
+
+  if (it.step === "cancel_scope") {
+    if (isPlanCancellation) {
+      state.handoffNote = `Cliente quer cancelar o plano ou contrato. Mensagem: ${[it.cancelText, t].filter(Boolean).join(" | ").slice(0, 700)}`;
+      state.intake = undefined;
+      await handoffToSector(state, sock, clientPhone, "Financeiro", t);
+      return;
+    }
+    it.detail = `${it.cancelText ?? "Não consegue cancelar"}. Complemento: ${t}`.slice(0, 1000);
+    await enqueueSupport(state, sock, clientPhone);
+    return;
+  }
+
+  if (/\bcancel(ar|amento|ando)?\b/.test(normalized)) {
+    if (isPlanCancellation) {
+      state.handoffNote = `Cliente quer cancelar o plano ou contrato. Mensagem: ${t.slice(0, 700)}`;
+      state.intake = undefined;
+      await handoffToSector(state, sock, clientPhone, "Financeiro", t);
+      return;
+    }
+    if (!isSystemCancellation) {
+      it.cancelText = t;
+      it.step = "cancel_scope";
+      await botSay(state, sock, "Entendi. Você quer cancelar o *plano ou contrato da Develoi* ou alguma operação *dentro do sistema*, como uma venda, pedido ou nota?");
+      return;
+    }
+  }
 
   if (it.step === "system") {
     const pick = it.options.find((o: any) => o.id === t || o.label.toLowerCase() === t.toLowerCase());
-    if (!pick) { await sendSystemChoices(state, "Desculpe, não compreendi a opção. 🙏 Selecione uma das opções abaixo:"); return; }
+    if (!pick) {
+      // Se a pessoa já descreveu um problema, não a prende no seletor de sistemas.
+      if (/\p{L}/u.test(t) && t.split(/\s+/).filter(Boolean).length >= 3) {
+        it.system = "Outro assunto";
+        it.detail = t.slice(0, 1000);
+        await enqueueSupport(state, sock, clientPhone);
+        return;
+      }
+      await sendSystemChoices(state, "Não consegui identificar o sistema. Selecione uma opção ou escreva, em uma frase, o que está acontecendo:");
+      return;
+    }
     it.system = pick.label;
-    await askIntakeDoc(state, sock);
+    await askIntakeSubject(state, sock);
     return;
   }
 
@@ -666,7 +718,14 @@ async function handleIntakeReply(state: any, sock: any, key: string, text: strin
     if (/^pular$/i.test(t)) { await askIntakeSubject(state, sock); return; }
     const doc = t.replace(/\D/g, "");
     if (doc.length !== 11 && doc.length !== 14) {
-      await botSay(state, sock, "Não consegui identificar o número. 🙏 Envie apenas os números do *CPF* (11 dígitos) ou do *CNPJ* (14 dígitos), ou digite *pular*.");
+      // Compatibilidade com triagens iniciadas na versão anterior: texto livre é o problema,
+      // não uma tentativa inválida de documento.
+      if (/\p{L}/u.test(t)) {
+        it.detail = t.slice(0, 1000);
+        await enqueueSupport(state, sock, clientPhone);
+        return;
+      }
+      await botSay(state, sock, "Esse documento parece incompleto. Você pode conferir os números ou simplesmente me contar o problema — o documento é opcional.");
       return;
     }
     const now = Date.now();
@@ -687,7 +746,24 @@ async function handleIntakeReply(state: any, sock: any, key: string, text: strin
   }
 
   // step === "subject"
-  it.detail = t;
+  const embeddedDoc = documentInText(t);
+  if (embeddedDoc) {
+    it.doc = embeddedDoc;
+    const c = await findClientByDocument(embeddedDoc);
+    if (c) {
+      it.clientId = c.id;
+      it.clientName = c.name;
+      if (!/\p{L}/u.test(t)) await botSay(state, sock, `Obrigado, ${c.name.trim().split(/\s+/)[0]}! Localizei o cadastro. Agora me conte o que está acontecendo. ✅`);
+    } else if (!/\p{L}/u.test(t)) {
+      await botSay(state, sock, "Não localizei esse documento, mas isso não impede o atendimento. Agora me conte o que está acontecendo.");
+    }
+    if (!/\p{L}/u.test(t)) return;
+  }
+  if (!/\p{L}|\p{N}/u.test(t) || t.length < 3) {
+    await botSay(state, sock, "Não consegui entender o problema. Pode descrevê-lo em uma frase? Por exemplo: “não consigo cancelar uma venda”.");
+    return;
+  }
+  it.detail = t.slice(0, 1000);
   await enqueueSupport(state, sock, clientPhone);
 }
 
@@ -769,18 +845,11 @@ async function botSay(state: any, sock: any, text: string) {
   if (state.conversationId) await recordMsg(state.conversationId, "bot", text);
 }
 
-// O cliente respondeu a uma mensagem nossa depois de muito tempo: sem menu e sem "conversa encerrada", só um recebido caloroso e aviso a quem começou a conversa
-async function outboundReplyAfterQuiet(state: any, sock: any, conv: any, textMsg: string) {
+// O cliente respondeu a uma conversa iniciada por um atendente depois de muito tempo.
+// A BiIA não fala com o cliente: apenas avisa internamente quem iniciou a conversa.
+async function notifyAttendantOfLateReply(conv: any, textMsg: string) {
   const who = (conv.attendantName ?? "").trim();
-  const first = who.split(/\s+/)[0] || "a equipe";
-  const nome = firstNameOf(state.pushName ?? conv.clientName);
-  const opts = [
-    `Oi${nome ? `, ${nome}` : ""}! Recebi a sua mensagem. 😊 Já avisei ${who ? `a ${first}` : "o time"} e ${who ? "ela" : "ele"} continua a conversa com você por aqui.`,
-    `Que bom ter o seu retorno${nome ? `, ${nome}` : ""}! Já passei para ${who ? first : "o time"}, que vai falar com você em instantes. 🙌`,
-    `Oi${nome ? `, ${nome}` : ""}, obrigada por responder! ${who ? first : "O time"} já foi avisado${who ? "a" : ""} e retorna logo.`,
-  ].map(t => t.replace("avisadoa", "avisada"));
-  await botSay(state, sock, opts[Math.floor(Math.random() * opts.length)]);
-  await recordMsg(conv.id, "system", `O cliente respondeu depois de mais de 30 minutos. A BiIA avisou e deixou a conversa com ${who || "o atendente"}.`);
+  await recordMsg(conv.id, "system", `O cliente respondeu depois de mais de 60 minutos. A BiIA permaneceu em silêncio e avisou ${who || "o atendente"}.`);
   // avisa quem iniciou a conversa, pelo WhatsApp dela(e) quando está cadastrada(o) como atendente
   try {
     const sectors = await prisma.wppBotSector.findMany({ select: { attendants: true } });
@@ -894,6 +963,37 @@ async function handleMessage(msg: any, sock: any) {
     state = undefined;
   }
 
+  // Se uma pessoa da equipe encerrou a conversa há menos de 60 minutos, uma nova
+  // mensagem do cliente retoma aquele atendimento. A BiIA não envia menu nem
+  // qualquer confirmação automática nesse intervalo.
+  if (!conv) {
+    const recentHuman = await prisma.wppConversation.findFirst({
+      where: {
+        status: "closed",
+        closedBy: "attendant",
+        closedAt: { gte: new Date(Date.now() - HUMAN_CONTEXT_MS) },
+        attendantName: { not: null },
+        OR: [{ clientJid: rawJid }, { clientPhone }],
+      },
+      orderBy: { closedAt: "desc" },
+    });
+    if (recentHuman) {
+      conv = await prisma.wppConversation.update({
+        where: { id: recentHuman.id },
+        data: { status: "active", closedBy: null, closedAt: null, clientJid: recentHuman.clientJid ?? rawJid },
+      });
+      state = { currentNodeId: null, remoteJid: rawJid, lastActivity: Date.now(), pushName, conversationId: conv.id, status: "in_chat" };
+      clientStates.set(key, state);
+      await recordMsg(conv.id, "client", textMsg, clientPhone);
+      await recordMsg(conv.id, "system", "Cliente retomou a conversa em menos de 60 minutos. A BiIA permaneceu em silêncio e devolveu ao atendente.");
+      if (conv.attendantPhone) {
+        const snippet = textMsg.length > 220 ? `${textMsg.slice(0, 220)}…` : textMsg;
+        await sendMessage(conv.attendantPhone, `💬 *${clientLabel(conv)}* retomou a conversa:\n“${snippet}”\n\nO atendimento voltou para *Em atendimento* no painel.`);
+      }
+      return;
+    }
+  }
+
   // Na fila ou em atendimento: só registra a mensagem para o atendente (o bot fica quieto)
   if (conv && (conv.status === "waiting" || conv.status === "active")) {
     state = state ?? { currentNodeId: null, remoteJid: rawJid, lastActivity: Date.now(), pushName };
@@ -906,7 +1006,7 @@ async function handleMessage(msg: any, sock: any) {
     const firstReply = conv.status === "active" && conv.outbound && quietFor > OUTBOUND_QUIET_MS
       && (await prisma.wppConversationMessage.count({ where: { conversationId: conv.id, fromRole: "client" } })) === 0;
     await recordMsg(conv.id, "client", textMsg, clientPhone);
-    if (firstReply) { await outboundReplyAfterQuiet(state, sock, conv, textMsg); return; }
+    if (firstReply) { await notifyAttendantOfLateReply(conv, textMsg); return; }
 
     // Quem espera na fila pode perguntar a posição ("fila")
     if (conv.status === "waiting" && /^(fila|posi[cç][aã]o|minha posi[cç][aã]o|status)$/i.test(textMsg.trim())) {
@@ -994,7 +1094,7 @@ async function handleMessage(msg: any, sock: any) {
       return;
     }
 
-    // Triagem do suporte em andamento (sistema → CPF/CNPJ → assunto)
+    // Triagem do suporte em andamento (sistema → assunto; documento opcional)
     if (state.intake) { await handleIntakeReply(state, sock, key, textMsg, clientPhone); return; }
 
     // Aguardando o CPF/CNPJ de quem pediu fatura ou extrato
@@ -1138,7 +1238,7 @@ async function processNode(node: any, state: any, textMsg: string, sock: any, cl
   if (node.type === "sector") {
     const sector = await prisma.wppBotSector.findUnique({ where: { id: node.sectorId } });
 
-    // Suporte: antes de entrar na fila, pergunta o sistema, o CPF/CNPJ e o assunto
+    // Suporte: antes de entrar na fila, pergunta o sistema e o assunto; documento é opcional
     if (sector && sector.intake === "support") {
       await beginSupportIntake(state, sock, { id: sector.id, name: sector.name });
       return;

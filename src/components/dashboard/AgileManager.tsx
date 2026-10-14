@@ -430,11 +430,11 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
           </FilterLineSection>
           {tab === 'plan' && (
             <FilterLineSection align="right">
-              <FilterLineSegmented className="max-w-full overflow-x-auto" size="sm" value={typeF} onChange={setTypeF} options={[
+              <FilterLineSegmented<string> className="max-w-full overflow-x-auto" size="sm" value={typeF} onChange={setTypeF} options={[
                 { value: 'all', label: 'Todos' }, { value: 'story', label: 'Histórias' },
                 { value: 'task', label: 'Tarefas' }, { value: 'bug', label: 'Bugs' }, { value: 'epic', label: 'Épicos' },
               ]} />
-              <FilterLineSegmented className="max-w-full overflow-x-auto" size="sm" value={whoF} onChange={setWhoF} options={[
+              <FilterLineSegmented<'all' | 'me' | 'none'> className="max-w-full overflow-x-auto" size="sm" value={whoF} onChange={setWhoF} options={[
                 { value: 'all', label: 'Qualquer responsável' },
                 { value: 'me', label: 'Meus tickets' },
                 { value: 'none', label: 'Sem responsável' },
@@ -443,7 +443,7 @@ function BacklogView({ projectId, features, sprints, isAdmin, onRefresh, onCreat
           )}
           {tab === 'done' && completed.length > 0 && (
             <FilterLineSection align="right">
-              <FilterLineSegmented className="max-w-full overflow-x-auto" size="sm" value={year} onChange={setYear} options={(['all', ...years] as ('all' | number)[]).map(item => ({
+              <FilterLineSegmented<'all' | number> className="max-w-full overflow-x-auto" size="sm" value={year} onChange={setYear} options={(['all', ...years] as ('all' | number)[]).map(item => ({
                 value: item,
                 label: `${item === 'all' ? 'Todos' : item} · ${item === 'all' ? completed.length : completed.filter(sprint => sprintYear(sprint) === item).length}`,
               }))} />
