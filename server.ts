@@ -348,9 +348,15 @@ async function startServer() {
 
     app.patch("/api/projects/:id", async (req, res) => {
       try {
+        const data = {
+          ...req.body,
+          ...(Object.prototype.hasOwnProperty.call(req.body, 'deadline')
+            ? { deadline: req.body.deadline ? new Date(req.body.deadline) : null }
+            : {}),
+        };
         const project = await prisma.project.update({
           where: { id: req.params.id },
-          data: { ...req.body, deadline: req.body.deadline ? new Date(req.body.deadline) : undefined }
+          data,
         });
         res.json(project);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
