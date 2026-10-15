@@ -665,6 +665,14 @@ export function registerAsaasRoutes(app: Express) {
   app.post("/api/clients/:id/asaas/send-invoice", async (req, res) => {
     try { res.json({ sent: await sendInvoice(req.params.id) }); } catch (e) { fail(res, e); }
   });
+  app.get("/api/clients/:id/asaas/invoice-message", async (req, res) => {
+    try {
+      const inv = await composeInvoice(req.params.id);
+      if (!inv) return res.status(404).json({ error: "Cliente não encontrado." });
+      if (!inv.charge || !inv.text) return res.status(404).json({ error: "Não há fatura em aberto para este cliente." });
+      res.json({ text: inv.text, invoiceUrl: publicInvoiceUrl(inv.charge.id) });
+    } catch (e) { fail(res, e); }
+  });
   app.post("/api/clients/:id/asaas/send-statement", async (req, res) => {
     try { res.json({ sent: await sendStatement(req.params.id) }); } catch (e) { fail(res, e); }
   });

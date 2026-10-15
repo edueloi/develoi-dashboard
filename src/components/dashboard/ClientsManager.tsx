@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, Plus, Edit2, Trash2, DollarSign, Clock, ShieldAlert, Cake, FolderOpen, X, Phone, Mail,
-  Banknote, CalendarCheck, MessageCircle, CheckCircle2, CreditCard, ExternalLink, FileText, RefreshCw, Send,
+  Banknote, CalendarCheck, MessageCircle, CheckCircle2, CreditCard, ExternalLink, FileText, RefreshCw, Send, Copy,
 } from 'lucide-react';
 import { Button, Modal, ConfirmModal, Input, Select, EmptyState } from '../ui';
 import { useToast } from '../ui/Toast';
@@ -415,6 +415,34 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
     finally { setBusy(null); }
   }
 
+  async function copyInvoiceMessage() {
+    setBusy('copy-invoice');
+    try {
+      const res = await fetch(`/api/clients/${client.id}/asaas/invoice-message`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || typeof data.text !== 'string') throw new Error(data.error || 'Não foi possível gerar a mensagem da fatura.');
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(data.text);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = data.text;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        const copied = document.execCommand('copy');
+        input.remove();
+        if (!copied) throw new Error('Não foi possível copiar a mensagem.');
+      }
+      toast('Mensagem da fatura copiada!', 'success');
+    } catch (e: any) {
+      toast(e.message || 'Não foi possível copiar a mensagem da fatura.', 'error');
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const linkedIds = new Set((client.projects ?? []).map(p => p.projectId));
   const available = projects.filter(p => !linkedIds.has(p.id));
   const commission = client.commissionType === 'percentage' ? (client.billingValue * (client.commissionValue ?? 0)) / 100
@@ -566,6 +594,10 @@ function ClientDetailModal({ client, projects, today, onClose, onChanged, onEdit
                 <Button size="sm" variant="outline" loading={busy === 'invoice'} iconLeft={<Send className="w-3.5 h-3.5" />}
                   onClick={() => asaasCall('invoice', `/api/clients/${client.id}/asaas/send-invoice`, 'POST', null, () => 'Fatura enviada no WhatsApp')}>
                   Enviar fatura
+                </Button>
+                <Button size="sm" variant="outline" loading={busy === 'copy-invoice'} iconLeft={<Copy className="w-3.5 h-3.5" />}
+                  onClick={copyInvoiceMessage}>
+                  Copiar mensagem
                 </Button>
                 <Button size="sm" variant="outline" loading={busy === 'statement'} iconLeft={<FileText className="w-3.5 h-3.5" />}
                   onClick={() => asaasCall('statement', `/api/clients/${client.id}/asaas/send-statement`, 'POST', null, () => 'Extrato enviado no WhatsApp')}>
