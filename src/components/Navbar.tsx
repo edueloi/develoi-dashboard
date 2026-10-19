@@ -77,12 +77,12 @@ export default function Navbar() {
           ref={navRef}
           className="flex items-center justify-between px-6 sm:px-10 lg:px-16"
           style={{
-            background: scrolled ? 'rgba(6,17,43,0.98)' : 'rgba(6,17,43,0.82)',
-            backdropFilter: 'blur(20px)',
+            background: scrolled ? 'rgba(6,17,43,0.9)' : 'rgba(6,17,43,0.55)',
+            backdropFilter: 'blur(18px) saturate(1.4)',
             height: '66px',
             borderBottom: scrolled ? '1px solid rgba(196,154,42,0.18)' : '1px solid transparent',
             boxShadow: scrolled ? '0 4px 32px rgba(0,0,0,0.35)' : 'none',
-            transition: 'all 0.3s ease',
+            transition: 'background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease',
           }}
         >
           {/* Logo */}
@@ -99,27 +99,19 @@ export default function Navbar() {
             {/* Início */}
             <Link
               to="/"
-              className="relative text-[13px] font-semibold tracking-wide transition-colors duration-200 whitespace-nowrap"
-              style={{ color: isActive('/') && location.pathname === '/' ? '#fff' : 'rgba(255,255,255,0.5)' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = location.pathname === '/' ? '#fff' : 'rgba(255,255,255,0.5)'}
+              data-active={location.pathname === '/'}
+              className="nav-link text-[13px] font-semibold tracking-wide whitespace-nowrap"
             >
               Início
-              {location.pathname === '/' && (
-                <span className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-              )}
             </Link>
 
             {/* Quem Somos */}
             <Link
               to="/sobre"
-              className="relative text-[13px] font-semibold tracking-wide transition-colors duration-200 whitespace-nowrap"
-              style={{ color: isActive('/sobre') ? '#fff' : 'rgba(255,255,255,0.5)' }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = isActive('/sobre') ? '#fff' : 'rgba(255,255,255,0.5)'}
+              data-active={isActive('/sobre')}
+              className="nav-link text-[13px] font-semibold tracking-wide whitespace-nowrap"
             >
               Quem Somos
-              {isActive('/sobre') && <span className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />}
             </Link>
 
             {/* ── Projetos dropdown ── */}
@@ -131,17 +123,14 @@ export default function Navbar() {
             >
               <Link
                 to="/projetos"
-                className="flex items-center gap-1 text-[13px] font-semibold tracking-wide transition-colors duration-200 whitespace-nowrap"
-                style={{ color: isActive('/projetos') ? '#fff' : 'rgba(255,255,255,0.5)' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = isActive('/projetos') ? '#fff' : 'rgba(255,255,255,0.5)'}
+                data-active={isActive('/projetos')}
+                className="nav-link flex items-center gap-1 text-[13px] font-semibold tracking-wide whitespace-nowrap"
               >
                 Projetos
                 <ChevronDown
                   className="w-3.5 h-3.5 transition-transform duration-200"
                   style={{ transform: projDropOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
                 />
-                {isActive('/projetos') && <span className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />}
               </Link>
 
               <Presence
@@ -174,7 +163,7 @@ export default function Navbar() {
                       {/* Link "Ver todos" */}
                       <Link
                         to="/projetos"
-                        className="flex items-center justify-between p-3 rounded-xl mb-3 transition-all group"
+                        className="flex items-center justify-between p-3 rounded-xl mb-3 transition-[transform,opacity,color,background-color,border-color,box-shadow] group"
                         style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)', color: 'white' }}
                       >
                         <div className="flex items-center gap-3">
@@ -200,7 +189,7 @@ export default function Navbar() {
                               <Link
                                 key={cat.id}
                                 to={`/projetos?category=${cat.slug}`}
-                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all group"
+                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] group"
                                 style={{ color: 'var(--brand-navy, #06112B)' }}
                                 onMouseEnter={e => {
                                   (e.currentTarget as HTMLElement).style.background = `${cat.color}12`;
@@ -237,15 +226,10 @@ export default function Navbar() {
               <Link
                 key={item.name}
                 to={item.path}
-                className="relative text-[13px] font-semibold tracking-wide transition-colors duration-200 whitespace-nowrap"
-                style={{ color: isActive(item.path) ? '#fff' : 'rgba(255,255,255,0.5)' }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#fff'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = isActive(item.path) ? '#fff' : 'rgba(255,255,255,0.5)'}
+                data-active={isActive(item.path)}
+                className="nav-link text-[13px] font-semibold tracking-wide whitespace-nowrap"
               >
                 {item.name}
-                {isActive(item.path) && (
-                  <span className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-                )}
               </Link>
             ))}
           </div>
@@ -278,7 +262,7 @@ export default function Navbar() {
             )}
             <Link
               to="/#contato"
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[13px] font-black transition-all duration-200 hover:-translate-y-px hover:opacity-90"
+              className="btn-shine flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-[13px] font-black transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-px"
               style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 4px 16px rgba(196,154,42,0.3)' }}
             >
               FALE CONOSCO
@@ -289,7 +273,7 @@ export default function Navbar() {
           {/* Hamburger mobile */}
           <button
             onClick={() => setIsOpen(true)}
-            className="lg:hidden w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+            className="lg:hidden w-9 h-9 rounded-xl flex items-center justify-center transition-[transform,opacity,color,background-color,border-color,box-shadow]"
             style={{ background: 'rgba(255,255,255,0.08)', color: '#fff' }}
             aria-label="Abrir menu"
           >
@@ -346,7 +330,7 @@ export default function Navbar() {
                   <Link
                     to="/"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                    className="flex items-center justify-between px-4 py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                     style={{ background: location.pathname === '/' ? 'rgba(196,154,42,0.1)' : 'transparent', color: location.pathname === '/' ? 'var(--brand-gold)' : 'rgba(255,255,255,0.55)' }}
                   >
                     <span className="text-sm font-semibold">Início</span>
@@ -357,7 +341,7 @@ export default function Navbar() {
                   <Link
                     to="/sobre"
                     onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                    className="flex items-center justify-between px-4 py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                     style={{ background: isActive('/sobre') ? 'rgba(196,154,42,0.1)' : 'transparent', color: isActive('/sobre') ? 'var(--brand-gold)' : 'rgba(255,255,255,0.55)' }}
                   >
                     <span className="text-sm font-semibold">Quem Somos</span>
@@ -368,7 +352,7 @@ export default function Navbar() {
                   <div>
                     <button
                       onClick={() => setProjDropMobile(v => !v)}
-                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                      className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                       style={{ background: isActive('/projetos') ? 'rgba(196,154,42,0.1)' : 'transparent', color: isActive('/projetos') ? 'var(--brand-gold)' : 'rgba(255,255,255,0.55)' }}
                     >
                       <span className="text-sm font-semibold">Projetos</span>
@@ -388,7 +372,7 @@ export default function Navbar() {
                             <Link
                               to="/projetos"
                               onClick={() => setIsOpen(false)}
-                              className="flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-sm font-bold"
+                              className="flex items-center gap-2 px-3 py-2.5 rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] text-sm font-bold"
                               style={{ color: 'rgba(255,255,255,0.7)' }}
                             >
                               <Folder className="w-3.5 h-3.5" style={{ color: 'var(--brand-gold)' }} />
@@ -399,7 +383,7 @@ export default function Navbar() {
                                 key={cat.id}
                                 to={`/projetos?category=${cat.slug}`}
                                 onClick={() => setIsOpen(false)}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-[12px] font-semibold"
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-[transform,opacity,color,background-color,border-color,box-shadow] text-[12px] font-semibold"
                                 style={{ color: 'rgba(255,255,255,0.45)' }}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cat.color }} />
@@ -422,7 +406,7 @@ export default function Navbar() {
                       <Link
                         to={item.path}
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                        className="flex items-center justify-between px-4 py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow]"
                         style={{ background: isActive(item.path) ? 'rgba(196,154,42,0.1)' : 'transparent', color: isActive(item.path) ? 'var(--brand-gold)' : 'rgba(255,255,255,0.55)' }}
                       >
                         <span className="text-sm font-semibold">{item.name}</span>
@@ -437,7 +421,7 @@ export default function Navbar() {
                 <Link
                   to={user ? '/dashboard' : '/login'}
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all mt-0.5"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl transition-[transform,opacity,color,background-color,border-color,box-shadow] mt-0.5"
                   style={{ color: 'rgba(255,255,255,0.4)' }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; }}
@@ -454,7 +438,7 @@ export default function Navbar() {
                 <Link
                   to="/#contato"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-black transition-all hover:opacity-90"
+                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl text-sm font-black transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90"
                   style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 4px 16px rgba(196,154,42,0.25)' }}
                 >
                   FALE CONOSCO

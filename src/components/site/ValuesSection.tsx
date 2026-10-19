@@ -36,14 +36,11 @@ export default function ValuesSection() {
         <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-14" stagger={0.07} distance={16}>
           {principles.map((p, i) => (
             <div key={p.label}
-              className="bg-white rounded-2xl p-6 border transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
-              style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.09)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.04)'; }}
+              className="lift-card rounded-2xl p-6"
             >
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'var(--bg-tertiary)' }}>
-                  <p.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+                <div className="icon-tile w-10 h-10 flex-shrink-0 mt-0.5">
+                  <p.icon className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="text-[10px] font-black uppercase tracking-widest block mb-1" style={{ color: 'var(--text-muted)' }}>

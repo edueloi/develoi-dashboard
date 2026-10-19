@@ -7,9 +7,11 @@ export default function CTASection() {
     <section id="contato" className="relative py-20 md:py-24" style={{ background: 'var(--bg-primary)' }}>
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
         <Reveal distance={20}
-          className="rounded-2xl overflow-hidden relative"
+          className="rounded-3xl overflow-hidden relative"
           style={{ background: 'linear-gradient(135deg,#06112B 0%,#0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}>
           <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.2) 70%,transparent)' }} />
+          <div aria-hidden className="absolute inset-0 bg-dots opacity-40" />
+          <div aria-hidden className="absolute -left-20 -bottom-24 w-96 h-96 rounded-full blur-[120px]" style={{ background: 'rgba(196,154,42,0.2)' }} />
           <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
             <div>
               <SplitReveal as="h2" className="font-black text-white tracking-tight mb-2" style={{ fontSize: 'clamp(1.5rem,3vw,2.2rem)' }}>
@@ -21,7 +23,7 @@ export default function CTASection() {
               </p>
             </div>
             <Magnetic className="flex-shrink-0"><a href="https://wa.me/5515992418299" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:opacity-90 hover:-translate-y-px group"
+              className="btn-shine inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-bold text-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-px group"
               style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 6px 20px rgba(196,154,42,0.35)' }}>
               FALAR COM A DEVELOI
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />

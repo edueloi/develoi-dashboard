@@ -36,10 +36,7 @@ export default function ProblemsSection() {
           <Stagger from="right" distance={20} stagger={0.08} className="grid grid-cols-1 gap-3 w-full">
             {problems.map((problem, idx) => (
               <div key={idx}
-                className="bg-white rounded-2xl border p-5 flex items-center gap-4 transition-[border-color] duration-250"
-                style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 8px rgba(13,31,78,0.04)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(220,38,38,0.3)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
+                className="lift-card lift-danger rounded-2xl p-5 flex items-center gap-4"
               >
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
                   <XCircle className="w-4 h-4" style={{ color: '#dc2626' }} />

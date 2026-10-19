@@ -30,7 +30,7 @@ export default function HeroRedesign() {
   return (
     <>
       {/* ─── HERO PRINCIPAL ─── */}
-      <section className="relative min-h-screen flex items-center overflow-hidden">
+      <section className="relative min-h-[100dvh] flex items-center overflow-hidden">
         {/* Fundo navy */}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 55%, #0A1840 100%)' }} />
 
@@ -42,6 +42,10 @@ export default function HeroRedesign() {
           <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(6,17,43,0.45) 0%, transparent 18%, transparent 78%, rgba(6,17,43,0.7) 100%)' }} />
         </div>
 
+        {/* Textura de pontos + brilho dourado */}
+        <div aria-hidden className="absolute inset-0 bg-dots opacity-60" />
+        <div aria-hidden className="absolute -left-40 top-1/3 w-[560px] h-[560px] rounded-full blur-[140px]" style={{ background: 'rgba(196,154,42,0.16)' }} />
+
         {/* Linha dourada topo */}
         <div className="absolute top-0 left-0 right-0 h-[3px] z-10" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.3) 60%, transparent)' }} />
 
@@ -50,17 +54,20 @@ export default function HeroRedesign() {
           <div className="max-w-2xl">
 
             {/* Badge */}
-            <Reveal immediate distance={12} duration={0.6} className="inline-flex items-center gap-2 mb-7">
-              <span className="w-6 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
-              <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
+            <Reveal immediate distance={12} duration={0.6} className="inline-flex items-center gap-2.5 mb-7 pl-2.5 pr-4 py-1.5 rounded-full glass-dark">
+              <span className="relative flex w-2 h-2">
+                <span className="absolute inline-flex w-full h-full rounded-full animate-ping-slow" style={{ background: 'var(--brand-gold)', opacity: 0.6 }} />
+                <span className="relative inline-flex w-2 h-2 rounded-full" style={{ background: 'var(--brand-gold)' }} />
+              </span>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold-pale)' }}>
                 Develoi — Soluções Digitais
               </span>
             </Reveal>
 
             {/* Título principal — conforme briefing */}
             <SplitReveal as="h1" immediate delay={0.1}
-              className="font-black leading-[1.05] tracking-tight mb-6 text-white"
-              style={{ fontSize: 'clamp(2.2rem, 5vw, 3.6rem)' }}>
+              className="font-black leading-[1.04] tracking-tight mb-6 text-white"
+              style={{ fontSize: 'clamp(2.3rem, 5.4vw, 4rem)' }}>
               Transformamos ideias, processos e desafios em{' '}
               <span style={{ color: 'var(--brand-gold)' }}>soluções digitais</span>{' '}
               que fazem empresas crescerem.
@@ -80,7 +87,7 @@ export default function HeroRedesign() {
               className="flex flex-col sm:flex-row gap-3">
               <Magnetic className="flex" strength={0.2}>
               <a href="/#contato"
-                className="flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 group"
+                className="btn-shine flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-3.5 rounded-xl font-bold text-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 group"
                 style={{ background: 'var(--brand-gold)', color: '#06112B', boxShadow: '0 6px 24px rgba(196,154,42,0.35)' }}>
                 QUERO TRANSFORMAR MEU NEGÓCIO
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -88,23 +95,23 @@ export default function HeroRedesign() {
               </Magnetic>
               <Magnetic className="flex" strength={0.2}>
               <a href="/projetos"
-                className="flex-1 inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:-translate-y-0.5 border"
-                style={{ color: 'rgba(255,255,255,0.85)', borderColor: 'rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.05)' }}>
+                className="glass-dark flex-1 inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl font-bold text-sm transition-[transform,opacity,color,background-color,border-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-white/30"
+                style={{ color: 'rgba(255,255,255,0.9)' }}>
                 VER SOLUÇÕES DEVELOI
               </a>
               </Magnetic>
             </Reveal>
 
             {/* Métricas */}
-            <Reveal immediate from="fade" delay={0.8} className="flex flex-wrap gap-8 mt-12">
+            <Reveal immediate from="fade" delay={0.8} className="glass-dark inline-flex flex-wrap gap-x-9 gap-y-4 mt-12 px-6 py-4 rounded-2xl">
               {[
                 { value: '+50', label: 'Projetos entregues' },
                 { value: '98%', label: 'Clientes satisfeitos' },
                 { value: '3', label: 'Produtos prontos no ar' },
               ].map((m, i) => (
                 <div key={i} className="flex flex-col">
-                  <span className="text-xl font-black leading-none" style={{ color: 'var(--brand-gold)' }}><CountUp value={m.value} /></span>
-                  <span className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{m.label}</span>
+                  <span className="text-2xl font-black leading-none text-gold-grad"><CountUp value={m.value} /></span>
+                  <span className="text-[11px] mt-1.5" style={{ color: 'rgba(255,255,255,0.5)' }}>{m.label}</span>
                 </div>
               ))}
             </Reveal>
@@ -118,13 +125,10 @@ export default function HeroRedesign() {
           <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" stagger={0.08} start="top 95%">
             {services.map((card) => (
               <div key={card.title}
-                className="bg-white rounded-2xl p-6 flex flex-col gap-3 border transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
-                style={{ borderColor: 'var(--border-color)', boxShadow: '0 8px 32px rgba(13,31,78,0.1)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.4)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(13,31,78,0.14)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(13,31,78,0.1)'; }}
+                className="lift-card rounded-2xl p-6 flex flex-col gap-3 border"
               >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-tertiary)' }}>
-                  <card.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+                <div className="icon-tile w-11 h-11">
+                  <card.icon className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-black text-sm leading-snug mb-1" style={{ color: 'var(--brand-navy)' }}>{card.title}</h3>

@@ -45,7 +45,7 @@ export default function CasesPreviewSection() {
             </SplitReveal>
           </div>
           {cases.length > 0 && (
-            <Link to="/projetos" className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 hover:-translate-y-px group"
+            <Link to="/projetos" className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-[transform,opacity,color,background-color,border-color,box-shadow] hover:opacity-90 hover:-translate-y-px group"
               style={{ background: 'var(--brand-navy)', boxShadow: '0 4px 16px rgba(13,31,78,0.2)' }}>
               Ver todos os projetos <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
@@ -66,10 +66,7 @@ export default function CasesPreviewSection() {
             {cases.map((item) => (
               <div key={item.id}>
                 <Link to={`/projetos/${item.slug}`} className="group block">
-                  <div className="relative h-[380px] rounded-2xl overflow-hidden border transition-all duration-300"
-                    style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.08)' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.4)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(13,31,78,0.15)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(13,31,78,0.08)'; }}
+                  <div className="lift-card h-[420px] rounded-2xl overflow-hidden"
                   >
                     {item.coverImage
                       ? <img src={item.coverImage} alt={item.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
@@ -88,7 +85,7 @@ export default function CasesPreviewSection() {
                     <div className="absolute bottom-0 left-0 right-0 p-6">
                       <p className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: 'var(--brand-gold)' }}>{item.client}</p>
                       <h3 className="font-black text-white text-lg leading-snug tracking-tight mb-3">{item.title}</h3>
-                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/70 group-hover:gap-3 transition-all">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-white/70 group-hover:gap-3 transition-[gap]">
                         Conhecer projeto <ArrowRight className="w-3.5 h-3.5" />
                       </span>
                     </div>

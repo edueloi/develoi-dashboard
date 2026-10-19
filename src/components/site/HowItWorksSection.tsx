@@ -50,10 +50,7 @@ export default function HowItWorksSection() {
         <Stagger className="relative grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5" stagger={0.1} distance={20}>
           {steps.map((step, idx) => (
             <div key={idx}
-              className="bg-white rounded-2xl p-6 border relative overflow-hidden transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
-              style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
+              className="lift-card rounded-2xl p-6 relative overflow-hidden"
             >
               {/* Step number watermark */}
               <div className="absolute -top-4 -right-2 text-8xl font-black select-none pointer-events-none" style={{ color: 'rgba(13,31,78,0.04)' }}>{step.num}</div>
@@ -61,8 +58,8 @@ export default function HowItWorksSection() {
               {/* Top accent */}
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-2xl" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.2))' }} />
 
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'var(--bg-tertiary)' }}>
-                <step.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+              <div className="icon-tile w-11 h-11 mb-5">
+                <step.icon className="w-5 h-5" />
               </div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--brand-gold)' }}>Fase {step.num}</p>
               <h4 className="font-black text-sm leading-snug mb-3 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{step.title}</h4>

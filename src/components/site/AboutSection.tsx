@@ -42,13 +42,10 @@ export default function AboutSection() {
           <Stagger from="right" distance={24} stagger={0.1} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {cards.map((card, idx) => (
               <div key={idx}
-                className="bg-white rounded-2xl p-6 border transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
-                style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
+                className="lift-card rounded-2xl p-6"
               >
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4" style={{ background: 'var(--bg-tertiary)' }}>
-                  <card.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+                <div className="icon-tile w-11 h-11 mb-4">
+                  <card.icon className="w-5 h-5" />
                 </div>
                 <h4 className="font-black text-sm mb-1" style={{ color: 'var(--brand-navy)' }}>{card.title}</h4>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>

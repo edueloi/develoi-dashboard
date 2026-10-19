@@ -24,7 +24,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui';
-import { PageTransition, ScrollProgress } from './components/motion';
+import { PageTransition, ScrollProgress, Spotlight } from './components/motion';
 import Preloader from './components/ui/Preloader';
 import WhatsAppChat from './components/WhatsAppChat';
 
@@ -143,12 +143,16 @@ function AppContent() {
 
       {/* Progress Bar */}
       {!hideGlobalLayout && (
-        <ScrollProgress />
+        <>
+          <ScrollProgress />
+          <Spotlight />
+        </>
       )}
 
+      {!hideGlobalLayout && <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>}
       {!hideGlobalLayout && <Navbar />}
       
-      <main className="relative z-10">
+      <main id="conteudo" tabIndex={-1} className="relative z-10 outline-none">
         <AnimatedRoutes />
       </main>
 

@@ -33,13 +33,10 @@ export default function DifferentialsSection() {
         <Stagger className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12" stagger={0.08} distance={16}>
           {differentials.map((item, idx) => (
             <div key={idx}
-              className="bg-white rounded-2xl p-6 border flex gap-5 items-start transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
-              style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
+              className="lift-card rounded-2xl p-6 flex gap-5 items-start"
             >
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-tertiary)' }}>
-                <item.icon className="w-5 h-5" style={{ color: 'var(--brand-navy)' }} />
+              <div className="icon-tile w-11 h-11 flex-shrink-0">
+                <item.icon className="w-5 h-5" />
               </div>
               <div>
                 <h4 className="font-black text-base mb-2 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{item.title}</h4>
@@ -54,6 +51,8 @@ export default function DifferentialsSection() {
           className="relative rounded-2xl overflow-hidden"
           style={{ background: 'linear-gradient(135deg,#06112B 0%,#0D1F4E 100%)', boxShadow: '0 16px 48px rgba(13,31,78,0.2)' }}>
           <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.2) 70%,transparent)' }} />
+          <div aria-hidden className="absolute inset-0 bg-dots opacity-40" />
+          <div aria-hidden className="absolute -right-16 -top-20 w-80 h-80 rounded-full blur-[110px]" style={{ background: 'rgba(196,154,42,0.18)' }} />
           <div className="relative z-10 px-8 sm:px-14 py-12 flex flex-col md:flex-row items-center justify-between gap-8">
             <div>
               <h3 className="font-black text-white tracking-tight mb-2" style={{ fontSize: 'clamp(1.3rem,2.5vw,1.8rem)' }}>
@@ -65,7 +64,7 @@ export default function DifferentialsSection() {
               </p>
             </div>
             <div className="text-center flex-shrink-0">
-              <div className="text-5xl font-black" style={{ color: 'var(--brand-gold)' }}><CountUp value="100%" /></div>
+              <div className="text-6xl font-black text-gold-grad"><CountUp value="100%" /></div>
               <div className="text-[10px] font-black uppercase tracking-widest mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Comprometimento</div>
             </div>
           </div>
