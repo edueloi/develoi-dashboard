@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal } from '../components/motion';
 import {
   Mail, Phone, MapPin, Send, CheckCircle2, Loader2,
   MessageSquare, Clock, ArrowRight, ExternalLink,
@@ -88,13 +88,7 @@ export default function ContactPage() {
   });
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative min-h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}
-    >
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Blurs sutis */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[5%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[140px]" style={{ background: 'rgba(13,31,78,0.04)' }} />
@@ -108,12 +102,7 @@ export default function ContactPage() {
       >
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-2xl"
-          >
+          <Reveal distance={20} duration={0.7} immediate className="max-w-2xl">
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
@@ -130,7 +119,7 @@ export default function ContactPage() {
             <p className="text-base leading-relaxed max-w-lg" style={{ color: 'rgba(255,255,255,0.55)' }}>
               Entre em contato pelo canal que preferir. Nossa equipe está pronta para entender sua necessidade e apresentar a melhor solução.
             </p>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
@@ -139,26 +128,16 @@ export default function ContactPage() {
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {contactCards.map((card, i) => (
-              <motion.div
-                key={card.label}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.07 }}
-                className="bg-white rounded-2xl p-6 border transition-all duration-200 hover:-translate-y-1"
-                style={{
+              <Reveal distance={16} delay={i * 0.07} key={card.label} className="bg-white rounded-2xl p-6 border transition-all duration-200 hover:-translate-y-1" style={{
                   borderColor: 'var(--border-color)',
                   boxShadow: '0 2px 12px rgba(13,31,78,0.05)',
-                }}
-                onMouseEnter={e => {
+                }} onMouseEnter={e => {
                   (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)';
                   (e.currentTarget as HTMLElement).style.borderColor = `${card.color}33`;
-                }}
-                onMouseLeave={e => {
+                }} onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)';
                   (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
-                }}
-              >
+                }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4" style={{ background: card.bg }}>
                   <card.icon className="w-5 h-5" style={{ color: card.color }} />
                 </div>
@@ -183,7 +162,7 @@ export default function ContactPage() {
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
-              </motion.div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -195,25 +174,17 @@ export default function ContactPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
 
             {/* Formulário */}
-            <motion.div
-              initial={{ opacity: 0, x: -24 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7 }}
-              className="bg-white rounded-2xl border overflow-hidden"
-              style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 24px rgba(13,31,78,0.07)' }}
-            >
+            <Reveal from="left" distance={24} duration={0.7} className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 24px rgba(13,31,78,0.07)' }}>
               {/* Linha gold topo */}
               <div className="h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-navy), var(--brand-gold))' }} />
 
               <div className="p-8 sm:p-10">
-                <AnimatePresence mode="wait">
+                <>
                   {status === 'success' ? (
-                    <motion.div
+                    <Reveal
                       key="success"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }}
+                      from="scale"
+                      immediate
                       className="text-center py-12 space-y-4"
                     >
                       <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto" style={{ background: 'rgba(21,128,61,0.1)' }}>
@@ -230,9 +201,9 @@ export default function ContactPage() {
                       >
                         Enviar outra mensagem
                       </button>
-                    </motion.div>
+                    </Reveal>
                   ) : (
-                    <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    <Reveal from="fade" immediate key="form">
                       <div className="mb-7">
                         <div className="flex items-center gap-2 mb-1">
                           <MessageSquare className="w-4 h-4" style={{ color: 'var(--brand-gold)' }} />
@@ -327,12 +298,10 @@ export default function ContactPage() {
                           <p className="text-xs font-bold text-red-500">Erro ao enviar. Tente novamente ou fale pelo WhatsApp.</p>
                         )}
 
-                        <motion.button
+                        <button
                           type="submit"
                           disabled={status === 'loading'}
-                          whileHover={status !== 'loading' ? { y: -1 } : {}}
-                          whileTap={status !== 'loading' ? { scale: 0.99 } : {}}
-                          className="w-full py-3.5 font-black rounded-xl text-sm text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+                          className="enabled:hover:-translate-y-px enabled:active:scale-[0.99] w-full py-3.5 font-black rounded-xl text-sm text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
                           style={{
                             background: 'linear-gradient(135deg, #06112B, #0D1F4E)',
                             boxShadow: '0 6px 20px rgba(13,31,78,0.22)',
@@ -343,7 +312,7 @@ export default function ContactPage() {
                           ) : (
                             <>ENVIAR MENSAGEM <Send className="w-4 h-4" /></>
                           )}
-                        </motion.button>
+                        </button>
                       </form>
 
                       {/* WhatsApp direto */}
@@ -363,20 +332,14 @@ export default function ContactPage() {
                           <ArrowRight className="w-3.5 h-3.5" />
                         </a>
                       </div>
-                    </motion.div>
+                    </Reveal>
                   )}
-                </AnimatePresence>
+                </>
               </div>
-            </motion.div>
+            </Reveal>
 
             {/* Mapa + info */}
-            <motion.div
-              initial={{ opacity: 0, x: 24 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="space-y-5"
-            >
+            <Reveal from="right" distance={24} delay={0.1} duration={0.7} className="space-y-5">
               {/* Mapa Google */}
               <div className="rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 24px rgba(13,31,78,0.07)', height: '320px' }}>
                 <iframe
@@ -461,10 +424,10 @@ export default function ContactPage() {
                   ))}
                 </div>
               </div>
-            </motion.div>
+            </Reveal>
           </div>
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

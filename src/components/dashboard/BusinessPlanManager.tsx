@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Stagger } from '../motion';
 import {
   Compass, Target, Trophy, Users, ShieldCheck, Plus, Trash2, Edit2,
   CheckCircle2, Circle, AlertTriangle, Save, Star, History, ArrowRight, Camera, X, Loader2,
@@ -1205,8 +1205,7 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
       {filtered.length === 0 ? (
         <EmptyState icon={Target} title="Nenhuma meta aqui" description="Defina metas para a empresa ou para um sócio específico." action={<Button onClick={() => { setEditing(null); setIsFormOpen(true); }}>NOVA META</Button>} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-          <AnimatePresence>
+        <Stagger immediate distance={10} stagger={0.04} duration={0.3} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {filtered.map(g => {
               const statusCfg = GOAL_STATUS_CONFIG[g.status], color = GOAL_COLORS[g.status];
               const n = daysTo(g.targetDate);
@@ -1214,7 +1213,7 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
               const steps = g.steps ?? [], stepsDone = steps.filter(x => x.done).length;
               const pr = PRIORITY_CFG[g.priority ?? 'medium'];
               return (
-                <motion.div key={g.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDetailId(g.id)}
+                <div key={g.id} onClick={() => setDetailId(g.id)}
                   className="bg-white dark:bg-white/5 rounded-2xl border border-slate-200/70 dark:border-white/10 shadow-sm hover:shadow-md transition-shadow cursor-pointer p-4 flex flex-col gap-3 min-w-0" style={{ borderTop: `3px solid ${color}` }}>
                   <div className="flex items-start gap-3">
                     <RingChart value={g.progress} size={56} stroke={7} color={color} />
@@ -1252,11 +1251,10 @@ function GoalsSection({ goals, partners, onRefresh }: { goals: BusinessGoal[]; p
                     </>}
                     {g.status === 'done' && <Button size="xs" variant="outline" iconLeft={<RotateCcw className="w-3 h-3" />} onClick={() => act(g, '', { status: 'in_progress' }, 'Meta reaberta')}>REABRIR</Button>}
                   </div>
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
-        </div>
+        </Stagger>
       )}
 
       {detail && <GoalDetailModal goal={detail} partners={partners} onClose={() => setDetailId(null)} onChanged={onRefresh} onEdit={() => { setEditing(detail); setDetailId(null); setIsFormOpen(true); }} />}

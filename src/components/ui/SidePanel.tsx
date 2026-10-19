@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { X, Maximize2, Minimize2 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { gsap } from "../../lib/gsap";
+import { Presence } from "../motion/Presence";
 import { cn } from "../../lib/utils";
 
 // Painel lateral: desliza da direita para a esquerda da tela, com botão para expandir em tela cheia.
@@ -29,17 +30,23 @@ export function SidePanel({ isOpen, onClose, title, children, footer, width = "x
     return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [isOpen, onClose]);
 
+  const enter = (root: HTMLElement) => gsap.timeline()
+    .from(root.querySelector('[data-p="backdrop"]'), { opacity: 0, duration: 0.25 }, 0)
+    .from(root.querySelector('[data-p="panel"]'), { xPercent: 100, duration: 0.55, ease: "power4.out", clearProps: "transform" }, 0)
+    .from(root.querySelectorAll('[data-p="panel"] > header > *, [data-p="panel"] > div > *'), { opacity: 0, y: 12, duration: 0.4, stagger: 0.04, clearProps: "opacity,transform" }, 0.2);
+  const exit = (root: HTMLElement) => gsap.timeline()
+    .to(root.querySelector('[data-p="backdrop"]'), { opacity: 0, duration: 0.22 }, 0)
+    .to(root.querySelector('[data-p="panel"]'), { xPercent: 100, duration: 0.32, ease: "power3.in" }, 0);
+
   return (
-    <AnimatePresence>
-      {isOpen && (
+    <Presence open={isOpen} enter={enter} exit={exit}>
         <>
-          <motion.div
-            key="sp-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+          <div
+            data-p="backdrop"
             className="fixed inset-0 z-[90] bg-zinc-900/45 dark:bg-black/70" onClick={onClose}
           />
-          <motion.aside
-            key="sp-panel" role="dialog" aria-modal="true"
-            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "tween", duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+          <aside
+            data-p="panel" role="dialog" aria-modal="true"
             className={cn("fixed top-0 right-0 bottom-0 z-[91] w-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col transition-[width] duration-300", full ? "sm:w-screen" : WIDTH[width], "sm:max-w-full")}
           >
             <header className="flex items-center gap-3 px-4 sm:px-6 py-3.5 border-b border-slate-200 dark:border-white/10 flex-shrink-0">
@@ -54,9 +61,8 @@ export function SidePanel({ isOpen, onClose, title, children, footer, width = "x
             </header>
             <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5 sm:py-7">{typeof children === "function" ? children(full) : children}</div>
             {footer && <footer className="flex-shrink-0 border-t border-slate-200 dark:border-white/10 px-4 sm:px-8 py-3 bg-white dark:bg-slate-900">{typeof footer === "function" ? footer(full) : footer}</footer>}
-          </motion.aside>
+          </aside>
         </>
-      )}
-    </AnimatePresence>
+    </Presence>
   );
 }

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { User, Lock, Save, Eye, EyeOff, Camera, Shield, Mail, Calendar, X, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Reveal } from '../motion';
 import { useAuth, getToken } from '../../contexts/AuthContext';
 import { Button, Input, Textarea, PanelCard } from '../ui';
 import { toast } from 'react-hot-toast';
@@ -95,9 +95,7 @@ export function MyProfile() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
+    <Reveal immediate distance={16} duration={0.35}
       className="space-y-4 max-w-[1280px] mx-auto"
     >
       {/* Hero card */}
@@ -307,6 +305,6 @@ export function MyProfile() {
         </form>
       </PanelCard>
       </div>
-    </motion.div>
+    </Reveal>
   );
 }

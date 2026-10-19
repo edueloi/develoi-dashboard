@@ -1,4 +1,17 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { useRef, type CSSProperties } from 'react';
+import { Presence, Reveal } from '../motion';
+import { gsap, useGSAP, prefersReducedMotion } from '../../lib/gsap';
+
+/** Barra de progresso que anima a largura com GSAP */
+function GrowBar({ pct, delay = 0, className, style }: { pct: number; delay?: number; className?: string; style?: CSSProperties }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useGSAP(() => {
+    if (!ref.current) return;
+    if (prefersReducedMotion()) { gsap.set(ref.current, { width: `${pct}%` }); return; }
+    gsap.fromTo(ref.current, { width: 0 }, { width: `${pct}%`, duration: 0.6, delay, ease: 'power3.out' });
+  }, { dependencies: [pct] });
+  return <div ref={ref} className={className} style={style} />;
+}
 import { useState } from 'react';
 import {
   Settings, Trash2, Users, Calendar, Rocket, Briefcase, ArrowRight,
@@ -119,7 +132,7 @@ function SystemManual() {
   const [open, setOpen] = useState(false);
 
   return (
-    <motion.div
+    <div
       className="rounded-3xl border overflow-hidden"
       style={{ borderColor: 'rgba(13,31,78,0.1)', background: 'white', boxShadow: '0 2px 20px rgba(13,31,78,0.06)' }}
     >
@@ -145,16 +158,12 @@ function SystemManual() {
         </div>
       </button>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="manual"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            style={{ overflow: 'hidden' }}
-          >
+      <Presence
+        open={open}
+        enter={root => gsap.fromTo(root.querySelector('[data-p="panel"]'), { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.35, ease: 'power2.out', clearProps: 'height,opacity' })}
+        exit={root => gsap.to(root.querySelector('[data-p="panel"]'), { height: 0, opacity: 0, duration: 0.25, ease: 'power2.in' })}
+      >
+          <div data-p="panel" style={{ overflow: 'hidden' }}>
             <div className="px-8 pb-8 space-y-10" style={{ borderTop: '1px solid rgba(13,31,78,0.06)' }}>
 
               {/* Hero banner com imagem local */}
@@ -275,10 +284,9 @@ function SystemManual() {
               </div>
 
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+      </Presence>
+    </div>
   );
 }
 
@@ -307,11 +315,11 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
   const bannerImage = project.coverImage || project.previewImage;
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+    <Reveal
+      immediate
+      distance={16}
+      duration={0.4}
+      delay={Math.min(index, 12) * 0.04}
       onClick={() => onSelect(project)}
       className="group relative rounded-2xl border cursor-pointer flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-0.5 h-full min-w-0"
       style={{
@@ -392,10 +400,9 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
             <span className="text-xs font-black flex-shrink-0" style={{ color: s.barColor }}>{prog}%</span>
           </div>
           <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${prog}%` }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: index * 0.04 + 0.2 }}
+            <GrowBar
+              pct={prog}
+              delay={Math.min(index, 12) * 0.04 + 0.15}
               className="h-full rounded-full"
               style={{ background: s.barColor }}
             />
@@ -453,14 +460,14 @@ function ProjectCard({ project, index, onSelect, onEdit, onDelete }: {
         </div>
 
         {/* Hover CTA */}
-        <motion.div
+        <div
           className="absolute bottom-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0"
           style={{ background: '#0D1F4E', boxShadow: '0 4px 14px rgba(13,31,78,0.3)' }}
         >
           <ArrowRight className="w-3.5 h-3.5" />
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -481,7 +488,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onDelete }: {
   const progress = project.progress ?? 0;
 
   return (
-    <motion.article initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.03 }} onClick={() => onSelect(project)} className="group flex min-w-0 cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#0D1F4E]/30 hover:shadow-md">
+    <Reveal as="article" immediate distance={8} duration={0.3} delay={Math.min(index, 12) * 0.03} onClick={() => onSelect(project)} className="group flex min-w-0 cursor-pointer flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#0D1F4E]/30 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="mb-2 flex items-center gap-2">
@@ -495,7 +502,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onDelete }: {
       <p className="mt-2 min-h-[2.5rem] text-xs leading-relaxed text-slate-500 line-clamp-2">{project.description || 'Sem descrição cadastrada.'}</p>
       <div className="mt-4 rounded-lg bg-slate-50 p-3">
         <div className="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-slate-400"><span>Progresso</span><span style={{ color: config.color }}>{progress}%</span></div>
-        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200"><motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ delay: index * 0.03 + 0.15 }} className="h-full rounded-full" style={{ background: config.color }} /></div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-200"><GrowBar pct={progress} delay={Math.min(index, 12) * 0.03 + 0.1} className="h-full rounded-full" style={{ background: config.color }} /></div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500">
         <span className="flex min-w-0 items-center gap-1.5 truncate"><Users className="h-3.5 w-3.5 text-slate-400" />{project.clientName || 'Interno'}</span>
@@ -509,7 +516,7 @@ function ProjectGridCard({ project, index, onSelect, onEdit, onDelete }: {
           <span className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#0D1F4E] text-white"><ArrowRight className="h-3.5 w-3.5" /></span>
         </div>
       </div>
-    </motion.article>
+    </Reveal>
   );
 }
 
@@ -583,27 +590,22 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
       </div>
 
       {/* Grid de projetos */}
-      <AnimatePresence mode="wait">
+      <>
         {filtered.length === 0 ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <Reveal key="empty" immediate from="fade" duration={0.3}>
             <EmptyState
               icon={Briefcase}
               title="Nenhum projeto encontrado"
               description="Crie um novo projeto ou ajuste o filtro acima."
               className="py-12"
             />
-          </motion.div>
+          </Reveal>
         ) : (
-          <motion.div
+          <Reveal
             key={filter}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            immediate
+            from="fade"
+            duration={0.3}
             className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
           >
             {filtered.map((project, i) => (
@@ -616,9 +618,9 @@ export function ProjectsList({ projects, onSelect, onEdit }: ProjectsListProps) 
                 onDelete={setProjectToDelete}
               />
             ))}
-          </motion.div>
+          </Reveal>
         )}
-      </AnimatePresence>
+      </>
 
       <ConfirmModal
         isOpen={!!projectToDelete}

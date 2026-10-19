@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { motion } from 'framer-motion';
+import { Reveal } from '../components/motion';
 import { Target, Sparkles, Heart, Shield, Zap, Star, Users, TrendingUp, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -33,13 +33,7 @@ export default function Values() {
   const values = siteData?.values?.filter(v => v.title).length ? siteData.values.filter(v => v.title) : fallbackValues;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative min-h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}
-    >
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Blurs de fundo sutis */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[5%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[140px]" style={{ background: 'rgba(13,31,78,0.04)' }} />
@@ -55,12 +49,7 @@ export default function Values() {
         <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
 
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-3xl"
-          >
+          <Reveal distance={20} duration={0.7} immediate className="max-w-3xl">
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
@@ -77,7 +66,7 @@ export default function Values() {
             <p className="text-base leading-relaxed max-w-xl" style={{ color: 'rgba(255,255,255,0.55)' }}>
               O que nos move, o que entregamos e como nos relacionamos. A essência por trás de cada solução que construímos.
             </p>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
@@ -87,18 +76,11 @@ export default function Values() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* Missão */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="relative rounded-2xl overflow-hidden p-8 sm:p-10 border"
-              style={{
+            <Reveal distance={20} duration={0.6} className="relative rounded-2xl overflow-hidden p-8 sm:p-10 border" style={{
                 background: 'white',
                 borderColor: 'var(--border-color)',
                 boxShadow: '0 4px 24px rgba(13,31,78,0.06)',
-              }}
-            >
+              }}>
               <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #0D1F4E, rgba(13,31,78,0.2))' }} />
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-6" style={{ background: 'rgba(13,31,78,0.07)' }}>
                 <Target className="w-5 h-5" style={{ color: '#0D1F4E' }} />
@@ -112,20 +94,13 @@ export default function Values() {
               <p className="text-base leading-relaxed whitespace-pre-line" style={{ color: 'var(--text-secondary)' }}>
                 {mission}
               </p>
-            </motion.div>
+            </Reveal>
 
             {/* Visão */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="relative rounded-2xl overflow-hidden p-8 sm:p-10"
-              style={{
+            <Reveal distance={20} delay={0.1} duration={0.6} className="relative rounded-2xl overflow-hidden p-8 sm:p-10" style={{
                 background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
                 boxShadow: '0 8px 32px rgba(13,31,78,0.2)',
-              }}
-            >
+              }}>
               <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2))' }} />
               <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-6" style={{ background: 'rgba(196,154,42,0.12)' }}>
                 <Sparkles className="w-5 h-5" style={{ color: 'var(--brand-gold)' }} />
@@ -139,7 +114,7 @@ export default function Values() {
               <p className="text-base leading-relaxed whitespace-pre-line" style={{ color: 'rgba(255,255,255,0.75)' }}>
                 {vision}
               </p>
-            </motion.div>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -149,12 +124,7 @@ export default function Values() {
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16">
 
           {/* Header seção */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-14"
-          >
+          <Reveal distance={16} className="text-center mb-14">
             <div className="inline-flex items-center gap-2 mb-4">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
@@ -171,33 +141,23 @@ export default function Values() {
             <p className="text-sm mt-3 max-w-lg mx-auto" style={{ color: 'var(--text-secondary)' }}>
               Estes princípios definem como trabalhamos, como nos relacionamos e como entregamos valor a cada cliente.
             </p>
-          </motion.div>
+          </Reveal>
 
           {/* Grid de valores */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {values.map((v, i) => {
               const IconComp = valueIcons[i % valueIcons.length];
               return (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: i * 0.06 }}
-                  className="relative overflow-hidden bg-white rounded-2xl p-7 border group transition-all duration-250 hover:-translate-y-1"
-                  style={{
+                <Reveal distance={16} delay={i * 0.06} duration={0.5} key={i} className="relative overflow-hidden bg-white rounded-2xl p-7 border group transition-all duration-250 hover:-translate-y-1" style={{
                     borderColor: 'var(--border-color)',
                     boxShadow: '0 2px 12px rgba(13,31,78,0.04)',
-                  }}
-                  onMouseEnter={e => {
+                  }} onMouseEnter={e => {
                     (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.3)';
                     (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.09)';
-                  }}
-                  onMouseLeave={e => {
+                  }} onMouseLeave={e => {
                     (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)';
                     (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.04)';
-                  }}
-                >
+                  }}>
                   <span className="absolute right-4 top-2 text-5xl font-black select-none" style={{ color: 'rgba(196,154,42,0.12)' }}>{String(i + 1).padStart(2, '0')}</span>
                   <div className="relative">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'linear-gradient(135deg, #06112B, #0D1F4E)' }}>
@@ -210,7 +170,7 @@ export default function Values() {
                       {v.description}
                     </p>
                   </div>
-                </motion.div>
+                </Reveal>
               );
             })}
           </div>
@@ -220,11 +180,7 @@ export default function Values() {
       {/* ── QUOTE ── */}
       <section className="py-20">
         <div className="max-w-4xl mx-auto px-6 sm:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
+          <Reveal distance={20}>
             <div className="flex items-center justify-center gap-3 mb-8">
               <div className="h-px w-12" style={{ background: 'var(--border-color)' }} />
               <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>
@@ -241,23 +197,17 @@ export default function Values() {
                 Começamos pela realidade de quem precisa evoluir."
               </span>
             </p>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── CTA ── */}
       <section className="pb-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="rounded-2xl overflow-hidden relative"
-            style={{
+          <Reveal distance={20} className="rounded-2xl overflow-hidden relative" style={{
               background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
               boxShadow: '0 20px 60px rgba(13,31,78,0.2)',
-            }}
-          >
+            }}>
             <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.15) 70%, transparent)' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div>
@@ -285,9 +235,9 @@ export default function Values() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

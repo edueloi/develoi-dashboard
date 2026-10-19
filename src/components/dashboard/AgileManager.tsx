@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Presence } from '../motion';
+import { gsap } from '../../lib/gsap';
 import {
   Plus, ChevronDown, ChevronRight, Play, CheckCircle2,
   AlertCircle, Rocket, Briefcase, Calendar, Star, MoreVertical,
@@ -630,14 +631,12 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
             </div>
 
             {/* Tickets list */}
-            <AnimatePresence>
-              {expanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
+            <Presence
+              open={!!expanded}
+              enter={root => gsap.fromTo(root.querySelector('[data-p="panel"]'), { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.3, ease: 'power2.out', clearProps: 'height,opacity' })}
+              exit={root => gsap.to(root.querySelector('[data-p="panel"]'), { height: 0, opacity: 0, duration: 0.25, ease: 'power2.in' })}
+            >
+                <div data-p="panel" className="overflow-hidden">
                   <div className="px-3 pb-3 space-y-2 min-h-[56px]">
                     <div className="h-px bg-slate-100 mx-2 mb-2" />
                     {features.length === 0 ? (
@@ -655,9 +654,8 @@ function SprintSection({ sprint, features, isAdmin, onRefresh, onStart, onFinish
                     )}
                     {provided.placeholder}
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                </div>
+            </Presence>
           </div>
         )}
       </DroppableComponent>

@@ -4,7 +4,6 @@
  */
 
 import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
 import React, { useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -25,7 +24,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme } from './contexts/ThemeContext';
 import { ToastProvider } from './components/ui';
-import { motion, useScroll, useSpring } from 'framer-motion';
+import { PageTransition, ScrollProgress } from './components/motion';
 import Preloader from './components/ui/Preloader';
 import WhatsAppChat from './components/WhatsAppChat';
 
@@ -52,8 +51,10 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 function AnimatedRoutes() {
   const location = useLocation();
+  // dashboard troca de aba sem recarregar a página: uma única chave para todas as rotas /dashboard
+  const transitionKey = location.pathname.startsWith('/dashboard') ? '/dashboard' : location.pathname;
   return (
-    <AnimatePresence mode="wait">
+    <PageTransition key={transitionKey}>
       <Routes location={location}>
         <Route path="/" element={<Home />} />
         <Route path="/sobre" element={<About />} />
@@ -115,7 +116,7 @@ function AnimatedRoutes() {
           />
         ))}
       </Routes>
-    </AnimatePresence>
+    </PageTransition>
   );
 }
 
@@ -124,13 +125,6 @@ function AppContent() {
   const location = useLocation();
   const hideGlobalLayout = location.pathname.startsWith('/dashboard') || location.pathname === '/login' || location.pathname.startsWith('/fatura/') || location.pathname.startsWith('/autorizar/');
   
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
-
   const { isDark } = useTheme();
 
   return (
@@ -149,10 +143,7 @@ function AppContent() {
 
       {/* Progress Bar */}
       {!hideGlobalLayout && (
-        <motion.div
-          className="fixed top-0 left-0 right-0 h-[3px] z-[60] origin-left"
-          style={{ scaleX, background: 'linear-gradient(90deg, var(--brand-navy), var(--brand-gold))' }}
-        />
+        <ScrollProgress />
       )}
 
       {!hideGlobalLayout && <Navbar />}

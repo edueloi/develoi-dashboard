@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { Reveal } from '../components/motion';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Eye, Heart, Clock, Calendar, Share2, Linkedin, Twitter, CheckCircle, Star, Target, Lightbulb, Briefcase, Folder } from 'lucide-react';
 import { format } from 'date-fns';
@@ -107,7 +107,7 @@ export default function ProjetoPostPage() {
 
       {/* Progress bar */}
       <div className="fixed top-[66px] left-0 right-0 h-[3px] z-[60]" style={{ background: 'rgba(13,31,78,0.06)' }}>
-        <motion.div className="h-full" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,var(--brand-navy),var(--brand-gold))' }} />
+        <div className="h-full" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,var(--brand-navy),var(--brand-gold))' }} />
       </div>
 
       {/* HERO */}
@@ -128,13 +128,11 @@ export default function ProjetoPostPage() {
             )}
           </div>
 
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="font-black text-white leading-[1.05] tracking-tight mb-8" style={{ fontSize: 'clamp(2rem,5vw,3.8rem)' }}>
+          <Reveal as="h1" distance={20} immediate className="font-black text-white leading-[1.05] tracking-tight mb-8" style={{ fontSize: 'clamp(2rem,5vw,3.8rem)' }}>
             {caseItem.title}
-          </motion.h1>
+          </Reveal>
 
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="flex items-center gap-8 flex-wrap">
+          <Reveal distance={16} delay={0.1} immediate className="flex items-center gap-8 flex-wrap">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: 'rgba(196,154,42,0.7)' }}>Cliente Parceiro</p>
               <p className="text-xl font-black text-white">{caseItem.client}</p>
@@ -145,7 +143,7 @@ export default function ProjetoPostPage() {
               <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {caseItem.readTimeMinutes} min</span>
               <span className="flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" /> {caseItem.views.toLocaleString('pt-BR')} views</span>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
@@ -153,8 +151,7 @@ export default function ProjetoPostPage() {
       {caseItem.coverImage && (
         <section className="px-6 sm:px-8 lg:px-12 py-12">
           <div className="max-w-7xl mx-auto">
-            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
-              className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 16px 60px rgba(13,31,78,0.12)' }}>
+            <Reveal from="scale" duration={0.8} immediate className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 16px 60px rgba(13,31,78,0.12)' }}>
               <img src={caseItem.coverImage} alt={caseItem.title} className="w-full h-auto max-h-[80vh] object-contain mx-auto" style={{ background: 'var(--bg-tertiary)' }} />
               {resultsList.length > 0 && (
                 <div className="absolute bottom-6 left-6 right-6 flex flex-wrap gap-3">
@@ -166,7 +163,7 @@ export default function ProjetoPostPage() {
                   ))}
                 </div>
               )}
-            </motion.div>
+            </Reveal>
           </div>
         </section>
       )}

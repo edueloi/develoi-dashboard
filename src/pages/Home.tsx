@@ -8,17 +8,10 @@ import HowItWorksSection from '../components/site/HowItWorksSection';
 import ValuesSection from '../components/site/ValuesSection';
 import EmotionalSection from '../components/site/EmotionalSection';
 import CTASection from '../components/site/CTASection';
-import { motion } from 'framer-motion';
 
 export default function Home() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative min-h-screen overflow-x-hidden"
-      style={{ background: 'var(--bg-primary)' }}
-    >
+    <div className="relative min-h-screen overflow-x-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Background blurs */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[5%] left-[-8%] w-[500px] h-[500px] blur-[130px] rounded-full" style={{ background: 'rgba(13,31,78,0.06)' }} />
@@ -37,6 +30,6 @@ export default function Home() {
         <EmotionalSection />
         <CTASection />
       </main>
-    </motion.div>
+    </div>
   );
 }

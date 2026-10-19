@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Stagger } from '../motion';
 import {
   Package, Plus, Edit2, Trash2, Tag, ToggleLeft, ToggleRight,
   Search, Layers, DollarSign, CheckCircle2, X, ChevronDown, ChevronUp,
@@ -126,19 +126,16 @@ export function ProductsManager() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <Stagger immediate distance={10} stagger={0.05} duration={0.3} className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {[
           { label: 'Total', value: stats.total, icon: Package, color: '#0D1F4E', bg: 'rgba(13,31,78,0.08)' },
           { label: 'Ativos', value: stats.active, icon: CheckCircle2, color: '#15803D', bg: 'rgba(21,128,61,0.08)' },
           { label: 'Produtos', value: stats.products, icon: Package, color: '#2563EB', bg: 'rgba(37,99,235,0.08)' },
           { label: 'Planos', value: stats.plans, icon: Layers, color: '#C49A2A', bg: 'rgba(196,154,42,0.08)' },
           { label: 'Serviços', value: stats.services, icon: Tag, color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)' },
-        ].map((s, i) => (
-          <motion.div
+        ].map((s) => (
+          <div
             key={s.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
             className="bg-white dark:bg-white/5 rounded-xl p-3 shadow-sm border border-slate-200/60 dark:border-white/10"
           >
             <div className="flex items-center gap-3">
@@ -150,9 +147,9 @@ export function ProductsManager() {
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.label}</p>
               </div>
             </div>
-          </motion.div>
+          </div>
         ))}
-      </div>
+      </Stagger>
 
       {/* Filtros */}
       <div className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm p-3 flex flex-wrap gap-2">
@@ -200,15 +197,10 @@ export function ProductsManager() {
           action={<Button onClick={() => setIsFormOpen(true)}>CADASTRAR PRODUTO</Button>}
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <AnimatePresence>
-            {filtered.map((product, i) => (
-              <motion.div
+        <Stagger immediate distance={12} stagger={0.04} duration={0.3} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map((product) => (
+              <div
                 key={product.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ delay: i * 0.04 }}
                 className={`bg-white dark:bg-white/5 rounded-xl border shadow-sm overflow-hidden transition-all hover:shadow-md ${
                   product.active
                     ? 'border-slate-200/60 dark:border-white/10'
@@ -285,10 +277,9 @@ export function ProductsManager() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </AnimatePresence>
-        </div>
+        </Stagger>
       )}
 
       {/* Form Modal */}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { Reveal } from '../components/motion';
 import { Carousel } from "../components/ui";
 import { ArrowLeft, ArrowRight, Share2, Linkedin, Twitter, CheckCircle, Folder } from "lucide-react";
 
@@ -195,7 +195,7 @@ export default function BlogPostPage() {
 
       {/* Progress bar */}
       <div className="fixed top-[66px] left-0 right-0 h-[3px] z-[60]" style={{ background: 'rgba(13,31,78,0.06)' }}>
-        <motion.div className="h-full" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,var(--brand-navy),var(--brand-gold))' }} />
+        <div className="h-full" style={{ width: `${progress}%`, background: 'linear-gradient(90deg,var(--brand-navy),var(--brand-gold))' }} />
       </div>
 
       {/* HERO */}
@@ -217,13 +217,11 @@ export default function BlogPostPage() {
             )}
           </div>
 
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="font-black text-white leading-[1.05] tracking-tight mb-8" style={{ fontSize: 'clamp(2rem,4.5vw,3.5rem)', maxWidth: '900px' }}>
+          <Reveal as="h1" distance={20} immediate className="font-black text-white leading-[1.05] tracking-tight mb-8" style={{ fontSize: 'clamp(2rem,4.5vw,3.5rem)', maxWidth: '900px' }}>
             {post.title}
-          </motion.h1>
+          </Reveal>
 
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="flex items-center gap-8 flex-wrap">
+          <Reveal distance={16} delay={0.1} immediate className="flex items-center gap-8 flex-wrap">
             {post.author && (
               <div className="flex items-center gap-4">
                 {post.author.photo ? (
@@ -245,7 +243,7 @@ export default function BlogPostPage() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span>{post.readTimeMinutes} min de leitura</span>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
@@ -253,10 +251,9 @@ export default function BlogPostPage() {
       {post.coverImage && (
         <section className="px-6 sm:px-8 lg:px-12 py-12">
           <div className="max-w-7xl mx-auto">
-            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }}
-              className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 16px 60px rgba(13,31,78,0.12)' }}>
+            <Reveal from="scale" duration={0.8} immediate className="relative rounded-2xl overflow-hidden border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 16px 60px rgba(13,31,78,0.12)' }}>
               <img src={post.coverImage} alt={post.title} className="w-full h-auto max-h-[70vh] object-cover" />
-            </motion.div>
+            </Reveal>
           </div>
         </section>
       )}

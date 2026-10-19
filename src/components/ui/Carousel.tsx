@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { gsap, useGSAP, EASE, prefersReducedMotion } from '../../lib/gsap';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface CarouselProps {
@@ -10,6 +10,12 @@ interface CarouselProps {
 
 export function Carousel({ images, autoPlay = true, interval = 5000 }: CarouselProps) {
   const [index, setIndex] = useState(0);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  useGSAP(() => {
+    if (!imgRef.current || prefersReducedMotion()) return;
+    gsap.fromTo(imgRef.current, { opacity: 0, scale: 1.1 }, { opacity: 1, scale: 1, duration: 0.6, ease: EASE.expo, clearProps: 'opacity,transform' });
+  }, { dependencies: [index] });
 
   useEffect(() => {
     if (!autoPlay || images.length <= 1) return;
@@ -26,17 +32,11 @@ export function Carousel({ images, autoPlay = true, interval = 5000 }: CarouselP
 
   return (
     <div className="relative group w-full aspect-video rounded-3xl overflow-hidden border border-white/10 my-8 shadow-2xl">
-      <AnimatePresence mode="wait">
-        <motion.img
-          key={index}
-          src={images[index]}
-          initial={{ opacity: 0, scale: 1.1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      </AnimatePresence>
+      <img
+        ref={imgRef}
+        src={images[index]}
+        className="absolute inset-0 w-full h-full object-cover"
+      />
 
       {/* Overlay Gradient */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />

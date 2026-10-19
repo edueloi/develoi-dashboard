@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal } from '../motion';
 import {
   BarChart2, FileText, Plus, Search, Edit2, Trash2, Eye, CheckCircle,
   Archive, Star, Tag, Image as ImageIcon, Globe, X, Save, ChevronDown, Clock,
@@ -103,31 +103,29 @@ export function CasesManager() {
   return (
     <div className="space-y-4">
       <Tabs<'overview' | 'cases' | 'editor' | 'categories'> items={tabs} value={activeTab} onChange={setActiveTab} label="Seções dos cases de sucesso">
-      <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
-          <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="overview" immediate distance={12} duration={0.3}>
             <CasesOverview onNew={() => openEditor()} />
-          </motion.div>
+          </Reveal>
         )}
         {activeTab === 'cases' && (
-          <motion.div key="cases" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="cases" immediate distance={12} duration={0.3}>
             <CasesList onEdit={openEditor} />
-          </motion.div>
+          </Reveal>
         )}
         {activeTab === 'editor' && (
-          <motion.div key="editor" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="editor" immediate distance={12} duration={0.3}>
             <CaseEditor
               caseItem={editingCase}
               onSaved={() => { setEditingCase(null); setActiveTab('cases'); }}
             />
-          </motion.div>
+          </Reveal>
         )}
         {activeTab === 'categories' && (
-          <motion.div key="categories" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="categories" immediate distance={12} duration={0.3}>
             <CategoriesManager />
-          </motion.div>
+          </Reveal>
         )}
-      </AnimatePresence>
       </Tabs>
     </div>
   );

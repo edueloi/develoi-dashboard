@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import { 
   Download, Layout, Type, Palette, Image as ImageIcon, 
@@ -620,25 +619,33 @@ export function PostCreatorTab() {
               
               <div ref={previewRef} className="w-full h-full relative overflow-hidden" style={{ backgroundColor: bgColor }}>
                 {elements.map(el => (
-                  <motion.div
+                  <div
                     key={el.id}
-                    drag
-                    dragMomentum={false}
-                    onDragEnd={(_, info) => {
-                      updateElement(el.id, { x: el.x + info.offset.x, y: el.y + info.offset.y });
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      const startX = e.clientX, startY = e.clientY, ox = el.x, oy = el.y;
+                      const scale = Math.min(1, (window.innerWidth - 350 - 320) / activeFormatConfig.width, (window.innerHeight - 150) / activeFormatConfig.height) || 1;
+                      const onMove = (ev: PointerEvent) => {
+                        updateElement(el.id, { x: ox + (ev.clientX - startX) / scale, y: oy + (ev.clientY - startY) / scale });
+                      };
+                      const onUp = () => {
+                        window.removeEventListener('pointermove', onMove);
+                        window.removeEventListener('pointerup', onUp);
+                      };
+                      window.addEventListener('pointermove', onMove);
+                      window.addEventListener('pointerup', onUp);
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedId(el.id);
                     }}
-                    initial={{ x: el.x, y: el.y }}
-                    animate={{ x: el.x, y: el.y }}
-                    transition={{ type: 'tween', duration: 0 }}
                     className={`absolute cursor-move origin-top-left ${selectedId === el.id ? 'ring-2 ring-indigo-500' : ''}`}
                     style={{
                       width: el.width,
                       height: el.height,
                       zIndex: el.zIndex,
+                      transform: `translate(${el.x}px, ${el.y}px)`,
+                      touchAction: 'none',
                     }}
                   >
                     {el.type === 'text' && (
@@ -707,7 +714,7 @@ export function PostCreatorTab() {
                         <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>

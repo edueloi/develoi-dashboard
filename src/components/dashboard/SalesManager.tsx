@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, Plus, Edit2, Trash2, CheckCircle2, XCircle,
   Clock, AlertCircle, Search, Filter, Users, BarChart2, Eye,

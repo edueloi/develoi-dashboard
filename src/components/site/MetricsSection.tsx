@@ -1,6 +1,5 @@
-// @ts-nocheck
 import React from 'react';
-import { motion } from 'framer-motion';
+import { Stagger, CountUp } from '../motion';
 
 const metrics = [
   { value: '+50', label: 'Projetos entregues' },
@@ -26,21 +25,17 @@ export default function MetricsSection() {
             style={{ background: 'linear-gradient(90deg, transparent, var(--brand-gold), transparent)' }}
           />
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
+          <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6" stagger={0.1} distance={16}>
             {metrics.map((metric, idx) => (
-              <motion.div
+              <div
                 key={idx}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
                 className="flex flex-col items-center justify-center text-center relative"
               >
                 <div
                   className="text-4xl md:text-5xl font-black mb-2 tracking-tighter"
                   style={{ color: 'var(--brand-gold)' }}
                 >
-                  {metric.value}
+                  <CountUp value={metric.value} />
                 </div>
                 <div className="text-xs font-semibold uppercase tracking-[0.15em] text-white/60">
                   {metric.label}
@@ -52,9 +47,9 @@ export default function MetricsSection() {
                     style={{ background: 'rgba(255,255,255,0.12)' }}
                   />
                 )}
-              </motion.div>
+              </div>
             ))}
-          </div>
+          </Stagger>
         </div>
       </div>
     </section>

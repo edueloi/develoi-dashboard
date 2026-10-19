@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Reveal } from '../motion';
 import {
   FileText, Plus, Search, Eye, Edit2, Trash2, Globe, Archive,
   Star, Tag, Users, BarChart2, Mail, ChevronLeft, ChevronRight,
@@ -132,38 +132,36 @@ export function BlogManager() {
         onChange={setTab}
         label="Seções do blog"
       >
-      <AnimatePresence mode="wait">
         {tab === "overview" && (
-          <motion.div key="overview" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="overview" immediate distance={12} duration={0.3}>
             <BlogOverview onNewPost={handleNewPost} />
-          </motion.div>
+          </Reveal>
         )}
         {tab === "posts" && (
-          <motion.div key="posts" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="posts" immediate distance={12} duration={0.3}>
             <BlogPostsList onNew={handleNewPost} onEdit={handleEditPost} />
-          </motion.div>
+          </Reveal>
         )}
         {tab === "editor" && (
-          <motion.div key="editor" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="editor" immediate distance={12} duration={0.3}>
             <PostEditor post={editingPost} onBack={handleBackFromEditor} />
-          </motion.div>
+          </Reveal>
         )}
         {tab === "categories" && (
-          <motion.div key="categories" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="categories" immediate distance={12} duration={0.3}>
             <CategoriesManager />
-          </motion.div>
+          </Reveal>
         )}
         {tab === "authors" && (
-          <motion.div key="authors" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="authors" immediate distance={12} duration={0.3}>
             <AuthorsManager />
-          </motion.div>
+          </Reveal>
         )}
         {tab === "subscribers" && (
-          <motion.div key="subscribers" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+          <Reveal key="subscribers" immediate distance={12} duration={0.3}>
             <SubscribersManager />
-          </motion.div>
+          </Reveal>
         )}
-      </AnimatePresence>
       </Tabs>
     </div>
   );

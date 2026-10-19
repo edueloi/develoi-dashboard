@@ -1,5 +1,6 @@
-import React from "react";
-import { motion } from "framer-motion";
+import React, { useRef } from "react";
+import { gsap, useGSAP } from "../../lib/gsap";
+import { CountUp } from "../motion/CountUp";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
@@ -71,12 +72,15 @@ export function StatCard({
   delay = 0,
 }: StatCardProps) {
   const c = colorMap[color];
+  const ref = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    gsap.from(ref.current, { opacity: 0, y: 16, duration: 0.5, delay, clearProps: "opacity,transform" });
+  }, { scope: ref });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3, ease: "easeOut" }}
+    <div
+      ref={ref}
       className={cn(
         "bg-white dark:bg-white/5 rounded-2xl border border-zinc-200 dark:border-white/10 shadow-sm",
         "hover:shadow-md transition-all duration-300 group",
@@ -135,7 +139,7 @@ export function StatCard({
           {title}
         </p>
         <h3 className="text-xl sm:text-2xl font-black text-zinc-900 dark:text-white tracking-tight leading-none">
-          {value}
+          {typeof value === "string" || typeof value === "number" ? <CountUp value={String(value)} duration={1.2} /> : value}
         </h3>
         {description && (
           <p className="text-[9px] sm:text-[10px] text-zinc-400 dark:text-white/40 mt-1 sm:mt-1.5 font-medium flex items-center gap-1">
@@ -144,6 +148,6 @@ export function StatCard({
           </p>
         )}
       </div>
-    </motion.div>
+    </div>
   );
 }

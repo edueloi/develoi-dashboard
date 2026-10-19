@@ -1,4 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal, Presence } from './motion';
+import { gsap, EASE } from '../lib/gsap';
 import { Send, Mail, MapPin, Phone, CheckCircle2, Loader2, MessageSquare } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -60,12 +61,7 @@ export default function Contact() {
 
           {/* Left — info */}
           <div className="space-y-8 sm:space-y-10">
-            <motion.div
-              initial={{ opacity: 0, x: -24 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            >
+            <Reveal from="left" distance={24} duration={0.8}>
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest mb-6 border"
                 style={{
@@ -90,20 +86,15 @@ export default function Contact() {
                 <strong style={{ color: 'var(--brand-navy)', fontWeight: 700 }}>Develoi</strong>{' '}
                 pode transformar seu negócio.
               </p>
-            </motion.div>
+            </Reveal>
 
             {/* Contact items */}
             <div className="space-y-4 sm:space-y-5">
               {contactItems.map((item, index) => (
-                <motion.a
-                  key={item.label}
+                <Reveal key={item.label} from="left" distance={16} delay={index * 0.1} duration={0.6}>
+                <a
                   href={item.href}
-                  initial={{ opacity: 0, x: -16 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1, duration: 0.6 }}
-                  whileHover={{ x: 4 }}
-                  className="flex items-center gap-4 group cursor-pointer"
+                  className="hover:translate-x-1 transition-transform duration-300 flex items-center gap-4 group cursor-pointer"
                 >
                   <div
                     className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 border transition-all duration-250 group-hover:shadow-md"
@@ -128,53 +119,36 @@ export default function Contact() {
                       {item.value}
                     </p>
                   </div>
-                </motion.a>
+                </a>
+                </Reveal>
               ))}
             </div>
 
             {/* Trust tags */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.35 }}
-              className="flex flex-wrap gap-2.5"
-            >
+            <Reveal distance={16} delay={0.35} className="flex flex-wrap gap-2.5">
               {['Resposta em 24h', 'Sem compromisso', 'Orçamento gratuito'].map((tag) => (
                 <span key={tag} className="tag-pill">
                   <CheckCircle2 className="w-3 h-3" />
                   {tag}
                 </span>
               ))}
-            </motion.div>
+            </Reveal>
           </div>
 
           {/* Right — form */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="brand-card card-gold-top p-7 sm:p-10 relative overflow-hidden"
-          >
-            <AnimatePresence mode="wait">
+          <Reveal distance={24} duration={0.8} className="brand-card card-gold-top p-7 sm:p-10 relative overflow-hidden">
+            <>
               {status === 'success' ? (
-                <motion.div
+                <Reveal
                   key="success"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
+                  from="scale"
+                  immediate
+                  duration={0.5}
                   className="text-center py-12 space-y-5"
                 >
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
-                    className="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
-                    style={{ background: 'rgba(21,128,61,0.1)', border: '2px solid rgba(21,128,61,0.3)' }}
-                  >
+                  <Reveal from="scale" delay={0.1} immediate className="w-20 h-20 rounded-full flex items-center justify-center mx-auto" style={{ background: 'rgba(21,128,61,0.1)', border: '2px solid rgba(21,128,61,0.3)' }}>
                     <CheckCircle2 className="w-10 h-10" style={{ color: 'var(--accent-success)' }} />
-                  </motion.div>
+                  </Reveal>
                   <h3
                     className="text-2xl sm:text-3xl font-black tracking-tighter"
                     style={{ color: 'var(--brand-navy)' }}
@@ -191,13 +165,13 @@ export default function Contact() {
                   >
                     ENVIAR OUTRA
                   </button>
-                </motion.div>
+                </Reveal>
               ) : (
-                <motion.form
+                <Reveal
+                  as="form"
                   key="form"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  from="fade"
+                  immediate
                   onSubmit={handleSubmit}
                   className="space-y-5"
                 >
@@ -258,12 +232,10 @@ export default function Contact() {
                     />
                   </div>
 
-                  <motion.button
-                    whileHover={status !== 'loading' ? { scale: 1.01, y: -1 } : {}}
-                    whileTap={status !== 'loading' ? { scale: 0.99 } : {}}
+                  <button
                     disabled={status === 'loading'}
                     type="submit"
-                    className="w-full py-4 font-black rounded-xl flex items-center justify-center gap-3 disabled:opacity-60 transition-all duration-200 text-white text-sm hover:shadow-[0_8px_24px_rgba(13,31,78,0.3)] hover:-translate-y-px"
+                    className="w-full py-4 font-black rounded-xl flex items-center justify-center gap-3 disabled:opacity-60 transition-all duration-200 text-white text-sm hover:shadow-[0_8px_24px_rgba(13,31,78,0.3)] enabled:hover:-translate-y-px enabled:hover:scale-[1.01] enabled:active:scale-[0.99]"
                     style={{ background: 'var(--brand-navy)' }}
                   >
                     {status === 'loading' ? (
@@ -277,25 +249,25 @@ export default function Contact() {
                         <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                       </>
                     )}
-                  </motion.button>
+                  </button>
 
-                  <AnimatePresence>
-                    {status === 'error' && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        className="text-center text-sm font-semibold"
-                        style={{ color: 'var(--accent-error)' }}
-                      >
-                        Ocorreu um erro. Tente novamente.
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </motion.form>
+                  <Presence
+                    open={status === 'error'}
+                    enter={(root) => gsap.fromTo(root.querySelector('[data-p="err"]'), { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.3, ease: EASE.out })}
+                    exit={(root) => gsap.to(root.querySelector('[data-p="err"]'), { opacity: 0, y: -8, duration: 0.2 })}
+                  >
+                    <p
+                      data-p="err"
+                      className="text-center text-sm font-semibold"
+                      style={{ color: 'var(--accent-error)' }}
+                    >
+                      Ocorreu um erro. Tente novamente.
+                    </p>
+                  </Presence>
+                </Reveal>
               )}
-            </AnimatePresence>
-          </motion.div>
+            </>
+          </Reveal>
         </div>
       </div>
     </section>

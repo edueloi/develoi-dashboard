@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { motion } from 'framer-motion';
+import { Reveal } from '../components/motion';
 import { Shield, Lock, Eye, Database, UserCheck, Mail, ArrowRight } from 'lucide-react';
 
 const sections = [
@@ -126,18 +126,11 @@ function Section({ section, index }: { section: typeof sections[0]; index: numbe
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ delay: index * 0.05 }}
-      className="rounded-2xl p-6 sm:p-8"
-      style={{
+    <Reveal distance={16} delay={index * 0.05} className="rounded-2xl p-6 sm:p-8" style={{
         background: 'white',
         border: '1px solid var(--border-color)',
         boxShadow: '0 1px 6px rgba(13,31,78,0.05)',
-      }}
-    >
+      }}>
       <div className="flex items-center gap-3 mb-4">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -158,19 +151,13 @@ function Section({ section, index }: { section: typeof sections[0]; index: numbe
       >
         {renderContent(section.content)}
       </div>
-    </motion.div>
+    </Reveal>
   );
 }
 
 export default function PrivacyPolicy() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative min-h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}
-    >
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Blurs decorativos */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[5%] right-[-5%] w-[500px] h-[500px] rounded-full blur-[140px]" style={{ background: 'rgba(13,31,78,0.04)' }} />
@@ -184,12 +171,7 @@ export default function PrivacyPolicy() {
       >
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-2xl"
-          >
+          <Reveal distance={20} duration={0.7} immediate className="max-w-2xl">
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
@@ -209,7 +191,7 @@ export default function PrivacyPolicy() {
             <p className="text-xs mt-4 font-medium" style={{ color: 'rgba(255,255,255,0.3)' }}>
               Última atualização: junho de 2026
             </p>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
@@ -218,23 +200,17 @@ export default function PrivacyPolicy() {
         <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12">
 
           {/* Aviso LGPD */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="flex items-start gap-3 rounded-2xl px-6 py-5 mb-10"
-            style={{
+          <Reveal distance={12} delay={0.15} immediate className="flex items-start gap-3 rounded-2xl px-6 py-5 mb-10" style={{
               background: 'rgba(13,31,78,0.05)',
               border: '1px solid rgba(13,31,78,0.1)',
-            }}
-          >
+            }}>
             <Shield className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--brand-navy)' }} />
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               Esta política foi elaborada em conformidade com a{' '}
               <strong style={{ color: 'var(--brand-navy)' }}>Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)</strong>.
               {' '}Nos comprometemos a tratar seus dados pessoais com segurança, transparência e respeito.
             </p>
-          </motion.div>
+          </Reveal>
 
           {/* Seções */}
           <div className="space-y-4">
@@ -248,16 +224,10 @@ export default function PrivacyPolicy() {
       {/* CTA */}
       <section className="pb-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="rounded-2xl overflow-hidden relative"
-            style={{
+          <Reveal distance={20} className="rounded-2xl overflow-hidden relative" style={{
               background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
               boxShadow: '0 20px 60px rgba(13,31,78,0.2)',
-            }}
-          >
+            }}>
             <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.15) 70%, transparent)' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div>
@@ -293,9 +263,9 @@ export default function PrivacyPolicy() {
                 </a>
               </div>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

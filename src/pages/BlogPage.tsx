@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
+import { Reveal } from '../components/motion';
 import { ArrowRight, Mail, CheckCircle, Search, BookOpen, Filter } from "lucide-react";
 
 interface BlogCategory { id: string; name: string; slug: string; color: string; _count?: { posts: number }; }
@@ -36,13 +36,13 @@ function NewsletterBanner() {
   };
 
   if (subscribed) return (
-    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="p-8 rounded-2xl text-center bg-white border" style={{ borderColor: 'rgba(196,154,42,0.3)' }}>
+    <Reveal from="scale" immediate className="p-8 rounded-2xl text-center bg-white border" style={{ borderColor: 'rgba(196,154,42,0.3)' }}>
       <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(196,154,42,0.1)' }}>
         <CheckCircle className="w-7 h-7" style={{ color: 'var(--brand-gold)' }} />
       </div>
       <h3 className="text-base font-black mb-1 tracking-tight" style={{ color: 'var(--brand-navy)' }}>Inscrição Confirmada!</h3>
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Você vai receber nossos conteúdos em primeira mão.</p>
-    </motion.div>
+    </Reveal>
   );
 
   return (
@@ -114,7 +114,7 @@ function FeaturedPost({ post }: { post: BlogPost }) {
 function PostCard({ post, index }: { post: BlogPost; index: number }) {
   const navigate = useNavigate();
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: index * 0.07 }}>
+    <Reveal distance={16} delay={index * 0.07} duration={0.5}>
       <div onClick={() => navigate(`/blog/${post.slug}`)} className="group cursor-pointer bg-white rounded-2xl border overflow-hidden h-full flex flex-col transition-all duration-250 hover:-translate-y-1"
         style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(13,31,78,0.1)'; }}
@@ -148,7 +148,7 @@ function PostCard({ post, index }: { post: BlogPost; index: number }) {
           </div>
         </div>
       </div>
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -216,7 +216,7 @@ export default function BlogPage() {
   const showFeatured = page === 1 && !search && !category;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Background */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[8%] right-[-6%] w-[500px] h-[500px] rounded-full blur-[130px]" style={{ background: 'rgba(13,31,78,0.05)' }} />
@@ -228,7 +228,7 @@ export default function BlogPage() {
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.3) 60%,transparent)' }} />
         <div className="absolute bottom-0 left-0 right-0 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22,1,0.36,1] }} className="max-w-3xl">
+          <Reveal distance={20} duration={0.7} immediate className="max-w-3xl">
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-6 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>Blog Develoi</span>
@@ -240,14 +240,14 @@ export default function BlogPage() {
             <p className="text-lg leading-relaxed max-w-xl" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Tecnologia, estratégia e tendências digitais para impulsionar o seu negócio.
             </p>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
       {/* BUSCA + FILTROS */}
       <section className="py-12 md:py-16" style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
         <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.15 }} className="relative mb-8">
+          <Reveal distance={16} delay={0.15} duration={0.6} immediate className="relative mb-8">
             <div className="relative flex items-center bg-white rounded-2xl border" style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.06)' }}>
               <Search className="ml-5 w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-navy)' }} />
               <input value={searchInput} onChange={e => setSearchInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSearch()}
@@ -259,10 +259,10 @@ export default function BlogPage() {
                 Buscar
               </button>
             </div>
-          </motion.div>
+          </Reveal>
 
           {categories.length > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }} className="flex flex-wrap justify-center gap-2">
+            <Reveal from="fade" delay={0.25} immediate className="flex flex-wrap justify-center gap-2">
               <button onClick={() => setCategory("")} className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200"
                 style={!category ? { background: 'var(--brand-navy)', color: 'white', boxShadow: '0 4px 14px rgba(13,31,78,0.2)' } : { background: 'white', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
                 Todos
@@ -275,7 +275,7 @@ export default function BlogPage() {
                   {cat.name}{cat._count && <span className="ml-1.5 opacity-50">[{cat._count.posts}]</span>}
                 </button>
               ))}
-            </motion.div>
+            </Reveal>
           )}
         </div>
       </section>
@@ -284,10 +284,10 @@ export default function BlogPage() {
       {showFeatured && featured[0] && (
         <section className="py-16 md:py-20">
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-            <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="flex items-center gap-2 mb-8">
+            <Reveal distance={16} className="flex items-center gap-2 mb-8">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Em destaque</span>
-            </motion.div>
+            </Reveal>
             <FeaturedPost post={featured[0]} />
           </div>
         </section>
@@ -296,7 +296,7 @@ export default function BlogPage() {
       {/* GRID */}
       <section className="pb-24 md:pb-32" style={{ background: 'var(--bg-tertiary)' }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16">
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
+          <Reveal distance={16} className="text-center mb-12">
             <div className="inline-flex items-center gap-2 mb-4">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
@@ -315,7 +315,7 @@ export default function BlogPage() {
                 Limpar filtros ×
               </button>
             )}
-          </motion.div>
+          </Reveal>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -359,9 +359,7 @@ export default function BlogPage() {
       {/* NEWSLETTER */}
       <section className="py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-            className="rounded-2xl overflow-hidden relative"
-            style={{ background: 'linear-gradient(135deg,#06112B 0%,#0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}>
+          <Reveal distance={20} className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg,#06112B 0%,#0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}>
             <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.2) 70%,transparent)' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               <div>
@@ -379,9 +377,9 @@ export default function BlogPage() {
               </div>
               <NewsletterBanner />
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

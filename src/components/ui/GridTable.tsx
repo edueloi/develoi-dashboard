@@ -1,7 +1,8 @@
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useRef, useState } from 'react';
 import { CheckSquare, Square, ChevronDown } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
-import { motion, AnimatePresence } from 'motion/react';
+import { gsap, useGSAP } from '../../lib/gsap';
+import { Presence } from '../motion/Presence';
 import { Pagination } from './Pagination';
 
 export interface Column<T> {
@@ -97,11 +98,18 @@ function MobileCard<T>({
     }
   };
 
+  const cardRef = useRef<HTMLDivElement>(null);
+  const chevronRef = useRef<HTMLDivElement>(null);
+  useGSAP(() => {
+    gsap.from(cardRef.current, { opacity: 0, y: 8, duration: 0.35, clearProps: 'opacity,transform' });
+  }, { scope: cardRef });
+  useGSAP(() => {
+    if (chevronRef.current) gsap.to(chevronRef.current, { rotate: expanded ? 180 : 0, duration: 0.25 });
+  }, { dependencies: [expanded] });
+
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
+      ref={cardRef}
       className={cn(
         'bg-white rounded-2xl border shadow-sm overflow-hidden transition-colors',
         isSelected ? 'border-amber-400 bg-amber-50/30' : borderClass,
@@ -139,35 +147,27 @@ function MobileCard<T>({
 
         {/* Expand chevron or row-click arrow */}
         {isExpandable && (
-          <motion.div
-            animate={{ rotate: expanded ? 180 : 0 }}
-            transition={{ duration: 0.2 }}
-            className="shrink-0"
-          >
+          <div ref={chevronRef} className="shrink-0">
             <ChevronDown size={16} className="text-zinc-300" />
-          </motion.div>
+          </div>
         )}
       </div>
 
       {/* ── Expandable body ── */}
       {isExpandable && (
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <div className="border-t border-zinc-100">
-                {renderMobileExpandedContent!(row)}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <Presence
+          open={expanded}
+          enter={root => gsap.fromTo(root.querySelector('[data-p="body"]'), { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.3, clearProps: 'height' })}
+          exit={root => gsap.to(root.querySelector('[data-p="body"]'), { height: 0, opacity: 0, duration: 0.22, ease: 'power2.in' })}
+        >
+          <div data-p="body" className="overflow-hidden">
+            <div className="border-t border-zinc-100">
+              {renderMobileExpandedContent!(row)}
+            </div>
+          </div>
+        </Presence>
       )}
-    </motion.div>
+    </div>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal, Presence } from '../components/motion';
+import { gsap, EASE } from '../lib/gsap';
 import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, ArrowRight, Loader2, CheckCircle, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -19,10 +20,8 @@ export default function Login() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#F0F2F8' }}>
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          className="w-10 h-10 rounded-full border-2 border-t-transparent"
+        <div
+          className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin"
           style={{ borderColor: '#C49A2A', borderTopColor: 'transparent' }}
         />
       </div>
@@ -78,11 +77,7 @@ export default function Login() {
 
         {/* Conteúdo central */}
         <div className="flex-1 flex flex-col justify-center px-10 xl:px-14 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, x: -24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          >
+          <Reveal from="left" distance={24} duration={0.8} immediate>
             {/* Badge */}
             <div className="inline-flex items-center gap-2 mb-8">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
@@ -107,21 +102,15 @@ export default function Login() {
                 { icon: Zap, text: 'Gestão de projetos em tempo real' },
                 { icon: Globe, text: 'Controle total do site público' },
               ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + i * 0.1 }}
-                  className="flex items-center gap-3"
-                >
+                <Reveal from="left" distance={16} delay={0.3 + i * 0.1} immediate key={i} className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(196,154,42,0.12)', border: '1px solid rgba(196,154,42,0.2)' }}>
                     <item.icon className="w-4 h-4" style={{ color: 'var(--brand-gold)' }} />
                   </div>
                   <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.55)' }}>{item.text}</span>
-                </motion.div>
+                </Reveal>
               ))}
             </div>
-          </motion.div>
+          </Reveal>
         </div>
 
         {/* Rodapé esquerdo */}
@@ -148,12 +137,7 @@ export default function Login() {
           </a>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full max-w-md"
-        >
+        <Reveal distance={24} duration={0.7} immediate className="w-full max-w-md">
           {/* Header formulário */}
           <div className="mb-8">
             <h2 className="text-2xl font-black tracking-tight mb-1" style={{ color: '#0D1F4E' }}>
@@ -253,28 +237,26 @@ export default function Login() {
               </div>
 
               {/* Erro */}
-              <AnimatePresence>
-                {status === 'error' && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-3 p-3.5 rounded-xl"
-                    style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)' }}
-                  >
-                    <ShieldCheck className="w-4 h-4 text-red-500 flex-shrink-0" />
-                    <p className="text-xs font-bold text-red-500">{error}</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <Presence
+                open={status === 'error'}
+                enter={(root) => gsap.fromTo(root.querySelector('[data-p="err"]'), { opacity: 0, height: 0 }, { opacity: 1, height: 'auto', duration: 0.3, ease: EASE.expo, clearProps: 'height' })}
+                exit={(root) => gsap.to(root.querySelector('[data-p="err"]'), { opacity: 0, height: 0, duration: 0.25 })}
+              >
+                <div
+                  data-p="err"
+                  className="flex items-center gap-3 p-3.5 rounded-xl overflow-hidden"
+                  style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.15)' }}
+                >
+                  <ShieldCheck className="w-4 h-4 text-red-500 flex-shrink-0" />
+                  <p className="text-xs font-bold text-red-500">{error}</p>
+                </div>
+              </Presence>
 
               {/* Botão */}
-              <motion.button
+              <button
                 type="submit"
                 disabled={status === 'loading'}
-                whileHover={status !== 'loading' ? { y: -1 } : {}}
-                whileTap={status !== 'loading' ? { scale: 0.99 } : {}}
-                className="w-full py-3.5 text-white font-black rounded-xl text-sm uppercase tracking-[0.15em] flex items-center justify-center gap-2.5 disabled:opacity-60 transition-all duration-200"
+                className="enabled:hover:-translate-y-px enabled:active:scale-[0.99] w-full py-3.5 text-white font-black rounded-xl text-sm uppercase tracking-[0.15em] flex items-center justify-center gap-2.5 disabled:opacity-60 transition-all duration-200"
                 style={{
                   background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
                   boxShadow: '0 6px 20px rgba(13,31,78,0.25)',
@@ -288,7 +270,7 @@ export default function Login() {
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
-              </motion.button>
+              </button>
             </form>
 
             {/* Selos */}
@@ -310,7 +292,7 @@ export default function Login() {
           <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-slate-300">
             © 2026 Develoi Systems · v2.5.0
           </p>
-        </motion.div>
+        </Reveal>
       </div>
     </div>
   );

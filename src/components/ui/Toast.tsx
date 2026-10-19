@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { gsap, useGSAP } from '../../lib/gsap';
 import { Check, X, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -66,18 +66,29 @@ const toastConfig = {
 export function Toast({ id, type, message, onClose, isMobile }: ToastProps) {
   const cfg = toastConfig[type];
 
-  useEffect(() => {
-    const t = setTimeout(() => onClose(id), 5000);
-    return () => clearTimeout(t);
-  }, [id, onClose]);
+  const root = useRef<HTMLDivElement>(null);
+  const timer = useRef<gsap.core.Tween | null>(null);
+  const closing = useRef(false);
+  const off = isMobile ? { y: 80, scale: 0.96 } : { x: 60, scale: 0.97 };
+
+  const close = () => {
+    if (closing.current) return;
+    closing.current = true;
+    timer.current?.kill();
+    gsap.to(root.current, { ...off, opacity: 0, duration: 0.3, ease: 'power3.in', onComplete: () => onClose(id) });
+  };
+
+  useGSAP(() => {
+    gsap.from(root.current, { ...off, opacity: 0, duration: 0.6, ease: 'back.out(1.4)' });
+    // barra de progresso = temporizador (pausa ao passar o mouse)
+    timer.current = gsap.fromTo('[data-t="bar"]', { scaleX: 1 }, { scaleX: 0, duration: 5, ease: 'none', onComplete: close });
+  }, { scope: root });
 
   return (
-    <motion.div
-      layout
-      initial={isMobile ? { y: 80, opacity: 0, scale: 0.96 } : { x: 60, opacity: 0, scale: 0.97 }}
-      animate={isMobile ? { y: 0, opacity: 1, scale: 1 } : { x: 0, opacity: 1, scale: 1 }}
-      exit={isMobile ? { y: 80, opacity: 0, scale: 0.96 } : { x: 60, opacity: 0, scale: 0.97 }}
-      transition={{ type: "spring", damping: 26, stiffness: 280 }}
+    <div
+      ref={root}
+      onMouseEnter={() => timer.current?.pause()}
+      onMouseLeave={() => timer.current?.resume()}
       className={cn(
         "group pointer-events-auto relative flex overflow-hidden",
         "bg-white shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-zinc-100",
@@ -109,7 +120,7 @@ export function Toast({ id, type, message, onClose, isMobile }: ToastProps) {
 
         {/* Fechar */}
         <button
-          onClick={() => onClose(id)}
+          onClick={close}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-300 hover:bg-zinc-50 hover:text-zinc-500 transition-all"
           aria-label="Fechar"
         >
@@ -119,14 +130,9 @@ export function Toast({ id, type, message, onClose, isMobile }: ToastProps) {
 
       {/* Barra de progresso */}
       <div className="absolute bottom-0 left-0 w-full h-[3px] bg-zinc-50/80">
-        <motion.div
-          initial={{ width: "100%" }}
-          animate={{ width: "0%" }}
-          transition={{ duration: 5, ease: "linear" }}
-          className={cn("h-full", cfg.bar)}
-        />
+        <div data-t="bar" className={cn("h-full origin-left", cfg.bar)} />
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -192,11 +198,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             : undefined,
         }}
       >
-        <AnimatePresence mode="popLayout">
-          {toasts.map((toast) => (
-            <Toast key={toast.id} {...toast} onClose={remove} isMobile={isMobile} />
-          ))}
-        </AnimatePresence>
+        {toasts.map((toast) => (
+          <Toast key={toast.id} {...toast} onClose={remove} isMobile={isMobile} />
+        ))}
       </div>
     </ToastContext.Provider>
   );

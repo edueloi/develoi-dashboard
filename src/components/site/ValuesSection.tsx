@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { Reveal, Stagger, SplitReveal } from '../motion';
 import { Flame, Zap, TrendingUp, Heart, Users, Shield, Compass } from 'lucide-react';
 
 const principles = [
@@ -18,26 +18,25 @@ export default function ValuesSection() {
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+        <Reveal distance={16} className="text-center mb-14">
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
             <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>O que nos define</span>
             <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
           </div>
-          <h2 className="font-black tracking-tight mb-4" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
+          <SplitReveal as="h2" className="font-black tracking-tight mb-4" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
             Nossos Princípios
-          </h2>
+          </SplitReveal>
           <p className="text-sm max-w-lg mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             Não são regras em uma parede — são a alma de cada entrega, cada reunião e cada linha de código que produzimos.
           </p>
-        </motion.div>
+        </Reveal>
 
         {/* Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-14">
+        <Stagger className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-14" stagger={0.07} distance={16}>
           {principles.map((p, i) => (
-            <motion.div key={p.label} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: i * 0.07 }}
-              className="bg-white rounded-2xl p-6 border transition-all duration-250 hover:-translate-y-1"
+            <div key={p.label}
+              className="bg-white rounded-2xl p-6 border transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
               style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.04)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.09)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.04)'; }}
@@ -54,12 +53,12 @@ export default function ValuesSection() {
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{p.desc}</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </div>
+        </Stagger>
 
         {/* Quote */}
-        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center">
+        <Reveal distance={16} className="text-center">
           <div className="flex items-center justify-center gap-3 mb-6">
             <div className="h-px w-10" style={{ background: 'var(--border-color)' }} />
             <span className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--text-muted)' }}>Develoi Soluções Digitais</span>
@@ -69,7 +68,7 @@ export default function ValuesSection() {
             "Não entregamos apenas software.{' '}
             <span style={{ color: 'var(--brand-gold)' }}>Entregamos propósito com precisão."</span>
           </p>
-        </motion.div>
+        </Reveal>
       </div>
     </section>
   );

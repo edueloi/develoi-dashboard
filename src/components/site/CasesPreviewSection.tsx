@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { Reveal, Stagger, SplitReveal } from '../motion';
 import { ArrowRight, Folder, Sparkles, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -40,9 +40,9 @@ export default function CasesPreviewSection() {
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Nossos projetos</span>
             </div>
-            <h2 className="font-black tracking-tight" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
+            <SplitReveal as="h2" className="font-black tracking-tight" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
               Resultados que falam por si mesmos.
-            </h2>
+            </SplitReveal>
           </div>
           {cases.length > 0 && (
             <Link to="/projetos" className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 hover:-translate-y-px group"
@@ -53,19 +53,18 @@ export default function CasesPreviewSection() {
         </div>
 
         {cases.length === 0 ? (
-          <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          <Reveal distance={16}
             className="bg-white rounded-2xl p-14 text-center border" style={{ borderColor: 'var(--border-color)' }}>
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--bg-tertiary)' }}>
               <Sparkles className="w-7 h-7" style={{ color: 'var(--brand-gold)' }} />
             </div>
             <h3 className="font-black text-base mb-2 tracking-tight" style={{ color: 'var(--brand-navy)' }}>Em breve: Novas histórias de sucesso.</h3>
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Estamos finalizando projetos incríveis que em breve estarão aqui.</p>
-          </motion.div>
+          </Reveal>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {cases.map((item, idx) => (
-              <motion.div key={item.id} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}>
+          <Stagger className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" stagger={0.1} distance={20}>
+            {cases.map((item) => (
+              <div key={item.id}>
                 <Link to={`/projetos/${item.slug}`} className="group block">
                   <div className="relative h-[380px] rounded-2xl overflow-hidden border transition-all duration-300"
                     style={{ borderColor: 'var(--border-color)', boxShadow: '0 4px 20px rgba(13,31,78,0.08)' }}
@@ -95,9 +94,9 @@ export default function CasesPreviewSection() {
                     </div>
                   </div>
                 </Link>
-              </motion.div>
+              </div>
             ))}
-          </div>
+          </Stagger>
         )}
       </div>
     </section>

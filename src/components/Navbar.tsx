@@ -1,4 +1,5 @@
-import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
+import { gsap, useGSAP } from '../lib/gsap';
+import { Presence } from './motion/Presence';
 import { Menu, X, LayoutDashboard, ArrowUpRight, ChevronRight, ChevronDown, Folder } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
@@ -29,13 +30,23 @@ export default function Navbar() {
   const [categories, setCategories] = useState<CaseCategory[]>([]);
   const location = useLocation();
   const { user } = useAuth();
-  const { scrollY } = useScroll();
+  const navRef = useRef<HTMLDivElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useMotionValueEvent(scrollY, 'change', (latest) => {
-    setScrolled(latest > 40);
-  });
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // entrada da barra + links em cascata
+  useGSAP(() => {
+    const tl = gsap.timeline({ delay: 0.1 });
+    tl.from(navRef.current, { y: -24, opacity: 0, duration: 0.8, ease: 'expo.out', clearProps: 'transform,opacity' });
+    tl.from('[data-nav="links"] > *', { y: -10, opacity: 0, duration: 0.5, stagger: 0.05, clearProps: 'transform,opacity' }, 0.25);
+  }, { scope: navRef });
 
   useEffect(() => {
     fetch('/api/cases-categories')
@@ -62,10 +73,8 @@ export default function Navbar() {
   return (
     <>
       <nav className="fixed top-0 left-0 right-0 z-50">
-        <motion.div
-          initial={{ y: -10, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        <div
+          ref={navRef}
           className="flex items-center justify-between px-6 sm:px-10 lg:px-16"
           style={{
             background: scrolled ? 'rgba(6,17,43,0.98)' : 'rgba(6,17,43,0.82)',
@@ -86,7 +95,7 @@ export default function Navbar() {
           </Link>
 
           {/* Links centrais — desktop */}
-          <div className="hidden lg:flex items-center gap-6">
+          <div data-nav="links" className="hidden lg:flex items-center gap-6">
             {/* Início */}
             <Link
               to="/"
@@ -135,14 +144,13 @@ export default function Navbar() {
                 {isActive('/projetos') && <span className="absolute -bottom-1 left-0 right-0 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />}
               </Link>
 
-              <AnimatePresence>
-                {projDropOpen && (
-                  <motion.div
-                    key="proj-drop"
-                    initial={{ opacity: 0, y: 10, scale: 0.97 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                    transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              <Presence
+                open={projDropOpen}
+                enter={root => gsap.from(root.querySelector('[data-p="drop"]'), { opacity: 0, y: 10, scale: 0.97, duration: 0.3, ease: 'power3.out', clearProps: 'transform,opacity' })}
+                exit={root => gsap.to(root.querySelector('[data-p="drop"]'), { opacity: 0, y: 8, scale: 0.97, duration: 0.18, ease: 'power2.in' })}
+              >
+                  <div
+                    data-p="drop"
                     className="absolute top-[calc(100%+18px)] left-1/2 -translate-x-1/2 z-50 rounded-2xl overflow-hidden"
                     style={{
                       background: 'rgba(255,255,255,0.98)',
@@ -215,9 +223,8 @@ export default function Navbar() {
                         </>
                       )}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+              </Presence>
             </div>
 
             {/* Restante dos links */}
@@ -288,30 +295,30 @@ export default function Navbar() {
           >
             <Menu className="w-5 h-5" strokeWidth={2} />
           </button>
-        </motion.div>
+        </div>
       </nav>
 
       {/* ── Mobile drawer ── */}
-      <AnimatePresence>
-        {isOpen && (
+      <Presence
+        open={isOpen}
+        enter={root => gsap.timeline()
+          .from(root.querySelector('[data-p="backdrop"]'), { opacity: 0, duration: 0.25 }, 0)
+          .from(root.querySelector('[data-p="drawer"]'), { xPercent: 100, duration: 0.6, ease: 'power4.out', clearProps: 'transform' }, 0)
+          .from(root.querySelectorAll('[data-p="drawer-item"]'), { opacity: 0, x: 18, duration: 0.45, stagger: 0.05, clearProps: 'opacity,transform' }, 0.2)}
+        exit={root => gsap.timeline()
+          .to(root.querySelector('[data-p="backdrop"]'), { opacity: 0, duration: 0.22 }, 0)
+          .to(root.querySelector('[data-p="drawer"]'), { xPercent: 100, duration: 0.35, ease: 'power3.in' }, 0)}
+      >
           <>
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+            <div
+              data-p="backdrop"
               className="fixed inset-0 z-[60]"
               style={{ background: 'rgba(6,17,43,0.75)', backdropFilter: 'blur(6px)' }}
               onClick={() => setIsOpen(false)}
             />
 
-            <motion.div
-              key="drawer"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 340, damping: 38 }}
+            <div
+              data-p="drawer"
               className="fixed top-0 right-0 bottom-0 z-[70] w-[300px] sm:w-[340px] flex flex-col"
               style={{ background: '#06112B', boxShadow: '-8px 0 48px rgba(0,0,0,0.45)', borderLeft: '1px solid rgba(196,154,42,0.12)' }}
             >
@@ -371,15 +378,12 @@ export default function Navbar() {
                       />
                     </button>
 
-                    <AnimatePresence>
-                      {projDropMobile && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.22 }}
-                          className="overflow-hidden"
-                        >
+                    <Presence
+                      open={projDropMobile}
+                      enter={root => gsap.fromTo(root.querySelector('[data-p="sub"]'), { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.3, clearProps: 'height' })}
+                      exit={root => gsap.to(root.querySelector('[data-p="sub"]'), { height: 0, opacity: 0, duration: 0.22, ease: 'power2.in' })}
+                    >
+                        <div data-p="sub" className="overflow-hidden">
                           <div className="pt-1 pb-2 ml-4 pl-4 border-l" style={{ borderColor: 'rgba(196,154,42,0.2)' }}>
                             <Link
                               to="/projetos"
@@ -403,9 +407,8 @@ export default function Navbar() {
                               </Link>
                             ))}
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                        </div>
+                    </Presence>
                   </div>
 
                   {/* Resto dos links */}
@@ -415,12 +418,7 @@ export default function Navbar() {
                     { name: 'Dúvidas', path: '/duvidas' },
                     { name: 'Contato', path: '/contato' },
                   ].map((item, i) => (
-                    <motion.div
-                      key={item.name}
-                      initial={{ opacity: 0, x: 14 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.045 }}
-                    >
+                    <div key={item.name} data-p="drawer-item">
                       <Link
                         to={item.path}
                         onClick={() => setIsOpen(false)}
@@ -430,7 +428,7 @@ export default function Navbar() {
                         <span className="text-sm font-semibold">{item.name}</span>
                         <ChevronRight className="w-3.5 h-3.5 opacity-30" />
                       </Link>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
 
@@ -463,10 +461,9 @@ export default function Navbar() {
                   <ArrowUpRight className="w-4 h-4" />
                 </Link>
               </div>
-            </motion.div>
+            </div>
           </>
-        )}
-      </AnimatePresence>
+      </Presence>
     </>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { Reveal, Stagger, SplitReveal, CountUp } from '../motion';
 import { Zap, ShieldCheck, Sparkles, Users2 } from 'lucide-react';
 
 const differentials = [
@@ -15,26 +15,25 @@ export default function DifferentialsSection() {
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
 
         {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-14">
+        <Reveal distance={16} className="text-center mb-14">
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
             <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Nossos diferenciais</span>
             <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
           </div>
-          <h2 className="font-black tracking-tight mb-4" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
+          <SplitReveal as="h2" className="font-black tracking-tight mb-4" style={{ fontSize: 'clamp(1.6rem,3vw,2.4rem)', color: 'var(--brand-navy)' }}>
             Por que líderes escolhem a Develoi?
-          </h2>
+          </SplitReveal>
           <p className="text-sm max-w-2xl mx-auto leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             Diferente de agências tradicionais, somos seu braço tecnológico estratégico focado em organizar, escalar e gerar resultado real.
           </p>
-        </motion.div>
+        </Reveal>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12">
+        <Stagger className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-12" stagger={0.08} distance={16}>
           {differentials.map((item, idx) => (
-            <motion.div key={idx} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: idx * 0.08 }}
-              className="bg-white rounded-2xl p-6 border flex gap-5 items-start transition-all duration-250 hover:-translate-y-1"
+            <div key={idx}
+              className="bg-white rounded-2xl p-6 border flex gap-5 items-start transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
               style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
@@ -46,12 +45,12 @@ export default function DifferentialsSection() {
                 <h4 className="font-black text-base mb-2 tracking-tight" style={{ color: 'var(--brand-navy)' }}>{item.title}</h4>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </div>
+        </Stagger>
 
         {/* Banner ROI */}
-        <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+        <Reveal distance={24}
           className="relative rounded-2xl overflow-hidden"
           style={{ background: 'linear-gradient(135deg,#06112B 0%,#0D1F4E 100%)', boxShadow: '0 16px 48px rgba(13,31,78,0.2)' }}>
           <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg,var(--brand-gold),rgba(196,154,42,0.2) 70%,transparent)' }} />
@@ -66,11 +65,11 @@ export default function DifferentialsSection() {
               </p>
             </div>
             <div className="text-center flex-shrink-0">
-              <div className="text-5xl font-black" style={{ color: 'var(--brand-gold)' }}>100%</div>
+              <div className="text-5xl font-black" style={{ color: 'var(--brand-gold)' }}><CountUp value="100%" /></div>
               <div className="text-[10px] font-black uppercase tracking-widest mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Comprometimento</div>
             </div>
           </div>
-        </motion.div>
+        </Reveal>
       </div>
     </section>
   );

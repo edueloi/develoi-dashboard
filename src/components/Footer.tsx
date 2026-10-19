@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { Instagram, ArrowUp } from 'lucide-react';
 
 const socialLinks = [
@@ -77,29 +76,25 @@ export default function Footer() {
             </h4>
             <div className="flex gap-3 mb-8">
               {socialLinks.map(({ icon: Icon, label, href }) => (
-                <motion.a
+                <a
                   key={label}
                   href={href}
                   aria-label={label}
-                  whileHover={{ y: -5, scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="w-11 h-11 dash-surface border dash-border rounded-2xl flex items-center justify-center dash-text hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all shadow-sm"
+                  className="hover:-translate-y-1 hover:scale-110 active:scale-90 w-11 h-11 dash-surface border dash-border rounded-2xl flex items-center justify-center dash-text hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all shadow-sm"
                 >
                   <Icon className="w-4 h-4" />
-                </motion.a>
+                </a>
               ))}
             </div>
-            <motion.button
+            <button
               onClick={scrollToTop}
-              whileHover={{ y: -3 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest dash-text-2 hover:dash-text transition-colors duration-300 group"
+              className="hover:-translate-y-0.5 active:scale-95 flex items-center gap-3 text-[10px] font-black uppercase tracking-widest dash-text-2 hover:dash-text transition-colors duration-300 group"
             >
               <div className="w-10 h-10 rounded-2xl dash-surface border dash-border flex items-center justify-center group-hover:border-indigo-500/50 transition-all shadow-sm">
                 <ArrowUp className="w-4 h-4" />
               </div>
               VOLTAR AO TOPO
-            </motion.button>
+            </button>
           </div>
         </div>
 

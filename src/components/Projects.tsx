@@ -1,4 +1,5 @@
-import { motion, useInView } from 'framer-motion';
+import { Reveal, Magnetic } from './motion';
+import { gsap, useGSAP, prefersReducedMotion } from '../lib/gsap';
 import { ExternalLink, CheckCircle2, Zap, Shield, TrendingUp, Users } from 'lucide-react';
 import { useRef } from 'react';
 
@@ -78,18 +79,22 @@ const solutions = [
 ];
 
 function ProjectCard({ solution, index }: { solution: typeof solutions[0]; index: number }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: '-80px' });
+  const ref = useRef<HTMLDivElement>(null);
   const isEven = index % 2 === 0;
 
+  useGSAP(() => {
+    if (prefersReducedMotion()) return;
+    gsap.fromTo('[data-scan]', { yPercent: -100 }, { yPercent: 200, duration: 3, ease: 'none', repeat: -1, repeatDelay: 2 });
+    gsap.fromTo('[data-pulse]', { opacity: 0.1 }, { opacity: 0.2, duration: 1.5, ease: 'sine.inOut', repeat: -1, yoyo: true });
+    gsap.utils.toArray<HTMLElement>('[data-float]').forEach((el, i) => {
+      const amp = Number(el.dataset.float) || 12;
+      gsap.to(el, { y: amp, duration: 2 + i * 0.3, ease: 'sine.inOut', repeat: -1, yoyo: true, delay: i * 0.5 });
+    });
+  }, { scope: ref });
+
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-      className={`flex flex-col ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 sm:gap-10 md:gap-14 lg:gap-16 items-center`}
-    >
+    <div ref={ref} className="contents">
+    <Reveal distance={50} duration={0.9} className={`flex flex-col ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'} gap-8 sm:gap-10 md:gap-14 lg:gap-16 items-center`}>
       {/* Content */}
       <div className="flex-1 space-y-5 sm:space-y-6 md:space-y-7 w-full">
         {/* Tag + Logo */}
@@ -144,25 +149,21 @@ function ProjectCard({ solution, index }: { solution: typeof solutions[0]; index
         </div>
 
         {/* CTA */}
-        <motion.a
+        <Magnetic className="w-fit">
+        <a
           href={solution.url}
           target="_blank"
           rel="noopener noreferrer"
-          whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.97 }}
-          className={`inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r ${solution.color} text-white font-black rounded-xl sm:rounded-2xl shadow-xl hover:shadow-2xl transition-shadow text-sm sm:text-base`}
+          className={`hover:scale-[1.04] active:scale-[0.97] inline-flex items-center gap-2 sm:gap-3 px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r ${solution.color} text-white font-black rounded-xl sm:rounded-2xl shadow-xl hover:shadow-2xl transition-shadow text-sm sm:text-base`}
         >
           Explorar {solution.title} <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
-        </motion.a>
+        </a>
+        </Magnetic>
       </div>
 
       {/* Visual Mockup */}
       <div className="flex-1 w-full">
-        <motion.div
-          whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.4 }}
-          className="relative aspect-video group"
-        >
+        <div className="relative aspect-video group hover:scale-[1.02] transition-transform duration-[400ms]">
           <div
             className="absolute inset-0 blur-[40px] sm:blur-[60px] rounded-[2rem] sm:rounded-[3rem] opacity-25 group-hover:opacity-40 transition-opacity duration-700"
             style={{ background: `radial-gradient(ellipse, ${solution.glow}, transparent)` }}
@@ -173,9 +174,8 @@ function ProjectCard({ solution, index }: { solution: typeof solutions[0]; index
 
             {/* Scan line */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <motion.div
-                animate={{ y: ['-100%', '200%'] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
+              <div
+                data-scan
                 className="absolute inset-x-0 h-[2px] opacity-20"
                 style={{ background: `linear-gradient(90deg, transparent, ${solution.accent}, transparent)` }}
               />
@@ -183,62 +183,56 @@ function ProjectCard({ solution, index }: { solution: typeof solutions[0]; index
 
             {/* Center content */}
             <div className="relative text-center p-6 sm:p-10 z-10">
-              <motion.div
-                animate={{ opacity: [0.1, 0.2, 0.1] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              >
+              <div data-pulse>
                 <img
                   src={solution.logo}
                   alt={solution.title}
                   className="w-32 sm:w-48 md:w-64 mx-auto mb-4 sm:mb-6 brightness-0 invert opacity-15"
                   referrerPolicy="no-referrer"
                 />
-              </motion.div>
+              </div>
               <p className="text-neutral-600 font-mono text-[10px] sm:text-xs uppercase tracking-[0.2em] sm:tracking-[0.3em]">
                 Interface de Alta Performance
               </p>
             </div>
 
             {/* Floating badges — hidden on very small screens to avoid clutter */}
-            <motion.div
-              animate={{ y: [0, -12, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+            <div
+              data-float="-12"
               className="absolute top-4 sm:top-6 right-4 sm:right-6 glass rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border-white/15 flex items-center gap-1.5 sm:gap-2"
             >
               <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
               <span className="text-[10px] sm:text-xs font-black text-white">99/100</span>
-            </motion.div>
+            </div>
 
-            <motion.div
-              animate={{ y: [0, 12, 0] }}
-              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+            <div
+              data-float="12"
               className="absolute bottom-4 sm:bottom-6 left-4 sm:left-6 glass rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border-white/15 flex items-center gap-1.5 sm:gap-2"
             >
               <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-aurora-blue" />
               <span className="text-[10px] sm:text-xs font-black text-white">Seguro</span>
-            </motion.div>
+            </div>
 
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+            <div
+              data-float="-8"
               className="absolute top-4 sm:top-6 left-4 sm:left-6 glass rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border-white/15 hidden sm:flex items-center gap-2"
             >
               <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-aurora-green" />
               <span className="text-[10px] sm:text-xs font-black text-white">+40%</span>
-            </motion.div>
+            </div>
 
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+            <div
+              data-float="10"
               className="absolute bottom-4 sm:bottom-6 right-4 sm:right-6 glass rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border-white/15 hidden sm:flex items-center gap-2"
             >
               <Users className="w-4 h-4 sm:w-5 sm:h-5 text-aurora-purple" />
               <span className="text-[10px] sm:text-xs font-black text-white">500+</span>
-            </motion.div>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+    </Reveal>
+    </div>
   );
 }
 
@@ -253,36 +247,18 @@ export default function Projects() {
       <div className="container mx-auto px-4 sm:px-6">
         {/* Header */}
         <div className="text-center mb-14 sm:mb-20 md:mb-28">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-aurora-purple/10 border border-aurora-purple/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-aurora-purple mb-4 sm:mb-6"
-          >
+          <Reveal distance={20} className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-aurora-purple/10 border border-aurora-purple/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-aurora-purple mb-4 sm:mb-6">
             <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Nosso Portfólio</span>
-          </motion.div>
+          </Reveal>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 25 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="font-black mb-4 sm:mb-6 tracking-tighter"
-            style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)' }}
-          >
+          <Reveal as="h2" distance={25} delay={0.1} duration={0.8} className="font-black mb-4 sm:mb-6 tracking-tighter" style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)' }}>
             Nossas <span className="text-gradient">Soluções</span> de Elite
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-neutral-400 max-w-xl sm:max-w-2xl mx-auto text-sm sm:text-base md:text-xl px-4"
-          >
+          </Reveal>
+          <Reveal as="p" distance={20} delay={0.2} className="text-neutral-400 max-w-xl sm:max-w-2xl mx-auto text-sm sm:text-base md:text-xl px-4">
             Desenvolvemos ecossistemas completos que transformam indústrias inteiras. Tecnologia de
             ponta para resultados reais.
-          </motion.p>
+          </Reveal>
         </div>
 
         {/* Projects list */}

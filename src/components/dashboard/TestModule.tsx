@@ -1,4 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { Presence, Reveal } from '../motion';
+import { gsap } from '../../lib/gsap';
 import { useEffect, useState, useRef } from 'react';
 import {
   ShieldCheck, CheckCircle2, AlertCircle, Clock, ClipboardCheck,
@@ -90,7 +91,7 @@ export function TestModule({ projectId }: { projectId: string }) {
   }
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+    <Reveal immediate from="fade" duration={0.3} className="space-y-4">
       {/* Stats */}
       <StatGrid cols={3}>
         <StatCard title="Aguardando Teste" value={pending.length} icon={Clock}       color="warning" delay={0.1} />
@@ -163,7 +164,7 @@ export function TestModule({ projectId }: { projectId: string }) {
           onRefresh={fetchFeatures}
         />
       )}
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -177,10 +178,11 @@ function TestCard({ feature, index, isTester, onOpen }: {
   const failed = cases.filter(c => c.result === 'fail').length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+    <Reveal
+      immediate
+      distance={12}
+      duration={0.3}
+      delay={Math.min(index, 12) * 0.04}
       className="bg-white rounded-xl border border-amber-200 shadow-sm hover:shadow-md transition-all overflow-hidden"
     >
       {/* Top accent */}
@@ -243,7 +245,7 @@ function TestCard({ feature, index, isTester, onOpen }: {
           {isTester ? 'EXECUTAR TESTES' : 'VER DETALHES'}
         </Button>
       </div>
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -254,10 +256,11 @@ function DoneCard({ feature, index, onOpen }: { feature: Feature; index: number;
   const passed = cases.filter(c => c.result === 'pass').length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05 }}
+    <Reveal
+      immediate
+      distance={12}
+      duration={0.3}
+      delay={Math.min(index, 12) * 0.04}
       className="bg-white rounded-xl border border-emerald-200 shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all"
       onClick={onOpen}
     >
@@ -280,7 +283,7 @@ function DoneCard({ feature, index, onOpen }: { feature: Feature; index: number;
           </div>
         )}
       </div>
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -446,13 +449,15 @@ function TestExecutionModal({ feature, projectId, profile, isTester, isAdmin, on
             </div>
 
             {/* Add case form */}
-            <AnimatePresence>
-              {addingCase && (
-                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-                  <AddCaseForm onAdd={handleAddCase} onCancel={() => setAddingCase(false)} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <Presence
+              open={addingCase}
+              enter={root => gsap.fromTo(root.querySelector('[data-p="panel"]'), { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out', clearProps: 'transform,opacity' })}
+              exit={root => gsap.to(root.querySelector('[data-p="panel"]'), { opacity: 0, y: -8, duration: 0.2, ease: 'power2.in' })}
+            >
+              <div data-p="panel">
+                <AddCaseForm onAdd={handleAddCase} onCancel={() => setAddingCase(false)} />
+              </div>
+            </Presence>
 
             {cases.length === 0 && !addingCase ? (
               <div className="py-8 text-center border-2 border-dashed border-slate-200 rounded-2xl">
@@ -715,14 +720,12 @@ function TestCaseRow({ tc, index, canEdit, expanded, onToggle, onExecute, onDele
       </div>
 
       {/* Expanded body */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
+      <Presence
+        open={!!expanded}
+        enter={root => gsap.fromTo(root.querySelector('[data-p="panel"]'), { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.3, ease: 'power2.out', clearProps: 'height,opacity' })}
+        exit={root => gsap.to(root.querySelector('[data-p="panel"]'), { height: 0, opacity: 0, duration: 0.25, ease: 'power2.in' })}
+      >
+          <div data-p="panel" className="overflow-hidden">
             <div className="px-4 pb-4 space-y-4 border-t border-slate-100 pt-4">
               {tc.steps && (
                 <div>
@@ -813,9 +816,8 @@ function TestCaseRow({ tc, index, canEdit, expanded, onToggle, onExecute, onDele
                 </div>
               )}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      </Presence>
     </div>
   );
 }

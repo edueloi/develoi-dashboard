@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal } from '../components/motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Kanban, MessageSquare, Settings, LogOut, Plus,
@@ -479,7 +479,7 @@ export default function Dashboard() {
         {/* Content */}
         <main className="flex-1 overflow-y-auto custom-scrollbar" style={{ background: isDark ? '#0B1120' : '#F0F2F8' }}>
           <PageWrapper>
-            <motion.div key={activeTab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }}>
+            <Reveal distance={6} duration={0.18} immediate key={activeTab}>
 
               {activeTab === 'overview' && (
                 <DashboardOverview
@@ -591,7 +591,7 @@ export default function Dashboard() {
                 <EmptyState icon={ShieldCheck} title="Acesso restrito" description="Essa área é só para os sócios da Develoi." />
               ))}
               {activeTab === 'profile' && <MyProfile />}
-            </motion.div>
+            </Reveal>
           </PageWrapper>
         </main>
       </div>

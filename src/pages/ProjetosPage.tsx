@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal } from '../components/motion';
+import { gsap, useGSAP, EASE, prefersReducedMotion } from '../lib/gsap';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, Search, Eye, Heart, Clock, Star, Filter, Folder, ChevronLeft, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -56,6 +57,16 @@ function FeaturedSlider({ featured }: { featured: Case[] }) {
     setDragOffset(0);
   }, [count]);
 
+  const slideRef = useRef<HTMLDivElement>(null);
+  const lastIdx = useRef(current);
+  useGSAP(() => {
+    const dir = current >= lastIdx.current ? 1 : -1;
+    const first = lastIdx.current === current;
+    lastIdx.current = current;
+    if (first || !slideRef.current || prefersReducedMotion()) return;
+    gsap.fromTo(slideRef.current, { opacity: 0, x: dir * 60 }, { opacity: 1, x: 0, duration: 0.45, ease: EASE.expo, clearProps: 'opacity,transform' });
+  }, { dependencies: [current], scope: slideRef });
+
   const prev = () => goTo(current - 1);
   const next = () => goTo(current + 1);
 
@@ -108,13 +119,8 @@ function FeaturedSlider({ featured }: { featured: Case[] }) {
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={current}
-            initial={{ opacity: 0, x: dragOffset < 0 ? 60 : -60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dragOffset < 0 ? -60 : 60 }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          <div
+            ref={slideRef}
             className="grid grid-cols-1 lg:grid-cols-2 min-h-[460px]"
             style={{ background: 'white', borderRadius: '16px', overflow: 'hidden' }}
           >
@@ -236,8 +242,7 @@ function FeaturedSlider({ featured }: { featured: Case[] }) {
                 </p>
               )}
             </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
       </div>
     </div>
   );
@@ -248,12 +253,7 @@ function FeaturedSlider({ featured }: { featured: Case[] }) {
 function CaseCard({ c, index }: { c: Case; index: number }) {
   const tags = parseTags(c.tags);
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, delay: index * 0.07 }}
-    >
+    <Reveal distance={20} delay={index * 0.07} duration={0.5}>
       <Link to={`/projetos/${c.slug}`} className="group block h-full">
         <div
           className="bg-white rounded-2xl border overflow-hidden h-full flex flex-col transition-all duration-250 hover:-translate-y-1"
@@ -338,7 +338,7 @@ function CaseCard({ c, index }: { c: Case; index: number }) {
           </div>
         </div>
       </Link>
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -395,13 +395,7 @@ export default function ProjetosPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="relative min-h-screen overflow-hidden"
-      style={{ background: 'var(--bg-primary)' }}
-    >
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Background blurs */}
       <div className="fixed inset-0 pointer-events-none -z-10">
         <div className="absolute top-[8%] right-[-6%] w-[500px] h-[500px] rounded-full blur-[130px]" style={{ background: 'rgba(13,31,78,0.05)' }} />
@@ -417,12 +411,7 @@ export default function ProjetosPage() {
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-            className="max-w-3xl"
-          >
+          <Reveal distance={20} duration={0.7} immediate className="max-w-3xl">
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-6 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>
@@ -451,19 +440,14 @@ export default function ProjetosPage() {
                 </div>
               ))}
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
       {/* ── BUSCA + FILTROS ── */}
       <section className="py-10 md:py-14" style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border-color)' }}>
         <div className="max-w-4xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="relative mb-7"
-          >
+          <Reveal distance={16} delay={0.15} duration={0.6} immediate className="relative mb-7">
             <div className="relative flex items-center bg-white rounded-2xl border transition-all" style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.06)' }}>
               <Search className="ml-5 w-4 h-4 flex-shrink-0" style={{ color: 'var(--brand-navy)' }} />
               <input
@@ -483,15 +467,10 @@ export default function ProjetosPage() {
                 </button>
               )}
             </div>
-          </motion.div>
+          </Reveal>
 
           {categories.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.25 }}
-              className="flex flex-wrap justify-center gap-2"
-            >
+            <Reveal from="fade" delay={0.25} immediate className="flex flex-wrap justify-center gap-2">
               <button
                 onClick={() => handleCategoryFilter('')}
                 className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200"
@@ -516,7 +495,7 @@ export default function ProjetosPage() {
                   {cat._count && <span className="ml-1.5 opacity-50">[{cat._count.cases}]</span>}
                 </button>
               ))}
-            </motion.div>
+            </Reveal>
           )}
         </div>
       </section>
@@ -525,12 +504,7 @@ export default function ProjetosPage() {
       {featured.length > 0 && !categoryFilter && !search && page === 1 && (
         <section className="py-16 md:py-20">
           <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              className="flex items-center justify-between mb-8"
-            >
+            <Reveal distance={16} className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2">
                 <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
                 <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
@@ -545,16 +519,11 @@ export default function ProjetosPage() {
               >
                 Ver todos <ArrowUpRight className="w-3 h-3" />
               </Link>
-            </motion.div>
+            </Reveal>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
+            <Reveal distance={20} duration={0.6}>
               <FeaturedSlider featured={featured} />
-            </motion.div>
+            </Reveal>
           </div>
         </section>
       )}
@@ -563,12 +532,7 @@ export default function ProjetosPage() {
       <section className="pb-24 md:pb-32" style={{ background: 'var(--bg-tertiary)' }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12 pt-16">
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
+          <Reveal distance={16} className="text-center mb-12">
             <div className="inline-flex items-center gap-2 mb-4">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>
@@ -588,7 +552,7 @@ export default function ProjetosPage() {
                 {total} projeto{total !== 1 ? 's' : ''} encontrado{total !== 1 ? 's' : ''}
               </p>
             )}
-          </motion.div>
+          </Reveal>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -650,13 +614,7 @@ export default function ProjetosPage() {
       {/* ── CTA FINAL ── */}
       <section className="py-20 md:py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="rounded-2xl overflow-hidden relative"
-            style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}
-          >
+          <Reveal distance={20} className="rounded-2xl overflow-hidden relative" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)', boxShadow: '0 20px 60px rgba(13,31,78,0.2)' }}>
             <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
             <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, rgba(196,154,42,0.8) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
@@ -678,9 +636,9 @@ export default function ProjetosPage() {
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
               </a>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

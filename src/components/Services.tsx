@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { Reveal, Stagger } from './motion';
 import { Rocket, Target, Code, Lightbulb, ArrowRight, CheckCircle } from 'lucide-react';
 
 const services = [
@@ -34,16 +34,6 @@ const services = [
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
-};
-
 export default function Services() {
   return (
     <section id="servicos" className="py-16 sm:py-24 md:py-32 relative overflow-hidden">
@@ -54,55 +44,33 @@ export default function Services() {
       <div className="container mx-auto px-4 sm:px-6 relative z-10">
         {/* Header */}
         <div className="max-w-3xl mb-12 sm:mb-20 md:mb-28">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-aurora-blue/10 border border-aurora-blue/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-aurora-blue mb-4 sm:mb-6"
-          >
+          <Reveal distance={20} className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-aurora-blue/10 border border-aurora-blue/20 text-[10px] sm:text-xs font-black uppercase tracking-widest text-aurora-blue mb-4 sm:mb-6">
             <Rocket className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>O que oferecemos</span>
-          </motion.div>
+          </Reveal>
 
-          <motion.h2
-            initial={{ opacity: 0, y: 25 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="font-black mb-4 sm:mb-6 tracking-tighter leading-[0.92]"
-            style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)' }}
-          >
+          <Reveal as="h2" distance={25} delay={0.1} duration={0.8} className="font-black mb-4 sm:mb-6 tracking-tighter leading-[0.92]" style={{ fontSize: 'clamp(2rem, 6vw, 4.5rem)' }}>
             Transformamos{' '}
             <span className="text-gradient">Negócios</span>{' '}
             em Potências Digitais
-          </motion.h2>
+          </Reveal>
 
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.2 }}
-            className="text-base sm:text-lg md:text-xl text-neutral-400 leading-relaxed"
-          >
+          <Reveal as="p" distance={20} delay={0.2} className="text-base sm:text-lg md:text-xl text-neutral-400 leading-relaxed">
             A Develoi não é apenas uma fábrica de software. Somos seus parceiros estratégicos na
             jornada da transformação digital.
-          </motion.p>
+          </Reveal>
         </div>
 
         {/* Cards */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
+        <Stagger
+          distance={40}
+          stagger={0.12}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8"
         >
           {services.map((service) => (
-            <motion.div
+            <div
               key={service.title}
-              variants={cardVariants}
-              whileHover={{ y: -6, transition: { duration: 0.3 } }}
-              className={`group relative p-6 sm:p-8 md:p-10 rounded-[2rem] sm:rounded-[2.5rem] glass-card border border-white/[0.04] ${service.borderColor} overflow-hidden cursor-default`}
+              className={`group relative hover:-translate-y-1.5 transition-transform duration-300 p-6 sm:p-8 md:p-10 rounded-[2rem] sm:rounded-[2.5rem] glass-card border border-white/[0.04] ${service.borderColor} overflow-hidden cursor-default`}
             >
               {/* Top gradient line */}
               <div
@@ -110,11 +78,8 @@ export default function Services() {
               />
 
               {/* Hover glow */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileHover={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-0 rounded-[2rem] sm:rounded-[2.5rem] pointer-events-none"
+              <div
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-[2rem] sm:rounded-[2.5rem] pointer-events-none"
                 style={{
                   background: `radial-gradient(ellipse at 50% 100%, ${service.glowColor}, transparent 70%)`,
                 }}
@@ -148,24 +113,18 @@ export default function Services() {
                   <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:translate-x-1 transition-transform duration-300" />
                 </button>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </Stagger>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.4 }}
-          className="mt-10 sm:mt-16 text-center"
-        >
+        <Reveal distance={20} delay={0.4} className="mt-10 sm:mt-16 text-center">
           <p className="text-neutral-500 text-xs sm:text-sm font-medium">
             Pronto para escalar seu negócio?{' '}
             <a href="#contato" className="text-aurora-blue font-black hover:underline">
               Fale com a nossa equipe →
             </a>
           </p>
-        </motion.div>
+        </Reveal>
       </div>
     </section>
   );

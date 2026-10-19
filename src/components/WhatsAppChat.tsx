@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal, Presence } from './motion';
+import { gsap, useGSAP, EASE, prefersReducedMotion } from '../lib/gsap';
 import { X, Send, MessageCircle } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -141,12 +142,7 @@ function BoldText({ text }: { text: string }) {
 function Bubble({ msg, onOption }: { msg: Message; onOption: (v: string) => void }) {
   const isBot = msg.from === 'bot';
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.25 }}
-      className={`flex flex-col gap-2 ${isBot ? 'items-start' : 'items-end'}`}
-    >
+    <Reveal from="scale" duration={0.25} immediate className={`flex flex-col gap-2 ${isBot ? 'items-start' : 'items-end'}`}>
       {isBot && (
         <div className="flex items-center gap-1.5 mb-0.5">
           <img src="/LOGO-MENU.png" alt="Develoi" className="h-4 w-auto object-contain" />
@@ -191,24 +187,24 @@ function Bubble({ msg, onOption }: { msg: Message; onOption: (v: string) => void
           ))}
         </div>
       )}
-    </motion.div>
+    </Reveal>
   );
 }
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 
 function Typing() {
+  const ref = useRef<HTMLDivElement>(null);
+  useGSAP(() => {
+    if (prefersReducedMotion()) return;
+    gsap.to('[data-dot]', { y: -4, duration: 0.3, ease: 'sine.inOut', repeat: -1, yoyo: true, stagger: 0.15 });
+  }, { scope: ref });
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="flex items-center gap-1.5 px-4 py-3 rounded-2xl w-fit"
-      style={{ background: '#fff', border: '1px solid rgba(13,31,78,0.08)' }}>
+    <div ref={ref} className="flex items-center gap-1.5 px-4 py-3 rounded-2xl w-fit" style={{ background: '#fff', border: '1px solid rgba(13,31,78,0.08)' }}>
       {[0, 1, 2].map(i => (
-        <motion.div key={i} className="w-1.5 h-1.5 rounded-full"
-          style={{ background: 'var(--brand-navy)' }}
-          animate={{ y: [0, -4, 0] }}
-          transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }} />
+        <div key={i} data-dot className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--brand-navy)' }} />
       ))}
-    </motion.div>
+    </div>
   );
 }
 
@@ -220,6 +216,19 @@ export default function WhatsAppChat() {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const iconRef = useRef<HTMLDivElement>(null);
+  const btnWrapRef = useRef<HTMLDivElement>(null);
+
+  // troca do ícone do botão flutuante e anel de pulso
+  useGSAP(() => {
+    if (prefersReducedMotion()) return;
+    if (iconRef.current) {
+      gsap.fromTo(iconRef.current, { opacity: 0, rotate: open ? -90 : 90, scale: 0.7 }, { opacity: 1, rotate: 0, scale: 1, duration: 0.18, clearProps: 'opacity,transform' });
+    }
+    if (!open) {
+      gsap.fromTo('[data-pulse]', { scale: 1, opacity: 0.35 }, { scale: 1.35, opacity: 0, duration: 1.8, ease: 'power2.out', repeat: -1 });
+    }
+  }, { dependencies: [open], scope: btnWrapRef });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -281,16 +290,15 @@ export default function WhatsAppChat() {
   };
 
   return (
-    <>
+    <div ref={btnWrapRef} className="contents">
       {/* Chat panel */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            key="chat"
-            initial={{ opacity: 0, scale: 0.92, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 16 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      <Presence
+        open={open}
+        enter={(root) => gsap.fromTo(root.querySelector('[data-p="chat"]'), { opacity: 0, scale: 0.92, y: 16, transformOrigin: 'bottom right' }, { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: EASE.expo, clearProps: 'opacity,transform' })}
+        exit={(root) => gsap.to(root.querySelector('[data-p="chat"]'), { opacity: 0, scale: 0.92, y: 16, duration: 0.2, ease: 'power2.in', transformOrigin: 'bottom right' })}
+      >
+          <div
+            data-p="chat"
             className="fixed bottom-24 right-4 sm:right-6 z-[80] w-[calc(100vw-2rem)] sm:w-[380px] flex flex-col rounded-2xl overflow-hidden"
             style={{ boxShadow: '0 20px 60px rgba(13,31,78,0.25)', maxHeight: '75vh' }}
           >
@@ -324,13 +332,11 @@ export default function WhatsAppChat() {
               {messages.map(msg => (
                 <Bubble key={msg.id} msg={msg} onOption={handleOption} />
               ))}
-              <AnimatePresence>
-                {typing && (
-                  <motion.div key="typing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <Typing />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {typing && (
+                <Reveal from="fade" duration={0.2} immediate>
+                  <Typing />
+                </Reveal>
+              )}
               <div ref={bottomRef} />
             </div>
 
@@ -363,16 +369,13 @@ export default function WhatsAppChat() {
                 💬 Falar direto no WhatsApp
               </a>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+      </Presence>
 
       {/* Floating button */}
-      <motion.button
+      <button
         onClick={() => setOpen(o => !o)}
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.94 }}
-        className="fixed bottom-5 right-4 sm:right-6 z-[80] w-14 h-14 rounded-2xl flex items-center justify-center"
+        className="hover:scale-[1.08] active:scale-[0.94] transition-transform duration-200 fixed bottom-5 right-4 sm:right-6 z-[80] w-14 h-14 rounded-2xl flex items-center justify-center"
         style={{
           background: open ? 'var(--brand-navy)' : '#25D366',
           boxShadow: open
@@ -381,28 +384,27 @@ export default function WhatsAppChat() {
         }}
         aria-label={open ? 'Fechar chat' : 'Abrir chat'}
       >
-        <AnimatePresence mode="wait">
+        <div ref={iconRef}>
           {open ? (
-            <motion.div key="close" initial={{ opacity: 0, rotate: -90, scale: 0.7 }} animate={{ opacity: 1, rotate: 0, scale: 1 }} exit={{ opacity: 0, rotate: 90, scale: 0.7 }} transition={{ duration: 0.18 }}>
+            <div>
               <X className="w-6 h-6 text-white" />
-            </motion.div>
+            </div>
           ) : (
-            <motion.div key="whats" initial={{ opacity: 0, rotate: 90, scale: 0.7 }} animate={{ opacity: 1, rotate: 0, scale: 1 }} exit={{ opacity: 0, rotate: -90, scale: 0.7 }} transition={{ duration: 0.18 }}>
+            <div>
               {/* WhatsApp SVG icon */}
               <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white" xmlns="http://www.w3.org/2000/svg">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
               </svg>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
 
         {/* Pulse ring (only when closed) */}
         {!open && (
-          <motion.div
-            className="absolute inset-0 rounded-2xl"
+          <div
+            data-pulse
+            className="absolute inset-0 rounded-2xl pointer-events-none"
             style={{ background: '#25D366' }}
-            animate={{ scale: [1, 1.35], opacity: [0.35, 0] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
           />
         )}
 
@@ -413,7 +415,7 @@ export default function WhatsAppChat() {
             1
           </div>
         )}
-      </motion.button>
-    </>
+      </button>
+    </div>
   );
 }

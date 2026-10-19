@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { Reveal } from '../motion';
 import {
   Calendar, ChevronLeft, ChevronRight, Loader2, ArrowRight,
   Play, CheckCircle2, Archive,
@@ -358,7 +358,7 @@ export function TimelineView({ projectId }: { projectId: string }) {
   const bodyH = rows.length * ROW_H;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+    <Reveal immediate distance={12} duration={0.3} className="space-y-4">
 
       {/* ── Toolbar ── */}
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm px-5 py-3.5 flex flex-wrap items-center gap-3">
@@ -600,6 +600,6 @@ export function TimelineView({ projectId }: { projectId: string }) {
           ))}
         </div>
       </div>
-    </motion.div>
+    </Reveal>
   );
 }

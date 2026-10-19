@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { Reveal } from '../components/motion';
 import { Quote, Sparkles, Heart } from 'lucide-react';
 
 export default function DreamSection() {
@@ -19,13 +19,7 @@ export default function DreamSection() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 sm:gap-14 md:gap-16 items-center relative z-10">
             {/* Left content */}
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="space-y-6 sm:space-y-8"
-            >
+            <Reveal from="left" distance={30} duration={0.8} className="space-y-6 sm:space-y-8">
               <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/10 text-[10px] sm:text-xs font-black uppercase tracking-widest text-aurora-pink">
                 <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                 <span>Transformando Sonhos em Realidade</span>
@@ -80,16 +74,10 @@ export default function DreamSection() {
                   "Sonhe Para Viver - Viva Para Sonhar"
                 </p>
               </div>
-            </motion.div>
+            </Reveal>
 
             {/* Right: photo */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="relative w-full max-w-sm mx-auto lg:max-w-none"
-            >
+            <Reveal from="scale" duration={0.8} className="relative w-full max-w-sm mx-auto lg:max-w-none">
               <div className="absolute inset-0 bg-aurora-pink/20 blur-[80px] sm:blur-[100px] rounded-full -z-10" />
               <div className="aspect-[4/5] rounded-[2rem] sm:rounded-[3rem] overflow-hidden border-2 sm:border-4 border-white/10 shadow-2xl relative group">
                 <img
@@ -113,7 +101,7 @@ export default function DreamSection() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </Reveal>
           </div>
         </div>
       </div>

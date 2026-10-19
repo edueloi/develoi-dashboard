@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { Presence } from '../motion';
+import { gsap } from '../../lib/gsap';
 import { useEffect, useMemo, useState } from 'react';
 import { Target, TrendingUp, Star, Sparkles, CheckCircle2, Plus, Trash2, Save, ArrowUp, ArrowDown, Copy, Eye, PencilLine, RotateCcw, Download, Quote } from 'lucide-react';
 import { Button, Input, Textarea, EmptyState } from '../ui';
@@ -177,11 +178,17 @@ export function SiteValuesManager() {
       {/* barra de salvar sempre visível */}
       <div className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none">
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 pb-3 sm:pb-4 flex justify-end lg:pl-[260px]">
-          <motion.div initial={false} animate={{ y: dirty ? 0 : 80, opacity: dirty ? 1 : 0 }} className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-white border border-slate-200 shadow-2xl rounded-2xl pl-4 pr-2 py-2">
+          <Presence
+            open={dirty}
+            enter={root => gsap.fromTo(root.querySelector('[data-p="bar"]'), { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: 'power3.out', clearProps: 'transform,opacity' })}
+            exit={root => gsap.to(root.querySelector('[data-p="bar"]'), { y: 80, opacity: 0, duration: 0.25, ease: 'power2.in' })}
+          >
+          <div data-p="bar" className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-white border border-slate-200 shadow-2xl rounded-2xl pl-4 pr-2 py-2">
             <span className="text-xs font-bold text-amber-700 hidden sm:inline">Alterações não salvas</span>
             <Button variant="outline" size="sm" onClick={() => setData(saved)} iconLeft={<RotateCcw className="w-3.5 h-3.5" />}>DESCARTAR</Button>
             <Button size="sm" onClick={handleSave} loading={saving} iconLeft={<Save className="w-3.5 h-3.5" />}>SALVAR NO SITE</Button>
-          </motion.div>
+          </div>
+          </Presence>
         </div>
       </div>
     </div>

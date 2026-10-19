@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal, Stagger } from '../motion';
 import {
   Plus, Edit2, Trash2, Copy, Send, Search, Phone, MessageSquare,
   CheckCircle2, Clock, XCircle, BookOpen, User, PhoneCall, PhoneMissed,
@@ -271,30 +271,29 @@ export function ClientContactManager() {
               </span>
             )}
             {tabView === id && (
-              <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ background: '#C49A2A' }} />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ background: '#C49A2A' }} />
             )}
           </button>
         ))}
       </div>
 
       {/* ═══════════════ ABA: CONTATOS ═══════════════ */}
-      <AnimatePresence mode="wait">
         {tabView === 'contacts' ? (
-          <motion.div key="contacts" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+          <Reveal key="contacts" immediate from="fade" duration={0.3} className="space-y-4">
             <UnifiedContacts
               messages={messages} refreshKey={refreshKey} onChanged={() => { fetchData(); setRefreshKey(k => k + 1); }}
               onEditManual={id => { const c = contacts.find(x => x.id === id); if (c) { setEditingContact(c); setIsContactFormOpen(true); } }}
               onDeleteManual={id => setDeletingContactId(id)} />
-          </motion.div>
+          </Reveal>
 
         ) : tabView === 'history' ? (
-          <motion.div key="history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <Reveal key="history" immediate from="fade" duration={0.3}>
             <SentMessages refreshKey={refreshKey} />
-          </motion.div>
+          </Reveal>
 
         ) : (
           /* ═══════════════ ABA: MENSAGENS ═══════════════ */
-          <motion.div key="messages" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+          <Reveal key="messages" immediate from="fade" duration={0.3} className="space-y-4">
             {/* Chips de categoria — igual Agendelle */}
             <div className="flex flex-wrap gap-2 items-center">
               {MSG_FILTER_CHIPS.map(chip => (
@@ -327,12 +326,11 @@ export function ClientContactManager() {
                 description="Crie uma mensagem pronta personalizada."
                 action={<Button onClick={() => setIsMsgFormOpen(true)}>CRIAR MENSAGEM</Button>} />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <Stagger immediate distance={8} stagger={0.04} duration={0.3} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredMessages.map((msg, i) => {
                   const catCfg = CATEGORY_CONFIG[msg.category];
                   return (
-                    <motion.div key={msg.id}
-                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                    <div key={msg.id}
                       className="bg-white dark:bg-white/5 rounded-xl border border-slate-200/60 dark:border-white/10 shadow-sm flex flex-col overflow-hidden hover:shadow-md transition-all"
                     >
                       <div className="p-4 flex flex-col gap-3 flex-1">
@@ -395,14 +393,13 @@ export function ClientContactManager() {
                           <Send className="w-3.5 h-3.5" /> ENVIAR
                         </button>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </div>
+              </Stagger>
             )}
-          </motion.div>
+          </Reveal>
         )}
-      </AnimatePresence>
 
       {/* ─── Modais ─── */}
 

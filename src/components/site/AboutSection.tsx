@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { Reveal, Stagger, SplitReveal } from '../motion';
 import { Heart, CheckCircle2, Target, Users } from 'lucide-react';
 
 const cards = [
@@ -16,15 +16,15 @@ export default function AboutSection() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
           {/* Esquerda */}
-          <motion.div initial={{ opacity: 0, x: -24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7 }}>
+          <Reveal from="left" distance={24} duration={0.7}>
             <div className="inline-flex items-center gap-2 mb-5">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--brand-gold)' }}>Quem somos</span>
             </div>
-            <h2 className="font-black tracking-tight leading-tight mb-6" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.8rem)', color: 'var(--brand-navy)' }}>
+            <SplitReveal as="h2" className="font-black tracking-tight leading-tight mb-6" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.8rem)', color: 'var(--brand-navy)' }}>
               Somos mais do que uma empresa de{' '}
               <span style={{ color: 'var(--brand-gold)' }}>tecnologia.</span>
-            </h2>
+            </SplitReveal>
             <div className="space-y-4 mb-8 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               <p>A Develoi nasceu com uma essência familiar e um propósito claro: usar a tecnologia para ajudar pessoas e empresas a evoluírem de verdade.</p>
               <p>Não somos apenas fornecedores de código. Nós nos envolvemos de verdade nos projetos, entendemos suas dores, comemoramos suas vitórias e trabalhamos lado a lado para garantir resultados palpáveis.</p>
@@ -36,15 +36,13 @@ export default function AboutSection() {
               <a href="/valores" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white hover:opacity-90 transition-opacity" style={{ background: 'var(--brand-navy)' }}>Missão, visão e valores →</a>
               <a href="/#contato" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm border hover:bg-white transition-colors" style={{ borderColor: 'var(--border-color)', color: 'var(--brand-navy)' }}>Fale com a gente</a>
             </div>
-          </motion.div>
+          </Reveal>
 
           {/* Direita — cards */}
-          <motion.div initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: 0.1 }}
-            className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Stagger from="right" distance={24} stagger={0.1} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {cards.map((card, idx) => (
-              <motion.div key={idx} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.08 }}
-                className="bg-white rounded-2xl p-6 border transition-all duration-250 hover:-translate-y-1"
+              <div key={idx}
+                className="bg-white rounded-2xl p-6 border transition-[border-color,box-shadow,translate] duration-250 hover:-translate-y-1"
                 style={{ borderColor: 'var(--border-color)', boxShadow: '0 2px 12px rgba(13,31,78,0.05)' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'rgba(196,154,42,0.35)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(13,31,78,0.1)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(13,31,78,0.05)'; }}
@@ -54,9 +52,9 @@ export default function AboutSection() {
                 </div>
                 <h4 className="font-black text-sm mb-1" style={{ color: 'var(--brand-navy)' }}>{card.title}</h4>
                 <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{card.desc}</p>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </Stagger>
         </div>
       </div>
     </section>

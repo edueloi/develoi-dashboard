@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { motion, AnimatePresence } from 'framer-motion';
+import { Reveal, Presence } from '../components/motion';
+import { gsap, EASE } from '../lib/gsap';
 import { ChevronDown, HelpCircle, ArrowRight, MessageSquare, Search, Layers, Workflow, Wallet, LifeBuoy } from 'lucide-react';
 import { useState } from 'react';
 
@@ -77,13 +78,15 @@ function FAQItem({ question, answer, category, open, onToggle }: { question: str
         <span className="flex-1 text-[15px] font-bold leading-snug" style={{ color: 'var(--brand-navy)' }}>{question}</span>
         <ChevronDown className="w-5 h-5 flex-shrink-0 transition-transform duration-300" style={{ color: 'var(--brand-gold)', transform: open ? 'rotate(180deg)' : 'none' }} />
       </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }} className="overflow-hidden">
-            <p className="px-5 sm:px-6 pb-6 pl-[4.5rem] sm:pl-[5.25rem] text-sm leading-7" style={{ color: 'var(--text-secondary)' }}>{answer}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <Presence
+        open={open}
+        enter={(root) => gsap.fromTo(root.querySelector('[data-p="answer"]'), { height: 0, opacity: 0 }, { height: 'auto', opacity: 1, duration: 0.3, ease: EASE.expo, clearProps: 'height' })}
+        exit={(root) => gsap.to(root.querySelector('[data-p="answer"]'), { height: 0, opacity: 0, duration: 0.25, ease: EASE.expo })}
+      >
+        <div data-p="answer" className="overflow-hidden">
+          <p className="px-5 sm:px-6 pb-6 pl-[4.5rem] sm:pl-[5.25rem] text-sm leading-7" style={{ color: 'var(--text-secondary)' }}>{answer}</p>
+        </div>
+      </Presence>
     </div>
   );
 }
@@ -98,13 +101,13 @@ export default function FAQ() {
   const countOf = (c: string) => c === 'Todos' ? faqs.length : faqs.filter(f => f.category === c).length;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <div className="relative min-h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* ── HERO ── */}
       <section className="relative pt-32 pb-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 60%, #0A1840 100%)' }}>
         <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.2) 70%, transparent)' }} />
         <div className="absolute -right-24 -top-24 w-[420px] h-[420px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(196,154,42,0.14), transparent 70%)' }} />
         <div className="max-w-4xl mx-auto px-6 text-center relative">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}>
+          <Reveal distance={20} duration={0.7} immediate>
             <div className="inline-flex items-center gap-2 mb-6">
               <span className="w-5 h-[2px] rounded-full" style={{ background: 'var(--brand-gold)' }} />
               <span className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: 'var(--brand-gold)' }}>Central de ajuda</span>
@@ -126,7 +129,7 @@ export default function FAQ() {
                 style={{ color: 'var(--brand-navy)' }}
               />
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
 
@@ -174,16 +177,10 @@ export default function FAQ() {
       {/* ── CTA ── */}
       <section className="pb-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="rounded-2xl overflow-hidden relative"
-            style={{
+          <Reveal distance={20} className="rounded-2xl overflow-hidden relative" style={{
               background: 'linear-gradient(135deg, #06112B 0%, #0D1F4E 100%)',
               boxShadow: '0 20px 60px rgba(13,31,78,0.2)',
-            }}
-          >
+            }}>
             <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, var(--brand-gold), rgba(196,154,42,0.15) 70%, transparent)' }} />
             <div className="relative z-10 px-8 sm:px-16 py-14 sm:py-16 flex flex-col sm:flex-row items-center justify-between gap-8">
               <div>
@@ -221,9 +218,9 @@ export default function FAQ() {
                 </a>
               </div>
             </div>
-          </motion.div>
+          </Reveal>
         </div>
       </section>
-    </motion.div>
+    </div>
   );
 }

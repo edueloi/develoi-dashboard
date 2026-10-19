@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { gsap } from "../../lib/gsap";
+import { Presence } from "../motion/Presence";
 import { cn } from "../../lib/utils";
 import { Button } from "./Button";
 
@@ -57,23 +58,19 @@ const backdropConfigs: Record<string, string> = {
   md:   "backdrop-blur-[4px]",
 };
 
-// ── Animações ──────────────────────────────────────────────────────────────
-const bottomSheetVariants: Variants = {
-  hidden:  { opacity: 0, y: "100%" },
-  visible: { opacity: 1, y: 0, transition: { type: "spring", damping: 26, stiffness: 240, mass: 0.8 } },
-  exit:    { opacity: 0, y: "100%", transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] } },
+// ── Animações (GSAP) ───────────────────────────────────────────────────────
+type ModalMode = "bottom-sheet" | "fullscreen" | "desktop";
+
+const panelFrom: Record<ModalMode, gsap.TweenVars> = {
+  "bottom-sheet": { yPercent: 100, opacity: 1 },
+  fullscreen:     { opacity: 0, scale: 0.96, y: 24 },
+  desktop:        { opacity: 0, scale: 0.97, y: 16 },
 };
 
-const fullscreenVariants: Variants = {
-  hidden:  { opacity: 0, scale: 0.96, y: 24 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", damping: 26, stiffness: 240 } },
-  exit:    { opacity: 0, scale: 0.96, y: -16, transition: { duration: 0.18, ease: "easeIn" } },
-};
-
-const desktopVariants: Variants = {
-  hidden:  { opacity: 0, scale: 0.97, y: 16 },
-  visible: { opacity: 1, scale: 1, y: 0, transition: { type: "spring", damping: 28, stiffness: 320, mass: 0.7 } },
-  exit:    { opacity: 0, scale: 0.97, y: -12, transition: { duration: 0.15, ease: "easeIn" } },
+const panelExit: Record<ModalMode, gsap.TweenVars> = {
+  "bottom-sheet": { yPercent: 100, duration: 0.28, ease: "power3.in" },
+  fullscreen:     { opacity: 0, scale: 0.96, y: -16, duration: 0.2, ease: "power2.in" },
+  desktop:        { opacity: 0, scale: 0.97, y: -12, duration: 0.18, ease: "power2.in" },
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -110,21 +107,35 @@ export const Modal: React.FC<ModalProps> = ({
   const isBottomSheet   = isMobile && mobileStyle === "bottom-sheet";
   const isMobileFullscreen = isMobile && mobileStyle === "fullscreen";
 
-  const variants = isMobile
-    ? isMobileFullscreen ? fullscreenVariants : bottomSheetVariants
-    : desktopVariants;
+  const mode: ModalMode = isMobile
+    ? isMobileFullscreen ? "fullscreen" : "bottom-sheet"
+    : "desktop";
+
+  const enter = (root: HTMLElement) => {
+    const tl = gsap.timeline();
+    tl.from(root.querySelector('[data-p="backdrop"]'), { opacity: 0, duration: 0.25, ease: "power2.out" }, 0);
+    tl.from(root.querySelector('[data-p="panel"]'), {
+      ...panelFrom[mode],
+      duration: mode === "bottom-sheet" ? 0.55 : 0.5,
+      ease: mode === "bottom-sheet" ? "power4.out" : "back.out(1.3)",
+      clearProps: "transform,opacity",
+    }, 0);
+    return tl;
+  };
+
+  const exit = (root: HTMLElement) => {
+    const tl = gsap.timeline();
+    tl.to(root.querySelector('[data-p="backdrop"]'), { opacity: 0, duration: 0.22, ease: "power2.in" }, 0);
+    tl.to(root.querySelector('[data-p="panel"]'), panelExit[mode], 0);
+    return tl;
+  };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
+    <Presence open={isOpen} enter={enter} exit={exit}>
         <>
           {/* Backdrop */}
-          <motion.div
-            key="modal-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
+          <div
+            data-p="backdrop"
             onClick={onClose}
             className={cn(
               "fixed inset-0 z-[100] bg-zinc-900/45 dark:bg-black/70",
@@ -141,12 +152,8 @@ export const Modal: React.FC<ModalProps> = ({
                 : "items-center justify-center p-4 sm:p-6"
             )}
           >
-            <motion.div
-              key="modal-content"
-              variants={variants}
-              initial="hidden"
-              animate="visible"
-              exit="exit"
+            <div
+              data-p="panel"
               className={cn(
                 "w-full bg-white dark:bg-[#111118] relative flex flex-col pointer-events-auto overflow-hidden",
                 // Mobile styles
@@ -228,11 +235,10 @@ export const Modal: React.FC<ModalProps> = ({
                   {footer}
                 </div>
               )}
-            </motion.div>
+            </div>
           </div>
         </>
-      )}
-    </AnimatePresence>
+    </Presence>
   );
 };
 
