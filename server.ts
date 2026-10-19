@@ -1471,6 +1471,24 @@ async function startServer() {
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 
+    // ─── Sitemap (SEO) ──────────────────────────────────────────────────────────
+    app.get("/sitemap.xml", async (_req, res) => {
+      try {
+        const base = "https://develoi.com.br";
+        const urls: string[] = ["/", "/sobre", "/valores", "/duvidas", "/contato", "/blog", "/projetos", "/privacidade"];
+        const [posts, cases] = await Promise.all([
+          (prisma as any).blogPost.findMany({ where: { status: "published" }, select: { slug: true } }),
+          (prisma as any).case.findMany({ where: { status: "published" }, select: { slug: true } }),
+        ]);
+        posts.forEach((p: any) => urls.push(`/blog/${p.slug}`));
+        cases.forEach((c: any) => urls.push(`/projetos/${c.slug}`));
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
+          .map((u) => `  <url><loc>${base}${u}</loc></url>`)
+          .join("\n")}\n</urlset>`;
+        res.type("application/xml").send(xml);
+      } catch (e: any) { res.status(500).send(e.message); }
+    });
+
     // ─── Serving ────────────────────────────────────────────────────────────────
     if (isDev) {
       const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
