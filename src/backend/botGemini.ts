@@ -2,7 +2,7 @@ import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { prisma } from "./db.js";
 import { decryptSecret } from "./secrets.js";
 
-const DEFAULT_MODEL = "gemini-3.8-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const CONFIG_CACHE_MS = 30_000;
 const MAX_TOOL_ROUNDS = 4;
@@ -44,6 +44,18 @@ function safeError(error: unknown): string {
     .replace(/sk-[\w-]{16,}/g, "[chave protegida]")
     .replace(/([?&](?:key|api_key)=)[^&\s]+/gi, "$1[chave protegida]")
     .slice(0, 400);
+}
+
+// Mensagem clara para o painel (o erro cru da API vem em JSON e assusta)
+function friendlyAiError(error: unknown, provider: AiProvider): string {
+  const raw = safeError(error);
+  const who = provider === "openai" ? "A OpenAI" : "O Google";
+  if (/abort/i.test(raw)) return "A IA demorou demais para responder. Tente de novo ou escolha um modelo mais rápido.";
+  if (/\b503\b|UNAVAILABLE|high demand|overloaded|sobrecarreg/i.test(raw)) return `${who} informou que este modelo está sobrecarregado agora. Tente de novo em instantes ou troque o modelo.`;
+  if (/\b404\b|not found|no longer available|does not exist|model_not_found/i.test(raw)) return "Este modelo não está mais disponível. Escolha outro modelo na lista.";
+  if (/\b(401|403)\b|API key|api_key|invalid_api_key|PERMISSION_DENIED|Incorrect API key/i.test(raw)) return "A chave da API foi recusada. Confira se copiou a chave inteira e se ela tem acesso a este modelo.";
+  if (/\b429\b|quota|rate limit|RESOURCE_EXHAUSTED|insufficient_quota/i.test(raw)) return "O limite ou o saldo da sua conta nesse provedor acabou. Verifique o plano e o faturamento.";
+  return raw;
 }
 
 async function loadSettings(force = false): Promise<GeminiSettings> {
@@ -273,12 +285,12 @@ async function askGeminiModel(settings: GeminiSettings, input: GeminiReplyInput,
   return out;
 }
 
-async function askAi(settings: GeminiSettings, input: GeminiReplyInput): Promise<AiResult | null> {
+async function askAi(settings: GeminiSettings, input: GeminiReplyInput, timeoutMs = 14_000): Promise<AiResult | null> {
   if (!settings.apiKey) return null;
   const tools = toolsFor(settings, input);
   const { systemInstruction, prompt } = buildPrompts(settings, input, tools.some(t => t.name === "transferir_para_atendente"), tools.some(t => t.name === "consultar_sistemas"));
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 14_000); // se a IA demorar, o cliente recebe a resposta programada
+  const timeout = setTimeout(() => controller.abort(), timeoutMs); // no atendimento, se a IA demorar o cliente recebe a resposta programada
   const out: AiResult = { text: null };
 
   try {
@@ -333,10 +345,10 @@ export async function testGeminiConnection(): Promise<{ ok: boolean; provider: A
       message: "Responda apenas: conexão confirmada",
       recent: [],
       knowledge: ["Este é um teste interno de conexão do painel da Develoi."],
-    });
+    }, 30_000); // teste manual: aceita esperar mais que o atendimento
     if (!reply?.text) return { ok: false, provider, model: settings.model, error: `O ${label} não retornou uma resposta.` };
     return { ok: true, provider, model: settings.model, reply: reply.text };
   } catch (error) {
-    return { ok: false, provider, model: provider === "openai" ? DEFAULT_OPENAI_MODEL : DEFAULT_MODEL, error: safeError(error) };
+    return { ok: false, provider, model: provider === "openai" ? DEFAULT_OPENAI_MODEL : DEFAULT_MODEL, error: friendlyAiError(error, provider) };
   }
 }

@@ -42,9 +42,8 @@ const ACTIONS = [
 const CUSTOM_MODEL = '__custom__';
 const MODEL_PRESETS: Record<AiProvider, { value: string; label: string }[]> = {
   gemini: [
-    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash — recomendado' },
-    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — econômico' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — compatibilidade' },
+    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — rápido e estável (recomendado)' },
+    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash — mais capaz (pode ficar sobrecarregado)' },
   ],
   openai: [
     { value: 'gpt-4o-mini', label: 'GPT-4o mini — econômico (recomendado)' },
