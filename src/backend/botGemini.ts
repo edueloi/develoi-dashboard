@@ -278,7 +278,7 @@ async function askAi(settings: GeminiSettings, input: GeminiReplyInput): Promise
   const tools = toolsFor(settings, input);
   const { systemInstruction, prompt } = buildPrompts(settings, input, tools.some(t => t.name === "transferir_para_atendente"), tools.some(t => t.name === "consultar_sistemas"));
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25_000);
+  const timeout = setTimeout(() => controller.abort(), 14_000); // se a IA demorar, o cliente recebe a resposta programada
   const out: AiResult = { text: null };
 
   try {
