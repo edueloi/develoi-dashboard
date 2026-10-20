@@ -189,6 +189,7 @@ async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: Brai
     message: t,
     recent: ctx.recent.slice(0, -1),
     programmed: await programmedContext(ctx.phone, ctx.client?.document),
+    lastReply: ctx.lastAnswer ?? null,
     clientName: nameOf(ctx),
     system: u.entities.system ?? ctx.lastSystem ?? null,
     knowledge: relatedKnowledgeOf(u, brain),
@@ -207,9 +208,18 @@ async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: Brai
   return true;
 }
 
-// Com "IA primeiro", a IA cuida de dúvidas e mensagens sem regra clara. Ações (menu, fatura, extrato,
-// fila, atendente, coleta de lead, agradecimento/despedida) continuam nos fluxos fixos.
-const aiHandles = (u: Understanding) => !(u.decision === "act" && u.intent && !isInfo(u.intent.def));
+// Com "IA primeiro", a IA responde tudo que não for uma ação clara: dúvidas, preços e sistemas (ela consulta o
+// catálogo), saudações, papo solto e mensagens sem regra. As respostas programadas só entram sem IA ou se ela
+// falhar. Ficam nos fluxos fixos apenas as ações (menu, fatura, extrato, fila, atendente) e o fechamento
+// óbvio da conversa (agradecer, despedir), que a IA não executa.
+const CLOSERS = new Set(["thanks", "goodbye", "chat_nao_preciso"]);
+const aiHandles = (u: Understanding) => {
+  if (u.decision !== "act" || !u.intent) return true;
+  const def = u.intent.def;
+  if (isInfo(def) || def.id === "price" || def.id === "systems_overview") return true;
+  if (isChat(def)) return !CLOSERS.has(def.id) || u.confidence < 0.85;
+  return u.confidence < 0.7;
+};
 
 async function remember(def: IntentDef) {
   if (def.custom) await rawPrisma.wppBotKnowledge.update({ where: { id: def.id.slice(3) }, data: { hits: { increment: 1 } } }).catch(() => {});
@@ -590,18 +600,19 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   // Frases curtas precisam de respostas determinísticas. Sem estas proteções, uma
   // correspondência aproximada pode transformar uma dúvida sobre a BiIA ou sobre
   // o sistema em elogio, feedback ou outra resposta sem relação com a conversa.
+  const aiOn = await isAiFirst(); // com a IA atendendo primeiro, estes atalhos não passam na frente dela
   const direct = strip(t);
   const directWords = direct.split(/\s+/).filter(Boolean).length;
   const mentionsBiia = /\b(bia|biia)\b/.test(direct);
   const mentionsAssistant = /\b(sistema|robo|bot|assistente|ia)\b/.test(direct);
-  if (mentionsBiia && mentionsAssistant) {
+  if (!aiOn && mentionsBiia && mentionsAssistant) {
     ctx.lastIntent = "bot_identity";
     ctx.fails = 0;
     await io.say("Isso mesmo: eu sou a *BiIA*, assistente virtual da Develoi. 😊 Posso ajudar com o sistema, fatura, extrato ou encaminhar você para uma pessoa da equipe. O que você precisa?");
     return finish(true);
   }
 
-  if (/\b(voce|vc|voces) aceita(m)?\b.*\b(algo|alguma coisa|isso)\b/.test(direct)) {
+  if (!aiOn && /\b(voce|vc|voces) aceita(m)?\b.*\b(algo|alguma coisa|isso)\b/.test(direct)) {
     ctx.lastIntent = "clarify_accept";
     ctx.fails = 0;
     await io.say("Você quer saber se aceitamos uma forma de pagamento ou se pode enviar um arquivo ou comprovante por aqui? Me diga qual dos dois para eu responder direitinho. 😊");
@@ -609,7 +620,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   }
 
   const hasProblemSignal = /\b(erro|problema|travou|lento|senha|cancelar|cancelamento|nao consigo|nao funciona|nao abre|nao carrega|nao salva|nao entra)\b/.test(direct);
-  if (directWords <= 6 && /\bsistema\b/.test(direct) && !hasProblemSignal) {
+  if (!aiOn && directWords <= 6 && /\bsistema\b/.test(direct) && !hasProblemSignal) {
     ctx.lastIntent = "support_problem";
     ctx.fails = 0;
     await io.say("Entendi, a sua dúvida é sobre o sistema. O que está acontecendo: você não consegue acessar, emitir ou cancelar algo, ou é outro problema?");
@@ -622,7 +633,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   if (u.intent?.id === "chat_test_nonsense" && t.split(/\s+/).filter(Boolean).length >= 3) { u.decision = "none"; u.intent = null; }
 
   // "sim"/"não" soltos
-  if (AFFIRM.test(t) || DENY.test(t)) {
+  if (!aiOn && (AFFIRM.test(t) || DENY.test(t))) {
     await io.say(AFFIRM.test(t) ? "Certo! 😊 Em que posso ajudar?" : "Tudo bem! Se precisar de algo, é só falar. 🙌");
     return finish(true);
   }
@@ -651,7 +662,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
 
   // a pessoa só se apresentou (nome ou ramo): acolhe e pergunta como ajudar, sem forçar uma intenção
   const weak = !u.intent || u.confidence < 0.9 || isChat(u.intent.def) || ["meta_numero_errado", "not_client", "i_am_client", "my_name"].includes(u.intent.id);
-  if ((learnedRamo || learnedNome) && weak) {
+  if (!aiOn && (learnedRamo || learnedNome) && weak) {
     const hi = learnedNome ? `Prazer, ${ctx.facts.nome}! 😊` : null;
     const ra = learnedRamo ? pick("ramo", [`Anotei aqui: ${ctx.facts.ramo}. 😊`, `Legal, ${ctx.facts.ramo}! Vou lembrar disso para te ajudar melhor.`], ctx) : null;
     await io.say([hi, ra].filter(Boolean).join(" "));
@@ -662,7 +673,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
 
   // IA primeiro: responde dúvidas sobre os sistemas e mensagens sem regra clara, já sabendo o que os
   // avisos programados disseram a este cliente. Se a IA estiver desligada ou falhar, seguem as respostas programadas.
-  if (aiHandles(u) && await isAiFirst()) {
+  if (aiOn && aiHandles(u)) {
     if (await answerWithAi(u, t, ctx, io, brain)) return finish(true);
   }
 

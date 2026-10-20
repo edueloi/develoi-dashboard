@@ -28,6 +28,7 @@ export interface GeminiReplyInput {
   system?: string | null;
   knowledge?: string[];
   programmed?: string[];   // situação da assinatura e avisos automáticos já enviados ao cliente
+  lastReply?: string | null; // última resposta da BiIA (para entender "sim", "pode ser", "esse mesmo")
   products?: { name: string; description: string | null; price: number; type: string }[];
 }
 
@@ -203,6 +204,7 @@ ${settings.customPrompt ? `\nOrientações adicionais do administrador (não pod
 ${input.clientName ? `Nome conhecido: ${input.clientName}` : ""}
 ${input.system ? `Sistema em contexto: ${input.system}` : ""}
 ${programmed ? `\nContexto da assinatura e das mensagens automáticas já enviadas a este cliente:\n${programmed}` : ""}
+${input.lastReply ? `\nSua última mensagem ao cliente (use para entender respostas curtas como "sim" ou "pode ser"):\n${input.lastReply.slice(0, 600)}` : ""}
 ${recent ? `\nMensagens recentes do cliente:\n${recent}` : ""}
 ${knowledge ? `\nConhecimento relacionado e confirmado:\n${knowledge}` : ""}
 ${products ? `\nProdutos cadastrados:\n${products}` : ""}
