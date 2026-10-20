@@ -28,7 +28,7 @@ import { registerPlacesRoutes } from "./src/backend/placesSearch.js";
 import { registerBusinessPlanRoutes } from "./src/backend/businessPlan.js";
 import { registerBoxsysRoutes, startBoxsysScheduler, syncBoxsysAccess } from "./src/backend/boxsys.js";
 import { registerWebhookOutRoutes, startWebhookDispatcher } from "./src/backend/webhooksOut.js";
-import { computeNextDueDate, registerClientPayment } from "./src/backend/clientBilling.js";
+import { computeNextDueDate, registerClientPayment, skipClientDue } from "./src/backend/clientBilling.js";
 import { brtTodayUtc } from "./src/backend/time.js";
 
 dotenv.config();
@@ -950,6 +950,15 @@ async function startServer() {
           catch (e: any) { receipt = { sent: false, error: e.message }; }
         }
         res.json({ ...result.client, receipt });
+      } catch (e: any) { res.status(500).json({ error: e.message }); }
+    });
+
+    // Pula o vencimento em aberto sem registrar recebimento (pagou por fora / cobrança duplicada)
+    app.post("/api/clients/:id/skip-due", async (req, res) => {
+      try {
+        const client = await skipClientDue(req.params.id);
+        if (!client) return res.status(400).json({ error: "Este cliente não tem um vencimento recorrente para pular." });
+        res.json(client);
       } catch (e: any) { res.status(500).json({ error: e.message }); }
     });
 

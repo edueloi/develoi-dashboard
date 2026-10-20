@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   DollarSign, Plus, Edit2, Trash2, MessageCircle, Clock, AlertCircle, ShieldAlert, CheckCircle2,
-  Undo2, RefreshCw, Repeat, ChevronDown, Bot, Users, Layers, Receipt, Banknote, FileText, Send,
+  Undo2, RefreshCw, Repeat, ChevronDown, Bot, Users, Layers, Receipt, Banknote, FileText, Send, SkipForward,
 } from 'lucide-react';
 import { Button, Modal, Input, Select, Textarea, EmptyState, DatePicker } from '../ui';
 import { useToast } from '../ui/Toast';
@@ -101,6 +101,7 @@ export function ReceivablesManager() {
   const [receiveSub, setReceiveSub] = useState<Client | null>(null);
   const [receiveManual, setReceiveManual] = useState<Receivable | null>(null);
   const [deleting, setDeleting] = useState<Entry | null>(null);
+  const [skipping, setSkipping] = useState<Entry | null>(null);
   const [showReceived, setShowReceived] = useState(true);
 
   const today = useMemo(startOfToday, []);
@@ -201,6 +202,18 @@ export function ReceivablesManager() {
   function undoSub(id: string) { call(`/api/client-payments/${id}`, 'DELETE', 'Recebimento desfeito', 'Não deu para desfazer agora.'); }
   function undoManual(id: string) { call(`/api/receivables/${id}/undo`, 'POST', 'Recebimento desfeito', 'Não deu para desfazer agora.'); }
 
+  const doSkip = async () => {
+    const e = skipping;
+    if (!e || e.kind !== 'sub') return;
+    try {
+      const res = await fetch(`/api/clients/${e.client.id}/skip-due`, { method: 'POST' });
+      if (!res.ok) throw new Error();
+      toast('Vencimento pulado', 'success');
+      fetchData();
+    } catch { toast('Não deu para pular o vencimento agora.', 'error'); }
+    finally { setSkipping(null); }
+  };
+
   const doDelete = async (scope?: 'following' | 'series') => {
     const e = deleting;
     if (!e) return;
@@ -271,6 +284,7 @@ export function ReceivablesManager() {
             { label: 'Recebimentos', icon: Banknote, onClick: () => setReceiveSub(c!) },
             ...(c!.phone ? [{ label: 'Cobrar no WhatsApp', icon: MessageCircle, onClick: () => window.open(buildWhatsAppLink(c!), '_blank') }] : []),
             ...(c!.phone && c!.nextDueDate && c!.status !== 'cancelled' && (c!.billingValue ?? 0) > 0 ? [{ label: late ? 'Enviar cobrança gentil pela BiIA' : 'Enviar lembrete pela BiIA', icon: Bot, onClick: () => remindViaBot(c!) }] : []),
+            ...(c!.nextDueDate && c!.status !== 'cancelled' && c!.billingCycle !== 'one_time' ? [{ label: 'Pular este vencimento', icon: SkipForward, onClick: () => setSkipping(e) }] : []),
             { label: 'Editar assinatura', icon: Edit2, onClick: () => setClientForm({ open: true, client: c }) },
             { label: 'Excluir cliente', icon: Trash2, danger: true, onClick: () => setDeleting(e) },
           ] : [
@@ -435,6 +449,21 @@ export function ReceivablesManager() {
           onClose={() => setReceiveManual(null)}
           onDone={() => { setReceiveManual(null); fetchData(); }}
         />
+      )}
+
+      {skipping && skipping.kind === 'sub' && (
+        <Modal isOpen onClose={() => setSkipping(null)} title="Pular este vencimento" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              O vencimento de <b style={{ color: text }}>{skipping.name}</b> ({skipping.due ? format(parseDay(skipping.due)!, 'dd/MM/yyyy') : '—'}) sai da lista e a assinatura passa para o próximo ciclo.
+              Nenhum recebimento é registrado. Use quando o cliente já pagou por fora ou a cobrança foi duplicada.
+            </p>
+            <div className="flex gap-2">
+              <Button fullWidth variant="outline" onClick={() => setSkipping(null)}>Cancelar</Button>
+              <Button fullWidth onClick={doSkip}>Pular vencimento</Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {deleting && (

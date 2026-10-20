@@ -25,6 +25,16 @@ export function computeNextDueDate(dueDay: number, billingCycle: string, from: D
   return candidate;
 }
 
+// Pula o vencimento em aberto sem registrar recebimento (ex.: o cliente pagou por fora ou a
+// cobrança foi duplicada). Só avança a data para o próximo ciclo; nada entra no financeiro.
+export async function skipClientDue(clientId: string) {
+  const c = await prisma.client.findUnique({ where: { id: clientId } });
+  if (!c || !c.nextDueDate || c.billingCycle === "one_time") return null;
+  const day = c.dueDay ?? c.nextDueDate.getUTCDate();
+  const next = computeNextDueDate(day, c.billingCycle, c.nextDueDate);
+  return prisma.client.update({ where: { id: clientId }, data: { nextDueDate: next } });
+}
+
 export interface PaymentInput {
   amount?: number;
   paidAt?: string | Date;
