@@ -11,7 +11,8 @@ import { EXTRA_INTENTS } from "./botData.js";
 import { mathAnswer } from "./botMath.js";
 import { AUGMENT_PHRASES } from "./botAugment.js";
 import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, type Facts, type Style } from "./botPersona.js";
-import { generateGeminiReply } from "./botGemini.js";
+import { generateAiResult, generateGeminiReply, isAiFirst } from "./botGemini.js";
+import { programmedContext } from "./botContext.js";
 
 // ─── Memória e ações ─────────────────────────────────────────────────────────
 
@@ -21,6 +22,7 @@ interface LeadFlow { step: number; data: { ramo?: string; necessidade?: string }
 
 export interface BrainCtx {
   pushName?: string | null;
+  phone?: string;                                       // telefone do contato no WhatsApp (para achar o cadastro e os avisos automáticos)
   client?: { name: string | null; document: string };   // quem o bot já identificou nesta conversa (CPF/CNPJ informado)
   lastIntent?: string;
   lastSystem?: string;
@@ -169,6 +171,45 @@ function priceText(b: Brain, system?: string | null): string {
 const GENERIC_ONLY = new Set(["bot_identity", "greeting", "laugh", "how_are_you", "thanks", "thanks_but", "compliment", "goodbye", "menu", "repeat", "addressing", "friendship", "topic_change", "retry_failed", "resend", "i_am_client", "not_client", "my_name", "and_you", "can_chat", "now_time", "now_date", "recap"]);
 const isChat = (d: IntentDef) => GENERIC_ONLY.has(d.id) || d.id.startsWith("chat_") || d.id.startsWith("talk_") || d.id.startsWith("life_") || d.id.startsWith("oops_");
 const isInfo = (d: IntentDef) => !isChat(d) && (!d.action || d.action === "reply") && !["price", "systems_overview", "queue_status", "human"].includes(d.id);
+
+// Conhecimento cadastrado mais próximo da mensagem, para a IA responder sem inventar
+function relatedKnowledgeOf(u: Understanding, brain: Brain): string[] {
+  return u.candidates.slice(0, 8).map(candidate => {
+    const def = brain.defs.find(item => item.id === candidate.id);
+    if (!def || isChat(def)) return null;
+    const answer = (def.replies ?? [])[0]?.replace(/\s+/g, " ").slice(0, 500);
+    return answer ? `- ${def.label}${def.system ? ` (${def.system})` : ""}: ${answer}` : null;
+  }).filter((item): item is string => Boolean(item));
+}
+
+// A IA responde e, se decidir, encaminha o cliente para o setor certo (a transferência em si
+// continua nos fluxos fixos: io.handoff cuida da fila e dos atendentes).
+async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: BrainIO, brain: Brain): Promise<boolean> {
+  const result = await generateAiResult({
+    message: t,
+    recent: ctx.recent.slice(0, -1),
+    programmed: await programmedContext(ctx.phone, ctx.client?.document),
+    clientName: nameOf(ctx),
+    system: u.entities.system ?? ctx.lastSystem ?? null,
+    knowledge: relatedKnowledgeOf(u, brain),
+    products: brain.products,
+  });
+  if (!result) return false;
+  ctx.fails = 0;
+  ctx.lastIntent = "gemini";
+  ctx.lastReplyDef = undefined;
+  if (u.entities.system) ctx.lastSystem = u.entities.system;
+  if (result.text) await io.say(result.text);
+  if (result.handoff) {
+    const note = [`Encaminhado pela IA: ${result.handoff.reason || "sem detalhes"}`, contextNote(ctx)].filter(Boolean).join("\n");
+    await io.handoff(result.handoff.sector, note);
+  }
+  return true;
+}
+
+// Com "IA primeiro", a IA cuida de dúvidas e mensagens sem regra clara. Ações (menu, fatura, extrato,
+// fila, atendente, coleta de lead, agradecimento/despedida) continuam nos fluxos fixos.
+const aiHandles = (u: Understanding) => !(u.decision === "act" && u.intent && !isInfo(u.intent.def));
 
 async function remember(def: IntentDef) {
   if (def.custom) await rawPrisma.wppBotKnowledge.update({ where: { id: def.id.slice(3) }, data: { hits: { increment: 1 } } }).catch(() => {});
@@ -619,6 +660,12 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     return finish(true);
   }
 
+  // IA primeiro: responde dúvidas sobre os sistemas e mensagens sem regra clara, já sabendo o que os
+  // avisos programados disseram a este cliente. Se a IA estiver desligada ou falhar, seguem as respostas programadas.
+  if (aiHandles(u) && await isAiFirst()) {
+    if (await answerWithAi(u, t, ctx, io, brain)) return finish(true);
+  }
+
   // duas perguntas na mesma mensagem ("tem nota fiscal e como funciona o estoque?"): responde as duas
   const parts = clausesOf(t);
   if (parts.length >= 2) {
@@ -644,27 +691,7 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   // Quando as regras locais não têm certeza, o Gemini pode redigir uma resposta
   // contextual. Ele não executa ações: filas, faturas e transferências continuam
   // exclusivamente nos fluxos determinísticos acima.
-  const relatedKnowledge = u.candidates.slice(0, 8).map(candidate => {
-    const def = brain.defs.find(item => item.id === candidate.id);
-    if (!def || isChat(def)) return null;
-    const answer = (def.replies ?? [])[0]?.replace(/\s+/g, " ").slice(0, 500);
-    return answer ? `- ${def.label}${def.system ? ` (${def.system})` : ""}: ${answer}` : null;
-  }).filter((item): item is string => Boolean(item));
-  const geminiReply = await generateGeminiReply({
-    message: t,
-    recent: ctx.recent.slice(0, -1),
-    clientName: nameOf(ctx),
-    system: u.entities.system ?? ctx.lastSystem ?? null,
-    knowledge: relatedKnowledge,
-    products: brain.products,
-  });
-  if (geminiReply) {
-    ctx.fails = 0;
-    ctx.lastIntent = "gemini";
-    ctx.lastReplyDef = undefined;
-    await io.say(geminiReply);
-    return finish(true);
-  }
+  if (await answerWithAi(u, t, ctx, io, brain)) return finish(true);
 
   // papo livre: se não for um pedido, a BiIA continua a conversa com naturalidade
   if (ctx.mode === "chat" && !u.mood.angry && (u.decision !== "act" || (u.intent && u.confidence < 0.8 && isChat(u.intent.def)))) {
@@ -868,7 +895,8 @@ export function registerBotBrainRoutes(app: Express) {
       const answer = item?.replies?.[0]?.replace(/\s+/g, " ").slice(0, 500);
       return item && answer && !isChat(item) ? `- ${item.label}${item.system ? ` (${item.system})` : ""}: ${answer}` : null;
     }).filter((item): item is string => Boolean(item));
-    const geminiReply = localReply ? null : await generateGeminiReply({
+    const aiFirstNow = (await isAiFirst()) && aiHandles(u);
+    const geminiReply = localReply && !aiFirstNow ? null : await generateGeminiReply({
       message: text,
       recent: [],
       clientName: "Cliente",
@@ -881,8 +909,8 @@ export function registerBotBrainRoutes(app: Express) {
       intent: def ? { id: def.id, label: def.label, action: def.action ?? "reply", custom: !!def.custom } : null,
       candidates: u.candidates.map(c => ({ id: c.id, label: c.label, score: Math.min(100, Math.round(c.score * 100)) })),
       entities: u.entities, mood: u.mood, greetingOnly: u.greetingOnly,
-      reply: localReply ?? geminiReply,
-      source: localReply ? "local" : geminiReply ? "gemini" : null,
+      reply: aiFirstNow && geminiReply ? geminiReply : localReply ?? geminiReply,
+      source: aiFirstNow && geminiReply ? "gemini" : localReply ? "local" : geminiReply ? "gemini" : null,
     });
   });
 

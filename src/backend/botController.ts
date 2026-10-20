@@ -6,13 +6,17 @@ import { encryptSecret } from "./secrets.js";
 import { resetGeminiConfigCache, testGeminiConnection } from "./botGemini.js";
 
 function publicBotConfig(config: any) {
-  const { geminiApiKeyEncrypted: _secret, ...safe } = config;
+  const { geminiApiKeyEncrypted: _secret, openaiApiKeyEncrypted: _openaiSecret, ...safe } = config;
   const fromPanel = Boolean(config.geminiApiKeyEncrypted);
   const fromEnvironment = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const openaiFromPanel = Boolean(config.openaiApiKeyEncrypted);
+  const openaiFromEnvironment = Boolean(process.env.OPENAI_API_KEY?.trim());
   return {
     ...safe,
     geminiConfigured: fromPanel || fromEnvironment,
     geminiKeySource: fromPanel ? "panel" : fromEnvironment ? "environment" : null,
+    openaiConfigured: openaiFromPanel || openaiFromEnvironment,
+    openaiKeySource: openaiFromPanel ? "panel" : openaiFromEnvironment ? "environment" : null,
   };
 }
 
@@ -458,7 +462,7 @@ export const botController = {
 
       const body = req.body ?? {};
       const data: Record<string, unknown> = {};
-      for (const key of ["botEnabled", "sendWelcome", "menuEnabled", "useButtons", "geminiEnabled"] as const) {
+      for (const key of ["botEnabled", "sendWelcome", "menuEnabled", "useButtons", "geminiEnabled", "aiFirst"] as const) {
         if (typeof body[key] === "boolean") data[key] = body[key];
       }
       for (const key of ["menuWelcomeMsg", "solutionsMsg", "clientHelpMsg", "menuOptions"] as const) {
@@ -471,6 +475,18 @@ export const botController = {
         const model = body.geminiModel.trim();
         if (!/^[a-zA-Z0-9._-]{3,80}$/.test(model)) return res.status(400).json({ error: "Nome de modelo do Gemini inválido." });
         data.geminiModel = model;
+      }
+      if (body.aiProvider === "gemini" || body.aiProvider === "openai") data.aiProvider = body.aiProvider;
+      if (typeof body.openaiModel === "string") {
+        const model = body.openaiModel.trim();
+        if (!/^[a-zA-Z0-9._:-]{3,80}$/.test(model)) return res.status(400).json({ error: "Nome de modelo da OpenAI inválido." });
+        data.openaiModel = model;
+      }
+      if (body.clearOpenaiApiKey === true) data.openaiApiKeyEncrypted = null;
+      if (typeof body.openaiApiKey === "string" && body.openaiApiKey.trim()) {
+        const apiKey = body.openaiApiKey.trim();
+        if (apiKey.length < 20 || apiKey.length > 300) return res.status(400).json({ error: "A chave da API da OpenAI parece inválida." });
+        data.openaiApiKeyEncrypted = encryptSecret(apiKey, "openai-api-key");
       }
       if (body.clearGeminiApiKey === true) data.geminiApiKeyEncrypted = null;
       if (typeof body.geminiApiKey === "string" && body.geminiApiKey.trim()) {

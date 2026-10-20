@@ -15,7 +15,13 @@ interface TestResult {
   entities: Record<string, string | number>; mood: { angry: boolean; urgent: boolean; polite: boolean }; reply: string | null;
   source?: 'local' | 'gemini' | null;
 }
+type AiProvider = 'gemini' | 'openai';
 interface GeminiConfig {
+  aiProvider: AiProvider;
+  aiFirst: boolean;
+  openaiConfigured: boolean;
+  openaiKeySource: 'panel' | 'environment' | null;
+  openaiModel: string;
   geminiEnabled: boolean;
   geminiConfigured: boolean;
   geminiKeySource: 'panel' | 'environment' | null;
@@ -33,6 +39,20 @@ const ACTIONS = [
   { value: 'handoff:Suporte', label: 'Responder e chamar o Suporte' },
 ];
 
+const CUSTOM_MODEL = '__custom__';
+const MODEL_PRESETS: Record<AiProvider, { value: string; label: string }[]> = {
+  gemini: [
+    { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash — recomendado' },
+    { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — econômico' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — compatibilidade' },
+  ],
+  openai: [
+    { value: 'gpt-4o-mini', label: 'GPT-4o mini — econômico (recomendado)' },
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini — equilibrado' },
+    { value: 'gpt-4o', label: 'GPT-4o — mais capaz' },
+  ],
+};
+
 const EMPTY: Omit<Kb, 'id' | 'hits'> = { title: '', system: '', phrases: [], keywords: [], answer: '', action: 'reply', followUp: '', priority: 5, enabled: true };
 
 // "Inteligência do bot": o que ele entende, o que responde e o que ainda não entendeu
@@ -46,6 +66,7 @@ export function BotIntelligence() {
   const [testing, setTesting] = useState(false);
   const [gemini, setGemini] = useState<GeminiConfig | null>(null);
   const [geminiKey, setGeminiKey] = useState('');
+  const [openaiKey, setOpenaiKey] = useState('');
   const [savingGemini, setSavingGemini] = useState(false);
   const [testingGemini, setTestingGemini] = useState(false);
 
@@ -59,6 +80,11 @@ export function BotIntelligence() {
       setRows(Array.isArray(a) ? a : []);
       setUnknown(Array.isArray(b) ? b : []);
       setGemini({
+        aiProvider: c.aiProvider === 'openai' ? 'openai' : 'gemini',
+        aiFirst: c.aiFirst !== false,
+        openaiConfigured: c.openaiConfigured === true,
+        openaiKeySource: c.openaiKeySource ?? null,
+        openaiModel: c.openaiModel || 'gpt-4o-mini',
         geminiEnabled: c.geminiEnabled === true,
         geminiConfigured: c.geminiConfigured === true,
         geminiKeySource: c.geminiKeySource ?? null,
@@ -126,17 +152,22 @@ export function BotIntelligence() {
       const res = await fetch('/api/admin/bot/config', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          aiProvider: gemini.aiProvider,
+          aiFirst: gemini.aiFirst,
           geminiEnabled: gemini.geminiEnabled,
           geminiModel: gemini.geminiModel,
+          openaiModel: gemini.openaiModel,
           geminiSystemPrompt: gemini.geminiSystemPrompt || null,
           ...(geminiKey.trim() ? { geminiApiKey: geminiKey.trim() } : {}),
+          ...(openaiKey.trim() ? { openaiApiKey: openaiKey.trim() } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Não foi possível salvar o Gemini.');
+      if (!res.ok) throw new Error(data.error || 'Não foi possível salvar a configuração da IA.');
       setGemini(data);
       setGeminiKey('');
-      if (!quiet) toast.success('Configuração do Gemini salva');
+      setOpenaiKey('');
+      if (!quiet) toast.success('Configuração da IA salva');
       return true;
     } catch (e: any) {
       toast.error(e.message);
@@ -152,8 +183,8 @@ export function BotIntelligence() {
       if (!(await saveGemini(true))) return;
       const res = await fetch('/api/admin/bot/gemini/test', { method: 'POST' });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Não foi possível conectar ao Gemini.');
-      toast.success(`Gemini conectado — ${data.model}`);
+      if (!res.ok) throw new Error(data.error || 'Não foi possível conectar à IA.');
+      toast.success(`${data.provider === 'openai' ? 'ChatGPT' : 'Gemini'} conectado — ${data.model}`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -161,16 +192,20 @@ export function BotIntelligence() {
     }
   };
 
-  const clearGeminiKey = async () => {
-    if (!confirm('Remover a chave do Gemini salva no painel?')) return;
+  const clearAiKey = async () => {
+    if (!gemini) return;
+    const isOpenai = gemini.aiProvider === 'openai';
+    const name = isOpenai ? 'ChatGPT (OpenAI)' : 'Gemini';
+    if (!confirm(`Remover a chave do ${name} salva no painel?`)) return;
     const res = await fetch('/api/admin/bot/config', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clearGeminiApiKey: true, geminiEnabled: false }),
+      body: JSON.stringify({ ...(isOpenai ? { clearOpenaiApiKey: true } : { clearGeminiApiKey: true }), geminiEnabled: false }),
     });
     if (!res.ok) return toast.error('Não foi possível remover a chave.');
     setGemini(await res.json());
     setGeminiKey('');
-    toast.success('Chave do Gemini removida');
+    setOpenaiKey('');
+    toast.success(`Chave do ${name} removida`);
   };
 
   return (
@@ -178,53 +213,85 @@ export function BotIntelligence() {
       <div className="space-y-6">
         <p className="text-xs dash-text-muted">
           O bot entende mensagens livres (com erros de digitação, gírias e abreviações), responde com variações e age: manda a fatura, o extrato, abre suporte ou chama a equipe.
-          Aqui você ensina respostas sobre os seus sistemas e, se desejar, usa o Gemini como apoio quando as regras locais não tiverem uma resposta segura.
+          Aqui você ensina respostas sobre os seus sistemas e, se desejar, usa uma IA (Gemini ou ChatGPT) para atender primeiro, com as respostas programadas e os fluxos como base e como plano B. A IA também enxerga a situação da assinatura e os avisos automáticos de cobrança já enviados ao cliente, para entender respostas a eles.
         </p>
 
-        {/* Gemini */}
+        {/* IA (Gemini ou ChatGPT) */}
         <div className="rounded-xl border dash-border p-4 space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"><KeyRound className="h-4 w-4" /></div>
-              <div>
-                <p className="text-sm font-bold dash-text">Gemini para conversas</p>
-                <p className="text-xs dash-text-muted">Entra somente quando a inteligência local não reconhece a mensagem. Fluxos, filas e atendimento humano continuam com prioridade.</p>
+          {(() => {
+            if (!gemini) return null;
+            const isOpenai = gemini.aiProvider === 'openai';
+            const providerName = isOpenai ? 'ChatGPT' : 'Gemini';
+            const configured = isOpenai ? gemini.openaiConfigured : gemini.geminiConfigured;
+            const keySource = isOpenai ? gemini.openaiKeySource : gemini.geminiKeySource;
+            const model = isOpenai ? gemini.openaiModel : gemini.geminiModel;
+            const presets = MODEL_PRESETS[gemini.aiProvider];
+            const isPreset = presets.some(p => p.value === model);
+            const setModel = (value: string) => setGemini(isOpenai ? { ...gemini, openaiModel: value } : { ...gemini, geminiModel: value });
+            return <>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-300"><KeyRound className="h-4 w-4" /></div>
+                  <div>
+                    <p className="text-sm font-bold dash-text">IA para conversas</p>
+                    <p className="text-xs dash-text-muted">Atende dúvidas e mensagens livres. Fluxos, filas, faturas e atendimento humano continuam nos fluxos fixos e com prioridade.</p>
+                  </div>
+                </div>
+                <Badge color={gemini.geminiEnabled && configured ? 'success' : 'default'}>
+                  {gemini.geminiEnabled && configured ? 'ATIVO' : configured ? 'CONFIGURADO' : 'NÃO CONFIGURADO'}
+                </Badge>
               </div>
-            </div>
-            <Badge color={gemini?.geminiEnabled && gemini?.geminiConfigured ? 'success' : 'default'}>
-              {gemini?.geminiEnabled && gemini?.geminiConfigured ? 'ATIVO' : gemini?.geminiConfigured ? 'CONFIGURADO' : 'NÃO CONFIGURADO'}
-            </Badge>
-          </div>
 
-          {gemini && <>
-            <label className="flex items-start justify-between gap-4 rounded-lg border p-3 dash-border">
-              <span>
-                <span className="block text-sm font-bold dash-text">Usar Gemini nas respostas</span>
-                <span className="block text-[11px] dash-text-muted">Se a API falhar, a BiIA continua funcionando com a inteligência local.</span>
-              </span>
-              <input type="checkbox" checked={gemini.geminiEnabled} onChange={e => setGemini({ ...gemini, geminiEnabled: e.target.checked })} className="mt-0.5 h-5 w-5 accent-indigo-600" />
-            </label>
+              <div className="inline-flex rounded-lg border p-0.5 dash-border" role="group" aria-label="Provedor de IA">
+                {([['gemini', 'Google Gemini'], ['openai', 'ChatGPT (OpenAI)']] as const).map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setGemini({ ...gemini, aiProvider: value })}
+                    className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${gemini.aiProvider === value ? 'bg-indigo-600 text-white' : 'dash-text-muted hover:bg-slate-100 dark:hover:bg-white/5'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Input type="password" label="Chave da API do Gemini" value={geminiKey} onChange={(e: any) => setGeminiKey(e.target.value)}
-                placeholder={gemini.geminiConfigured ? 'Chave já configurada — digite somente para trocar' : 'Cole a chave criada no Google AI Studio'} />
-              <Select label="Modelo" value={gemini.geminiModel} onChange={(e: any) => setGemini({ ...gemini, geminiModel: e.target.value })} options={[
-                { value: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash — recomendado' },
-                { value: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash Lite — econômico' },
-                { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash — compatibilidade' },
-              ]} />
-            </div>
-            <Textarea label="Orientações adicionais para a BiIA (opcional)" rows={4} value={gemini.geminiSystemPrompt ?? ''}
-              onChange={(e: any) => setGemini({ ...gemini, geminiSystemPrompt: e.target.value })}
-              placeholder="Ex.: Seja objetiva, faça apenas uma pergunta por vez e priorize suporte aos clientes ativos." />
+              <label className="flex items-start justify-between gap-4 rounded-lg border p-3 dash-border">
+                <span>
+                  <span className="block text-sm font-bold dash-text">Usar IA nas respostas</span>
+                  <span className="block text-[11px] dash-text-muted">Se a API falhar, a BiIA continua funcionando com a inteligência local.</span>
+                </span>
+                <input type="checkbox" checked={gemini.geminiEnabled} onChange={e => setGemini({ ...gemini, geminiEnabled: e.target.checked })} className="mt-0.5 h-5 w-5 accent-indigo-600" />
+              </label>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={() => saveGemini()} loading={savingGemini} iconLeft={<Save className="h-3.5 w-3.5" />}>SALVAR GEMINI</Button>
-              <Button size="sm" variant="secondary" onClick={testGemini} loading={testingGemini} iconLeft={<Wifi className="h-3.5 w-3.5" />}>TESTAR CONEXÃO</Button>
-              {gemini.geminiKeySource === 'panel' && <Button size="sm" variant="outline" onClick={clearGeminiKey}>REMOVER CHAVE</Button>}
-              <span className="flex items-center gap-1 text-[11px] dash-text-muted"><ShieldCheck className="h-3.5 w-3.5" /> A chave fica criptografada no servidor e nunca é exibida novamente.</span>
-            </div>
-          </>}
+              <label className="flex items-start justify-between gap-4 rounded-lg border p-3 dash-border">
+                <span>
+                  <span className="block text-sm font-bold dash-text">A IA atende primeiro</span>
+                  <span className="block text-[11px] dash-text-muted">
+                    A IA responde dúvidas sobre os sistemas e mensagens livres, já sabendo o que os avisos programados disseram ao cliente. Menu, fatura, extrato, fila e chamada de atendente continuam nos fluxos fixos. Desligado, a IA só entra quando as respostas programadas não entendem.
+                  </span>
+                </span>
+                <input type="checkbox" checked={gemini.aiFirst} disabled={!gemini.geminiEnabled} onChange={e => setGemini({ ...gemini, aiFirst: e.target.checked })} className="mt-0.5 h-5 w-5 accent-indigo-600 disabled:opacity-40" />
+              </label>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Input type="password" autoComplete="off" label={`Chave da API ${isOpenai ? 'da OpenAI' : 'do Gemini'}`}
+                  value={isOpenai ? openaiKey : geminiKey} onChange={(e: any) => (isOpenai ? setOpenaiKey : setGeminiKey)(e.target.value)}
+                  placeholder={configured ? 'Chave já configurada — digite somente para trocar' : isOpenai ? 'Cole a chave criada em platform.openai.com' : 'Cole a chave criada no Google AI Studio'} />
+                <div className="space-y-2">
+                  <Select label="Modelo" value={isPreset ? model : CUSTOM_MODEL}
+                    onChange={(e: any) => setModel(e.target.value === CUSTOM_MODEL ? '' : e.target.value)}
+                    options={[...presets, { value: CUSTOM_MODEL, label: 'Outro (digitar o nome do modelo)' }]} />
+                  {!isPreset && <Input aria-label="Nome do modelo" value={model} onChange={(e: any) => setModel(e.target.value)} placeholder="Nome exato do modelo" />}
+                </div>
+              </div>
+              <Textarea label="Orientações adicionais para a BiIA (opcional)" rows={4} value={gemini.geminiSystemPrompt ?? ''}
+                onChange={(e: any) => setGemini({ ...gemini, geminiSystemPrompt: e.target.value })}
+                placeholder="Ex.: Seja objetiva, faça apenas uma pergunta por vez e priorize suporte aos clientes ativos." />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" onClick={() => saveGemini()} loading={savingGemini} iconLeft={<Save className="h-3.5 w-3.5" />}>SALVAR IA</Button>
+                <Button size="sm" variant="secondary" onClick={testGemini} loading={testingGemini} iconLeft={<Wifi className="h-3.5 w-3.5" />}>TESTAR {providerName.toUpperCase()}</Button>
+                {keySource === 'panel' && <Button size="sm" variant="outline" onClick={clearAiKey}>REMOVER CHAVE</Button>}
+                <span className="flex items-center gap-1 text-[11px] dash-text-muted"><ShieldCheck className="h-3.5 w-3.5" /> A chave fica criptografada no servidor e nunca é exibida novamente.</span>
+              </div>
+            </>;
+          })()}
         </div>
 
         {/* Simulador */}
@@ -239,13 +306,13 @@ export function BotIntelligence() {
               {result.greetingOnly ? <p>É só uma saudação: o bot responde com o menu.</p> : result.source === 'gemini' && result.reply ? (
                 <>
                   <p className="rounded-lg bg-white dark:bg-black/20 p-2.5 whitespace-pre-wrap">{result.reply}</p>
-                  <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pelo Gemini</p>
+                  <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pela IA</p>
                 </>
               ) : result.intent ? (
                 <>
                   <p><b>{result.intent.label}</b> <span className="text-xs text-slate-400">· {result.confidence}% de certeza · {result.decision === 'act' ? 'age' : result.decision === 'ask' ? 'pergunta "você quis dizer…?"' : 'não entende'}</span></p>
                   {result.reply && <p className="rounded-lg bg-white dark:bg-black/20 p-2.5 whitespace-pre-wrap">{result.reply}</p>}
-                  {result.source === 'gemini' && <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pelo Gemini</p>}
+                  {result.source === 'gemini' && <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pela IA</p>}
                   <p className="text-xs text-slate-400">Ação: {result.intent.action}{result.entities.system ? ` · sistema: ${result.entities.system}` : ''}{result.entities.document ? ` · documento: ${result.entities.document}` : ''}{result.mood.angry ? ' · cliente irritado' : ''}{result.mood.urgent ? ' · urgente' : ''}</p>
                   {result.candidates.length > 1 && <p className="text-xs text-slate-400">Outras possibilidades: {result.candidates.slice(1).map(c => `${c.label} (${c.score}%)`).join(', ')}</p>}
                 </>

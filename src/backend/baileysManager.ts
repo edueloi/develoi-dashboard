@@ -1202,6 +1202,7 @@ async function smartReply(state: any, sock: any, key: string, text: string, clie
   };
   try {
     const b = brainOf(state);
+    b.phone = clientPhone;
     const before = `${b.facts.nome ?? ""}|${b.facts.ramo ?? ""}`;
     const ok = await respondTo(text, b, io, opts);
     if (`${b.facts.nome ?? ""}|${b.facts.ramo ?? ""}` !== before) void saveContactMemory(clientPhone, b); // lembra para a próxima conversa

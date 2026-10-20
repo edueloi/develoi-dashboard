@@ -541,6 +541,10 @@ model WppBotConfig {
   geminiApiKeyEncrypted String?  @db.Text
   geminiModel           String   @default("gemini-3.8-flash") @db.VarChar(80)
   geminiSystemPrompt    String?  @db.Text
+  aiProvider            String   @default("gemini") @db.VarChar(20) // gemini | openai
+  aiFirst               Boolean  @default(true) // a IA atende primeiro; ações (menu, fatura, fila...) seguem nos fluxos fixos
+  openaiApiKeyEncrypted String?  @db.Text
+  openaiModel           String   @default("gpt-4o-mini") @db.VarChar(80)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
