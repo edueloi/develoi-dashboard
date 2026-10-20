@@ -210,13 +210,13 @@ async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: Brai
 
 // Com "IA primeiro", a IA responde tudo que não for uma ação clara: dúvidas, preços e sistemas (ela consulta o
 // catálogo), saudações, papo solto e mensagens sem regra. As respostas programadas só entram sem IA ou se ela
-// falhar. Ficam nos fluxos fixos apenas as ações (menu, fatura, extrato, fila, atendente) e o fechamento
-// óbvio da conversa (agradecer, despedir), que a IA não executa.
+// falhar. Ficam nos fluxos fixos apenas as ações (menu, fatura, extrato, fila, atendente, abertura de
+// suporte) e o fechamento óbvio da conversa (agradecer, despedir), que a IA não executa.
 const CLOSERS = new Set(["thanks", "goodbye", "chat_nao_preciso"]);
 const aiHandles = (u: Understanding) => {
   if (u.decision !== "act" || !u.intent) return true;
   const def = u.intent.def;
-  if (isInfo(def) || def.id === "price" || def.id === "systems_overview") return true;
+  if (isInfo(def) || def.id === "price" || def.id === "systems_overview" || def.action === "lead") return true;
   if (isChat(def)) return !CLOSERS.has(def.id) || u.confidence < 0.85;
   return u.confidence < 0.7;
 };
@@ -907,7 +907,7 @@ export function registerBotBrainRoutes(app: Express) {
       return item && answer && !isChat(item) ? `- ${item.label}${item.system ? ` (${item.system})` : ""}: ${answer}` : null;
     }).filter((item): item is string => Boolean(item));
     const aiFirstNow = (await isAiFirst()) && aiHandles(u);
-    const geminiReply = localReply && !aiFirstNow ? null : await generateGeminiReply({
+    const aiResult = localReply && !aiFirstNow ? null : await generateAiResult({
       message: text,
       recent: [],
       clientName: "Cliente",
@@ -915,11 +915,13 @@ export function registerBotBrainRoutes(app: Express) {
       knowledge,
       products: brain.products,
     });
+    const geminiReply = aiResult?.text ?? null;
     res.json({
       decision: u.decision, confidence: Math.round(u.confidence * 100),
       intent: def ? { id: def.id, label: def.label, action: def.action ?? "reply", custom: !!def.custom } : null,
       candidates: u.candidates.map(c => ({ id: c.id, label: c.label, score: Math.min(100, Math.round(c.score * 100)) })),
       entities: u.entities, mood: u.mood, greetingOnly: u.greetingOnly,
+      handoff: aiFirstNow || !localReply ? aiResult?.handoff ?? null : null, // simulação: nada é transferido de verdade
       reply: aiFirstNow && geminiReply ? geminiReply : localReply ?? geminiReply,
       source: aiFirstNow && geminiReply ? "gemini" : localReply ? "local" : geminiReply ? "gemini" : null,
     });

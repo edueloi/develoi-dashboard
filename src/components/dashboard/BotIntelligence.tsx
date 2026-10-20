@@ -14,6 +14,7 @@ interface TestResult {
   candidates: { id: string; label: string; score: number }[];
   entities: Record<string, string | number>; mood: { angry: boolean; urgent: boolean; polite: boolean }; reply: string | null;
   source?: 'local' | 'gemini' | null;
+  handoff?: { sector: string; reason: string } | null;
 }
 type AiProvider = 'gemini' | 'openai';
 interface GeminiConfig {
@@ -305,7 +306,8 @@ export function BotIntelligence() {
               {result.greetingOnly ? <p>É só uma saudação: o bot responde com o menu.</p> : result.source === 'gemini' && result.reply ? (
                 <>
                   <p className="rounded-lg bg-white dark:bg-black/20 p-2.5 whitespace-pre-wrap">{result.reply}</p>
-                  <p className="text-[11px] font-bold text-indigo-600">Resposta complementar gerada pela IA</p>
+                  <p className="text-[11px] font-bold text-indigo-600">Resposta gerada pela IA</p>
+                  {result.handoff && <p className="text-[11px] font-bold text-amber-700">No atendimento real, a IA encaminharia para <b>{result.handoff.sector}</b>{result.handoff.reason ? `: ${result.handoff.reason}` : ''}</p>}
                 </>
               ) : result.intent ? (
                 <>

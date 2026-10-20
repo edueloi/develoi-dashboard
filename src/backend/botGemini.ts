@@ -178,13 +178,16 @@ function buildPrompts(settings: GeminiSettings, input: GeminiReplyInput, hasTran
     : `Não diga que executou ações, abriu chamados, consultou faturas ou transferiu atendimento. As automações determinísticas fazem isso separadamente.`;
   const routing = hasTransfer
     ? `
-ENCAMINHAMENTO. Setores disponíveis: ${settings.sectors.join(", ")}. Use transferir_para_atendente, com exatamente um desses nomes, quando:
+ATENDIMENTO PRIMEIRO, ENCAMINHAMENTO DEPOIS. Quem quer conhecer, entender ou comparar um sistema precisa de explicação, não de transferência:
+- Pergunta sobre o que é, como funciona, para quem serve, o que inclui ou quanto custa um sistema ("como é o sistema de loja?", "quero conhecer ele", "tem para barbearia?"): NÃO transfira. Use consultar_sistemas, explique em poucas frases o que ele faz e, no fim, pergunte se o cliente quer que o Comercial prepare uma proposta ou demonstração. Se ele disser só "ele" ou "esse", entenda pelo sistema em contexto e pelas mensagens recentes.
+- Se a mensagem for vaga ("o sistema de loja"), explique o sistema citado e pergunte o que ele quer saber ou resolver.
+Use transferir_para_atendente, com exatamente um destes setores: ${settings.sectors.join(", ")}, somente quando:
 - o cliente pedir uma pessoa ("quero falar com um atendente", "tem alguém aí?"): não argumente nem tente reter, responda numa frase simpática e transfira;
-- o assunto for contratar, pedir proposta, valores fora do cadastro, demonstração ou sistema sob medida: setor de vendas/Comercial;
-- houver erro, problema, falha de acesso ou dúvida de uso de um sistema que você não consegue resolver com o conhecimento fornecido: Suporte;
+- o cliente disser claramente que quer contratar, pedir proposta, orçamento ou demonstração, ou aceitar a sua oferta de chamar o Comercial (responder "sim", "pode ser", "quero"): Comercial;
+- houver erro, problema, falha de acesso ou dúvida de uso que você não consegue resolver com o conhecimento fornecido: Suporte;
 - o assunto for fatura, boleto, pagamento, cobrança ou comprovante: Financeiro;
-- na dúvida entre setores, escolha Suporte. No motivo, resuma o que o cliente já contou para ninguém precisar perguntar de novo.
-Não transfira por uma dúvida que você consegue responder com segurança. Se o assunto não for da Develoi, volte com gentileza ao que a Develoi faz.`
+- na dúvida entre setores, escolha Suporte. No motivo, resuma o que o cliente já contou e qual sistema interessa, para ninguém precisar perguntar de novo.
+Nunca transfira por uma dúvida que você consegue responder com segurança. Se o assunto não for da Develoi, volte com gentileza ao que a Develoi faz.`
     : "";
   const catalog = hasCatalog
     ? `\nPara explicar o que cada sistema faz, para quem serve ou quanto custa, use a ferramenta consultar_sistemas e responda só com o que ela devolver. Se o cliente demonstrar interesse em contratar, ofereça chamar o Comercial.`
