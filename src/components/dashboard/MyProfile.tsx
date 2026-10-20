@@ -3,7 +3,7 @@ import { User, Lock, Save, Eye, EyeOff, Camera, Shield, Mail, Calendar, X, Loade
 import { Reveal } from '../motion';
 import { useAuth, getToken } from '../../contexts/AuthContext';
 import { Button, Input, Textarea, PanelCard } from '../ui';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../lib/toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 

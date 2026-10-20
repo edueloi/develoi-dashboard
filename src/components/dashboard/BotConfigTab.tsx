@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, Save, Smartphone, MessageSquare, List, Plus, Trash2, Users, Wand2, Sun } from 'lucide-react';
 import { Button, PanelCard, Input, Select, Textarea, ConfirmModal, Badge, Tabs } from '../ui';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../lib/toast';
 import { BotIntelligence } from './BotIntelligence';
 
 interface AttendantRow { name: string; phone: string }

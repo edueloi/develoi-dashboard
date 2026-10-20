@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { gsap, useGSAP } from '../../lib/gsap';
 import { Check, X, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
+import { registerToast } from '../../lib/toast';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Toast — Design System
@@ -177,6 +178,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     warning: (m) => show(m, 'warning'),
     info:    (m) => show(m, 'info'),
   };
+
+  // deixa `toast.success(...)` (lib/toast) funcionar fora de hooks, usando este mesmo provider
+  useEffect(() => { registerToast(ctx); });
 
   return (
     <ToastContext.Provider value={ctx}>

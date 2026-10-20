@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Brain, Plus, Trash2, Pencil, FlaskConical, HelpCircle, X, KeyRound, Save, Wifi, ShieldCheck } from 'lucide-react';
 import { Button, PanelCard, Input, Select, Textarea, Modal, Badge } from '../ui';
-import { toast } from 'react-hot-toast';
+import { toast } from '../../lib/toast';
 
 interface Kb {
   id: string; title: string; system: string | null; phrases: string[]; keywords: [string, number][];
