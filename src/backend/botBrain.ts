@@ -945,9 +945,7 @@ export const SEED = [
     title: "Onde fica a Develoi (Tatuí)", system: null, priority: 8,
     phrases: ["onde voces ficam", "onde voces sao", "de onde voces sao", "voces sao de onde", "onde fica a develoi", "qual o endereco de voces", "onde e a empresa", "de que cidade voces sao", "em que cidade voces ficam", "voces sao de que cidade", "tem loja fisica", "posso ir ai", "voces atendem presencial", "onde fica a sede"],
     keywords: [["onde", 2.5], ["cidade", 2.5], ["endereco", 2.5], ["sede", 2]],
-    answer: "Somos de *Tatuí, SP*! 📍 Ficamos na *Rua Professor Joaquim Teixeira, 220, Chácara Junqueira*. O nosso atendimento é online, pelo WhatsApp, e-mail e site, então atendemos de onde você estiver. Para visitas ou mais detalhes, nossa equipe te passa tudo pelo e-mail contato@develoi.com.br.
----
-A Develoi é uma empresa de *Tatuí, SP*, na *Rua Professor Joaquim Teixeira, 220, Chácara Junqueira*. 🙌 O atendimento é online (WhatsApp, e-mail e site), então atendemos clientes de onde estiverem. Para visitas, é só falar com a equipe pelo e-mail contato@develoi.com.br.",
+    answer: "Somos de *Tatuí, SP*! 📍 Ficamos na *Rua Professor Joaquim Teixeira, 220, Chácara Junqueira*. O nosso atendimento é online, pelo WhatsApp, e-mail e site, então atendemos de onde você estiver. Para visitas ou mais detalhes, nossa equipe te passa tudo pelo e-mail contato@develoi.com.br.\n---\nA Develoi é uma empresa de *Tatuí, SP*, na *Rua Professor Joaquim Teixeira, 220, Chácara Junqueira*. 🙌 O atendimento é online (WhatsApp, e-mail e site), então atendemos clientes de onde estiverem. Para visitas, é só falar com a equipe pelo e-mail contato@develoi.com.br.",
   },
   {
     title: "Plano anual (falar com o Comercial)", system: "Store BoxSys", priority: 9,
