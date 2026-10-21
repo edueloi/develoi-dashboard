@@ -71,7 +71,7 @@ let cache: { at: number; sig: string; brain: Brain } | null = null;
 const CACHE_MS = 60_000;
 
 const KNOWN_ALIASES: Record<string, string[]> = {
-  "Store BoxSys": ["boxsys", "box sys", "store boxsys", "storeboxsys", "loja boxsys", "boxis"],
+  "Store BoxSys": ["boxsys", "box sys", "store boxsys", "storeboxsys", "loja boxsys", "boxis", "sistema de gestao"],
   "Menu BoxSys": ["menu boxsys", "menuboxsys", "boxsys menu", "menu box sys"],
 };
 
@@ -362,6 +362,14 @@ async function execute(def: IntentDef, u: Understanding, text: string, ctx: Brai
   switch (def.id) {
     case "greeting": case "menu": { await io.say(reply()); await (ctx.profile === "client" ? clientMenu(ctx, io) : io.menu(def.id === "greeting" && ctx.turns <= 1 ? "welcome" : "inline")); return; }
     case "price": {
+      // se a base de conhecimento tem o preço deste sistema, é ela quem responde (o administrador edita no painel)
+      const kbPrice = system ? brain.defs.find(d => d.custom && d.system === system && /^pre[cç]o\b/i.test(d.label) && (d.replies ?? []).length) : undefined;
+      if (kbPrice) {
+        await io.say(fill(pick(kbPrice.id, kbPrice.replies ?? [], ctx), ctx, system));
+        ctx.pending = { type: "offer", action: "lead" };
+        await io.say(kbPrice.followUp || "Quer que eu chame o nosso time comercial para montar uma proposta? 😊");
+        return;
+      }
       await io.say(priceText(brain, system));
       ctx.pending = { type: "offer", action: "lead" };
       await io.say("Quer que eu chame o nosso time comercial para montar uma proposta? 😊");
@@ -850,28 +858,28 @@ export const SEED = [
   {
     title: "Preço do Store BoxSys", system: "Store BoxSys", priority: 8,
     phrases: ["quanto custa o boxsys", "qual o valor do store boxsys", "preco do boxsys", "quanto e o sistema de gestao", "valor do sistema de loja", "quanto fica o boxsys", "qual o preco do sistema", "quanto custa o sistema de gestao", "valor do boxsys", "quanto custa o store boxsys", "preco do store boxsys"],
-    keywords: [["boxsys", 2.5], ["preco", 2], ["valor", 2], ["custa", 2]],
+    keywords: [["custa", 3], ["preco", 3], ["valor", 2.5], ["quanto", 2.5]],
     answer: "O *Store BoxSys* custa *R$ 150,00*. 💰 Você também confere tudo em https://boxsys.com.br/#valores\n---\nO valor do *Store BoxSys* é de *R$ 150,00*. Os valores ficam sempre atualizados em https://boxsys.com.br/#valores 😉",
     followUp: "Quer testar gratuitamente por 14 dias antes de decidir?",
   },
   {
     title: "Conhecer o Store BoxSys (link do site)", system: "Store BoxSys", priority: 7,
     phrases: ["quero conhecer o boxsys", "tem site do boxsys", "onde vejo o store boxsys", "me manda o link do boxsys", "quero ver o sistema", "site do store boxsys", "tem algum site para ver o sistema", "como conheco o sistema", "quero conhecer o store boxsys", "link do store boxsys", "me mostra o sistema de gestao"],
-    keywords: [["conhecer", 2], ["link", 1.5], ["site", 1.5], ["boxsys", 2.5]],
+    keywords: [["link", 3], ["site", 3], ["conhecer", 2.5], ["endereco", 1.5]],
     answer: "Você pode conhecer o *Store BoxSys* por aqui: https://boxsys.com.br/store-boxsys 🛍️\n---\nEste é o endereço para conhecer o *Store BoxSys* com calma: https://boxsys.com.br/store-boxsys 😊",
     followUp: "Se quiser, chamo alguém do Comercial para tirar as suas dúvidas ou preparar uma proposta.",
   },
   {
     title: "Menu BoxSys (conhecer e link)", system: "Menu BoxSys", priority: 7,
     phrases: ["o que e o menu boxsys", "quero conhecer o menu boxsys", "voces tem o menu boxsys", "menu boxsys", "link do menu boxsys", "como funciona o menu boxsys", "me fala do menu boxsys", "site do menu boxsys", "quero ver o menu boxsys"],
-    keywords: [["menu", 2], ["boxsys", 2.5]],
+    keywords: [["menu", 3]],
     answer: "Temos também o *Menu BoxSys*! 😊 Você pode conhecer por aqui: https://boxsys.com.br/menu-boxsys\n---\nO *Menu BoxSys* também é da família BoxSys. Veja como ele funciona neste link: https://boxsys.com.br/menu-boxsys 🙌",
     followUp: "Quer que eu chame alguém do Comercial para te explicar melhor?",
   },
   {
     title: "Valores e planos da BoxSys (link)", system: "Store BoxSys", priority: 7,
     phrases: ["onde vejo os valores", "tem tabela de valores", "quais os planos", "onde vejo os planos", "valores do boxsys", "planos e precos", "tabela de precos", "ver os planos do boxsys"],
-    keywords: [["planos", 2], ["valores", 2], ["boxsys", 2]],
+    keywords: [["planos", 3], ["valores", 2.5], ["tabela", 2]],
     answer: "Os valores e planos da BoxSys estão aqui: https://boxsys.com.br/#valores 💰 E o *Store BoxSys* custa *R$ 150,00*.\n---\nVocê vê tudo sobre valores em https://boxsys.com.br/#valores 😉 O *Store BoxSys* custa *R$ 150,00*.",
   },
   {

@@ -370,7 +370,7 @@ export function extractEntities(text: string, systems: { name: string; aliases?:
   else if (/\b(suporte|tecnico|tecnica|ajuda tecnica)\b/.test(n)) e.sector = "Suporte";
 
   const compact = n.replace(/\s+/g, "");
-  let bestSys = 0;
+  let bestSys = 0, bestKey = 0;
   for (const s of systems) {
     for (const name of [s.name, ...(s.aliases ?? [])]) {
       const key = normalize(name).replace(/\s+/g, "");
@@ -381,7 +381,7 @@ export function extractEntities(text: string, systems: { name: string; aliases?:
         // erro de digitação em uma palavra do texto (ex.: "boxsis", "agendele")
         for (const w of n.split(" ")) { if (w.length >= 4 && lev(w, key) <= (key.length >= 7 ? 2 : 1)) score = Math.max(score, 0.85); }
       }
-      if (score > bestSys) { bestSys = score; e.system = s.name; }
+      if (score > bestSys || (score === bestSys && score === 1 && key.length > bestKey)) { bestSys = score; bestKey = key.length; e.system = s.name; }
     }
   }
   return e;
