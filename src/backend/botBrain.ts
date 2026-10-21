@@ -942,6 +942,12 @@ export const SEED = [
     followUp: "Prefere que eu chame alguém do Comercial para marcar a demonstração com você?",
   },
   {
+    title: "Onde fica a Develoi (Tatuí)", system: null, priority: 8,
+    phrases: ["onde voces ficam", "onde voces sao", "de onde voces sao", "voces sao de onde", "onde fica a develoi", "qual o endereco de voces", "onde e a empresa", "de que cidade voces sao", "em que cidade voces ficam", "voces sao de que cidade", "tem loja fisica", "posso ir ai", "voces atendem presencial", "onde fica a sede"],
+    keywords: [["onde", 2.5], ["cidade", 2.5], ["endereco", 2.5], ["sede", 2]],
+    answer: "Somos de *Tatuí, SP*! 😊 Mas o nosso atendimento é todo online, pelo WhatsApp, e-mail e site, então atendemos de onde você estiver.\n---\nA Develoi é uma empresa de *Tatuí, SP*. 🙌 O atendimento é 100% online (WhatsApp, e-mail e site), então atendemos clientes de onde estiverem.",
+  },
+  {
     title: "Plano anual (falar com o Comercial)", system: "Store BoxSys", priority: 9,
     phrases: ["tem plano anual", "quanto custa o plano anual", "valor anual do boxsys", "pagamento anual", "tem desconto no anual", "posso pagar o ano todo", "plano por ano", "anuidade do store boxsys", "quero contratar por 12 meses", "tem plano de 12 meses"],
     keywords: [["anual", 3], ["anuidade", 3], ["ano", 1.5], ["12 meses", 2.5]],

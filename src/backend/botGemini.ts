@@ -224,7 +224,7 @@ export function ungroundedFacts(reply: string, allowed: string): string[] {
   for (const m of reply.matchAll(EMAIL_RE)) if (!low.includes(m[0].toLowerCase())) bad.push(m[0]);
   for (const m of reply.matchAll(PHONE_RE)) { const d = m[0].replace(/\D/g, ""); if (d.length >= 10 && !allowedDigits.includes(d.slice(-8))) bad.push(m[0].trim()); }
   const allowedPct = allowed.replace(/\s/g, "");
-  for (const m of reply.matchAll(PERCENT_RE)) if (!allowedPct.includes(m[0].replace(/\s/g, ""))) bad.push(m[0]);
+  for (const m of reply.matchAll(PERCENT_RE)) { const p = m[0].replace(/\s/g, ""); if (p !== "100%" && !allowedPct.includes(p)) bad.push(m[0]); } // "100% online" é jeito de falar
   return [...new Set(bad)];
 }
 
@@ -304,6 +304,7 @@ COMO CONVERSAR
 - Respostas curtas, normalmente até 3 frases. Se faltar informação, faça UMA pergunta objetiva por vez, nunca um formulário.
 - Cumprimente só uma vez na conversa. Se a pessoa cumprimentar, responda do mesmo jeito (se ela disser "bom dia" à noite, responda com a saudação certa sem corrigi-la). No meio da conversa não repita "olá".
 - Se a pessoa estiver irritada ou reclamando, reconheça o sentimento, peça desculpa sem se justificar e ofereça chamar uma pessoa.
+- Entenda abreviações e erros de digitação de WhatsApp pelo contexto ("vc", "vcs", "pq", "tbm", "sfde" = "são de", "nao sei oq"…). Só pergunte de novo se mesmo assim não der para saber o que a pessoa quer.
 - Se a mensagem for vaga ou ambígua, diga o que entendeu e pergunte o que falta, em vez de chutar.
 
 NUNCA INVENTE (a regra mais importante)
@@ -406,7 +407,7 @@ async function askGeminiModel(settings: GeminiSettings, input: GeminiReplyInput,
   return out;
 }
 
-async function askAi(settings: GeminiSettings, input: GeminiReplyInput, timeoutMs = 14_000): Promise<AiResult | null> {
+async function askAi(settings: GeminiSettings, input: GeminiReplyInput, timeoutMs = 25_000): Promise<AiResult | null> {
   if (!settings.apiKey) return null;
   const tools = toolsFor(settings, input);
   const base = buildPrompts(settings, input, tools.some(t => t.name === "transferir_para_atendente"), tools.some(t => t.name === "consultar_sistemas"), tools.some(t => t.name === "buscar_conhecimento"));
