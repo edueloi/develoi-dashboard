@@ -10,7 +10,7 @@ import {
 import { EXTRA_INTENTS } from "./botData.js";
 import { mathAnswer } from "./botMath.js";
 import { AUGMENT_PHRASES } from "./botAugment.js";
-import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, type Facts, type Style } from "./botPersona.js";
+import { extractFacts, readStyle, adaptStyle, leadIn, curiosity, STEER, isPlausibleName, parseGivenName, type Facts, type Style } from "./botPersona.js";
 import { generateAiResult, generateGeminiReply, isAiFirst } from "./botGemini.js";
 import { programmedContext } from "./botContext.js";
 
@@ -41,6 +41,7 @@ export interface BrainCtx {
   ended?: boolean;                                      // a pessoa deu a conversa por encerrada (agradeceu, disse que está tudo certo): sem lembrete de inatividade
   chitchat: number;                                     // respostas seguidas de papo social
   asked: string[];                                      // perguntas de curiosidade já feitas
+  awaitingName?: boolean;                               // a BiIA perguntou "como prefere que eu te chame?" e espera o nome
   turns: number;                                        // quantas mensagens do cliente a BiIA já tratou
   recent: string[];                                     // últimas mensagens do cliente (resumo para o atendente)
   lastAction?: string;                                  // última ação executada (fatura, extrato…)
@@ -571,6 +572,26 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   const learnedNome = !hadNome && !!ctx.facts.nome;
   const finish = (ok: boolean) => { if (ok && spoken.length && ctx.lastIntent !== "repeat") ctx.lastAnswer = [...spoken].sort((a, b) => b.length - a.length)[0]; return ok; };
 
+  // "pq me chama de assistente?": o nome gravado estava errado. Pede desculpa, esquece o nome e pergunta como a pessoa prefere ser chamada
+  if (/\b(pq|por ?que|porque)\b.*\bme (chama|chamou|chamando)\b|\bnao (me )?chame de\b|\bmeu nome nao e\b|\bnao e esse (o )?meu nome\b/.test(strip(t))) {
+    delete ctx.facts.nome;
+    ctx.awaitingName = true;
+    if (ctx.phone) await forgetContactName(ctx.phone);
+    await io.say(pick("wrongname", ["Desculpa por isso! 🙏 Anotei o nome errado. Como você prefere que eu te chame?", "Ops, foi mal! 😅 Eu peguei o nome errado. Qual é o seu nome mesmo?"], ctx));
+    return finish(true);
+  }
+  if (ctx.awaitingName) {
+    ctx.awaitingName = false;
+    const given = ctx.facts.nome ?? parseGivenName(t); // "meu nome é Ana" já foi lido acima
+    if (given) {
+      ctx.facts.nome = given;
+      if (ctx.phone) await saveContactMemory(ctx.phone, ctx);
+      await io.say(`Prazer, ${given.split(" ")[0]}! 😊 Em que posso te ajudar?`);
+      return finish(true);
+    }
+    // não parecia um nome (a pessoa foi direto ao assunto): segue normalmente
+  }
+
   // 1) coleta de dados para o comercial em andamento
   if (ctx.flow) {
     const f = ctx.flow;
@@ -1028,8 +1049,13 @@ export interface ContactMemory { name: string | null; ramo: string | null; visit
 export async function loadContactMemory(phone: string): Promise<ContactMemory | null> {
   try {
     const m = await rawPrisma.wppContactMemory.findUnique({ where: { phone } });
-    return m ? { name: m.name, ramo: m.ramo, visits: m.visits, lastSeenAt: m.lastSeenAt } : null;
+    return m ? { name: isPlausibleName(m.name) ? m.name : null, ramo: m.ramo, visits: m.visits, lastSeenAt: m.lastSeenAt } : null;
   } catch { return null; }
+}
+
+// Esquece o nome gravado (a pessoa disse que estava errado)
+export async function forgetContactName(phone: string) {
+  try { await rawPrisma.wppContactMemory.updateMany({ where: { phone }, data: { name: null } }); } catch { /* memória é um extra */ }
 }
 
 // Guarda nome e ramo quando mudam (e conta a visita na primeira vez da conversa)

@@ -5,7 +5,21 @@ import { strip } from "./botNlu.js";
 export interface Facts { nome?: string; ramo?: string }
 export interface Style { formal: boolean; casual: number; msgs: number }
 
-const NOT_NAMES = new Set(["cliente", "dono", "dona", "responsavel", "novo", "nova", "assinante", "usuario", "usuaria", "aqui", "um", "uma", "da", "do", "de", "o", "a", "e", "voce", "robo", "bot", "pessoa", "gerente", "funcionario", "funcionaria", "vendedor", "vendedora", "proprietario", "proprietaria", "socio", "socia", "financeiro", "comercial", "suporte"]);
+const NOT_NAMES = new Set(["cliente", "dono", "dona", "responsavel", "novo", "nova", "assinante", "usuario", "usuaria", "aqui", "um", "uma", "da", "do", "de", "o", "a", "e", "voce", "robo", "bot", "pessoa", "gerente", "funcionario", "funcionaria", "vendedor", "vendedora", "proprietario", "proprietaria", "socio", "socia", "financeiro", "comercial", "suporte", "assistente", "administrativo", "administrativa", "analista", "atendente", "auxiliar", "diretor", "diretora", "secretaria", "secretario", "estagiario", "estagiaria", "tecnico", "tecnica", "engenheiro", "engenheira", "medico", "medica", "professor", "professora", "advogado", "advogada", "contador", "contadora", "programador", "programadora", "desenvolvedor", "desenvolvedora", "designer", "representante", "consultor", "consultora", "coordenador", "coordenadora", "supervisor", "supervisora", "empresario", "empresaria", "autonomo", "autonoma", "gestor", "gestora", "interessado", "interessada", "curioso", "curiosa", "testando", "teste", "amigo", "amiga", "pai", "mae", "ceo", "mei", "freelancer", "microempreendedor", "microempreendedora", "lojista", "comerciante", "colaborador", "colaboradora", "funcionario", "operador", "operadora"]);
+/** O nome gravado parece um nome de pessoa? (cargo, profissão e palavras genéricas não são) */
+export const isPlausibleName = (n?: string | null) => {
+  const w = strip(String(n ?? "")).split(/\s+/)[0]?.replace(/[^a-z]/g, "") ?? "";
+  return w.length >= 2 && !NOT_NAMES.has(w);
+};
+
+/** Resposta à pergunta "como prefere que eu te chame?": até 3 palavras só com letras, que não sejam cargo ou palavra genérica. */
+export function parseGivenName(text: string): string | null {
+  const t = text.trim().replace(/^(meu nome (?:e|é)|me chamo|pode me chamar de|podem me chamar de|sou (?:o|a)|é|e)\s+/i, "").replace(/[.!?,]+$/, "").trim();
+  if (!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’.-]*(?:\s+[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’.-]*){0,2}$/.test(t)) return null;
+  if (!isPlausibleName(t)) return null;
+  return t.split(/\s+/).map(cap).join(" ");
+}
+
 const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 
 const RAMOS = "loja|lojinha|mercadinho|mercearia|padaria|salao|barbearia|clinica|consultorio|restaurante|lanchonete|oficina|farmacia|pet ?shop|papelaria|boutique|distribuidora|escritorio|escola|academia|brecho|revenda|ecommerce|e-commerce|armarinho|conveniencia|floricultura|otica|autopecas|auto ?pecas|material de construcao|sorveteria|hamburgueria|pizzaria|confeitaria|cafeteria";
@@ -16,10 +30,13 @@ export function extractFacts(text: string, facts: Facts): Facts {
   const raw = text.trim();
   const flat = strip(raw);
 
-  const nm = /\b(?:meu nome e|me chamo|pode me chamar de|podem me chamar de|aqui e|sou)\s+(?:a\s+|o\s+)?([a-z]{3,})/.exec(flat);
-  if (nm) {
+  const explicit = /\b(?:meu nome e|me chamo|pode me chamar de|podem me chamar de)\s+(?:a\s+|o\s+)?([a-z]{3,})/.exec(flat);
+  const weak = /\b(?:aqui e|sou)\s+(?:a\s+|o\s+)?([a-z]{3,})/.exec(flat);
+  for (const [nm, needsCapital] of [[explicit, false], [weak, true]] as const) {
+    if (!nm || out.nome !== facts.nome) continue;
     const piece = raw.slice(nm.index + nm[0].length - nm[1].length).trim().split(/\s+/)[0]?.replace(/[.,!?]/g, "") ?? "";
     const w = strip(piece).replace(/[^a-z]/g, "");
+    if (needsCapital && !/^[A-ZÀ-Ý]/.test(piece)) continue;
     if (w.length >= 3 && !NOT_NAMES.has(w) && /^[A-Za-zÀ-ÿ'-]+$/.test(piece)) out.nome = cap(piece);
   }
 
