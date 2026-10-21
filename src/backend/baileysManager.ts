@@ -10,6 +10,7 @@ import makeWASocket, {
   isJidBroadcast,
   proto,
   generateWAMessageFromContent,
+  downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 import path from "path";
 import fs from "fs";
@@ -17,6 +18,7 @@ import { prisma } from "./db.js";
 import { deDash } from "./botNlu.js";
 import { respondTo, newBrainCtx, peekIntent, seedKnowledge, idleNudge, idleClose, loadContactMemory, saveContactMemory, type BrainCtx, type BrainIO } from "./botBrain.js";
 import { brtParts } from "./time.js";
+import { transcribeAudio } from "./botGemini.js";
 
 
 export type WppStatus = "not_configured" | "disconnected" | "qr_pending" | "connecting" | "connected";
@@ -386,6 +388,20 @@ export async function sendOutreach(input: { phone: string; name?: string | null;
 }
 
 // Mensagem de um atendente cadastrado. Retorna true se foi tratada como mensagem de atendente.
+async function handleAttendantMedia(att: Attendant, media: IncomingMedia): Promise<boolean> {
+  const active = await prisma.wppConversation.findFirst({ where: { status: "active", attendantPhone: att.phone }, orderBy: { acceptedAt: "desc" } });
+  if (!active) return false; // sem atendimento ativo: tratado como mensagem comum
+  const caption = media.caption ? `*${att.name}:* ${media.caption}` : undefined;
+  if (!(await sendMedia(targetOf(active), media, caption))) {
+    await sendMessage(att.phone, "⚠️ Não consegui entregar o arquivo ao cliente. Tente de novo.");
+    return true;
+  }
+  const label = media.kind === "audio" ? "🎤 Áudio" : `📎 ${media.fileName}`;
+  await prisma.wppConversationMessage.create({ data: { conversationId: active.id, fromRole: "attendant", body: media.caption ? `${label}\n${media.caption}` : label } });
+  await prisma.wppConversation.update({ where: { id: active.id }, data: { updatedAt: new Date() } });
+  return true;
+}
+
 async function handleAttendantMessage(att: Attendant, text: string): Promise<boolean> {
   const active = await prisma.wppConversation.findFirst({
     where: { status: "active", attendantPhone: att.phone },
@@ -510,6 +526,44 @@ export async function sendChoice(jidOrPhone: string, body: string, options: Choi
 }
 
 // Texto de uma mensagem recebida, inclusive o clique em botão/lista (devolve o id da opção)
+// Áudio, foto, vídeo e documento que o cliente (ou o atendente) manda pelo WhatsApp
+interface IncomingMedia { kind: "audio" | "image" | "video" | "document"; mime: string; buffer: Buffer; fileName: string; caption: string }
+
+async function readIncomingMedia(msg: any, sock: any): Promise<IncomingMedia | null> {
+  const m = msg.message?.ephemeralMessage?.message ?? msg.message?.viewOnceMessage?.message ?? msg.message ?? {};
+  const pick = m.audioMessage ? ["audio", m.audioMessage] : m.imageMessage ? ["image", m.imageMessage] : m.videoMessage ? ["video", m.videoMessage] : m.documentMessage ? ["document", m.documentMessage] : null;
+  if (!pick) return null;
+  const [kind, part] = pick as [IncomingMedia["kind"], any];
+  try {
+    const buffer = (await downloadMediaMessage(msg, "buffer", {}, { logger: makeLogger(), reuploadRequest: sock.updateMediaMessage })) as Buffer;
+    const mime: string = part.mimetype || "application/octet-stream";
+    const ext = (mime.split("/")[1] || "bin").split(";")[0];
+    return { kind, mime, buffer, fileName: part.fileName || `${kind}-${Date.now()}.${ext}`, caption: String(part.caption ?? "").trim() };
+  } catch (e) {
+    console.error("[whatsapp] não consegui baixar a mídia:", e);
+    return null;
+  }
+}
+
+// Envia a mídia de verdade (áudio toca, foto aparece). Áudio não tem legenda: o texto vai em seguida.
+async function sendMedia(target: string, media: Pick<IncomingMedia, "kind" | "mime" | "buffer" | "fileName">, caption?: string): Promise<boolean> {
+  if (!session || session.status !== "connected") return false;
+  const jid = toJid(target);
+  try {
+    if (media.kind === "audio") {
+      const voice = /ogg|opus/i.test(media.mime);
+      await session.sock.sendMessage(jid, { audio: media.buffer, mimetype: voice ? "audio/ogg; codecs=opus" : media.mime, ptt: voice });
+      if (caption) await session.sock.sendMessage(jid, { text: caption });
+    } else if (media.kind === "image") await session.sock.sendMessage(jid, { image: media.buffer, caption, mimetype: media.mime });
+    else if (media.kind === "video") await session.sock.sendMessage(jid, { video: media.buffer, caption, mimetype: media.mime });
+    else await session.sock.sendMessage(jid, { document: media.buffer, mimetype: media.mime, fileName: media.fileName, caption });
+    return true;
+  } catch (e) {
+    console.error("[whatsapp] erro ao enviar mídia:", e);
+    return false;
+  }
+}
+
 function extractIncomingText(message: any): string {
   const m = message?.ephemeralMessage?.message ?? message?.viewOnceMessage?.message ?? message ?? {};
   const params = m.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson;
@@ -935,8 +989,13 @@ async function handleDocumentReply(state: any, sock: any, key: string, text: str
 async function handleMessage(msg: any, sock: any) {
   if (!msg.message || msg.key.fromMe || isJidGroup(msg.key.remoteJid!) || isJidBroadcast(msg.key.remoteJid!)) return;
 
-  const textMsg = extractIncomingText(msg.message);
-  if (!textMsg) return;
+  let textMsg = extractIncomingText(msg.message);
+  let logText = textMsg;            // o que fica registrado na conversa (o áudio aparece com a transcrição)
+  let media: IncomingMedia | null = null;
+  if (!textMsg) {
+    media = await readIncomingMedia(msg, sock);
+    if (!media) return;
+  }
 
   const rawJid: string = msg.key.remoteJid!;
   const key = normalizeForKey(rawJid);
@@ -945,7 +1004,23 @@ async function handleMessage(msg: any, sock: any) {
 
   // Mensagem de um atendente cadastrado (aceitar/recusar/conversar pelo bot)?
   const attendant = await findAttendantByPhone(clientPhone);
-  if (attendant && (await handleAttendantMessage(attendant, textMsg))) return;
+  if (attendant) {
+    if (media ? await handleAttendantMedia(attendant, media) : await handleAttendantMessage(attendant, textMsg)) return;
+  }
+
+  // Mídia de cliente: o áudio vira texto (a BiIA entende como se ele tivesse escrito); foto e documento seguem para a equipe
+  if (media) {
+    if (media.kind === "audio") {
+      const heard = await transcribeAudio(media.buffer, media.mime);
+      textMsg = heard ?? "";
+      logText = heard ? `🎤 ${heard}` : "🎤 Áudio (não consegui transcrever)";
+    } else {
+      textMsg = media.caption;
+      logText = media.caption ? `📎 ${media.fileName}\n${media.caption}` : `📎 ${media.fileName}`;
+    }
+  }
+  // a BiIA não abre foto nem documento, e sem transcrição não entende o áudio: nesses casos oferece uma pessoa
+  const unreadable = !!media && (media.kind !== "audio" || !textMsg);
 
   let state = clientStates.get(key);
 
@@ -984,10 +1059,10 @@ async function handleMessage(msg: any, sock: any) {
       });
       state = { currentNodeId: null, remoteJid: rawJid, lastActivity: Date.now(), pushName, conversationId: conv.id, status: "in_chat" };
       clientStates.set(key, state);
-      await recordMsg(conv.id, "client", textMsg, clientPhone);
+      await recordMsg(conv.id, "client", logText, clientPhone);
       await recordMsg(conv.id, "system", "Cliente retomou a conversa em menos de 60 minutos. A BiIA permaneceu em silêncio e devolveu ao atendente.");
       if (conv.attendantPhone) {
-        const snippet = textMsg.length > 220 ? `${textMsg.slice(0, 220)}…` : textMsg;
+        const snippet = logText.length > 220 ? `${logText.slice(0, 220)}…` : logText;
         await sendMessage(conv.attendantPhone, `💬 *${clientLabel(conv)}* retomou a conversa:\n“${snippet}”\n\nO atendimento voltou para *Em atendimento* no painel.`);
       }
       return;
@@ -1005,8 +1080,8 @@ async function handleMessage(msg: any, sock: any) {
     const quietFor = Date.now() - conv.updatedAt.getTime();
     const firstReply = conv.status === "active" && conv.outbound && quietFor > OUTBOUND_QUIET_MS
       && (await prisma.wppConversationMessage.count({ where: { conversationId: conv.id, fromRole: "client" } })) === 0;
-    await recordMsg(conv.id, "client", textMsg, clientPhone);
-    if (firstReply) { await notifyAttendantOfLateReply(conv, textMsg); return; }
+    await recordMsg(conv.id, "client", logText, clientPhone);
+    if (firstReply) { await notifyAttendantOfLateReply(conv, logText); return; }
 
     // Quem espera na fila pode perguntar a posição ("fila")
     if (conv.status === "waiting" && /^(fila|posi[cç][aã]o|minha posi[cç][aã]o|status)$/i.test(textMsg.trim())) {
@@ -1018,14 +1093,18 @@ async function handleMessage(msg: any, sock: any) {
     }
 
     // outras formas de perguntar "quanto falta?" também são entendidas
-    if (conv.status === "waiting" && (await smartReply(state, sock, key, textMsg, clientPhone, { inQueue: true }))) return;
+    if (conv.status === "waiting" && textMsg && (await smartReply(state, sock, key, textMsg, clientPhone, { inQueue: true }))) return;
 
     if (!conv.clientJid || (!conv.clientName && pushName)) {
       await prisma.wppConversation.update({ where: { id: conv.id }, data: { clientJid: conv.clientJid ?? rawJid, ...(conv.clientName ? {} : { clientName: pushName }) } });
     }
     // atendente conversando pelo WhatsApp: repassa a mensagem do cliente
     if (conv.status === "active" && conv.attendantPhone) {
-      await sendMessage(conv.attendantPhone, `*${clientLabel(conv)}:* ${textMsg}`);
+      const label = clientLabel(conv);
+      if (media) {
+        const text = media.kind === "audio" ? logText : (media.caption || `📎 ${media.fileName}`);
+        if (!(await sendMedia(conv.attendantPhone, media, `*${label}:* ${text}`))) await sendMessage(conv.attendantPhone, `*${label}:* ${logText}`);
+      } else await sendMessage(conv.attendantPhone, `*${label}:* ${textMsg}`);
     }
     return; // O atendente também vê no painel
   }
@@ -1055,7 +1134,8 @@ async function handleMessage(msg: any, sock: any) {
     }
     state = { currentNodeId: startNode.id, remoteJid: rawJid, lastActivity: Date.now(), pushName, conversationId: conv.id };
     clientStates.set(key, state);
-    await recordMsg(conv.id, "client", textMsg, clientPhone);
+    await recordMsg(conv.id, "client", logText, clientPhone);
+    if (unreadable && media) { await replyUnreadableMedia(state, sock, media); return; }
 
     // já conversou antes: a BiIA lembra do nome e do ramo
     try {
@@ -1081,7 +1161,8 @@ async function handleMessage(msg: any, sock: any) {
   } else {
     state.lastActivity = Date.now();
     if (!state.conversationId && conv) state.conversationId = conv.id;
-    if (state.conversationId) await recordMsg(state.conversationId, "client", textMsg, clientPhone);
+    if (state.conversationId) await recordMsg(state.conversationId, "client", logText, clientPhone);
+    if (unreadable && media) { await replyUnreadableMedia(state, sock, media); return; }
 
     if (BACK_CMD.test(textMsg.trim())) {
       state.awaiting = undefined;
@@ -1146,10 +1227,18 @@ async function handleMessage(msg: any, sock: any) {
   }
 }
 
+async function replyUnreadableMedia(state: any, sock: any, media: IncomingMedia) {
+  await botSay(state, sock, media.kind === "audio"
+    ? "Recebi seu áudio, mas não consegui ouvir direitinho por aqui. 😅 Pode escrever pra mim o que você precisa? Se preferir, chamo alguém da equipe para te ouvir."
+    : "Recebi seu arquivo! 😊 Por aqui eu ainda não consigo abrir fotos e documentos, mas a equipe consegue. Quer que eu chame alguém para dar uma olhada?");
+  brainOf(state).pending = { type: "handoff", sector: "Suporte" }; // "sim" chama a equipe
+}
+
 // ─── Cérebro do bot: entende a mensagem livre e age ──────────────────────────
 const brainOf = (state: any): BrainCtx => {
   state.brain = state.brain ?? newBrainCtx(state.pushName);
   if (state.pushName) state.brain.pushName = state.pushName;
+  if (state.conversationId) state.brain.conversationId = state.conversationId;
   return state.brain;
 };
 

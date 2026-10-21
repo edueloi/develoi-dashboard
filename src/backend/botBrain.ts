@@ -22,6 +22,7 @@ interface LeadFlow { step: number; data: { ramo?: string; necessidade?: string }
 
 export interface BrainCtx {
   pushName?: string | null;
+  conversationId?: string;                              // conversa no banco (a IA lê o histórico real dela)
   phone?: string;                                       // telefone do contato no WhatsApp (para achar o cadastro e os avisos automáticos)
   client?: { name: string | null; document: string };   // quem o bot já identificou nesta conversa (CPF/CNPJ informado)
   lastIntent?: string;
@@ -71,6 +72,7 @@ const CACHE_MS = 60_000;
 
 const KNOWN_ALIASES: Record<string, string[]> = {
   "Store BoxSys": ["boxsys", "box sys", "store boxsys", "storeboxsys", "loja boxsys", "boxis"],
+  "Menu BoxSys": ["menu boxsys", "menuboxsys", "boxsys menu", "menu box sys"],
 };
 
 const safeJson = <T,>(s: string | null | undefined, fallback: T): T => { try { return s ? (JSON.parse(s) as T) : fallback; } catch { return fallback; } };
@@ -184,16 +186,56 @@ function relatedKnowledgeOf(u: Understanding, brain: Brain): string[] {
 
 // A IA responde e, se decidir, encaminha o cliente para o setor certo (a transferência em si
 // continua nos fluxos fixos: io.handoff cuida da fila e dos atendentes).
+// Conversa de verdade (cliente, BiIA e atendente) para a IA entender "sim", "esse", "e o preço?" pelo que veio antes
+async function conversationTurns(conversationId: string | undefined, current: string): Promise<{ role: "user" | "model"; text: string }[]> {
+  if (!conversationId) return [];
+  try {
+    const rows = await prisma.wppConversationMessage.findMany({
+      where: { conversationId, fromRole: { in: ["client", "bot", "attendant"] } },
+      orderBy: { sentAt: "desc" }, take: 16, select: { fromRole: true, body: true },
+    });
+    const turns = rows.reverse().map(r => ({ role: (r.fromRole === "client" ? "user" : "model") as "user" | "model", text: r.body.replace(/^🎤\s*/, "") }));
+    // a mensagem atual já foi gravada: a IA a recebe separada
+    const last = turns[turns.length - 1];
+    if (last && last.role === "user" && strip(last.text) === strip(current)) turns.pop();
+    return turns;
+  } catch { return []; }
+}
+
+// Ferramenta de busca da IA na base de conhecimento (nunca responde de memória)
+function knowledgeSearch(brain: Brain) {
+  return (query: string) => {
+    const words = strip(query).split(/\s+/).filter(w => w.length > 2);
+    if (!words.length) return [];
+    return brain.defs
+      .filter(d => !isChat(d) && (d.replies ?? []).length)
+      .map(d => {
+        const hay = strip(`${d.label} ${d.phrases.join(" ")} ${d.system ?? ""}`);
+        return { d, score: words.reduce((sum, w) => sum + (hay.includes(w) ? 1 : 0), 0) };
+      })
+      .filter(x => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4)
+      .map(({ d }) => ({
+        assunto: `${d.label}${d.system ? ` (${d.system})` : ""}`,
+        resposta: (d.replies ?? [])[0].replace(/\{\{[^}]*\}\}/g, "").replace(/\s+/g, " ").trim().slice(0, 600),
+      }));
+  };
+}
+
 async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: BrainIO, brain: Brain): Promise<boolean> {
   const result = await generateAiResult({
     message: t,
     recent: ctx.recent.slice(0, -1),
+    history: await conversationTurns(ctx.conversationId, t),
     programmed: await programmedContext(ctx.phone, ctx.client?.document),
     lastReply: ctx.lastAnswer ?? null,
     clientName: nameOf(ctx),
+    facts: ctx.facts,
     system: u.entities.system ?? ctx.lastSystem ?? null,
     knowledge: relatedKnowledgeOf(u, brain),
     products: brain.products,
+    searchKnowledge: knowledgeSearch(brain),
   });
   if (!result) return false;
   ctx.fails = 0;
@@ -201,6 +243,7 @@ async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: Brai
   ctx.lastReplyDef = undefined;
   if (u.entities.system) ctx.lastSystem = u.entities.system;
   if (result.text) await io.say(result.text);
+  if (result.uncertain) ctx.pending = { type: "handoff", sector: u.entities.system || ctx.lastSystem ? "Comercial" : "Suporte" }; // "sim" chama a equipe
   if (result.handoff) {
     const note = [`Encaminhado pela IA: ${result.handoff.reason || "sem detalhes"}`, contextNote(ctx)].filter(Boolean).join("\n");
     await io.handoff(result.handoff.sector, note);
@@ -803,6 +846,33 @@ export const SEED = [
     keywords: [["link", 1.5], ["acesso", 1.5]],
     answer: "O acesso é pelo endereço da sua loja no BoxSys (*store.boxsys.com.br*), com o e-mail e a senha que enviamos quando o seu cadastro foi criado. 🔑",
     followUp: "Se não conseguir entrar, me avise que eu abro um atendimento de suporte para você.",
+  },
+  {
+    title: "Preço do Store BoxSys", system: "Store BoxSys", priority: 8,
+    phrases: ["quanto custa o boxsys", "qual o valor do store boxsys", "preco do boxsys", "quanto e o sistema de gestao", "valor do sistema de loja", "quanto fica o boxsys", "qual o preco do sistema", "quanto custa o sistema de gestao", "valor do boxsys", "quanto custa o store boxsys", "preco do store boxsys"],
+    keywords: [["boxsys", 2.5], ["preco", 2], ["valor", 2], ["custa", 2]],
+    answer: "O *Store BoxSys* custa *R$ 150,00*. 💰 Você também confere tudo em https://boxsys.com.br/#valores\n---\nO valor do *Store BoxSys* é de *R$ 150,00*. Os valores ficam sempre atualizados em https://boxsys.com.br/#valores 😉",
+    followUp: "Quer testar gratuitamente por 14 dias antes de decidir?",
+  },
+  {
+    title: "Conhecer o Store BoxSys (link do site)", system: "Store BoxSys", priority: 7,
+    phrases: ["quero conhecer o boxsys", "tem site do boxsys", "onde vejo o store boxsys", "me manda o link do boxsys", "quero ver o sistema", "site do store boxsys", "tem algum site para ver o sistema", "como conheco o sistema", "quero conhecer o store boxsys", "link do store boxsys", "me mostra o sistema de gestao"],
+    keywords: [["conhecer", 2], ["link", 1.5], ["site", 1.5], ["boxsys", 2.5]],
+    answer: "Você pode conhecer o *Store BoxSys* por aqui: https://boxsys.com.br/store-boxsys 🛍️\n---\nEste é o endereço para conhecer o *Store BoxSys* com calma: https://boxsys.com.br/store-boxsys 😊",
+    followUp: "Se quiser, chamo alguém do Comercial para tirar as suas dúvidas ou preparar uma proposta.",
+  },
+  {
+    title: "Menu BoxSys (conhecer e link)", system: "Menu BoxSys", priority: 7,
+    phrases: ["o que e o menu boxsys", "quero conhecer o menu boxsys", "voces tem o menu boxsys", "menu boxsys", "link do menu boxsys", "como funciona o menu boxsys", "me fala do menu boxsys", "site do menu boxsys", "quero ver o menu boxsys"],
+    keywords: [["menu", 2], ["boxsys", 2.5]],
+    answer: "Temos também o *Menu BoxSys*! 😊 Você pode conhecer por aqui: https://boxsys.com.br/menu-boxsys\n---\nO *Menu BoxSys* também é da família BoxSys. Veja como ele funciona neste link: https://boxsys.com.br/menu-boxsys 🙌",
+    followUp: "Quer que eu chame alguém do Comercial para te explicar melhor?",
+  },
+  {
+    title: "Valores e planos da BoxSys (link)", system: "Store BoxSys", priority: 7,
+    phrases: ["onde vejo os valores", "tem tabela de valores", "quais os planos", "onde vejo os planos", "valores do boxsys", "planos e precos", "tabela de precos", "ver os planos do boxsys"],
+    keywords: [["planos", 2], ["valores", 2], ["boxsys", 2]],
+    answer: "Os valores e planos da BoxSys estão aqui: https://boxsys.com.br/#valores 💰 E o *Store BoxSys* custa *R$ 150,00*.\n---\nVocê vê tudo sobre valores em https://boxsys.com.br/#valores 😉 O *Store BoxSys* custa *R$ 150,00*.",
   },
   {
     title: "Formas de pagamento", priority: 5,
