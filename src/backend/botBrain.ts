@@ -948,6 +948,41 @@ export const SEED = [
     answer: "Somos de *Tatuí, SP*! 📍 Ficamos na *Rua Professor Joaquim Teixeira, 220, Chácara Junqueira*. O nosso atendimento é online, pelo WhatsApp, e-mail e site, então atendemos de onde você estiver. Para visitas ou mais detalhes, nossa equipe te passa tudo pelo e-mail contato@develoi.com.br.\n---\nA Develoi é uma empresa de *Tatuí, SP*, na *Rua Professor Joaquim Teixeira, 220, Chácara Junqueira*. 🙌 O atendimento é online (WhatsApp, e-mail e site), então atendemos clientes de onde estiverem. Para visitas, é só falar com a equipe pelo e-mail contato@develoi.com.br.",
   },
   {
+    title: "Contato da Develoi (WhatsApp, e-mail e endereço)", system: null, priority: 8,
+    phrases: ["qual o telefone de voces", "qual o whatsapp de voces", "qual o email de voces", "como entro em contato", "como falo com voces", "contato da develoi", "telefone da develoi", "email da develoi", "qual o contato de voces", "quero o contato de voces"],
+    keywords: [["telefone", 2.5], ["contato", 2.5], ["email", 2.5], ["whatsapp", 2]],
+    answer: "Você fala com a Develoi pelo WhatsApp *(15) 99241-8299* ou pelo e-mail *contato@develoi.com.br*. 😊 No WhatsApp a resposta é rápida em horário comercial (segunda a sexta, 08h às 18h) e o e-mail é respondido em até 24 horas úteis. Estamos em *Tatuí, SP*, na Rua Professor Joaquim Teixeira, 220.",
+    followUp: "Prefere que eu chame alguém da equipe agora?",
+  },
+  {
+    title: "Sobre a Develoi (quem somos)", system: null, priority: 7,
+    phrases: ["quem e a develoi", "o que e a develoi", "me fala da develoi", "quem sao voces", "conta sobre a empresa", "ha quanto tempo existe a develoi", "desde quando existem", "qual o cnpj da develoi", "sobre a empresa", "o que a develoi faz"],
+    keywords: [["develoi", 2], ["empresa", 2], ["quem", 2]],
+    answer: "A *Develoi Soluções Digitais* é uma empresa de Tatuí, SP, que atua desde 2019 e nasceu com uma essência familiar. 💙 Criamos *sites e landing pages*, *sistemas sob medida*, *chatbots e automações*, *dashboards e plataformas prontas*, integrações com APIs e suporte contínuo, para empresas de todos os tamanhos. O CNPJ é 30.968.335/0001-69.\n---\nSomos a *Develoi Soluções Digitais*, de Tatuí, SP, desde 2019. 🙌 Fazemos sites, sistemas sob medida, chatbots, automações, dashboards e plataformas prontas, sempre com atendimento próximo, como parceiros do seu crescimento.",
+    followUp: "Me conta o que você precisa que eu te indico o melhor caminho. 😉",
+  },
+  {
+    title: "Serviços e produtos prontos da Develoi", system: null, priority: 7,
+    phrases: ["o que voces fazem", "quais servicos voces tem", "voces fazem site", "voces fazem sistema sob medida", "voces fazem chatbot", "fazem aplicativo", "quais produtos prontos voces tem", "voces fazem automacao", "quais solucoes voces oferecem", "fazem landing page"],
+    keywords: [["servicos", 2.5], ["site", 2], ["chatbot", 2.5], ["solucoes", 2], ["fazem", 2]],
+    answer: "A Develoi faz: 🚀\n\n• *Sites e landing pages* profissionais\n• *Sistemas sob medida* para a sua operação\n• *Chatbots e automações* (atendimento, triagem, vendas e agendamentos)\n• *Dashboards e plataformas prontas*\n• Integrações com APIs e serviços externos\n• Suporte contínuo e evolução do produto\n\nTemos também *sistemas prontos por assinatura*: o *Store BoxSys* (lojas e prestadores de serviço), o *Menu BoxSys* (food service e delivery) e o *Plaelo* (gestão para profissionais de saúde mental).",
+    followUp: "Qual deles combina com o que você precisa?",
+  },
+  {
+    title: "Orçamento gratuito e sem compromisso", system: null, priority: 8,
+    phrases: ["o orcamento e gratuito", "cobram para fazer orcamento", "orcamento e gratis", "tem custo pedir orcamento", "orcamento sem compromisso", "posso pedir um orcamento"],
+    keywords: [["orcamento", 3], ["gratis", 2], ["gratuito", 2], ["compromisso", 2]],
+    answer: "O orçamento é *gratuito e sem compromisso*! 😊 A gente entende o que você precisa e apresenta a melhor solução.\n---\nPode pedir sem medo: o orçamento da Develoi é *gratuito* e *sem compromisso*. 🙌",
+    followUp: "Quer me contar o que você precisa para o time comercial preparar a proposta?",
+    action: "lead",
+  },
+  {
+    title: "Missão, visão e valores da Develoi", system: null, priority: 6,
+    phrases: ["qual a missao da develoi", "quais os valores da empresa", "qual a visao da develoi", "em que voces acreditam", "qual o proposito da develoi", "valores da develoi"],
+    keywords: [["missao", 3], ["valores", 2], ["visao", 3], ["proposito", 2.5]],
+    answer: "A nossa *missão* é transformar necessidades reais em soluções digitais inteligentes, funcionais e bem construídas, unindo tecnologia, estratégia e olhar humano. 💙 Nossos valores: atendimento humano e próximo, tecnologia com propósito, soluções sob medida, organização e transparência, agilidade com responsabilidade, excelência e compromisso, e ética, confiança e parceria.",
+  },
+  {
     title: "Plano anual (falar com o Comercial)", system: "Store BoxSys", priority: 9,
     phrases: ["tem plano anual", "quanto custa o plano anual", "valor anual do boxsys", "pagamento anual", "tem desconto no anual", "posso pagar o ano todo", "plano por ano", "anuidade do store boxsys", "quero contratar por 12 meses", "tem plano de 12 meses"],
     keywords: [["anual", 3], ["anuidade", 3], ["ano", 1.5], ["12 meses", 2.5]],
@@ -976,10 +1011,10 @@ export const SEED = [
     action: "lead",
   },
   {
-    title: "Horário de atendimento (preencha e ative)", priority: 5, enabled: false,
-    phrases: ["qual o horario de atendimento", "que horas voces atendem", "funcionam no sabado", "atendem aos domingos", "ate que horas atendem", "horario de funcionamento"],
-    keywords: [["horario", 2.5]],
-    answer: "Nosso atendimento humano funciona de *segunda a sexta, das 9h às 18h*. Fora desse horário eu continuo por aqui para ajudar com fatura, extrato e dúvidas. 😊",
+    title: "Horário de atendimento", priority: 8,
+    phrases: ["qual o horario de atendimento", "que horas voces atendem", "funcionam no sabado", "atendem aos domingos", "ate que horas atendem", "horario de funcionamento", "voces trabalham sabado", "que horas abre", "que horas fecha"],
+    keywords: [["horario", 2.5], ["horas", 2]],
+    answer: "Atendemos de *segunda a sexta, das 08h às 18h* (horário de Brasília). 🕗 Fora desse horário você pode deixar sua mensagem por aqui ou mandar e-mail para contato@develoi.com.br, que retornamos em até 24 horas úteis. 😊",
   },
 ] as { title: string; system?: string; priority: number; phrases: string[]; keywords?: [string, number][]; answer: string; followUp?: string; action?: string; enabled?: boolean }[];
 

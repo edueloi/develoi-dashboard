@@ -183,16 +183,25 @@ async function startServer() {
 
     // ─── Auth ──────────────────────────────────────────────────────────────────
     app.post("/api/auth/login", async (req, res) => {
-      const { email, password } = req.body;
-      const user = await prisma.user.findUnique({ where: { email } });
+      try {
+        const { email, password } = req.body ?? {};
+        // sem e-mail e senha de verdade o Prisma lançava erro fora do try e o processo caía (502 para todo mundo)
+        if (typeof email !== "string" || !email.trim() || typeof password !== "string" || !password) {
+          return res.status(400).json({ error: "Informe e-mail e senha." });
+        }
+        const user = await prisma.user.findUnique({ where: { email } });
 
-      if (user && user.passwordHash === hashPassword(password)) {
-        const token = nodeCrypto.randomBytes(32).toString("hex");
-        await prisma.user.update({ where: { uid: user.uid }, data: { token } });
-        const { passwordHash, ...userWithoutPass } = user;
-        res.json({ ...userWithoutPass, token });
-      } else {
-        res.status(401).json({ error: "Credenciais inválidas" });
+        if (user && user.passwordHash === hashPassword(password)) {
+          const token = nodeCrypto.randomBytes(32).toString("hex");
+          await prisma.user.update({ where: { uid: user.uid }, data: { token } });
+          const { passwordHash, ...userWithoutPass } = user;
+          res.json({ ...userWithoutPass, token });
+        } else {
+          res.status(401).json({ error: "Credenciais inválidas" });
+        }
+      } catch (error) {
+        console.error("[auth] erro no login:", error instanceof Error ? error.message : error);
+        res.status(500).json({ error: "Não foi possível entrar agora. Tente novamente." });
       }
     });
 
