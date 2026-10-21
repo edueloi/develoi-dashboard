@@ -41,6 +41,7 @@ export interface BrainCtx {
   ended?: boolean;                                      // a pessoa deu a conversa por encerrada (agradeceu, disse que está tudo certo): sem lembrete de inatividade
   chitchat: number;                                     // respostas seguidas de papo social
   asked: string[];                                      // perguntas de curiosidade já feitas
+  aiFails?: number;                                     // respostas seguidas em que a IA ficou indisponível
   awaitingName?: boolean;                               // a BiIA perguntou "como prefere que eu te chame?" e espera o nome
   turns: number;                                        // quantas mensagens do cliente a BiIA já tratou
   recent: string[];                                     // últimas mensagens do cliente (resumo para o atendente)
@@ -239,6 +240,7 @@ async function answerWithAi(u: Understanding, t: string, ctx: BrainCtx, io: Brai
     searchKnowledge: knowledgeSearch(brain),
   });
   if (!result) return false;
+  ctx.aiFails = 0;
   ctx.fails = 0;
   ctx.lastIntent = "gemini";
   ctx.lastReplyDef = undefined;
@@ -592,6 +594,14 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
     // não parecia um nome (a pessoa foi direto ao assunto): segue normalmente
   }
 
+  // plano anual / condição diferente da cadastrada: não existe valor anual cadastrado, então quem responde é o Comercial
+  if (/\b(anual|anuidade|por ano|ano todo|12 meses|doze meses)\b/.test(strip(t)) && /\b(plano|preco|valor|custa|custo|quanto|pagar|pagamento|desconto|assinatura|contrato|contratar|boxsys|sistema)\b/.test(strip(t))) {
+    ctx.flow = undefined; ctx.pending = undefined;
+    await io.say(pick("anual", ["O plano anual a gente combina direto com o time comercial, para te passar a condição certa. 😊 Vou chamar alguém agora!", "Para o plano anual, quem te passa os detalhes é o time comercial. 🙌 Já vou chamar alguém!"], ctx));
+    await io.handoff("Comercial", `Cliente perguntou sobre plano anual. Mensagem: ${t.slice(0, 200)}\n${contextNote(ctx)}`.trim());
+    return finish(true);
+  }
+
   // 1) coleta de dados para o comercial em andamento
   if (ctx.flow) {
     const f = ctx.flow;
@@ -747,6 +757,20 @@ export async function respondTo(text: string, ctx: BrainCtx, rawIo: BrainIO, opt
   // avisos programados disseram a este cliente. Se a IA estiver desligada ou falhar, seguem as respostas programadas.
   if (aiOn && aiHandles(u)) {
     if (await answerWithAi(u, t, ctx, io, brain)) return finish(true);
+    // a IA ficou indisponível agora (instabilidade, limite): resposta pronta só se a regra tem certeza do que a pessoa quer;
+    // senão pede para repetir, em vez de mandar uma resposta padrão fora de contexto
+    const sure = u.decision === "act" && !!u.intent && u.confidence >= 0.9 && !isChat(u.intent.def);
+    if (!sure) {
+      ctx.aiFails = (ctx.aiFails ?? 0) + 1;
+      if (ctx.aiFails >= 2) {
+        ctx.aiFails = 0;
+        ctx.pending = { type: "handoff", sector: "Suporte" };
+        await io.say("Estou com uma instabilidade aqui e não quero te responder errado. 🙏 Quer que eu chame alguém da equipe?");
+      } else {
+        await io.say(pick("aifail", ["Opa, deu uma travadinha aqui do meu lado. 😅 Pode mandar de novo?", "Desculpa, me perdi por um instante. Pode repetir sua mensagem? 🙏", "Hmm, não consegui processar agora. Manda de novo pra mim? 😊"], ctx));
+      }
+      return finish(true);
+    }
   }
 
   // duas perguntas na mesma mensagem ("tem nota fiscal e como funciona o estoque?"): responde as duas
@@ -880,28 +904,49 @@ export const SEED = [
     title: "Preço do Store BoxSys", system: "Store BoxSys", priority: 8,
     phrases: ["quanto custa o boxsys", "qual o valor do store boxsys", "preco do boxsys", "quanto e o sistema de gestao", "valor do sistema de loja", "quanto fica o boxsys", "qual o preco do sistema", "quanto custa o sistema de gestao", "valor do boxsys", "quanto custa o store boxsys", "preco do store boxsys"],
     keywords: [["custa", 3], ["preco", 3], ["valor", 2.5], ["quanto", 2.5]],
-    answer: "O *Store BoxSys* custa *R$ 150,00*. 💰 Você também confere tudo em https://boxsys.com.br/#valores\n---\nO valor do *Store BoxSys* é de *R$ 150,00*. Os valores ficam sempre atualizados em https://boxsys.com.br/#valores 😉",
+    answer: "O *Store BoxSys* custa *R$ 150,00 por mês*. 💰 Você também confere tudo em https://boxsys.com.br/#valores\n---\nO valor do *Store BoxSys* é de *R$ 150,00 mensais*. Os valores ficam sempre atualizados em https://boxsys.com.br/#valores 😉",
     followUp: "Quer testar gratuitamente por 14 dias antes de decidir?",
   },
   {
     title: "Conhecer o Store BoxSys (link do site)", system: "Store BoxSys", priority: 7,
     phrases: ["quero conhecer o boxsys", "tem site do boxsys", "onde vejo o store boxsys", "me manda o link do boxsys", "quero ver o sistema", "site do store boxsys", "tem algum site para ver o sistema", "como conheco o sistema", "quero conhecer o store boxsys", "link do store boxsys", "me mostra o sistema de gestao"],
     keywords: [["link", 3], ["site", 3], ["conhecer", 2.5], ["endereco", 1.5]],
-    answer: "Você pode conhecer o *Store BoxSys* por aqui: https://boxsys.com.br/store-boxsys 🛍️\n---\nEste é o endereço para conhecer o *Store BoxSys* com calma: https://boxsys.com.br/store-boxsys 😊",
-    followUp: "Se quiser, chamo alguém do Comercial para tirar as suas dúvidas ou preparar uma proposta.",
+    answer: "O *Store BoxSys* é a gestão para *lojas e prestadores de serviço*: PDV de frente de loja, controle de caixa, estoque, ordens de serviço e loja virtual. 🛍️ Atende serralheria, vidraçaria, elétrica, oficina, material de construção, loja de roupas, ótica e qualquer prestador de serviço. O plano mensal é de *R$ 150,00*. Conheça em https://boxsys.com.br/store-boxsys\n---\nEste é o endereço para conhecer o *Store BoxSys* com calma: https://boxsys.com.br/store-boxsys 😊 Ele é feito para lojas e prestadores de serviço, e o plano mensal é de *R$ 150,00*.",
+    followUp: "Se quiser, chamo alguém do Comercial para tirar as suas dúvidas ou pedir uma demonstração.",
   },
   {
     title: "Menu BoxSys (conhecer e link)", system: "Menu BoxSys", priority: 7,
-    phrases: ["o que e o menu boxsys", "quero conhecer o menu boxsys", "voces tem o menu boxsys", "menu boxsys", "link do menu boxsys", "como funciona o menu boxsys", "me fala do menu boxsys", "site do menu boxsys", "quero ver o menu boxsys"],
+    phrases: ["o que e o menu boxsys", "quero conhecer o menu boxsys", "voces tem o menu boxsys", "menu boxsys", "link do menu boxsys", "como funciona o menu boxsys", "me fala do menu boxsys", "site do menu boxsys", "quero ver o menu boxsys", "o que o menu boxsys faz"],
     keywords: [["menu", 3]],
-    answer: "Temos também o *Menu BoxSys*! 😊 Você pode conhecer por aqui: https://boxsys.com.br/menu-boxsys\n---\nO *Menu BoxSys* também é da família BoxSys. Veja como ele funciona neste link: https://boxsys.com.br/menu-boxsys 🙌",
-    followUp: "Quer que eu chame alguém do Comercial para te explicar melhor?",
+    answer: "O *Menu BoxSys* é a gestão para *food service e delivery*: cardápio digital, PDV, WhatsApp, agendamento e produção inteligente (com monitor de cozinha) em uma plataforma só. 🍔 Serve para restaurante, hamburgueria, lanchonete, delivery, marmitaria, doceria, dark kitchen e para quem opera só em finais de semana, datas especiais e encomendas. O plano mensal é de *R$ 150,00*. Conheça em https://boxsys.com.br/menu-boxsys\n---\nTemos o *Menu BoxSys*, feito para quem vende comida: cardápio digital, PDV, WhatsApp, agendamento e monitor de cozinha, tudo junto. 😊 O plano mensal é de *R$ 150,00*. Veja como funciona: https://boxsys.com.br/menu-boxsys",
+    followUp: "Quer que eu chame alguém do Comercial para pedir uma demonstração?",
+  },
+  {
+    title: "Menu BoxSys ou Store BoxSys: qual escolher", system: null, priority: 8,
+    phrases: ["qual a diferenca entre o menu e o store boxsys", "diferenca entre menu boxsys e store boxsys", "menu x store boxsys", "qual a diferenca entre menu e store boxsys", "qual sistema serve para restaurante", "tenho uma lanchonete qual eu escolho", "sistema para hamburgueria", "sistema para delivery", "sistema para marmitaria", "sistema para doceria", "sistema para restaurante", "qual o melhor sistema para o meu negocio", "menu ou store boxsys", "sistema para dark kitchen"],
+    keywords: [["diferenca", 3], ["restaurante", 2.5], ["lanchonete", 2.5], ["hamburgueria", 2.5], ["delivery", 2.5], ["marmitaria", 2.5], ["doceria", 2.5]],
+    answer: "São duas soluções, uma única marca. 😊\n\n• *Menu BoxSys*: para quem vende *comida* (restaurante, hamburgueria, lanchonete, delivery, marmitaria, doceria, dark kitchen). Conheça: https://boxsys.com.br/menu-boxsys\n• *Store BoxSys*: para *lojas e prestadores de serviço* (serralheria, vidraçaria, elétrica, oficina, material de construção, loja de roupas, ótica). Conheça: https://boxsys.com.br/store-boxsys",
+    followUp: "Me conta o que você vende que eu te digo qual combina mais. 😉",
   },
   {
     title: "Valores e planos da BoxSys (link)", system: "Store BoxSys", priority: 7,
     phrases: ["onde vejo os valores", "tem tabela de valores", "quais os planos", "onde vejo os planos", "valores do boxsys", "planos e precos", "tabela de precos", "ver os planos do boxsys"],
     keywords: [["planos", 3], ["valores", 2.5], ["tabela", 2]],
-    answer: "Os valores e planos da BoxSys estão aqui: https://boxsys.com.br/#valores 💰 E o *Store BoxSys* custa *R$ 150,00*.\n---\nVocê vê tudo sobre valores em https://boxsys.com.br/#valores 😉 O *Store BoxSys* custa *R$ 150,00*.",
+    answer: "Os valores e planos da BoxSys estão aqui: https://boxsys.com.br/#valores 💰 E o *Store BoxSys* custa *R$ 150,00 por mês*.\n---\nVocê vê tudo sobre valores em https://boxsys.com.br/#valores 😉 O *Store BoxSys* custa *R$ 150,00 mensais*.",
+  },
+  {
+    title: "Contato e demonstração da BoxSys", system: "Store BoxSys", priority: 7,
+    phrases: ["qual o telefone da boxsys", "qual o email da boxsys", "como falo com a boxsys", "quero uma demonstracao", "pedir demonstracao", "contato da boxsys", "whatsapp da boxsys", "voces atendem todo o brasil", "quero uma apresentacao do sistema", "solicitar apresentacao"],
+    keywords: [["demonstracao", 3], ["apresentacao", 2.5], ["contato", 2.5], ["telefone", 2.5], ["email", 2]],
+    answer: "Você fala com a BoxSys pelo WhatsApp *(15) 99702-6791* ou pelo e-mail *contato@boxsys.com.br*. 😊 O atendimento é em todo o Brasil, e a demonstração você pede pelo site: https://boxsys.com.br",
+    followUp: "Prefere que eu chame alguém do Comercial para marcar a demonstração com você?",
+  },
+  {
+    title: "Plano anual (falar com o Comercial)", system: "Store BoxSys", priority: 9,
+    phrases: ["tem plano anual", "quanto custa o plano anual", "valor anual do boxsys", "pagamento anual", "tem desconto no anual", "posso pagar o ano todo", "plano por ano", "anuidade do store boxsys", "quero contratar por 12 meses", "tem plano de 12 meses"],
+    keywords: [["anual", 3], ["anuidade", 3], ["ano", 1.5], ["12 meses", 2.5]],
+    answer: "O plano anual a gente combina direto com o time comercial, para te passar a condição certa. 😊 Vou chamar alguém agora!\n---\nPara o plano anual, quem te passa os detalhes é o time comercial. 🙌 Já vou chamar alguém!",
+    action: "handoff:Comercial",
   },
   {
     title: "Formas de pagamento", priority: 5,

@@ -281,6 +281,7 @@ ATENDIMENTO PRIMEIRO, ENCAMINHAMENTO DEPOIS. Quem quer conhecer, entender ou com
 Use transferir_para_atendente, com exatamente um destes setores: ${settings.sectors.join(", ")}, somente quando:
 - o cliente pedir uma pessoa ("quero falar com um atendente", "tem alguém aí?"): não argumente nem tente reter, responda numa frase simpática e transfira;
 - o cliente disser claramente que quer contratar, pedir proposta, orçamento ou demonstração, ou aceitar a sua oferta de chamar o Comercial (responder "sim", "pode ser", "quero"): Comercial;
+- o cliente pedir plano anual, desconto, negociação ou qualquer valor ou condição que NÃO esteja cadastrado (o valor cadastrado do Store BoxSys é mensal): Comercial. Nunca invente nem calcule valor anual ou desconto;
 - houver erro, problema, falha de acesso ou dúvida de uso que você não consegue resolver com o conhecimento fornecido: Suporte;
 - o assunto for fatura, boleto, pagamento, cobrança ou comprovante: Financeiro;
 - na dúvida entre setores, escolha Suporte. No motivo, resuma o que o cliente já contou e qual sistema interessa, para ninguém precisar perguntar de novo.
