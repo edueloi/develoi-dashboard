@@ -8,6 +8,7 @@ import { createServer as createViteServer } from "vite";
 import { prisma } from "./src/backend/db.js";
 import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
+import { renderSeoHtml } from "./src/backend/seoPages.js";
 import { blogController } from "./src/backend/blogController.js";
 import { casesController } from "./src/backend/casesController.js";
 import { botController } from "./src/backend/botController.js";
@@ -1493,15 +1494,15 @@ async function startServer() {
     app.get("/sitemap.xml", async (_req, res) => {
       try {
         const base = "https://develoi.com.br";
-        const urls: string[] = ["/", "/sobre", "/valores", "/duvidas", "/contato", "/blog", "/projetos", "/privacidade"];
+        const urls: { path: string; lastmod?: Date }[] = ["/", "/sobre", "/valores", "/duvidas", "/contato", "/blog", "/projetos", "/privacidade"].map((p) => ({ path: p }));
         const [posts, cases] = await Promise.all([
-          (prisma as any).blogPost.findMany({ where: { status: "published" }, select: { slug: true } }),
-          (prisma as any).case.findMany({ where: { status: "published" }, select: { slug: true } }),
+          (prisma as any).blogPost.findMany({ where: { status: "published" }, select: { slug: true, updatedAt: true } }),
+          (prisma as any).case.findMany({ where: { status: "published" }, select: { slug: true, updatedAt: true } }),
         ]);
-        posts.forEach((p: any) => urls.push(`/blog/${p.slug}`));
-        cases.forEach((c: any) => urls.push(`/projetos/${c.slug}`));
+        posts.forEach((p: any) => urls.push({ path: `/blog/${p.slug}`, lastmod: p.updatedAt }));
+        cases.forEach((c: any) => urls.push({ path: `/projetos/${c.slug}`, lastmod: c.updatedAt }));
         const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
-          .map((u) => `  <url><loc>${base}${u}</loc></url>`)
+          .map((u) => `  <url><loc>${base}${u.path}</loc>${u.lastmod ? `<lastmod>${new Date(u.lastmod).toISOString().slice(0, 10)}</lastmod>` : ""}</url>`)
           .join("\n")}\n</urlset>`;
         res.type("application/xml").send(xml);
       } catch (e: any) { res.status(500).send(e.message); }
@@ -1513,8 +1514,12 @@ async function startServer() {
       app.use(vite.middlewares);
     } else {
       const distPath = path.join(process.cwd(), "dist");
-      app.use(express.static(distPath));
-      app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+      app.use(express.static(distPath, { index: false }));
+      const indexTemplate = await fs.readFile(path.join(distPath, "index.html"), "utf8");
+      // SEO por rota: título, descrição, canonical e dados estruturados próprios de cada página.
+      app.get("*", async (req, res) => {
+        res.type("html").send(await renderSeoHtml(indexTemplate, req.path));
+      });
     }
 
     app.listen(PORT, "0.0.0.0", () => {
