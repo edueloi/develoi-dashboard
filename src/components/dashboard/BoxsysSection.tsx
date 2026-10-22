@@ -15,7 +15,7 @@ export function BoxsysAccessModal({ access, onClose }: { access: Access; onClose
     <Modal isOpen onClose={onClose} title="Loja criada" size="sm" footer={<Button fullWidth onClick={onClose}>ENTENDI, JÁ COPIEI</Button>}>
       <div className="space-y-3">
         <p className="text-sm text-slate-500">{access.sent ? 'O acesso já foi enviado no WhatsApp do cliente.' : 'Passe estes dados ao cliente.'} <b>A senha não aparece de novo.</b></p>
-        {([['Endereço', access.url], ['Usuário (e-mail)', access.email], ['Senha provisória', access.password]] as const).map(([l, v]) => (
+        {([['Endereço de login', access.url], ['Usuário (e-mail)', access.email], ['Senha provisória', access.password]] as const).map(([l, v]) => (
           <div key={l} className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-white/5 px-3 py-2">
             <div className="min-w-0 flex-1"><p className="text-[10px] font-bold uppercase text-slate-400">{l}</p><code className="text-xs break-all">{v}</code></div>
             <button type="button" onClick={() => copy(v)} className="text-slate-400 hover:text-indigo-500" aria-label={`Copiar ${l}`}><Copy className="w-4 h-4" /></button>

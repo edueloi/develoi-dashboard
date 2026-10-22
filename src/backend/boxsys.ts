@@ -2,7 +2,6 @@
 // O Develoi cobra o cliente; o BoxSys recebe o resultado: loja criada ao cadastrar, liberada quando paga,
 // bloqueada quando passa da tolerância (ou quando o cliente é pausado/cancelado).
 import type { Express } from "express";
-import crypto from "crypto";
 import { prisma } from "./db.js";
 import { sendMessage } from "./wa.js";
 
@@ -33,7 +32,11 @@ async function boxsys<T = any>(path: string, method = "GET", body?: unknown): Pr
   return data as T;
 }
 
-const strongPassword = () => crypto.randomBytes(9).toString("base64").replace(/[+/=]/g, "x") + "9a"; // 12+ caracteres, letras e números
+//  BOXSYS_DEFAULT_PASSWORD  senha provisória das lojas novas (padrão 123456); o cliente troca no primeiro acesso
+//  BOXSYS_LOGIN_URL         página de login do BoxSys (padrão https://store.boxsys.com.br)
+const defaultPassword = () => (process.env.BOXSYS_DEFAULT_PASSWORD || "123456").trim();
+// O cliente entra pela página de login única, não pelo endereço da loja dele (que abre o site da loja, sem login).
+const loginUrl = () => (process.env.BOXSYS_LOGIN_URL || "https://store.boxsys.com.br").replace(/\/$/, "");
 
 // ─── Sincronização de acesso ─────────────────────────────────────────────────
 // Regra: cliente ATIVO → loja liberada; pausado/bloqueado/cancelado → loja bloqueada.
@@ -102,7 +105,7 @@ export function registerBoxsysRoutes(app: Express) {
       const { storeName, subdomain, ownerName, ownerEmail, planId, trialDays, sendAccess } = req.body ?? {};
       const email = String(ownerEmail || c.email || "").trim().toLowerCase();
       if (!email) throw new BoxsysError("Informe o e-mail do responsável (ele será o login da loja).");
-      const password = strongPassword();
+      const password = defaultPassword();
 
       const tenant = await boxsys<any>("/tenants", "POST", {
         storeName: String(storeName || c.name).trim(),
@@ -125,12 +128,12 @@ export function registerBoxsysRoutes(app: Express) {
       if (sendAccess && c.phone) {
         sent = await sendMessage(c.phone, [
           `Olá, ${c.name.trim().split(/\s+/)[0]}! 👋`,
-          `Seu acesso ao *Store BoxSys* foi criado:`,
-          `🔗 ${tenant.accessUrl}\n📧 ${email}\n🔑 Senha provisória: *${password}*`,
-          `Por segurança, altere a senha no primeiro acesso. Qualquer dúvida, é só responder por aqui.`,
+          `Seu acesso ao *Store BoxSys* foi criado! 🎉`,
+          `🔗 Para entrar, acesse: ${loginUrl()}\n📧 Usuário: ${email}\n🔑 Senha provisória: *${password}*`,
+          `⚠️ Assim que entrar, *troque essa senha por uma só sua* para proteger a sua loja. Qualquer dúvida, é só responder por aqui.`,
         ].join("\n\n"));
       }
-      res.json({ tenant, access: { url: tenant.accessUrl, email, password }, sent });
+      res.json({ tenant, access: { url: loginUrl(), storeUrl: tenant.accessUrl, email, password }, sent });
     } catch (e) { fail(res, e); }
   });
 
