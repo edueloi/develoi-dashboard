@@ -100,7 +100,9 @@ async function metaFor(pathname: string): Promise<Meta | null> {
 
 /** Devolve o index.html com os metadados da rota. A home usa o template como está. */
 export async function renderSeoHtml(template: string, rawPath: string): Promise<string> {
-  const pathname = rawPath.length > 1 ? rawPath.replace(/\/+$/, "") : rawPath;
+  // O nginx repassa a raiz como /index.html.
+  const normalized = rawPath === "/index.html" ? "/" : rawPath;
+  const pathname = normalized.length > 1 ? normalized.replace(/\/+$/, "") : normalized;
   let meta: Meta | null = null;
   // Falha no banco não pode tirar página boa do índice: nesse caso devolve o template original.
   try { meta = await metaFor(pathname); } catch { return template; }
